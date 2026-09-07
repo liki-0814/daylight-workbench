@@ -1,0 +1,122 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { createWorkbench } from '../server.mjs';
+import { initialState } from '../public/model.js';
+import { applyAction } from '../agent-api.mjs';
+
+const run = promisify(execFile);
+const client = fileURLToPath(new URL('../skills/daylight-workbench/scripts/workbench.py', import.meta.url));
+
+test('agent operations cover explicit states, project updates, plans, deletion and atomic batches', () => {
+  const day = '2026-09-07';
+  let state = initialState();
+  const apply = action => { state = applyAction(state, action, day); };
+  apply({ type: 'project.create', id: 'new-project', name: '测试项目', path: '/tmp/example' });
+  apply({ type: 'project.update', id: 'new-project', name: '更名项目', path: '/tmp/changed' });
+  apply({ type: 'task.create', id: 'new-task', title: '明确任务', projectId: 'new-project' });
+  apply({ type: 'task.update', id: 'new-task', notes: '备注', title: '修改任务' });
+  assert.equal(state.tasks.at(-1).projectId, 'new-project');
+  apply({ type: 'task.status', id: 'new-task', status: 'active' });
+  apply({ type: 'task.status', id: 'new-task', status: 'active' });
+  assert.equal(state.tasks.at(-1).status, 'active');
+  apply({ type: 'task.status', id: 'task-1', status: 'active' });
+  assert.equal(state.tasks.at(-1).status, 'todo');
+  apply({ type: 'task.status', id: 'task-1', status: 'done' });
+  const completedAt = state.tasks[0].completedAt;
+  apply({ type: 'task.status', id: 'task-1', status: 'done' });
+  assert.equal(state.tasks[0].completedAt, completedAt);
+  apply({ type: 'task.status', id: 'task-1', status: 'todo' });
+  apply({ type: 'plan.set', ids: ['new-task', 'task-1'] });
+  apply({ type: 'plan.move', id: 'task-1', direction: -1 });
+  assert.deepEqual(state.plans[day], ['task-1', 'new-task']);
+  apply({ type: 'plan.remove', id: 'task-1' });
+  assert.throws(() => apply({ type: 'project.delete', id: 'new-project' }), /仍有任务/);
+  assert.throws(() => apply({ type: 'plan.set', ids: ['new-task', 'new-task'] }));
+  const before = structuredClone(state);
+  assert.throws(() => apply({ type: 'batch', actions: [{ type: 'task.delete', id: 'new-task' }, { type: 'task.status', id: 'missing', status: 'done' }] }));
+  assert.deepEqual(state, before);
+  apply({ type: 'task.delete', id: 'new-task' });
+  assert.deepEqual(state.plans[day], []);
+  apply({ type: 'project.delete', id: 'new-project' });
+  assert.equal(state.projects.length, 2);
+});
+
+test('agent API auth, idempotency across restart, conflicts, atomic failure and undo', async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-agent-'));
+  let server, url, token;
+  async function boot() {
+    server = await createWorkbench({ dataDir });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    url = `http://127.0.0.1:${server.address().port}`;
+    token = await readFile(path.join(dataDir, 'agent-token'), 'utf8');
+  }
+  const stop = () => new Promise(resolve => server.close(resolve));
+  const post = (body, headers = {}) => fetch(`${url}/api/v1/actions`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, ...headers }, body: JSON.stringify(body) });
+  try {
+    await boot();
+    assert.equal((await stat(path.join(dataDir, 'agent-token'))).mode & 0o777, 0o600);
+    assert.equal((await fetch(`${url}/api/v1/state`)).status, 401);
+    const body = { expectedVersion: 0, requestId: randomUUID(), action: { type: 'task.create', title: '只创建一次', projectId: 'billing' } };
+    assert.equal((await post(body, { Origin: 'https://example.com' })).status, 401);
+    let response = await post(body);
+    assert.equal(response.status, 200);
+    const first = await response.json();
+    assert.equal(first.state.tasks.length, 9);
+    assert.equal(first.version, 1);
+    assert.equal(JSON.stringify(first).includes(token), false);
+    response = await post(body);
+    assert.equal((await response.json()).replayed, true);
+    assert.equal((await post({ ...body, action: { type: 'task.create', title: '不同操作' } })).status, 409);
+    assert.equal((await post({ ...body, requestId: randomUUID() })).status, 409);
+    await stop();
+    await boot();
+    const replay = await (await post(body)).json();
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.state.tasks.length, 9);
+    const fail = { expectedVersion: 1, requestId: randomUUID(), action: { type: 'batch', actions: [{ type: 'task.create', title: '不应保存' }, { type: 'plan.add', id: 'missing' }] } };
+    assert.equal((await post(fail)).status, 400);
+    const undo = await (await post({ expectedVersion: 1, requestId: randomUUID(), action: { type: 'undo' } })).json();
+    assert.equal(undo.version, 2);
+    assert.equal(undo.state.tasks.length, 8);
+    assert.equal((await (await post(body)).json()).replayed, true);
+    assert.equal((await fetch(`${url}/.local/agent-token`)).status, 404);
+  } finally {
+    if (server?.listening) await stop();
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('installed-format Python skill client performs real reads, writes, filtering and export', async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-cli-'));
+  const server = await createWorkbench({ dataDir });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const cli = async (...args) => JSON.parse((await run('python3', [client, '--url', url, '--data-dir', dataDir, ...args])).stdout);
+  try {
+    assert.equal((await cli('capabilities')).apiVersion, 1);
+    const state = await cli('state');
+    const actionFile = path.join(dataDir, 'action.json');
+    await writeFile(actionFile, JSON.stringify({ type: 'batch', actions: [{ type: 'task.create', id: 'cli-task', title: '来自外部 AI 的任务', projectId: 'hc-agent' }, { type: 'plan.add', id: 'cli-task' }] }));
+    const requestId = randomUUID();
+    const result = await cli('apply', '--expected-version', String(state.version), '--request-id', requestId, '--file', actionFile, '--date', '2026-09-07');
+    assert.equal(result.state.tasks.at(-1).title, '来自外部 AI 的任务');
+    assert.equal((await cli('apply', '--expected-version', String(state.version), '--request-id', requestId, '--file', actionFile, '--date', '2026-09-07')).replayed, true);
+    const today = await cli('state', '--view', 'today', '--date', '2026-09-07', '--query', '外部 AI');
+    assert.equal(today.matchingTasks.length, 1);
+    const outfile = path.join(dataDir, 'export.json');
+    await cli('export', '--out', outfile);
+    assert.equal(JSON.parse(await readFile(outfile, 'utf8')).tasks.length, 9);
+    await assert.rejects(cli('export', '--out', outfile));
+    await assert.rejects(run('python3', [client, '--url', 'https://example.com', 'state']), /仅允许/);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});

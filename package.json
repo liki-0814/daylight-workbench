@@ -1,0 +1,13 @@
+{
+  "name": "daylight-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/components/select.js",
+    "test": "node --test"
+  }
+}

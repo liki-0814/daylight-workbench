@@ -1,0 +1,4 @@
+interface:
+  display_name: "Daylight 工作台"
+  short_description: "通过本机接口管理个人项目、任务与每日安排，支持查询、修改、导出和撤销"
+  default_prompt: "使用 $daylight-workbench 查看我的项目和今日任务，并按我的要求更新工作台。"
