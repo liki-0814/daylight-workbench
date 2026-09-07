@@ -3,24 +3,7 @@ export function localDate(date = new Date()) {
 }
 
 export function initialState() {
-  return {
-    schema: 1,
-    projects: [
-      { id: 'billing', name: '汇川广告计费调控模型化升级', path: '/Users/liki/hc_price_regulate/hc_auto_bid_public', color: 'green' },
-      { id: 'hc-agent', name: 'hc_agent设计及开发', path: '/Users/liki/python_dev/hc-agent', color: 'amber' },
-    ],
-    tasks: [
-      ['billing', 'flink推理流代码收尾'],
-      ['billing', '强化学习模型迭代优化'],
-      ['billing', '全链路周期化执行+增加报警机制'],
-      ['billing', '上线模型与架构联调'],
-      ['billing', '线上代码开发'],
-      ['billing', '上线实验'],
-      ['hc-agent', '补齐基本能力'],
-      ['hc-agent', '开发模块基本能力测试'],
-    ].map(([projectId, title], i) => ({ id: `task-${i + 1}`, projectId, title, notes: '', status: 'todo', completedAt: null })),
-    plans: {},
-  };
+  return { schema: 1, projects: [], tasks: [], plans: {} };
 }
 
 export function validate(state) {

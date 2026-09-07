@@ -1,3 +1,4 @@
+import { fixtureState } from './fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, stat } from 'node:fs/promises';
@@ -8,7 +9,6 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createWorkbench } from '../server.mjs';
-import { initialState } from '../public/model.js';
 import { applyAction } from '../agent-api.mjs';
 
 const run = promisify(execFile);
@@ -16,7 +16,7 @@ const client = fileURLToPath(new URL('../skills/daylight-workbench/scripts/workb
 
 test('agent operations cover explicit states, project updates, plans, deletion and atomic batches', () => {
   const day = '2026-09-07';
-  let state = initialState();
+  let state = fixtureState();
   const apply = action => { state = applyAction(state, action, day); };
   apply({ type: 'project.create', id: 'new-project', name: '测试项目', path: '/tmp/example' });
   apply({ type: 'project.update', id: 'new-project', name: '更名项目', path: '/tmp/changed' });
@@ -60,10 +60,11 @@ test('agent API auth, idempotency across restart, conflicts, atomic failure and 
   const stop = () => new Promise(resolve => server.close(resolve));
   const post = (body, headers = {}) => fetch(`${url}/api/v1/actions`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, ...headers }, body: JSON.stringify(body) });
   try {
+    await writeFile(path.join(dataDir, 'state.json'), JSON.stringify({ version: 0, state: fixtureState() }));
     await boot();
     assert.equal((await stat(path.join(dataDir, 'agent-token'))).mode & 0o777, 0o600);
     assert.equal((await fetch(`${url}/api/v1/state`)).status, 401);
-    const body = { expectedVersion: 0, requestId: randomUUID(), action: { type: 'task.create', title: '只创建一次', projectId: 'billing' } };
+    const body = { expectedVersion: 0, requestId: randomUUID(), action: { type: 'task.create', title: '只创建一次', projectId: 'project-a' } };
     assert.equal((await post(body, { Origin: 'https://example.com' })).status, 401);
     let response = await post(body);
     assert.equal(response.status, 200);
@@ -95,6 +96,7 @@ test('agent API auth, idempotency across restart, conflicts, atomic failure and 
 
 test('installed-format Python skill client performs real reads, writes, filtering and export', async () => {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-cli-'));
+  await writeFile(path.join(dataDir, 'state.json'), JSON.stringify({ version: 0, state: fixtureState() }));
   const server = await createWorkbench({ dataDir });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}`;
@@ -103,7 +105,7 @@ test('installed-format Python skill client performs real reads, writes, filterin
     assert.equal((await cli('capabilities')).apiVersion, 1);
     const state = await cli('state');
     const actionFile = path.join(dataDir, 'action.json');
-    await writeFile(actionFile, JSON.stringify({ type: 'batch', actions: [{ type: 'task.create', id: 'cli-task', title: '来自外部 AI 的任务', projectId: 'hc-agent' }, { type: 'plan.add', id: 'cli-task' }] }));
+    await writeFile(actionFile, JSON.stringify({ type: 'batch', actions: [{ type: 'task.create', id: 'cli-task', title: '来自外部 AI 的任务', projectId: 'project-b' }, { type: 'plan.add', id: 'cli-task' }] }));
     const requestId = randomUUID();
     const result = await cli('apply', '--expected-version', String(state.version), '--request-id', requestId, '--file', actionFile, '--date', '2026-09-07');
     assert.equal(result.state.tasks.at(-1).title, '来自外部 AI 的任务');

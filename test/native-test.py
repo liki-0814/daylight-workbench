@@ -43,7 +43,11 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-test-') as tmp:
         raise AssertionError('server not ready')
     try:
         initial = boot()
-        assert len(initial['state']['tasks']) == 8
+        assert initial['state'] == {'schema': 1, 'projects': [], 'tasks': [], 'plans': {}}
+        stop()
+        fixture = subprocess.check_output(['node', '--input-type=module', '-e', "import {fixtureState} from './test/fixtures.mjs'; console.log(JSON.stringify({version:0,state:fixtureState()}))"], cwd=root)
+        (directory / 'state.json').write_bytes(fixture)
+        boot()
         token = (directory / 'agent-token').read_text().strip()
         headers = {'Authorization': 'Bearer ' + token}
         def post(action, version, request_id=None):
@@ -57,7 +61,7 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-test-') as tmp:
         assert request('/.local/agent-token')[0] == 404
         for path in ['/', '/app.js', '/components/select.js', '/components/select.css']:
             assert request(path)[0] == 200
-        action = {'type': 'task.create', 'title': '原生运行时任务', 'projectId': 'billing'}
+        action = {'type': 'task.create', 'title': '原生运行时任务', 'projectId': 'project-a'}
         request_id = str(uuid.uuid4())
         status, created = post(action, 0, request_id)
         assert status == 200, created

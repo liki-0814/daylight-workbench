@@ -1,10 +1,10 @@
+import { fixtureState } from './fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { migrateLegacyData } from '../storage.mjs';
-import { initialState } from '../public/model.js';
 import { getTrayState } from '../native/tray-model.mjs';
 
 test('desktop migration preserves tasks, token and original files, and never overwrites new data', async () => {
@@ -12,7 +12,7 @@ test('desktop migration preserves tasks, token and original files, and never ove
   const source = path.join(root, 'old'), dest = path.join(root, 'new');
   try {
     await mkdir(source);
-    const original = { version: 7, state: initialState() };
+    const original = { version: 7, state: fixtureState() };
     original.state.tasks[0].notes = '保留已有任务记录';
     await writeFile(path.join(source, 'state.json'), JSON.stringify(original));
     await writeFile(path.join(source, 'agent-token'), 'test-token');
@@ -28,7 +28,7 @@ test('desktop migration preserves tasks, token and original files, and never ove
 });
 
 test('menu bar tracks pending count, today order and next-day separation', () => {
-  const state = initialState();
+  const state = fixtureState();
   state.plans['2026-09-07'] = ['task-7', 'task-1'];
   state.tasks[0].status = 'done';
   state.tasks[6].status = 'active';
