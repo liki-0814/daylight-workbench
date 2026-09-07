@@ -9,3 +9,9 @@ dialog{width:min(650px,calc(100vw - 32px));max-height:85vh;padding:0;border:1px 
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
 .dialog-error { margin: 16px 0 0; padding: 12px; border: 1px solid #decda7; border-radius: 6px; background: #fcf6e9; color: #795c27; font-size: 12px; line-height: 1.8; }
+
+.footer-actions { display: flex; gap: 16px; align-items: center; }
+.danger-link { color: #a34b3d; font-size: 12px; padding: 8px; white-space: nowrap; }
+.danger-link:hover { background: #fff1ed; border-radius: 6px; }
+.danger-button { color: #a34b3d; border-color: #debab3; background: #fff8f6; }
+.delete-name { overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; }

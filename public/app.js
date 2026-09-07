@@ -166,7 +166,7 @@ function render() {
     <div class="workspace">
       <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${searching ? `找到 ${tasks.length} 项任务` : currentProject ? `${remaining(state.tasks.filter(t => t.projectId === view)).length} 项待办` : view === 'today' ? `${todayOpen.length} 项待办 · ${today.length - todayOpen.length} 项已完成` : view === 'inbox' ? '未关联项目的任务' : view === 'done' ? `${completed.length} 项已完成` : `${state.tasks.length} 项任务 · ${state.projects.length} 个项目`}</p></div>
       ${view === 'today' && !searching ? `<div class="date-stamp"><strong>${new Date().getDate()}</strong><span>${new Intl.DateTimeFormat('zh-CN', { month: 'long', weekday: 'long' }).format(new Date())}</span></div>` : `<button class="primary" data-action="new">${icon('plus')}新建任务</button>`}</section>
-      ${currentProject && !searching ? `<div class="project-path">${icon('folder')}<span>${esc(currentProject.path || '未关联本地目录')}</span>${currentProject.path ? button('copy', '复制项目路径', 'copy', `data-id="${esc(currentProject.id)}"`) : ''}<small>本地项目</small></div>` : ''}
+      ${currentProject && !searching ? `<div class="project-path">${icon('folder')}<span>${esc(currentProject.path || '未关联本地目录')}</span>${currentProject.path ? button('copy', '复制项目路径', 'copy', `data-id="${esc(currentProject.id)}"`) : ''}<small>本地项目</small><button class="danger-link" data-action="delete-project" data-id="${esc(currentProject.id)}">删除项目</button></div>` : ''}
       <div class="content-grid ${view !== 'today' || searching ? 'single' : ''}"><section class="task-column">
       ${active && view === 'today' && !searching ? `<div class="focus-card"><div class="focus-label"><span class="pulse"></span>当前正在做</div><div class="focus-title">${esc(active.title)}</div><div class="focus-bottom"><span>${esc(project(active)?.name || '收件箱')}</span><button class="small-button" data-action="toggle" data-id="${esc(active.id)}">${icon('check')}完成</button></div></div>` : ''}
       ${old.length && view === 'today' && !searching ? `<div class="carryover"><span>${old.length} 项之前安排的任务尚未完成</span><button data-action="leftovers">重新选择 ${icon('arrow')}</button></div>` : ''}
@@ -183,7 +183,12 @@ function render() {
 
 function renderDialog() {
   if (!modal) return;
-  if (modal.type === 'choose') {
+  if (modal.type === 'delete') {
+    const isTask = modal.kind === 'task';
+    const item = (isTask ? state.tasks : state.projects).find(item => item.id === modal.id);
+    const count = isTask ? 0 : state.tasks.filter(t => t.projectId === modal.id).length;
+    dialog.innerHTML = `<form id="delete-form"><div class="dialog-header"><h2 id="dialog-title">删除${isTask ? '任务' : '项目'}</h2>${button('close', '关闭', 'close')}</div><div class="form-body"><p class="delete-name">${esc(isTask ? item?.title : item?.name)}</p><p class="field-note">${count ? `项目中还有 ${count} 项任务（包含已完成任务），请先转移或删除这些任务。` : isTask ? '删除后会同时移除各日期中的安排。可在删除后的提示中撤销。' : '只删除工作台中的项目记录，不会删除本地目录或文件。可在删除后的提示中撤销。'}</p></div><div class="dialog-footer"><button type="button" class="secondary" data-action="close" autofocus>取消</button>${count ? '' : '<button type="submit" class="secondary danger-button">确认删除</button>'}</div></form>`;
+  } else if (modal.type === 'choose') {
     const tasks = modal.old ? oldTasks() : remaining(state.tasks);
     dialog.innerHTML = `<div class="dialog-header"><div><h2 id="dialog-title">${modal.old ? '重新安排未完成任务' : '选择今日任务'}</h2><p>加入今天不会改变任务所属的项目。</p></div>${button('close', '关闭', 'close')}</div><div class="picker-list">${tasks.length ? tasks.map(t => taskRow(t, { choose: true })).join('') : '<p class="picker-empty">没有待安排的任务。</p>'}</div><div class="dialog-footer"><span class="muted">已安排 ${remaining(selectedTasks()).length} 项任务</span><button class="primary" data-action="close">完成选择 ${icon('check')}</button></div>`;
   } else if (modal.type === 'project') {
@@ -191,7 +196,7 @@ function renderDialog() {
   } else {
     const t = state.tasks.find(t => t.id === modal.id);
     const projectId = t ? t.projectId : (state.projects.some(p => p.id === view) ? view : null);
-    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '收件箱 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}<label>备注 <span>选填</span><textarea name="notes" rows="3" maxlength="10000" placeholder="添加备注">${esc(t?.notes || '')}</textarea></label>${!t ? `<label class="checkbox-field"><input type="checkbox" name="today" ${view === 'today' ? 'checked' : ''}>同时加入今天</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></form>`;
+    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '收件箱 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}<label>备注 <span>选填</span><textarea name="notes" rows="3" maxlength="10000" placeholder="添加备注">${esc(t?.notes || '')}</textarea></label>${!t ? `<label class="checkbox-field"><input type="checkbox" name="today" ${view === 'today' ? 'checked' : ''}>同时加入今天</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><div class="footer-actions">${t ? `<button type="button" class="danger-link" data-action="delete-task" data-id="${esc(t.id)}">删除任务</button>` : ''}<button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></div></form>`;
   }
 }
 
@@ -211,6 +216,10 @@ document.addEventListener('click', async event => {
   if (action === 'new') openModal({ type: 'task' });
   if (action === 'edit') openModal({ type: 'task', id });
   if (action === 'choose' || action === 'leftovers') openModal({ type: 'choose', old: action === 'leftovers' });
+  if (action === 'delete-task' || action === 'delete-project') {
+    if (modal?.needsRefresh) return;
+    openModal({ type: 'delete', kind: action === 'delete-task' ? 'task' : 'project', id });
+  }
   if (action === 'new-project') openModal({ type: 'project' });
   if (action === 'close') dialog.close();
   if (action === 'clear-search') { query = ''; render(); }
@@ -231,9 +240,13 @@ document.addEventListener('click', async event => {
 });
 
 document.addEventListener('submit', async event => {
-  if (!['task-form', 'project-form'].includes(event.target.id)) return;
+  if (!['task-form', 'project-form', 'delete-form'].includes(event.target.id)) return;
   event.preventDefault();
   if (busy || modal?.needsRefresh) return;
+  if (event.target.id === 'delete-form') {
+    if (await mutate({ type: `${modal.kind}.delete`, id: modal.id }, modal.kind === 'task' ? '任务已删除' : '项目已删除')) dialog.close();
+    return;
+  }
   const form = event.target, data = new FormData(form);
   const name = form.elements.namedItem(form.id === 'project-form' ? 'name' : 'title');
   if (!name.value.trim()) { name.setCustomValidity('请输入名称，不能只有空格'); name.reportValidity(); return; }

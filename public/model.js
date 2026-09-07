@@ -32,9 +32,18 @@ export function validate(state) {
 export function change(state, action, day = localDate()) {
   const next = structuredClone(state);
   const task = next.tasks.find(t => t.id === action.id);
-  if (['toggle', 'start', 'plan', 'unplan', 'move', 'edit'].includes(action.type) && !task) throw new Error('任务不存在');
+  if (['toggle', 'start', 'plan', 'unplan', 'move', 'edit', 'task.delete'].includes(action.type) && !task) throw new Error('任务不存在');
   const plan = () => next.plans[day] ||= [];
   switch (action.type) {
+    case 'task.delete':
+      next.tasks = next.tasks.filter(t => t.id !== action.id);
+      for (const date of Object.keys(next.plans)) next.plans[date] = next.plans[date].filter(id => id !== action.id);
+      break;
+    case 'project.delete':
+      if (!next.projects.some(p => p.id === action.id)) throw new Error('项目不存在');
+      if (next.tasks.some(t => t.projectId === action.id)) throw new Error('项目仍有任务，请先转移或删除任务（包括已完成任务）');
+      next.projects = next.projects.filter(p => p.id !== action.id);
+      break;
     case 'add':
       next.tasks.push({ id: action.id, title: action.title.trim(), projectId: action.projectId, notes: action.notes || '', status: 'todo', completedAt: null });
       if (action.today) plan().push(action.id);

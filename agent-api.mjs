@@ -4,7 +4,7 @@ import { change, validate } from './public/model.js';
 export const operations = {
   'project.create': 'name, path?, id?',
   'project.update': 'id, name?, path?',
-  'project.delete': 'id (project must have no tasks)',
+  'project.delete': 'id (project must have no tasks, including completed tasks)',
   'task.create': 'title, projectId? (null = inbox), notes?, today?, id?',
   'task.update': 'id, title?, projectId?, notes?',
   'task.status': 'id, status (todo | active | done)',
@@ -36,10 +36,7 @@ export function applyAction(state, action, day) {
       if (action.name !== undefined) project.name = action.name;
       if (action.path !== undefined) project.path = action.path;
       break;
-    case 'project.delete':
-      if (next.tasks.some(t => t.projectId === action.id)) throw new Error('项目仍有任务，请先转移或删除任务');
-      next.projects = next.projects.filter(p => p.id !== action.id);
-      break;
+    case 'project.delete': return change(next, action, day);
     case 'task.create': return change(next, { type: 'add', id: action.id ?? randomUUID(), title: action.title, projectId: action.projectId ?? null, notes: action.notes ?? '', today: action.today === true }, day);
     case 'task.update': return change(next, { type: 'edit', id: action.id, title: action.title ?? task.title, notes: action.notes ?? task.notes, projectId: action.projectId === undefined ? task.projectId : action.projectId }, day);
     case 'task.status':
@@ -52,10 +49,7 @@ export function applyAction(state, action, day) {
       task.completedAt = action.status === 'done' ? task.completedAt || new Date().toISOString() : null;
       task.status = action.status;
       break;
-    case 'task.delete':
-      next.tasks = next.tasks.filter(t => t.id !== action.id);
-      Object.keys(next.plans).forEach(date => { next.plans[date] = next.plans[date].filter(id => id !== action.id); });
-      break;
+    case 'task.delete': return change(next, action, day);
     case 'plan.add': return change(next, { type: 'plan', id: action.id }, day);
     case 'plan.remove': return change(next, { type: 'unplan', id: action.id }, day);
     case 'plan.move':

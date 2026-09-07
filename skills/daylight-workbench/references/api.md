@@ -34,7 +34,7 @@
 | --- | --- | --- |
 | project.create | name, path?, id? | 创建项目，path 默认空，id 默认生成 |
 | project.update | id, name?, path? | 仅修改提供字段 |
-| project.delete | id | 只允许删除无任务项目，避免级联丢失 |
+| project.delete | id | 只允许删除无任何任务（包括已完成任务）的项目；不删除本地目录 |
 | task.create | title, projectId?, notes?, today?, id? | 默认进入收件箱，today 默认 false |
 | task.update | id, title?, projectId?, notes? | 部分更新；projectId=null 移到收件箱 |
 | task.status | id, status | 显式设置状态；active 会暂停其他当前任务并加入指定日期；done 写完成时间，todo 恢复/暂停 |
@@ -52,7 +52,7 @@
 {
   "type": "batch",
   "actions": [
-    {"type":"task.create","id":"draft-task-unique-id","title":"用户明确的任务","projectId":"billing"},
+    {"type":"task.create","id":"draft-task-unique-id","title":"用户明确的任务","projectId":"实际读取到的项目ID"},
     {"type":"plan.add","id":"draft-task-unique-id"}
   ]
 }
@@ -61,3 +61,9 @@
 不提供外部 toggle 操作，避免重试把完成变成未完成。网页内部的完整状态接口不应用于 skill，使用以上受版本保护的语义接口。
 
 400 表示输入或业务条件不合法；401 表示认证失败；409 表示版本冲突或 ID 被复用；5xx/超时的写结果可能未知，先保留原请求。无副作用的读取可重试，写入客户端不自动重试。
+
+## 删除与恢复
+
+删除指定任务：`{"type":"task.delete","id":"实际任务ID"}`。完成、进行中和待办任务均可删除，同时清除所有日期引用。项目删除：`{"type":"project.delete","id":"实际项目ID"}`，非空项目返回 400，不会级联删除任务。不存在的对象返回 400。
+
+读取当前版本后再提交删除；成功后核对目标及安排引用已移除。最新一次删除可用 `{"type":"undo"}` 恢复任务、原状态及各日期安排。撤销仍需最新 expectedVersion 和新的 requestId；后续有其他写入时，undo 恢复的是那次写入，不是更早删除的对象。

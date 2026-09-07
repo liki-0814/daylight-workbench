@@ -122,3 +122,26 @@ test('installed-format Python skill client performs real reads, writes, filterin
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test('UI and API deletion share rules, remove all date references and preserve nonempty projects', async () => {
+  const { change } = await import('../public/model.js');
+  const state = fixtureState();
+  state.tasks[0].status = 'active';
+  state.tasks[1].status = 'done'; state.tasks[1].completedAt = new Date().toISOString();
+  state.plans['2026-09-07'] = ['task-1', 'task-2'];
+  state.plans['2026-09-08'] = ['task-1'];
+  for (const id of ['task-1', 'task-2']) {
+    const action = { type: 'task.delete', id };
+    const after = change(state, action);
+    assert.deepEqual(after, applyAction(state, action, '2026-09-07'));
+    assert.ok(!after.tasks.some(t => t.id === id));
+    assert.ok(Object.values(after.plans).every(ids => !ids.includes(id)));
+    assert.equal(state.tasks.length, 8);
+  }
+  assert.throws(() => change(state, { type: 'project.delete', id: 'project-a' }), /仍有任务/);
+  const completedOnly = { ...state, tasks: [state.tasks[1]], plans: {} };
+  assert.throws(() => change(completedOnly, { type: 'project.delete', id: 'project-a' }), /已完成任务/);
+  const empty = { ...state, tasks: [], plans: {} };
+  assert.deepEqual(change(empty, { type: 'project.delete', id: 'project-a' }), applyAction(empty, { type: 'project.delete', id: 'project-a' }));
+  assert.throws(() => change(state, { type: 'task.delete', id: 'missing' }), /任务不存在/);
+});

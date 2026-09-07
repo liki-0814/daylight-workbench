@@ -102,6 +102,11 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-test-') as tmp:
         subprocess.run(['node', '--input-type=module', '-e', seed], cwd=root, env={**os.environ, 'WORKBENCH_DATA_DIR': tmp, 'TEST_REQUEST': json.dumps(node_body, ensure_ascii=False)}, check=True)
         boot()
         assert request('/api/v1/actions', node_body, headers=headers)[1]['replayed']
+        before = request('/api/v1/state', headers=headers)[1]
+        deleted = post({'type': 'task.delete', 'id': 'task-1'}, before['version'])[1]
+        assert all(t['id'] != 'task-1' for t in deleted['state']['tasks'])
+        restored = post({'type': 'undo'}, deleted['version'])[1]
+        assert restored['state'] == before['state']
         stop()
         (directory / 'state.json').write_text('{broken')
         process = subprocess.Popen([str(binary), '--headless'], env={**os.environ, 'PORT': str(port), 'WORKBENCH_DATA_DIR': tmp}, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
