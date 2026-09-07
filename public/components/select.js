@@ -64,7 +64,10 @@ class WorkbenchSelect extends HTMLElement {
     const active = this.options[this.activeIndex];
     if (active) {
       this.trigger.setAttribute('aria-activedescendant', active.id);
-      active.scrollIntoView({ block: 'nearest' });
+      const top = active.offsetTop;
+      const bottom = top + active.offsetHeight;
+      if (top < this.list.scrollTop) this.list.scrollTop = top;
+      else if (bottom > this.list.scrollTop + this.list.clientHeight) this.list.scrollTop = bottom - this.list.clientHeight;
     }
   }
 

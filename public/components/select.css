@@ -1,6 +1,6 @@
 .select-field { margin-bottom: 20px; }
 .select-label { display: block; font-size: 12px; margin-bottom: 8px; }
-workbench-select { display: block; min-width: 0; }
+workbench-select { display: block; min-width: 0; position: relative; }
 .select-trigger {
   display: flex;
   align-items: center;
@@ -29,7 +29,12 @@ workbench-select { display: block; min-width: 0; }
 .select-trigger[aria-expanded="true"] { border-color: #7d9671; background: #f8faf5; }
 .select-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
 .select-options {
-  /* In normal flow: the menu never covers its trigger or other form fields. */
+  /* A separate anchored layer; expanding never changes the form height. */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
   margin: 6px 0 0;
   padding: 5px;
   max-height: 200px;
