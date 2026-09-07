@@ -6,7 +6,9 @@
 
 ## macOS 应用
 
-Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动，不需要用户安装 Node.js。当前是本地测试包，未配置 Apple Developer ID 签名及公证。
+原生 AppKit + WKWebView 外壳，复用系统 JavaScriptCore 运行任务逻辑。安装包不包含 Electron、Chromium、Node.js、Pi SDK 或外部 skill；窗口标题栏固定为与页面一致的亮色。需要 macOS 13 或更高版本。
+
+构建需要 Xcode Command Line Tools（Swift）及 Python 3。Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动，不需要用户安装 Node.js。当前使用本地 ad-hoc 签名，未配置 Apple Developer ID 签名及公证。
 
 菜单栏显示待办总数，展开可查看今日任务和其他待办，每组最多 8 项，更多任务可打开主窗口查看。任务子菜单支持完成、开始/暂停、加入/移出今天和查看任务。关闭主窗口后继续驻留，菜单栏“退出 Daylight”或 ⌘Q 才退出并停止本地接口。再次启动只激活已有实例。
 
@@ -38,7 +40,7 @@ npm start
 
 ## 外部 AI skill
 
-Skill 源文件随本仓库提交，位于 `skills/daylight-workbench/`。本机按用户指定安装到 `~/agents/skills/daylight-workbench/`（没有前导点）。不假定所有 AI 宿主自动扫描这个目录，未发现 skill 时请让 AI 读取该目录的 SKILL.md。
+Skill 源文件随本仓库提交，位于 `skills/daylight-workbench/`，独立安装，不进入 App 或 DMG。本机按用户指定安装到 `~/agents/skills/daylight-workbench/`（没有前导点）。不假定所有 AI 宿主自动扫描这个目录，未发现 skill 时请让 AI 读取该目录的 SKILL.md。
 
 安装或同步仓库中的 skill：
 
@@ -76,9 +78,11 @@ API 只管理工作台数据，不执行关联目录中的代码或部署。不�
 ```sh
 npm run check
 npm test
+npm run pack:mac
+npm run test:native
 ```
 
-使用 Node 自带测试器验证初始任务、任务操作、跨日安排、引用校验、持久化、重启、写入冲突、请求验证和损坏文件保护。不需要构建步骤，服务直接提供浏览器原生 ES modules。
+使用 Node 自带测试器验证初始任务、任务操作、跨日安排、引用校验、持久化、重启、写入冲突、请求验证和损坏文件保护。网页开发服务直接提供浏览器原生 ES modules。原生集成测试针对实际 App 二进制，验证相同操作、认证、版本冲突、原子批处理、重启及 Node → 原生的请求去重兼容。
 
 ## 本轮边界
 

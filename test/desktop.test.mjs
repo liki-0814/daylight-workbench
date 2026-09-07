@@ -5,7 +5,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { migrateLegacyData } from '../storage.mjs';
 import { initialState } from '../public/model.js';
-import { getTrayState } from '../desktop/tray-model.mjs';
+import { getTrayState } from '../native/tray-model.mjs';
 
 test('desktop migration preserves tasks, token and original files, and never overwrites new data', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'daylight-migration-'));
