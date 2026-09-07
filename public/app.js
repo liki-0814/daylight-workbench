@@ -128,13 +128,13 @@ function projectCard(p) {
 
 function empty(kind) {
   const content = {
-    today: ['sun', '今天想推进什么？', '从项目中挑选任务，给今天一个清晰的开始。', '<button class="primary" data-action="choose">从项目中选择' + icon('arrow') + '</button>'],
-    done: ['check', '完成之后，在这里回看', '任务完成后会保留在这里，也可以随时恢复。', ''],
-    inbox: ['inbox', '先记下来，稍后再整理', '新想法可以先留在这里，不必立刻归入项目。', '<button class="primary" data-action="new">记录一条任务' + icon('plus') + '</button>'],
+    today: ['sun', '今天暂无任务', '从已有任务中选择，或新建任务加入今天。', '<button class="primary" data-action="choose">从项目中选择' + icon('arrow') + '</button>'],
+    done: ['check', '暂无已完成任务', '已完成的任务会显示在这里，可恢复为待办。', ''],
+    inbox: ['inbox', '收件箱为空', '未关联项目的任务显示在这里。', '<button class="primary" data-action="new">新建任务' + icon('plus') + '</button>'],
     search: ['search', '没有找到匹配的任务', '试试其他关键词，或清空搜索。', '<button class="small-button" data-action="clear-search">清空搜索</button>'],
-    project: ['folder', '从第一条任务开始', '记录你已经明确要做的事。', '<button class="primary" data-action="new">新建任务' + icon('plus') + '</button>'],
+    project: ['folder', '暂无任务', '点击“新建任务”添加任务。', '<button class="primary" data-action="new">新建任务' + icon('plus') + '</button>'],
   }[kind];
-  return `<div class="empty"><div class="empty-art">${icon(content[0])}<span></span><i></i></div><h3>${content[1]}</h3><p>${content[2]}</p>${content[3]}</div>`;
+  return `<div class="empty"><h3>${content[1]}</h3><p>${content[2]}</p>${content[3]}</div>`;
 }
 
 function render() {
@@ -154,7 +154,7 @@ function render() {
   const old = oldTasks();
   const nav = (id, label, symbol, count) => `<button class="nav-item ${view === id && !searching ? 'active' : ''}" data-view="${id}" ${view === id && !searching ? 'aria-current="page"' : ''}>${icon(symbol)}<span>${label}</span><small>${count}</small></button>`;
   app.innerHTML = `<aside class="sidebar">
-    <a class="brand" href="/" aria-label="Daylight 工作台首页"><img src="/favicon.svg" alt="" width="35" height="35"><span>Daylight<small>个人工作台</small></span></a>
+    <a class="brand" href="/" aria-label="Daylight 工作台首页"><img src="/favicon.svg" alt="" width="35" height="35"><span>Daylight<small>项目与任务管理</small></span></a>
     <button class="capture" data-action="new">${icon('plus')}新建任务<span>⌘ K</span></button>
     <nav aria-label="主要导航">${nav('today', '今天', 'sun', todayOpen.length)}${nav('inbox', '收件箱', 'inbox', inbox.length)}${nav('all', '全部任务', 'grid', remaining(state.tasks).length)}${nav('done', '已完成', 'check', completed.length)}</nav>
     <div class="nav-label">我的项目${button('new-project', '新建项目', 'plus')}</div>
@@ -164,7 +164,7 @@ function render() {
   <main>
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> ${searching ? '搜索' : currentProject ? '项目' : esc(heading)}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索任务…" aria-label="搜索任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
     <div class="workspace">
-      <section class="page-heading"><div><div class="eyebrow">${currentProject ? 'PROJECT' : searching ? 'SEARCH' : view === 'today' ? 'MAKE ROOM FOR TODAY' : 'YOUR WORKSPACE'}</div><h1>${esc(heading)}</h1><p>${searching ? `找到 ${tasks.length} 项任务` : currentProject ? `${remaining(state.tasks.filter(t => t.projectId === view)).length} 项待办 · 按你的节奏推进` : view === 'today' ? '选好今天要做的事，一件一件来。' : view === 'inbox' ? '暂时不用想清楚，先把事情记下来。' : view === 'done' ? '每一项完成，都让项目向前一步。' : '所有明确要做的事，都在这里。'}</p></div>
+      <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${searching ? `找到 ${tasks.length} 项任务` : currentProject ? `${remaining(state.tasks.filter(t => t.projectId === view)).length} 项待办` : view === 'today' ? `${todayOpen.length} 项待办 · ${today.length - todayOpen.length} 项已完成` : view === 'inbox' ? '未关联项目的任务' : view === 'done' ? `${completed.length} 项已完成` : `${state.tasks.length} 项任务 · ${state.projects.length} 个项目`}</p></div>
       ${view === 'today' && !searching ? `<div class="date-stamp"><strong>${new Date().getDate()}</strong><span>${new Intl.DateTimeFormat('zh-CN', { month: 'long', weekday: 'long' }).format(new Date())}</span></div>` : `<button class="primary" data-action="new">${icon('plus')}新建任务</button>`}</section>
       ${currentProject && !searching ? `<div class="project-path">${icon('folder')}<span>${esc(currentProject.path || '未关联本地目录')}</span>${currentProject.path ? button('copy', '复制项目路径', 'copy', `data-id="${esc(currentProject.id)}"`) : ''}<small>本地项目</small></div>` : ''}
       <div class="content-grid ${view !== 'today' || searching ? 'single' : ''}"><section class="task-column">
@@ -173,10 +173,10 @@ function render() {
       <section class="task-panel"><div class="panel-header"><div class="tabs" role="group" aria-label="任务状态">${!searching && view !== 'done' ? `<button class="${tab === 'open' ? 'chosen' : ''}" data-tab="open">${view === 'today' ? '今日安排' : '待办'}<span>${openCount}</span></button><button class="${tab === 'done' ? 'chosen' : ''}" data-tab="done">已完成<span>${doneCount}</span></button>` : `<strong>${searching ? '搜索结果' : '完成记录'} <span class="muted">${tasks.length}</span></strong>`}</div>${view === 'today' && !searching ? `<button class="text-button" data-action="choose">${icon('plus')}选择任务</button>` : ''}</div>
       <div class="task-list">${tasks.length ? tasks.map(t => taskRow(t, { reorder: view === 'today' && !searching })).join('') : empty(searching ? 'search' : tab === 'done' || view === 'done' ? 'done' : view === 'today' ? 'today' : view === 'inbox' ? 'inbox' : 'project')}</div>
       ${tasks.length && tab === 'open' && !searching && view !== 'done' ? '<button class="add-row" data-action="new">' + icon('plus') + '添加任务</button>' : ''}</section>
-      ${view === 'today' && !searching ? '<p class="quiet-note">今天之外的任务仍留在项目里，随时可以回来选择。</p>' : ''}
+      ${view === 'today' && !searching ? '<p class="quiet-note">未加入今天的任务可在项目或“全部任务”中查看。</p>' : ''}
       </section>
-      ${view === 'today' && !searching ? `<aside class="project-rail"><div class="rail-heading"><h2>项目概览</h2><span>${state.projects.length} 个项目</span></div>${state.projects.map(projectCard).join('')}<div class="rail-note"><span>保持清晰</span><p>任务由你定义，节奏由你掌握。<br>先做好手上的这一件。</p></div></aside>` : ''}</div>
-      <footer class="workspace-footer"><span>DAYLIGHT <i> / </i> 少一点切换，多一点专注</span><span>${state.projects.length} 个项目 · ${state.tasks.length} 项任务</span></footer>
+      ${view === 'today' && !searching ? `<aside class="project-rail"><div class="rail-heading"><h2>项目概览</h2><span>${state.projects.length} 个项目</span></div>${state.projects.map(projectCard).join('')}</aside>` : ''}</div>
+      <footer class="workspace-footer"><span>本地任务管理</span><span>${state.projects.length} 个项目 · ${state.tasks.length} 项任务</span></footer>
     </div>
   </main>`;
 }
@@ -185,13 +185,13 @@ function renderDialog() {
   if (!modal) return;
   if (modal.type === 'choose') {
     const tasks = modal.old ? oldTasks() : remaining(state.tasks);
-    dialog.innerHTML = `<div class="dialog-header"><div><span class="eyebrow">PLAN YOUR DAY</span><h2 id="dialog-title">${modal.old ? '重新安排未完成任务' : '选择今天要做的事'}</h2><p>加入今天不会改变任务所属的项目。</p></div>${button('close', '关闭', 'close')}</div><div class="picker-list">${tasks.length ? tasks.map(t => taskRow(t, { choose: true })).join('') : '<p class="picker-empty">没有待安排的任务。</p>'}</div><div class="dialog-footer"><span class="muted">已安排 ${remaining(selectedTasks()).length} 项任务</span><button class="primary" data-action="close">选好了 ${icon('check')}</button></div>`;
+    dialog.innerHTML = `<div class="dialog-header"><div><h2 id="dialog-title">${modal.old ? '重新安排未完成任务' : '选择今日任务'}</h2><p>加入今天不会改变任务所属的项目。</p></div>${button('close', '关闭', 'close')}</div><div class="picker-list">${tasks.length ? tasks.map(t => taskRow(t, { choose: true })).join('') : '<p class="picker-empty">没有待安排的任务。</p>'}</div><div class="dialog-footer"><span class="muted">已安排 ${remaining(selectedTasks()).length} 项任务</span><button class="primary" data-action="close">完成选择 ${icon('check')}</button></div>`;
   } else if (modal.type === 'project') {
-    dialog.innerHTML = `<form id="project-form"><div class="dialog-header"><div><span class="eyebrow">A NEW PROJECT</span><h2 id="dialog-title">新建项目</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>项目名称<input name="name" required maxlength="200" placeholder="你正在推进什么？" autofocus></label><label>本地项目目录 <span>选填</span><input name="path" maxlength="1000" placeholder="/Users/…"></label><p class="field-note">目录仅作为关联信息，不会自动读取其中的文件。</p></div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">创建项目</button></div></form>`;
+    dialog.innerHTML = `<form id="project-form"><div class="dialog-header"><div><h2 id="dialog-title">新建项目</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>项目名称<input name="name" required maxlength="200" placeholder="输入项目名称" autofocus></label><label>本地项目目录 <span>选填</span><input name="path" maxlength="1000" placeholder="/Users/…"></label><p class="field-note">目录仅作为关联信息，不会自动读取其中的文件。</p></div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">创建项目</button></div></form>`;
   } else {
     const t = state.tasks.find(t => t.id === modal.id);
     const projectId = t ? t.projectId : (state.projects.some(p => p.id === view) ? view : null);
-    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><span class="eyebrow">ONE THING AT A TIME</span><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="写下你要做的事" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '收件箱 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}<label>备注 <span>选填</span><textarea name="notes" rows="3" maxlength="10000" placeholder="留下需要记住的信息…">${esc(t?.notes || '')}</textarea></label>${!t ? `<label class="checkbox-field"><input type="checkbox" name="today" ${view === 'today' ? 'checked' : ''}>同时加入今天</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></form>`;
+    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '收件箱 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}<label>备注 <span>选填</span><textarea name="notes" rows="3" maxlength="10000" placeholder="添加备注">${esc(t?.notes || '')}</textarea></label>${!t ? `<label class="checkbox-field"><input type="checkbox" name="today" ${view === 'today' ? 'checked' : ''}>同时加入今天</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></form>`;
   }
 }
 
