@@ -294,5 +294,19 @@ setInterval(refreshExternal, 3000);
 window.addEventListener('focus', refreshExternal);
 document.addEventListener('visibilitychange', refreshExternal);
 
-try { await load(); render(); }
+async function openDesktopRoute() {
+  if (dialog.open || busy) return;
+  await refreshExternal();
+  const route = new URLSearchParams(location.hash.slice(1));
+  if (route.has('task')) {
+    const id = route.get('task');
+    if (state.tasks.some(task => task.id === id)) openModal({ type: 'task', id });
+  } else if (route.has('new')) openModal({ type: 'task' });
+  else if (route.has('today') || route.has('all')) {
+    view = route.has('all') ? 'all' : 'today'; query = ''; tab = 'open'; render();
+  }
+}
+window.addEventListener('hashchange', openDesktopRoute);
+
+try { await load(); render(); await openDesktopRoute(); }
 catch (error) { app.innerHTML = `<div class="load-error"><h1>暂时无法打开工作台</h1><p>${esc(error.message)}。请确认本地服务正在运行。</p><a href="/">重新连接</a></div>`; }

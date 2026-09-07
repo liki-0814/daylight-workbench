@@ -5,10 +5,12 @@ import path from 'node:path';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { initialState, validate, localDate } from './public/model.js';
 import { applyAction, operations } from './agent-api.mjs';
+import { defaultDataDir, migrateLegacyData } from './storage.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-export async function createWorkbench({ dataDir = path.join(root, '.local') } = {}) {
+export async function createWorkbench({ dataDir = defaultDataDir } = {}) {
+  if (path.resolve(dataDir) === path.resolve(defaultDataDir)) await migrateLegacyData(dataDir);
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
   const dataFile = path.join(dataDir, 'state.json');
   let record;
@@ -39,6 +41,7 @@ export async function createWorkbench({ dataDir = path.join(root, '.local') } = 
     await writeFile(path.join(dataDir, 'state.tmp'), JSON.stringify(next, null, 2), { mode: 0o600 });
     await rename(path.join(dataDir, 'state.tmp'), dataFile);
     record = next;
+    server.emit('state-changed');
   };
   const readBody = async req => {
     const chunks = [];
@@ -124,6 +127,7 @@ export async function createWorkbench({ dataDir = path.join(root, '.local') } = 
       else res.end();
     }
   });
+  server.getSnapshot = snapshot;
   return server;
 }
 

@@ -1,5 +1,5 @@
 {
   "url": "http://127.0.0.1:4318",
   "app_dir": "~/liki_dev/daylight-workbench",
-  "data_dir": "~/liki_dev/daylight-workbench/.local"
+  "data_dir": "~/Library/Application Support/Daylight"
 }

@@ -3,11 +3,65 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/components/select.js",
-    "test": "node --test"
+    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/components/select.js && node --check storage.mjs && node --check desktop/main.cjs && node --check desktop/tray-model.mjs",
+    "test": "node --test",
+    "desktop": "electron .",
+    "pack:mac": "electron-builder --mac dir --arm64",
+    "dist:mac": "electron-builder --mac dmg --arm64"
+  },
+  "devDependencies": {
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "main": "desktop/main.cjs",
+  "description": "本地项目与任务管理软件",
+  "author": "Daylight",
+  "build": {
+    "appId": "local.daylight.workbench",
+    "productName": "Daylight",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "desktop/**",
+      "public/**",
+      "server.mjs",
+      "agent-api.mjs",
+      "storage.mjs",
+      "package.json",
+      "build/trayTemplate*.png",
+      "skills/**"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "identity": null
+    },
+    "dmg": {
+      "title": "Daylight",
+      "contents": [
+        {
+          "x": 150,
+          "y": 160
+        },
+        {
+          "x": 430,
+          "y": 160,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "artifactName": "Daylight-${version}-${arch}.${ext}"
   }
 }

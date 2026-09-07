@@ -4,7 +4,15 @@
 
 所有日常管理操作均可在网页中完成。软件提供本地管理 API；Codex 等外部工具可通过独立 skill 访问该 API，作为可选集成，不改变任务管理软件的主体定位。
 
-## 运行
+## macOS 应用
+
+Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动，不需要用户安装 Node.js。当前是本地测试包，未配置 Apple Developer ID 签名及公证。
+
+菜单栏显示待办总数，展开可查看今日任务和其他待办，每组最多 8 项，更多任务可打开主窗口查看。任务子菜单支持完成、开始/暂停、加入/移出今天和查看任务。关闭主窗口后继续驻留，菜单栏“退出 Daylight”或 ⌘Q 才退出并停止本地接口。再次启动只激活已有实例。
+
+桌面版占用本机 4318 端口。开发网页服务与桌面应用不能同时占用该端口；如提示占用，先停止开发服务。`PORT` 和 `WORKBENCH_DATA_DIR` 可用于隔离验证。
+
+## 网页开发运行
 
 需要 Node.js 22 或更高版本；没有第三方运行依赖，无需 npm install。
 
@@ -43,7 +51,7 @@ python3 ~/agents/skills/daylight-workbench/scripts/workbench.py state --view tod
 
 示例对话：“读取 `~/agents/skills/daylight-workbench/SKILL.md`，把 Flink 推理流代码收尾加入今天。”
 
-Skill 的 config.json 只保存本机地址和路径。服务自动生成权限为 0600 的 `.local/agent-token`，客户端直接读取，凭证不在 skill、Git 或模型服务中保存。使用其他数据目录或端口时同步修改 config，或传 `--url`、`--data-dir`。本机凭证给予整个工作台的管理权，仅供用户信任的本机 AI 使用。
+Skill 的 config.json 只保存本机地址和路径。服务自动生成权限为 0600 的 数据目录中的 `agent-token`，客户端直接读取，凭证不在 skill、Git 或模型服务中保存。使用其他数据目录或端口时同步修改 config，或传 `--url`、`--data-dir`。本机凭证给予整个工作台的管理权，仅供用户信任的本机 AI 使用。
 
 API 契约见 [skill 接口说明](skills/daylight-workbench/references/api.md)。写接口必须提供 expectedVersion 与 requestId；最近 100 个成功请求可跨重启去重。网络不确定时保留原请求参数重试，冲突时重新读取后判断，不自动覆盖。
 
@@ -51,9 +59,9 @@ API 只管理工作台数据，不执行关联目录中的代码或部署。不�
 
 ## 数据
 
-默认写入本工程 `.local/state.json`。它是本地文件，不依赖浏览器缓存；关闭网页或重启服务后保留。首次启动才写入两项目、八任务，初始待办仅为录入默认值，今天为空。
+默认写入 `~/Library/Application Support/Daylight/state.json`。网页开发服务和桌面应用使用相同目录。首次启动时，从旧工程 `~/liki_dev/daylight-workbench/.local/` 复制已有数据及 skill 凭证；保留旧文件，不覆盖已有新目录数据。它是本地文件，不依赖浏览器缓存；关闭网页或重启服务后保留。首次启动才写入两项目、八任务，初始待办仅为录入默认值，今天为空。
 
-写入通过临时文件原子替换；`.local/state.previous.json` 保留上一版成功数据。数据格式异常时停止启动，保留原文件。多窗口使用版本检查；过期写入被拒绝，并在界面加载最新数据，避免覆盖。
+写入通过临时文件原子替换；数据目录中的 `state.previous.json` 保留上一版成功数据。数据格式异常时停止启动，保留原文件。多窗口使用版本检查；过期写入被拒绝，并在界面加载最新数据，避免覆盖。
 
 `WORKBENCH_DATA_DIR` 可指定数据目录，测试使用临时目录，与真实数据隔离。导出是用户可读的业务数据；尚未提供导入 UI。恢复上一版可停止服务后，将 `state.previous.json` 复制为 `state.json`，再启动。此操作会用上一版替换当前数据，请先保存当前文件副本。
 
@@ -61,7 +69,7 @@ API 只管理工作台数据，不执行关联目录中的代码或部署。不�
 
 `public/components/select.js` 导出 `selectField({ name, label, value, options, disabled })`，其中每个选项为 `{ value, label }`。新建和编辑任务共用该组件；后续选择字段可直接复用。样式集中在同目录 `select.css`。
 
-组件以隐藏字段参加原有 FormData 提交；列表在选择框下方占据布局空间，不覆盖选择框或后续字段。支持鼠标、方向键、Home/End、Enter/Space 选择，以及 Escape、Tab、外部点击收起；连接和销毁时管理事件监听器。
+组件以隐藏字段参加原有 FormData 提交；列表作为独立浮层在选择框下方展开，可覆盖后续字段，不撑高表单容器。支持鼠标、方向键、Home/End、Enter/Space 选择，以及 Escape、Tab、外部点击收起；连接和销毁时管理事件监听器。
 
 ## 验证命令
 
@@ -74,4 +82,4 @@ npm test
 
 ## 本轮边界
 
-工作台不接入 Pi SDK 或模型。外部 AI 按 skill 管理数据，仅在用户要求时在对话中帮助澄清任务。没有执行项目代码、目录扫描、提醒、DMG 或菜单栏。路径绑定只记录和复制目录，不声明已同步仓库进度。该原型并非完整 PRD 的所有功能。
+工作台不接入 Pi SDK 或模型。外部 AI 按 skill 管理数据，仅在用户要求时在对话中帮助澄清任务。没有执行项目代码、目录扫描或系统提醒。路径绑定只记录和复制目录，不声明已同步仓库进度。该原型并非完整 PRD 的所有功能。
