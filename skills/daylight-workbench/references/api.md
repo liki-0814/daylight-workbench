@@ -34,7 +34,7 @@
 | --- | --- | --- |
 | project.create | name, path?, id? | 创建项目，path 默认空，id 默认生成 |
 | project.update | id, name?, path? | 仅修改提供字段 |
-| project.delete | id | 只允许删除无任何任务（包括已完成任务）的项目；不删除本地目录 |
+| project.delete | id | 删除项目及其全部任务（包括已完成任务）和日期引用；不删除本地目录 |
 | task.create | title, projectId?, notes?, today?, id? | 默认进入收件箱，today 默认 false |
 | task.update | id, title?, projectId?, notes? | 部分更新；projectId=null 移到收件箱 |
 | task.status | id, status | 显式设置状态；active 会暂停其他当前任务并加入指定日期；done 写完成时间，todo 恢复/暂停 |
@@ -64,6 +64,6 @@
 
 ## 删除与恢复
 
-删除指定任务：`{"type":"task.delete","id":"实际任务ID"}`。完成、进行中和待办任务均可删除，同时清除所有日期引用。项目删除：`{"type":"project.delete","id":"实际项目ID"}`，非空项目返回 400，不会级联删除任务。不存在的对象返回 400。
+删除指定任务：`{"type":"task.delete","id":"实际任务ID"}`。完成、进行中和待办任务均可删除，同时清除所有日期引用。项目删除：`{"type":"project.delete","id":"实际项目ID"}`，同时级联删除项目下全部任务（包括已完成任务）及其所有日期引用，其他项目和收件箱任务保留。执行前提醒项目名和任务总数。不存在的对象返回 400。
 
-读取当前版本后再提交删除；成功后核对目标及安排引用已移除。最新一次删除可用 `{"type":"undo"}` 恢复任务、原状态及各日期安排。撤销仍需最新 expectedVersion 和新的 requestId；后续有其他写入时，undo 恢复的是那次写入，不是更早删除的对象。
+读取当前版本后再提交删除；成功后核对目标及安排引用已移除。最新一次删除可用 `{"type":"undo"}` 恢复整个被删除项目、任务、原状态及各日期安排。撤销仍需最新 expectedVersion 和新的 requestId；后续有其他写入时，undo 恢复的是那次写入，不是更早删除的对象。

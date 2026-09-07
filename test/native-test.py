@@ -107,6 +107,11 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-test-') as tmp:
         assert all(t['id'] != 'task-1' for t in deleted['state']['tasks'])
         restored = post({'type': 'undo'}, deleted['version'])[1]
         assert restored['state'] == before['state']
+        project_before = request('/api/v1/state', headers=headers)[1]
+        deleted_project = post({'type': 'project.delete', 'id': 'project-a'}, project_before['version'])[1]
+        assert not any(t['projectId'] == 'project-a' for t in deleted_project['state']['tasks'])
+        assert not any(p['id'] == 'project-a' for p in deleted_project['state']['projects'])
+        assert post({'type': 'undo'}, deleted_project['version'])[1]['state'] == project_before['state']
         stop()
         (directory / 'state.json').write_text('{broken')
         process = subprocess.Popen([str(binary), '--headless'], env={**os.environ, 'PORT': str(port), 'WORKBENCH_DATA_DIR': tmp}, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)

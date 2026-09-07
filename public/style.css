@@ -13,5 +13,6 @@ dialog{width:min(650px,calc(100vw - 32px));max-height:85vh;padding:0;border:1px 
 .footer-actions { display: flex; gap: 16px; align-items: center; }
 .danger-link { color: #a34b3d; font-size: 12px; padding: 8px; white-space: nowrap; }
 .danger-link:hover { background: #fff1ed; border-radius: 6px; }
-.danger-button { color: #a34b3d; border-color: #debab3; background: #fff8f6; }
+.danger-button { color: #fff; border-color: #a04436; background: #a04436; }
+.danger-button:hover { background: #87382d; border-color: #87382d; }
 .delete-name { overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; }

@@ -4,7 +4,7 @@ import { change, validate } from './public/model.js';
 export const operations = {
   'project.create': 'name, path?, id?',
   'project.update': 'id, name?, path?',
-  'project.delete': 'id (project must have no tasks, including completed tasks)',
+  'project.delete': 'id (deletes project, all its tasks including completed tasks, and their plan references; local files are untouched)',
   'task.create': 'title, projectId? (null = inbox), notes?, today?, id?',
   'task.update': 'id, title?, projectId?, notes?',
   'task.status': 'id, status (todo | active | done)',
@@ -32,10 +32,7 @@ export function applyAction(state, action, day) {
   if (['project.update', 'project.delete'].includes(action.type) && !project) throw new Error('项目不存在');
   switch (action.type) {
     case 'project.create': return change(next, { type: 'project', id: action.id ?? randomUUID(), name: action.name, path: action.path ?? '' }, day);
-    case 'project.update':
-      if (action.name !== undefined) project.name = action.name;
-      if (action.path !== undefined) project.path = action.path;
-      break;
+    case 'project.update': return change(next, action, day);
     case 'project.delete': return change(next, action, day);
     case 'task.create': return change(next, { type: 'add', id: action.id ?? randomUUID(), title: action.title, projectId: action.projectId ?? null, notes: action.notes ?? '', today: action.today === true }, day);
     case 'task.update': return change(next, { type: 'edit', id: action.id, title: action.title ?? task.title, notes: action.notes ?? task.notes, projectId: action.projectId === undefined ? task.projectId : action.projectId }, day);

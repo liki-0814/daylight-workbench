@@ -37,7 +37,6 @@ test('agent operations cover explicit states, project updates, plans, deletion a
   apply({ type: 'plan.move', id: 'task-1', direction: -1 });
   assert.deepEqual(state.plans[day], ['task-1', 'new-task']);
   apply({ type: 'plan.remove', id: 'task-1' });
-  assert.throws(() => apply({ type: 'project.delete', id: 'new-project' }), /仍有任务/);
   assert.throws(() => apply({ type: 'plan.set', ids: ['new-task', 'new-task'] }));
   const before = structuredClone(state);
   assert.throws(() => apply({ type: 'batch', actions: [{ type: 'task.delete', id: 'new-task' }, { type: 'task.status', id: 'missing', status: 'done' }] }));
@@ -123,7 +122,7 @@ test('installed-format Python skill client performs real reads, writes, filterin
   }
 });
 
-test('UI and API deletion share rules, remove all date references and preserve nonempty projects', async () => {
+test('UI and API deletion share cascading rules and preserve unrelated data', async () => {
   const { change } = await import('../public/model.js');
   const state = fixtureState();
   state.tasks[0].status = 'active';
@@ -138,10 +137,28 @@ test('UI and API deletion share rules, remove all date references and preserve n
     assert.ok(Object.values(after.plans).every(ids => !ids.includes(id)));
     assert.equal(state.tasks.length, 8);
   }
-  assert.throws(() => change(state, { type: 'project.delete', id: 'project-a' }), /仍有任务/);
-  const completedOnly = { ...state, tasks: [state.tasks[1]], plans: {} };
-  assert.throws(() => change(completedOnly, { type: 'project.delete', id: 'project-a' }), /已完成任务/);
+  const projectAction = { type: 'project.delete', id: 'project-a' };
+  const cascaded = change(state, projectAction);
+  assert.deepEqual(cascaded, applyAction(state, projectAction));
+  assert.equal(cascaded.tasks.length, 2);
+  assert.equal(cascaded.projects.length, 1);
+  assert.deepEqual(cascaded.plans, { '2026-09-07': [], '2026-09-08': [] });
+  assert.deepEqual(cascaded.tasks, state.tasks.filter(t => t.projectId === 'project-b'));
   const empty = { ...state, tasks: [], plans: {} };
   assert.deepEqual(change(empty, { type: 'project.delete', id: 'project-a' }), applyAction(empty, { type: 'project.delete', id: 'project-a' }));
   assert.throws(() => change(state, { type: 'task.delete', id: 'missing' }), /任务不存在/);
+});
+
+test('project editing shares UI/API behavior without changing tasks or plans', async () => {
+  const { change } = await import('../public/model.js');
+  const state = fixtureState();
+  state.plans['2026-09-07'] = ['task-1'];
+  const action = { type: 'project.update', id: 'project-a', name: ' 更名项目 ', path: ' /tmp/renamed ' };
+  const result = change(state, action);
+  assert.deepEqual(result, applyAction(state, action));
+  assert.equal(result.projects[0].name, '更名项目');
+  assert.equal(result.projects[0].path, '/tmp/renamed');
+  assert.deepEqual(result.tasks, state.tasks);
+  assert.deepEqual(result.plans, state.plans);
+  assert.throws(() => change(state, { ...action, name: '  ' }));
 });

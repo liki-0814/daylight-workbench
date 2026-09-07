@@ -39,11 +39,21 @@ export function change(state, action, day = localDate()) {
       next.tasks = next.tasks.filter(t => t.id !== action.id);
       for (const date of Object.keys(next.plans)) next.plans[date] = next.plans[date].filter(id => id !== action.id);
       break;
-    case 'project.delete':
+    case 'project.update': {
+      const project = next.projects.find(p => p.id === action.id);
+      if (!project) throw new Error('项目不存在');
+      if (action.name !== undefined) project.name = action.name.trim();
+      if (action.path !== undefined) project.path = action.path.trim();
+      break;
+    }
+    case 'project.delete': {
       if (!next.projects.some(p => p.id === action.id)) throw new Error('项目不存在');
-      if (next.tasks.some(t => t.projectId === action.id)) throw new Error('项目仍有任务，请先转移或删除任务（包括已完成任务）');
+      const removed = new Set(next.tasks.filter(t => t.projectId === action.id).map(t => t.id));
+      next.tasks = next.tasks.filter(t => !removed.has(t.id));
+      for (const date of Object.keys(next.plans)) next.plans[date] = next.plans[date].filter(id => !removed.has(id));
       next.projects = next.projects.filter(p => p.id !== action.id);
       break;
+    }
     case 'add':
       next.tasks.push({ id: action.id, title: action.title.trim(), projectId: action.projectId, notes: action.notes || '', status: 'todo', completedAt: null });
       if (action.today) plan().push(action.id);
