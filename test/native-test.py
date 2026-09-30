@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-test-') as tmp:
         assert request('/api/v1/actions', b'{broken', headers=headers)[0] == 400
         assert request('/skills/daylight-workbench/SKILL.md')[0] == 404
         assert request('/.local/agent-token')[0] == 404
-        for path in ['/', '/app.js', '/components/select.js', '/components/select.css']:
+        for path in ['/', '/app.js', '/components/proxy-page.js', '/components/settings-page.js', '/components/sidebar.js', '/components/icons.js', '/components/select.js', '/components/select.css', '/components/focus.js', '/components/task-notes.js', '/proxy.html', '/proxy.js', '/proxy.css', '/quick.html', '/quick.js', '/quick.css', '/quick-search.js']:
             assert request(path)[0] == 200
         action = {'type': 'task.create', 'title': '原生运行时任务', 'projectId': 'project-a'}
         request_id = str(uuid.uuid4())

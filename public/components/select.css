@@ -30,12 +30,9 @@ workbench-select { display: block; min-width: 0; position: relative; }
 .select-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
 .select-options {
   /* A separate anchored layer; expanding never changes the form height. */
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 20;
-  margin: 6px 0 0;
+  position: fixed;
+  z-index: 100;
+  margin: 0;
   padding: 5px;
   max-height: 200px;
   overflow-y: auto;
@@ -64,3 +61,10 @@ workbench-select { display: block; min-width: 0; position: relative; }
 .select-option[aria-selected="true"] svg { visibility: visible; }
 .select-option[aria-selected="true"] { color: #365740; font-weight: 550; }
 .select-option.is-highlighted, .select-option:hover { background: #eef3e8; }
+
+.select-compact { margin: 0; }
+.select-compact .select-trigger { padding: 7px 10px; font-size: 12px; gap: 10px; }
+.select-compact .select-option { padding: 8px 10px; font-size: 12px; min-height: 36px; }
+.select-compact .select-label { font-size: 11px; color: var(--muted); }
+.select-label-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+:root[data-input-mode="pointer"] :is(button,a,input,textarea,select,summary):focus { outline: none; }

@@ -1,90 +1,119 @@
-# Daylight · 任务管理
+# Daylight
 
-本地运行的个人任务管理软件。管理项目、任务、状态和每日安排，层级为项目 → 任务。首次启动为空工作台，由用户创建项目和任务。
+本地运行的个人工作台，将项目任务、每日安排、AI 对话和模型中转集中在一个界面中。支持网页运行，也提供轻量的 macOS 原生应用。
 
-所有日常管理操作均可在网页中完成。软件提供本地管理 API；Codex 等外部工具可通过独立 skill 访问该 API，作为可选集成，不改变任务管理软件的主体定位。
+任务管理可以独立使用。AI 与反向代理按需启用，项目目录关联用于记录和打开路径。
 
-## macOS 应用
+## 功能
 
-原生 AppKit + WKWebView 外壳，复用系统 JavaScriptCore 运行任务逻辑。安装包不包含 Electron、Chromium、Node.js、Pi SDK 或外部 skill；窗口标题栏固定为与页面一致的亮色。需要 macOS 13 或更高版本。
+- **项目与任务**：项目管理、任务备注、状态切换、每日安排、关键词搜索和最近一次操作撤销。
+- **macOS 桌面**：菜单栏任务入口、窗口关闭后驻留，以及 `⌥Space` 快速搜索。
+- **AI 对话**：连接本机 Codex 或 Qoder CLI，支持流式回答、历史会话、对话引用和变更草稿。
+- **模型中转**：Qoder、AGY、Grok、Codex 与自定义上游共用接入地址、API Key 和服务开关。
+- **请求诊断**：统一查看来源状态、请求结果、阶段耗时、模型映射及上游实际返回的用量。
 
-构建需要 Xcode Command Line Tools（Swift）及 Python 3。Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动，不需要用户安装 Node.js。当前使用本地 ad-hoc 签名，未配置 Apple Developer ID 签名及公证。
+## 快速启动
 
-菜单栏显示待办总数，展开可查看今日任务和其他待办，每组最多 8 项，更多任务可打开主窗口查看。任务子菜单支持完成、开始/暂停、加入/移出今天和查看任务。关闭主窗口后继续驻留，菜单栏“退出 Daylight”或 ⌘Q 才退出并停止本地接口。再次启动只激活已有实例。
-
-桌面版占用本机 4318 端口。开发网页服务与桌面应用不能同时占用该端口；如提示占用，先停止开发服务。`PORT` 和 `WORKBENCH_DATA_DIR` 可用于隔离验证。
-
-## 网页开发运行
-
-需要 Node.js 22 或更高版本；没有第三方运行依赖，无需 npm install。
+需要 **Node.js 22 或更新版本**。
 
 ```sh
-cd /Users/liki/liki_dev/daylight-workbench
+git clone https://github.com/liki-0814/daylight-workbench.git
+cd daylight-workbench
+npm ci --ignore-scripts
 npm start
 ```
 
-访问 http://127.0.0.1:4318 。用 `PORT` 可修改端口，只允许本机访问。
+打开 <http://127.0.0.1:4318>。首次启动是空工作台，项目与任务由你创建。
 
-## 已实现
+安装依赖时跳过 SDK 的下载脚本；AI 使用已经安装并登录的本机 CLI。只使用任务管理时无需配置模型账号。
 
-- 今天、收件箱、全部任务、已完成、项目详情。
-- 项目目录关联与路径复制；新建、编辑项目。
-- 新增和编辑任务、项目归属、选填备注。
-- 加入和移出今天、上下移动顺序、开始或暂停、完成及恢复。
-- 全局最多一条进行中任务；开始任务同时加入今天。
-- 关键词搜索；⌘/Ctrl K 新建任务，/ 搜索，Escape 关闭对话框。
-- 任务编辑框提供删除入口；项目详情可编辑项目或删除项目及其全部任务，不删除本地目录。删除前显示任务总数并确认，删除后提示支持撤销。
-- 最近一次操作撤销、JSON 导出。
-- 本机日期切换时使用新的今日清单，旧的未完成安排可手动重新选入。
-- 外部 AI 管理 API，支持项目与任务增改删、显式状态、日期计划、批量原子写入及撤销。
-- 外部修改约 3 秒内自动同步到闲置网页；编辑中的表单不被刷新覆盖，保存时校验版本。
-
-## 外部 AI skill
-
-Skill 源文件随本仓库提交，位于 `skills/daylight-workbench/`，独立安装，不进入 App 或 DMG。本机按用户指定安装到 `~/agents/skills/daylight-workbench/`（没有前导点）。不假定所有 AI 宿主自动扫描这个目录，未发现 skill 时请让 AI 读取该目录的 SKILL.md。
-
-安装或同步仓库中的 skill：
+开发时自动重启服务：
 
 ```sh
-mkdir -p ~/agents/skills
-cp -R skills/daylight-workbench ~/agents/skills/
-python3 ~/agents/skills/daylight-workbench/scripts/workbench.py capabilities
-python3 ~/agents/skills/daylight-workbench/scripts/workbench.py state --view today
+npm run dev
 ```
 
-示例对话：“读取 `~/agents/skills/daylight-workbench/SKILL.md`，把 Flink 推理流代码收尾加入今天。”
+可使用独立端口与数据目录启动测试实例：
 
-Skill 的 config.json 只保存本机地址和路径。服务自动生成权限为 0600 的 数据目录中的 `agent-token`，客户端直接读取，凭证不在 skill、Git 或模型服务中保存。使用其他数据目录或端口时同步修改 config，或传 `--url`、`--data-dir`。本机凭证给予整个工作台的管理权，仅供用户信任的本机 AI 使用。
+```sh
+PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/dev" npm start
+```
 
-API 契约见 [skill 接口说明](skills/daylight-workbench/references/api.md)。写接口必须提供 expectedVersion 与 requestId；最近 100 个成功请求可跨重启去重。网络不确定时保留原请求参数重试，冲突时重新读取后判断，不自动覆盖。
+## macOS 应用
 
-API 只管理工作台数据，不执行关联目录中的代码或部署。不需要接入模型账号；现有 AI 使用自身模型与对话上下文。
+当前构建目标为 **Apple Silicon，macOS 13 或更新版本**。构建需要 Node.js 22+、Python 3 和 Xcode Command Line Tools。
 
-## 数据
+```sh
+npm ci --ignore-scripts
+npm run pack:mac
+open dist/native/Daylight.app
+```
 
-默认写入 `~/Library/Application Support/Daylight/state.json`。网页开发服务和桌面应用使用相同目录。首次启动时，从旧工程 `~/liki_dev/daylight-workbench/.local/` 复制已有数据及 skill 凭证；保留旧文件，不覆盖已有新目录数据。它是本地文件，不依赖浏览器缓存；关闭网页或重启服务后保留。没有已有数据时，初始化为空项目、空任务和空日程；安装包不包含个人项目或任务。
+生成 DMG：
 
-写入通过临时文件原子替换；数据目录中的 `state.previous.json` 保留上一版成功数据。数据格式异常时停止启动，保留原文件。多窗口使用版本检查；过期写入被拒绝，并在界面加载最新数据，避免覆盖。
+```sh
+npm run dist:mac
+```
 
-`WORKBENCH_DATA_DIR` 可指定数据目录，测试使用临时目录，与真实数据隔离。导出是用户可读的业务数据；尚未提供导入 UI。恢复上一版可停止服务后，将 `state.previous.json` 复制为 `state.json`，再启动。此操作会用上一版替换当前数据，请先保存当前文件副本。
+产物位于 `dist/`。原生外壳使用 AppKit、WKWebView 和 JavaScriptCore；任务管理无需 Node.js，AI 与反向代理需要本机 Node.js。Node、Codex 和 Qoder CLI 均不内置。
 
-## 复用下拉组件
+当前使用本地 ad-hoc 签名，尚未配置 Apple Developer ID 签名和公证。桌面应用与网页服务默认共用 4318 端口，请分别启动。详见 [macOS 应用说明](docs/native-app.md)。
 
-`public/components/select.js` 导出 `selectField({ name, label, value, options, disabled })`，其中每个选项为 `{ value, label }`。新建和编辑任务共用该组件；后续选择字段可直接复用。样式集中在同目录 `select.css`。
+## AI 与反向代理
 
-组件以隐藏字段参加原有 FormData 提交；列表作为独立浮层在选择框下方展开，可覆盖后续字段，不撑高表单容器。支持鼠标、方向键、Home/End、Enter/Space 选择，以及 Escape、Tab、外部点击收起；连接和销毁时管理事件监听器。
+AI 对话使用本机 CLI 登录。工作台数据变更先生成可编辑草稿，由用户应用；Codex 的命令与文件审批在对话中处理。详见 [AI 对话说明](docs/ai.md)。
 
-## 验证命令
+反向代理默认手动开启，默认地址为 `http://127.0.0.1:4319/v1`。在页面中配置来源、启用模型，并将页面显示的地址和 Key 填入客户端。
+
+提供以下接口：
+
+```text
+GET  /v1/models
+POST /v1/chat/completions
+POST /v1/responses
+POST /v1/messages
+```
+
+不同来源支持的参数与协议有差异；无法表示的跨协议字段会明确报错。同名模型需要设置别名或停用其中一个来源。请求记录只保存诊断元数据，缺失用量显示为“未提供”。详见 [反向代理说明](docs/reverse-proxy.md)。
+
+## 数据与本地接口
+
+默认数据目录是 `~/Library/Application Support/Daylight/`，网页与桌面应用共用。写入采用原子替换和版本检查，并保留上一版业务数据。`WORKBENCH_DATA_DIR` 可以覆盖默认目录。
+
+服务只监听 `127.0.0.1`。工作台管理接口和模型中转分别使用鉴权凭据；自定义上游密钥由 macOS Keychain 保存。模型请求会发往你配置的上游，AI 对话会调用本机 CLI。
+
+仓库和安装包不包含个人任务、账号凭据、对话历史或运行日志。外部工具可使用随仓库提供的 [Daylight skill](skills/daylight-workbench/SKILL.md) 管理工作台数据。
+
+## 开发
 
 ```sh
 npm run check
 npm test
-npm run pack:mac
-npm run test:native
 ```
 
-使用 Node 自带测试器验证初始任务、任务操作、跨日安排、引用校验、持久化、重启、写入冲突、请求验证和损坏文件保护。网页开发服务直接提供浏览器原生 ES modules。原生集成测试针对实际 App 二进制，验证相同操作、认证、版本冲突、原子批处理、重启及 Node → 原生的请求去重兼容。
+macOS 原生集成测试需要先构建 App：
 
-## 本轮边界
+```sh
+npm run pack:mac
+npm run test:native
+python3 test/native-proxy-test.py
+python3 test/native-ai-test.py
+```
 
-工作台不接入 Pi SDK 或模型。外部 AI 按 skill 管理数据，仅在用户要求时在对话中帮助澄清任务。没有执行项目代码、目录扫描或系统提醒。路径绑定只记录和复制目录，不声明已同步仓库进度。该原型并非完整 PRD 的所有功能。
+Node 测试使用临时数据目录与模拟上游；原生测试针对实际 App 二进制。测试通过不代表真实账号或所有上游能力都已验证。
+
+| 目录 | 职责 |
+| --- | --- |
+| `public/` | 网页、交互组件与样式 |
+| `native/` | macOS 外壳、菜单栏与本地服务 |
+| `ai/` | AI 会话、CLI 适配和业务工具 |
+| `gateway/` | 公共协议、自定义上游、请求记录与来源状态 |
+| `qoder/`、`agy/`、`grok/` | 各来源的认证和推理适配 |
+| `skills/` | 外部工作台管理 skill |
+| `test/` | 单元测试和集成测试 |
+
+更多实现约定见 [开发说明](docs/development.md)，贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 许可证
+
+Daylight 原创代码采用 [MIT License](LICENSE)。第三方代码与依赖适用各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

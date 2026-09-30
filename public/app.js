@@ -1,5 +1,12 @@
 import { change, localDate } from './model.js';
 import { selectField } from './components/select.js';
+import { icon } from './components/icons.js';
+import { sidebarContent } from './components/sidebar.js';
+import { settingsPage } from './components/settings-page.js';
+import { createProxyPage } from './proxy.js';
+import { createAIPage } from './ai.js';
+import { mountAISettings } from './ai-settings.js';
+import { notesField, mountNotes } from './components/task-notes.js';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
@@ -7,25 +14,31 @@ const toast = document.querySelector('#toast');
 let state, version, token, busy = false, day = localDate();
 let view = 'today', query = '', tab = 'open', modal = null, undoState = null, toastTimer;
 let refreshing = false;
+let aiPage;
+let sidebarRoot, taskRoot, proxyPage, settingsRoot, lastTaskView = 'today', sidebarMarkup = '';
+const pageViews = ['proxy', 'settings', 'ai'];
+const isPage = value => pageViews.includes(value);
+const sectionFor = value => isPage(value) ? value : 'task';
+const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0 };
 
-const paths = {
-  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
-  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-  inbox: '<path d="M4 4h16l2 11v5H2v-5L4 4Z"/><path d="M2 15h6l2 3h4l2-3h6"/>',
-  check: '<path d="m5 12 4 4L19 6"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  folder: '<path d="M3 7V4h6l2 3h10v13H3V7Z"/>',
-  arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
-  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
-  close: '<path d="m6 6 12 12M6 18 18 6"/>',
-  play: '<path d="m8 5 11 7-11 7V5Z"/>',
-  pause: '<path d="M8 5v14M16 5v14"/>',
-  up: '<path d="m6 15 6-6 6 6"/>',
-  down: '<path d="m6 9 6 6 6-6"/>',
-  disk: '<path d="M4 4h14l3 3v14H3V4h1Z"/><path d="M7 4v6h10V4M7 21v-7h10v7"/>',
-  copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
-};
-const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.folder}</svg>`;
+function navigate(next, updateURL = true) {
+  if (busy || document.querySelector('dialog[open]')) return;
+  if (updateURL) {
+    const route = ['today', 'inbox', 'all', 'done', ...pageViews].includes(next) ? next : `project=${encodeURIComponent(next)}`;
+    history.replaceState(null, '', `/#${route}`);
+  }
+  if (view === next && sidebarRoot && (isPage(next) || (!query && tab === 'open'))) return;
+  const previousSection = sectionFor(view);
+  const nextSection = sectionFor(next);
+  if (previousSection !== nextSection) scrollPositions[previousSection] = window.scrollY;
+  const keepNavFocus = sidebarRoot?.contains(document.activeElement);
+  if (!isPage(next)) { lastTaskView = next; query = ''; tab = 'open'; }
+  view = next;
+  render();
+  if (previousSection !== nextSection) window.scrollTo(0, scrollPositions[nextSection]);
+  if (keepNavFocus) Array.from(sidebarRoot.querySelectorAll('[data-view]')).find(button => button.dataset.view === view)?.focus({ preventScroll: true });
+}
+
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const project = task => state.projects.find(p => p.id === task.projectId);
 const todayIds = () => state.plans[day] || [];
@@ -139,31 +152,66 @@ function empty(kind) {
 
 function render() {
   if (!state) return;
-  if (!['today', 'inbox', 'all', 'done'].includes(view) && !state.projects.some(p => p.id === view)) view = 'today';
+  if (!['today', 'inbox', 'all', 'done', ...pageViews].includes(view) && !state.projects.some(p => p.id === view)) view = 'today';
+  if (!sidebarRoot) {
+    sidebarRoot = document.createElement('aside'); sidebarRoot.className = 'sidebar';
+    taskRoot = document.createElement('main'); taskRoot.id = 'task-page';
+    app.replaceChildren(sidebarRoot, taskRoot);
+  }
+  const markup = sidebarContent({ state, day, view: null, busy });
+  if (markup !== sidebarMarkup) {
+    const scroll = sidebarRoot.scrollTop;
+    sidebarRoot.innerHTML = markup; sidebarMarkup = markup;
+    sidebarRoot.scrollTop = scroll;
+  }
+  sidebarRoot.querySelectorAll('[data-view]').forEach(button => {
+    const active = button.dataset.view === view && (isPage(view) || !query);
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+  });
+  taskRoot.hidden = isPage(view);
+  if (view === 'ai') {
+    proxyPage?.setVisible(false);
+    if (settingsRoot) settingsRoot.hidden = true;
+    if (!aiPage) { aiPage = createAIPage({ getToken: () => token, onChanged: refreshExternal }); app.append(aiPage.element); }
+    aiPage.setVisible(true); document.title = 'Daylight · AI 对话'; return;
+  }
+  aiPage?.setVisible(false);
+  if (view === 'proxy') {
+    if (settingsRoot) settingsRoot.hidden = true;
+    if (!proxyPage) { proxyPage = createProxyPage({ getToken: () => token }); app.append(proxyPage.element); }
+    proxyPage.setVisible(true);
+    document.title = 'Daylight · 反向代理';
+    return;
+  }
+  if (view === 'settings') {
+    proxyPage?.setVisible(false);
+    if (!settingsRoot) {
+      settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
+      settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
+      mountAISettings(settingsRoot, () => token);
+    }
+    settingsRoot.hidden = false;
+    document.title = 'Daylight · 设置';
+    return;
+  }
+  proxyPage?.setVisible(false);
+  if (settingsRoot) settingsRoot.hidden = true;
+  document.title = 'Daylight · 任务管理';
   const currentProject = state.projects.find(p => p.id === view);
   const today = selectedTasks();
   const todayOpen = remaining(today);
   const completed = state.tasks.filter(t => t.status === 'done');
   const active = state.tasks.find(t => t.status === 'active');
-  const inbox = state.tasks.filter(t => t.projectId === null && t.status !== 'done');
   const searching = !!query;
   const heading = searching ? '搜索任务' : currentProject?.name || ({ today: '今天', inbox: '收件箱', all: '全部任务', done: '已完成' }[view]);
   let tasks = searching ? state.tasks.filter(matches) : currentProject ? state.tasks.filter(t => t.projectId === view) : ({ today, inbox: state.tasks.filter(t => t.projectId === null), all: state.tasks, done: completed }[view] || []);
   const openCount = remaining(tasks).length, doneCount = tasks.length - openCount;
   if (!searching && view !== 'done') tasks = tasks.filter(t => tab === 'done' ? t.status === 'done' : t.status !== 'done');
   const old = oldTasks();
-  const nav = (id, label, symbol, count) => `<button class="nav-item ${view === id && !searching ? 'active' : ''}" data-view="${id}" ${view === id && !searching ? 'aria-current="page"' : ''}>${icon(symbol)}<span>${label}</span><small>${count}</small></button>`;
-  app.innerHTML = `<aside class="sidebar">
-    <a class="brand" href="/" aria-label="Daylight 工作台首页"><img src="/favicon.svg" alt="" width="35" height="35"><span>Daylight<small>项目与任务管理</small></span></a>
-    <button class="capture" data-action="new">${icon('plus')}新建任务<span>⌘ K</span></button>
-    <nav aria-label="主要导航">${nav('today', '今天', 'sun', todayOpen.length)}${nav('inbox', '收件箱', 'inbox', inbox.length)}${nav('all', '全部任务', 'grid', remaining(state.tasks).length)}${nav('done', '已完成', 'check', completed.length)}</nav>
-    <div class="nav-label">我的项目${button('new-project', '新建项目', 'plus')}</div>
-    <nav class="project-nav" aria-label="项目">${state.projects.map(p => `<button class="nav-item ${view === p.id && !searching ? 'active' : ''}" data-view="${esc(p.id)}" ${view === p.id && !searching ? 'aria-current="page"' : ''}><i class="dot ${p.color}"></i><span>${esc(p.name)}</span><small>${remaining(state.tasks.filter(t => t.projectId === p.id)).length}</small></button>`).join('')}</nav>
-    <div class="sidebar-footer"><span class="local-badge"><i></i>本地工作空间</span><div>${icon('disk')}<span>${busy ? '正在保存…' : '更改已保存到本机'}</span></div><button data-action="export">导出数据 ${icon('arrow')}</button></div>
-  </aside>
-  <main>
+  taskRoot.innerHTML = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> ${searching ? '搜索' : currentProject ? '项目' : esc(heading)}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索任务…" aria-label="搜索任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
-    <div class="workspace">
+    <div class="workspace ${view === 'today' && !searching ? 'today-workspace' : ''}">
       <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${searching ? `找到 ${tasks.length} 项任务` : currentProject ? `${remaining(state.tasks.filter(t => t.projectId === view)).length} 项待办` : view === 'today' ? `${todayOpen.length} 项待办 · ${today.length - todayOpen.length} 项已完成` : view === 'inbox' ? '未关联项目的任务' : view === 'done' ? `${completed.length} 项已完成` : `${state.tasks.length} 项任务 · ${state.projects.length} 个项目`}</p></div>
       ${view === 'today' && !searching ? `<div class="date-stamp"><strong>${new Date().getDate()}</strong><span>${new Intl.DateTimeFormat('zh-CN', { month: 'long', weekday: 'long' }).format(new Date())}</span></div>` : `<button class="primary" data-action="new">${icon('plus')}新建任务</button>`}</section>
       ${currentProject && !searching ? `<div class="project-path">${icon('folder')}<span>${esc(currentProject.path || '未关联本地目录')}</span>${currentProject.path ? button('copy', '复制项目路径', 'copy', `data-id="${esc(currentProject.id)}"`) : ''}<small>本地项目</small><button class="small-button" data-action="edit-project" data-id="${esc(currentProject.id)}">编辑项目</button><button class="danger-link" data-action="delete-project" data-id="${esc(currentProject.id)}">删除项目</button></div>` : ''}
@@ -178,7 +226,7 @@ function render() {
       ${view === 'today' && !searching ? `<aside class="project-rail"><div class="rail-heading"><h2>项目概览</h2><span>${state.projects.length} 个项目</span></div>${state.projects.map(projectCard).join('')}</aside>` : ''}</div>
       <footer class="workspace-footer"><span>本地任务管理</span><span>${state.projects.length} 个项目 · ${state.tasks.length} 项任务</span></footer>
     </div>
-  </main>`;
+  `;
 }
 
 function renderDialog() {
@@ -196,9 +244,11 @@ function renderDialog() {
     dialog.innerHTML = `<form id="project-form"><div class="dialog-header"><div><h2 id="dialog-title">${p ? '编辑项目' : '新建项目'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>项目名称<input name="name" required maxlength="200" placeholder="输入项目名称" value="${esc(p?.name || '')}" autofocus></label><label>本地项目目录 <span>选填</span><input name="path" maxlength="1000" placeholder="/Users/…" value="${esc(p?.path || '')}"></label><p class="field-note">目录仅作为关联信息，不会自动读取其中的文件。</p></div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">${p ? '保存修改' : '创建项目'}</button></div></form>`;
   } else {
     const t = state.tasks.find(t => t.id === modal.id);
-    const projectId = t ? t.projectId : (state.projects.some(p => p.id === view) ? view : null);
-    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '收件箱 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}<label>备注 <span>选填</span><textarea name="notes" rows="3" maxlength="10000" placeholder="添加备注">${esc(t?.notes || '')}</textarea></label>${!t ? `<label class="checkbox-field"><input type="checkbox" name="today" ${view === 'today' ? 'checked' : ''}>同时加入今天</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><div class="footer-actions">${t ? `<button type="button" class="danger-link" data-action="delete-task" data-id="${esc(t.id)}">删除任务</button>` : ''}<button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></div></form>`;
+    const taskView = isPage(view) ? lastTaskView : view;
+    const projectId = t ? t.projectId : (state.projects.some(p => p.id === taskView) ? taskView : null);
+    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '收件箱 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}${notesField(t?.notes || '')}${!t ? `<label class="checkbox-field"><input type="checkbox" name="today" ${taskView === 'today' ? 'checked' : ''}>同时加入今天</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><div class="footer-actions">${t ? `<button type="button" class="danger-link" data-action="delete-task" data-id="${esc(t.id)}">删除任务</button>` : ''}<button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></div></form>`;
   }
+  mountNotes(dialog);
 }
 
 function openModal(value) {
@@ -209,9 +259,11 @@ function openModal(value) {
 }
 
 document.addEventListener('click', async event => {
+  const brand = event.target.closest('.brand');
+  if (brand && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('today'); return; }
   const target = event.target.closest('button');
   if (!target || target.disabled || busy) return;
-  if (target.dataset.view) { view = target.dataset.view; query = ''; tab = 'open'; render(); return; }
+  if (target.dataset.view) { navigate(target.dataset.view); return; }
   if (target.dataset.tab) { tab = target.dataset.tab; render(); return; }
   const { action, id } = target.dataset;
   if (action === 'new') openModal({ type: 'task' });
@@ -234,11 +286,6 @@ document.addEventListener('click', async event => {
     try { await navigator.clipboard.writeText(state.projects.find(p => p.id === id).path); notify('项目路径已复制'); }
     catch { notify('复制失败，可在项目详情中选择并复制路径'); }
   }
-  if (action === 'export') {
-    const url = URL.createObjectURL(new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), ...state }, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = `daylight-${day}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    notify('已导出项目、任务与今日安排');
-  }
 });
 
 document.addEventListener('submit', async event => {
@@ -250,6 +297,7 @@ document.addEventListener('submit', async event => {
     return;
   }
   const form = event.target, data = new FormData(form);
+  if (form.id === 'task-form' && String(data.get('notes')).length > 10000) { notify('备注不能超过 10000 字符'); return; }
   const name = form.elements.namedItem(form.id === 'project-form' ? 'name' : 'title');
   if (!name.value.trim()) { name.setCustomValidity('请输入名称，不能只有空格'); name.reportValidity(); return; }
   let success;
@@ -274,8 +322,9 @@ dialog.addEventListener('click', event => {
 });
 document.addEventListener('keydown', event => {
   if (!state || busy) return;
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if (!dialog.open) openModal({ type: 'task' }); }
-  if (event.key === '/' && !dialog.open && !['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) { event.preventDefault(); document.querySelector('#search').focus(); }
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if (!document.querySelector('dialog[open]')) openModal({ type: 'task' }); }
+  if ((event.metaKey || event.ctrlKey) && event.code === 'Comma') { event.preventDefault(); navigate('settings'); }
+  if (event.key === '/' && !isPage(view) && !document.querySelector('dialog[open]') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) { event.preventDefault(); document.querySelector('#search').focus(); }
 });
 setInterval(() => {
   if (localDate() !== day && !busy) { day = localDate(); render(); if (modal?.type === 'choose') renderDialog(); notify('新的一天，今天的安排已更新'); }
@@ -310,18 +359,28 @@ window.addEventListener('focus', refreshExternal);
 document.addEventListener('visibilitychange', refreshExternal);
 
 async function openDesktopRoute() {
-  if (dialog.open || busy) return;
+  if (document.querySelector('dialog[open]') || busy || !state) return;
   await refreshExternal();
+  if (document.querySelector('dialog[open]') || busy) return;
   const route = new URLSearchParams(location.hash.slice(1));
-  if (route.has('task')) {
-    const id = route.get('task');
-    if (state.tasks.some(task => task.id === id)) openModal({ type: 'task', id });
-  } else if (route.has('new')) openModal({ type: 'task' });
-  else if (route.has('today') || route.has('all')) {
-    view = route.has('all') ? 'all' : 'today'; query = ''; tab = 'open'; render();
-  }
+  if (route.has('ai')) navigate('ai', false);
+  else if (route.has('proxy')) navigate('proxy', false);
+  else if (route.has('settings')) navigate('settings', false);
+  else if (route.has('project') && state.projects.some(p => p.id === route.get('project'))) navigate(route.get('project'), false);
+  else if (['today', 'all', 'inbox', 'done'].some(key => route.has(key))) navigate(['today', 'all', 'inbox', 'done'].find(key => route.has(key)), false);
+  else if (route.has('task') || route.has('new') || route.has('new-project')) {
+    if (isPage(view) || !sidebarRoot) navigate(lastTaskView, false);
+    if (route.has('task')) {
+      const id = route.get('task');
+      if (state.tasks.some(task => task.id === id)) openModal({ type: 'task', id });
+    } else openModal({ type: route.has('new-project') ? 'project' : 'task' });
+  } else if (!sidebarRoot) render();
 }
+
 window.addEventListener('hashchange', openDesktopRoute);
 
-try { await load(); render(); await openDesktopRoute(); }
+try {
+  if (location.pathname === '/proxy.html') history.replaceState(null, '', `/${location.hash || '#proxy'}`);
+  await load(); await openDesktopRoute();
+}
 catch (error) { app.innerHTML = `<div class="load-error"><h1>暂时无法打开工作台</h1><p>${esc(error.message)}。请确认本地服务正在运行。</p><a href="/">重新连接</a></div>`; }

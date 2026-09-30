@@ -5,3 +5,18 @@ __pycache__/
 *.pyc
 dist/
 build/icon.iconset/
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+coverage/
+.vscode/
+.idea/
+# Runtime data can be placed inside the checkout for isolated development.
+agent-token
+state.json
+state.previous.json
+account.json
+auth.json
+usage.json

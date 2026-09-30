@@ -1,0 +1,100 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-synthesis: none;
+  --ink: #252b34;
+  --secondary: #596575;
+  --accent: #246ce0;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: transparent; }
+body { display: grid; place-items: center; color: var(--ink); }
+
+/* Only the standalone preview supplies a backdrop. The AppKit panel supplies
+   the real behind-window material; never paint an opaque WebKit rectangle. */
+html:not(.embedded) body { padding: 20px; background: #e7ebf1; }
+.quick-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .26);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
+  -webkit-user-select: none;
+  user-select: none;
+}
+html:not(.embedded) .quick-shell {
+  max-width: 600px;
+  height: 104px;
+  background: rgba(250, 252, 255, .82);
+  box-shadow: 0 18px 48px -12px rgba(25, 39, 62, .25), inset 0 0 0 1px rgba(255, 255, 255, .7);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+.quick-form { display: flex; align-items: center; gap: 14px; flex: 1; min-height: 66px; padding: 0 22px; margin: 0; }
+.quick-glyph { display: flex; flex: 0 0 auto; color: var(--accent); }
+.quick-glyph svg { width: 21px; height: 21px; }
+.quick-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--accent);
+  font: 400 20px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.quick-input::placeholder { color: var(--secondary); opacity: 1; }
+.quick-input::selection { background: #cbdffe; color: #192332; }
+.quick-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(72, 86, 106, .18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .35);
+  color: var(--secondary);
+  font: 400 11px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+}
+.quick-close:hover { background: rgba(255, 255, 255, .8); color: var(--ink); }
+.quick-close:active { background: #dce6f5; }
+.quick-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.quick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 38px;
+  gap: 16px;
+  margin: 0 22px;
+  padding-bottom: 3px;
+  border-top: 1px solid rgba(63, 81, 105, .09);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--secondary);
+}
+.quick-action { display: inline-flex; align-items: center; gap: 6px; }
+.keycap { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
+.keycap svg { width: 13px; height: 13px; }
+.quick-meta { font-size: 11px; white-space: nowrap; }
+@media (max-width: 420px) {
+  html:not(.embedded) body { padding: 12px; }
+  .quick-form { padding: 0 16px; gap: 10px; }
+  .quick-input { font-size: 17px; }
+  .quick-footer { margin: 0 16px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .quick-shell, html:not(.embedded) .quick-shell { background: #f5f7fa; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Preserve scrolling while hiding platform scrollbars across the workbench. */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }

@@ -7,9 +7,12 @@ import { initialState, validate, localDate } from './public/model.js';
 import { applyAction, operations } from './agent-api.mjs';
 import { defaultDataDir, migrateLegacyData } from './storage.mjs';
 
+import { createAIService } from './ai/service.mjs';
+import { createQoderBridge } from './qoder/bridge.js';
+
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-export async function createWorkbench({ dataDir = defaultDataDir } = {}) {
+export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {} } = {}) {
   if (path.resolve(dataDir) === path.resolve(defaultDataDir)) await migrateLegacyData(dataDir);
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
   const dataFile = path.join(dataDir, 'state.json');
@@ -33,6 +36,11 @@ export async function createWorkbench({ dataDir = defaultDataDir } = {}) {
     await writeFile(agentTokenFile, agentToken, { mode: 0o600, flag: 'wx' });
   }
   if (!/^[a-f0-9]{64}$/.test(agentToken)) throw new Error('agent-token 格式异常，原文件已保留');
+  let proxy;
+  let proxyError;
+  try { proxy = await createQoderBridge({ dataDir, includeAgy: true, includeGrok: true, includeGateway: true, ...proxyOptions }); } catch (error) { proxyError = error.message; }
+  let aiPromise;
+  const getAI = () => aiPromise ||= createAIService({ dataDir, endpoint: () => `http://127.0.0.1:${server.address().port}` });
   let writing = false;
   const persist = async (state, receipt) => {
     const receipts = receipt ? [...(record.receipts || []), receipt].slice(-100) : record.receipts || [];
@@ -66,9 +74,19 @@ export async function createWorkbench({ dataDir = defaultDataDir } = {}) {
     if (req.headers.host !== expectedHost) return send(403, { error: '请使用本机 127.0.0.1 地址访问' });
     try {
       const route = new URL(req.url, `http://${expectedHost}`).pathname;
+      if (route.startsWith('/api/ai/')) {
+        if (req.headers['x-workbench-token'] !== token || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(403, { error: '本机会话验证失败，请刷新页面' });
+        return await (await getAI()).handle(req, res);
+      }
+      if ((route.startsWith('/api/proxy/') || route.startsWith('/api/qoder/') || route.startsWith('/api/agy/') || route.startsWith('/api/grok/') || route.startsWith('/api/codex-proxy/') || route.startsWith('/api/custom-proxy/') || route.startsWith('/api/proxy-tools/'))) {
+        if (req.headers['x-workbench-token'] !== token || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(403, { error: '本机会话验证失败，请刷新页面' });
+        if (!proxy) return send(503, { error: proxyError });
+        return await proxy.handle(req, res);
+      }
       if (route.startsWith('/api/v1/')) {
         const bearer = req.headers.authorization?.replace(/^Bearer /, '') || '';
         if (!/^[a-f0-9]{64}$/.test(bearer) || !timingSafeEqual(Buffer.from(bearer), Buffer.from(agentToken)) || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(401, { error: '本地 Agent API 认证失败' });
+        if (route.startsWith('/api/v1/proxy/')) { if (!proxy) return send(503, {error:proxyError}); req.url=req.url.replace('/api/v1/proxy/','/api/proxy-tools/'); return await proxy.handle(req,res); }
         if (route === '/api/v1/state' && req.method === 'GET') return send(200, { ...snapshot(), localDate: localDate() });
         if (route === '/api/v1/capabilities' && req.method === 'GET') return send(200, { apiVersion: 1, operations, retention: 'last 100 successful request IDs', writes: 'POST /api/v1/actions {requestId, expectedVersion, day?, action}', reads: 'GET /api/v1/state' });
         if (route !== '/api/v1/actions' || req.method !== 'POST') return send(404, { error: '接口不存在' });
@@ -115,7 +133,7 @@ export async function createWorkbench({ dataDir = defaultDataDir } = {}) {
         } finally { writing = false; }
         return;
       }
-      const files = { '/': 'index.html', '/app.js': 'app.js', '/model.js': 'model.js', '/style.css': 'style.css', '/favicon.svg': 'favicon.svg', '/components/select.js': 'components/select.js', '/components/select.css': 'components/select.css' };
+      const files = { '/components/proxy-diagnostics.js': 'components/proxy-diagnostics.js', '/components/task-notes.js': 'components/task-notes.js', '/custom-proxy.js': 'custom-proxy.js', '/ai.js': 'ai.js', '/components/ai-message.js': 'components/ai-message.js', '/components/marked.js': 'components/marked.js', '/components/purify.js': 'components/purify.js', '/ai.css': 'ai.css', '/ai-settings.js': 'ai-settings.js', '/quick.html': 'quick.html', '/quick.js': 'quick.js', '/quick.css': 'quick.css', '/quick-search.js': 'quick-search.js', '/proxy.html': 'index.html', '/proxy.js': 'proxy.js', '/proxy.css': 'proxy.css', '/': 'index.html', '/app.js': 'app.js', '/model.js': 'model.js', '/style.css': 'style.css', '/favicon.svg': 'favicon.svg', '/components/proxy-page.js': 'components/proxy-page.js', '/components/agy-quota.js': 'components/agy-quota.js', '/components/settings-page.js': 'components/settings-page.js', '/components/sidebar.js': 'components/sidebar.js', '/components/icons.js': 'components/icons.js', '/components/select.js': 'components/select.js', '/components/focus.js': 'components/focus.js', '/components/select.css': 'components/select.css' };
       if (req.method !== 'GET' || !files[route]) return send(404, { error: '页面不存在' });
       const file = files[route];
       const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
@@ -127,12 +145,16 @@ export async function createWorkbench({ dataDir = defaultDataDir } = {}) {
       else res.end();
     }
   });
+  server.once('listening', () => { void proxy?.initialize(); });
+  server.once('close', () => { void proxy?.close(); void aiPromise?.then(ai => ai.close()); });
+  server.closeProxy = async () => { await proxy?.close(); await aiPromise?.then(ai => ai.close()); };
   server.getSnapshot = snapshot;
   return server;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const server = await createWorkbench({ dataDir: process.env.WORKBENCH_DATA_DIR });
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await server.closeProxy(); server.close(); server.closeAllConnections(); });
   server.listen(Number(process.env.PORT || 4318), '127.0.0.1', () => {
     console.log(`Daylight 工作台已启动：http://127.0.0.1:${server.address().port}`);
   });

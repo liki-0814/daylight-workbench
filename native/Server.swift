@@ -27,6 +27,8 @@ final class WorkbenchServer {
     let port: UInt16
     let webToken: String
     let agentToken: String
+    let ai: ProxyRuntime
+    let proxy: ProxyRuntime
     let engine: JSContext
     var record: [String: Any]
     var listener: NWListener?
@@ -38,6 +40,8 @@ final class WorkbenchServer {
 
     init(resources: URL, directory: URL, port: UInt16) throws {
         self.resources = resources; self.directory = directory; self.port = port
+        self.proxy = ProxyRuntime(resources: resources, directory: directory)
+        self.ai = ProxyRuntime(resources: resources, directory: directory, helper: "ai", workbenchURL: "http://127.0.0.1:\(port)")
         self.engine = JSContext()!
         let uuid: @convention(block) () -> String = { UUID().uuidString.lowercased() }
         engine.setObject(uuid, forKeyedSubscript: "randomUUID" as NSString)
@@ -104,6 +108,7 @@ final class WorkbenchServer {
         DispatchQueue.main.async { self.onChange?() }
     }
     func start(ready: @escaping (Error?) -> Void) throws {
+        proxy.start()
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
@@ -147,7 +152,7 @@ final class WorkbenchServer {
                 if buffer.count - split.upperBound >= length {
                     timeout.cancel()
                     let body = buffer.subdata(in: split.upperBound..<(split.upperBound + length))
-                    self.handle(connection, method: request[0], path: request[1].components(separatedBy: "?")[0], headers: headers, body: body)
+                    self.handle(connection, method: request[0], path: request[1].components(separatedBy: "?")[0], headers: headers, body: body, query: request[1].components(separatedBy: "?").dropFirst().joined(separator: "?"))
                     return
                 }
             }
@@ -164,13 +169,33 @@ final class WorkbenchServer {
         response.append(body)
         connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
     }
-    func handle(_ connection: NWConnection, method: String, path: String, headers: [String: String], body: Data) {
+    func handle(_ connection: NWConnection, method: String, path: String, headers: [String: String], body: Data, query: String = "") {
         guard headers["host"] == "127.0.0.1:\(port)" else { reply(connection, 403, ["error": "仅允许本机访问"]); return }
         do {
+            if path.hasPrefix("/api/ai/") {
+                guard headers["x-workbench-token"] == webToken, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
+                ai.handle(path: path + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
+                    self.queue.async { self.reply(connection, code, object) }
+                }
+                return
+            }
+            if path.hasPrefix("/api/proxy/") || path.hasPrefix("/api/qoder/") || path.hasPrefix("/api/agy/") || path.hasPrefix("/api/grok/") || path.hasPrefix("/api/codex-proxy/") || path.hasPrefix("/api/custom-proxy/") || path.hasPrefix("/api/proxy-tools/") {
+                guard headers["x-workbench-token"] == webToken, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
+                proxy.handle(path: path + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
+                    self.queue.async { self.reply(connection, code, object) }
+                }
+                return
+            }
             if path.hasPrefix("/api/v1/") {
                 let provided = Array((headers["authorization"] ?? "").utf8), expected = Array("Bearer \(agentToken)".utf8)
                 let valid = provided.count == expected.count && zip(provided, expected).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) } == 0
                 guard valid, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 401, ["error": "本机接口认证失败"]); return }
+                if path.hasPrefix("/api/v1/proxy/") {
+                    proxy.handle(path: path.replacingOccurrences(of: "/api/v1/proxy/", with: "/api/proxy-tools/"), method: method, body: body) { code, object in
+                        self.queue.async { self.reply(connection, code, object) }
+                    }
+                    return
+                }
                 if path == "/api/v1/state", method == "GET" { var result = snapshot; result["localDate"] = try js("localDate()"); reply(connection, 200, result); return }
                 if path == "/api/v1/capabilities", method == "GET" { reply(connection, 200, ["apiVersion": 1, "operations": try js("operations"), "retention": "last 100 successful request IDs", "writes": "POST /api/v1/actions {requestId, expectedVersion, day?, action}", "reads": "GET /api/v1/state"]); return }
                 guard path == "/api/v1/actions", method == "POST" else { reply(connection, 404, ["error": "接口不存在"]); return }
@@ -208,7 +233,7 @@ final class WorkbenchServer {
                 try persist(js("validate(\(try jsonText(input)))"))
                 reply(connection, 200, snapshot); return
             }
-            let files = ["/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/style.css": "style.css", "/favicon.svg": "favicon.svg", "/components/select.js": "components/select.js", "/components/select.css": "components/select.css"]
+            let files = ["/components/proxy-diagnostics.js": "components/proxy-diagnostics.js","/components/task-notes.js": "components/task-notes.js","/custom-proxy.js": "custom-proxy.js","/ai.js": "ai.js", "/components/ai-message.js": "components/ai-message.js", "/components/marked.js": "components/marked.js", "/components/purify.js": "components/purify.js", "/ai.css": "ai.css", "/ai-settings.js": "ai-settings.js", "/quick.html": "quick.html", "/quick.js": "quick.js", "/quick.css": "quick.css", "/quick-search.js": "quick-search.js", "/proxy.html": "index.html", "/proxy.js": "proxy.js", "/proxy.css": "proxy.css", "/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/style.css": "style.css", "/favicon.svg": "favicon.svg", "/components/proxy-page.js": "components/proxy-page.js", "/components/agy-quota.js": "components/agy-quota.js", "/components/settings-page.js": "components/settings-page.js", "/components/sidebar.js": "components/sidebar.js", "/components/icons.js": "components/icons.js", "/components/select.js": "components/select.js", "/components/focus.js": "components/focus.js", "/components/select.css": "components/select.css"]
             guard method == "GET", let file = files[path] else { reply(connection, 404, ["error": "页面不存在"]); return }
             let types = ["html": "text/html", "js": "text/javascript", "css": "text/css", "svg": "image/svg+xml"]
             let url = resources.appendingPathComponent("public").appendingPathComponent(file)
