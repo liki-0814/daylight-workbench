@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/quick.js && node --check public/quick-search.js && node --check public/components/select.js && node --check public/components/settings-page.js && node --check storage.mjs && node --check native/tray-model.mjs && node scripts/check-proxy.mjs && node scripts/check-ai.mjs",
+    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/task-view.js && node --check public/routes.js && node --check public/quick.js && node --check public/quick-search.js && node --check public/components/select.js && node --check public/components/settings-page.js && node --check storage.mjs && node --check native/tray-model.mjs && node scripts/check-proxy.mjs && node scripts/check-ai.mjs",
     "test": "node --test",
     "desktop": "npm run pack:mac && open dist/native/Daylight.app",
     "pack:mac": "python3 scripts/build-native.py",
@@ -29,8 +29,9 @@
   "author": "Daylight",
   "dependencies": {
     "@qoder-ai/qoder-agent-sdk": "1.0.39",
-    "dompurify": "3.4.16",
-    "marked": "18.0.14",
     "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }
