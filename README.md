@@ -107,8 +107,8 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | `public/` | 网页、交互组件与样式 |
 | `native/` | macOS 外壳、菜单栏与本地服务 |
 | `ai/` | AI 会话、CLI 适配和业务工具 |
-| `gateway/` | 公共协议、自定义上游、请求记录与来源状态 |
-| `qoder/`、`agy/`、`grok/` | 各来源的认证和推理适配 |
+| `proxy/` | 统一中转服务入口，`shared/` 放公共协议、路由、存储和请求记录 |
+| `proxy/{qoder,agy,grok,codex,kimi,custom}/` | 各来源的认证和推理适配 |
 | `skills/` | 外部工作台管理 skill |
 | `test/` | 单元测试和集成测试 |
 
@@ -117,3 +117,8 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 ## 许可证
 
 Daylight 原创代码采用 [MIT License](LICENSE)。第三方代码与依赖适用各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+
+### 任务导航与 AI 协同
+
+侧栏只保留任务页面入口，页内切换全部任务与今天；全部任务按项目分组，也可筛选单个项目。页面内切换待办与已完成，未归类任务在筛选中查看。项目和任务可关联、引用或继续 AI 对话，草稿应用后可直接查看对象并找回来源会话。旧任务数据、管理 API、Skill state 命令和历史链接保持兼容；新增任务查询见 [API 说明](skills/daylight-workbench/references/api.md)，协同契约见 [AI 说明](docs/ai.md)。

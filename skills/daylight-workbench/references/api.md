@@ -11,7 +11,7 @@
 - CLI `state --query TEXT --project ID --view today|inbox|done|all --date YYYY-MM-DD` 返回完整 state 和筛选后的 matchingTasks。`today` 含当天计划内的已完成任务，保留计划顺序。
 - CLI `export --out PATH` 保存完整业务 state 到新文件，不覆盖已有文件，不导出凭证及内部请求记录。
 
-项目：`{id,name,path,color}`。任务：`{id,title,projectId,notes,status,completedAt}`。`projectId:null` 为收件箱。状态只有 `todo`、`active`、`done`。`plans` 将日期映射到有序任务 ID 数组。
+项目：`{id,name,path,color}`。任务：`{id,title,projectId,notes,status,completedAt}`。`projectId:null` 为未归类（旧称收件箱）。状态只有 `todo`、`active`、`done`。`plans` 将日期映射到有序任务 ID 数组。
 
 ## 写入
 
@@ -35,8 +35,8 @@
 | project.create | name, path?, id? | 创建项目，path 默认空，id 默认生成 |
 | project.update | id, name?, path? | 仅修改提供字段 |
 | project.delete | id | 删除项目及其全部任务（包括已完成任务）和日期引用；不删除本地目录 |
-| task.create | title, projectId?, notes?, today?, id? | 默认进入收件箱，today 默认 false |
-| task.update | id, title?, projectId?, notes? | 部分更新；projectId=null 移到收件箱 |
+| task.create | title, projectId?, notes?, today?, id? | 默认未归类，today 默认 false |
+| task.update | id, title?, projectId?, notes? | 部分更新；projectId=null 移到未归类 |
 | task.status | id, status | 显式设置状态；active 会暂停其他当前任务并加入指定日期；done 写完成时间，todo 恢复/暂停 |
 | task.delete | id | 删除任务并移除所有日期的引用 |
 | plan.add | id | 将未完成任务加入指定日期，已存在不重复 |
@@ -67,3 +67,20 @@
 删除指定任务：`{"type":"task.delete","id":"实际任务ID"}`。完成、进行中和待办任务均可删除，同时清除所有日期引用。项目删除：`{"type":"project.delete","id":"实际项目ID"}`，同时级联删除项目下全部任务（包括已完成任务）及其所有日期引用，其他项目和收件箱任务保留。执行前提醒项目名和任务总数。不存在的对象返回 400。
 
 读取当前版本后再提交删除；成功后核对目标及安排引用已移除。最新一次删除可用 `{"type":"undo"}` 恢复整个被删除项目、任务、原状态及各日期安排。撤销仍需最新 expectedVersion 和新的 requestId；后续有其他写入时，undo 恢复的是那次写入，不是更早删除的对象。
+
+
+## 统一任务查询（增量接口）
+
+`GET /api/v1/tasks` 沿用 Agent Bearer 认证。`capabilities.taskQuery` 声明支持；没有这个字段的旧服务仍可用旧 `state` 命令。
+
+参数：`scope=all|today`（默认 all）、`status=all|open|done`（默认 all）、`projectId`、`unassigned=1`、`query`、`day=YYYY-MM-DD`（默认服务器 localDate）。projectId 与 unassigned 互斥。open 包含 todo 和 active；today 保留计划顺序，包括选择 all/done 时的已完成项。非法枚举或日期返回 400，不存在项目返回 404，合法条件没有任务返回 200。
+
+返回 `{version,localDate,selection,counts:{open,done,total},tasks}`。counts 在相同范围、归属、关键词下按所有状态统计，tasks 再按 status 筛选。读取不修改版本或数据，不包含 AI 会话。
+
+```sh
+python3 "$SKILL/scripts/workbench.py" tasks --scope today --status open
+python3 "$SKILL/scripts/workbench.py" tasks --project PROJECT_ID --status done
+python3 "$SKILL/scripts/workbench.py" tasks --unassigned --query '接口'
+```
+
+旧 `state --view all|today|inbox|done` 仍兼容：all 包含所有状态，today 保留计划内已完成项及顺序，inbox 是未归类待办的旧名称。取消 UI 收件箱入口不改变 null 归属、action 或导出合同。

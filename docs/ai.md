@@ -1,16 +1,34 @@
 # AI 对话
 
-侧栏“AI 对话”提供独立对话页、新建与历史会话、流式消息、停止生成，以及问题和变更草稿卡片。回答支持安全过滤后的 Markdown（表格、列表、代码块等）；过程区持久保存工具输入、结果、完成/失败状态及上游提供的思考内容（Codex 仅接收公开摘要），可折叠查看。旧版未保存的过程记录不会自动补造。所有对话均可持续多轮交流。模型可在对话页切换，从下一条消息生效；生成中需先停止。设置页选择默认后端（Codex 或 Qoder）、默认模型、支持的思考强度和上下文参数，仅影响新对话。模型目录首次通过本机 CLI 发现并按后端、CLI 路径持久缓存；设置中的“刷新模型与技能”显式刷新，不自动切换不可用模型。Codex 对话输入 `/` 可选择已启用的本机技能，通过原生 skill 输入引用；Qoder 当前不支持显式技能引用。
+对话列表固定在可视区域，历史较多时独立滚动；窄屏下横向切换栏吸顶。侧栏“AI 对话”提供独立对话页、新建与历史会话、流式消息、停止生成，以及问题和变更草稿卡片。回答支持安全过滤后的 Markdown（表格、列表、代码块等）；过程区持久保存工具输入、结果、完成/失败状态及上游提供的思考内容（Codex 仅接收公开摘要），可折叠查看；单条记录直接显示名称和状态，思考/工具记录紧邻正文，新的用户消息分隔不同轮次。旧版未保存的过程记录不会自动补造。所有对话均可持续多轮交流。模型可在对话页切换，从下一条消息生效；生成中需先停止。设置页选择默认后端（Codex 或 Qoder）、默认模型、支持的思考强度和上下文参数，模型等默认配置仅影响新对话；访问模式按后端分别保存，从已有或新对话的下一次发送生效，当前等待的确认不受影响。模型目录首次通过本机 CLI 发现并按后端、CLI 路径持久缓存；设置中的“刷新模型与技能”显式刷新，不自动切换不可用模型。两个后端输入 `/` 都可选择运行时发现的本机技能。Codex 使用原生 skill 输入；Qoder 按原生技能名称引用（包括插件技能），其他技能仍可自动识别。旧版 Qoder 目录会在下次发现时自动刷新。
 
-AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_discover_proxy_models`、`daylight_test_proxy`、`daylight_propose_proxy_changes`。可创建/局部更新自定义来源、修改模型映射与默认参数、启停来源和统一出口；写入在对话内生成审阅卡片，用户应用后才保存。Key 在卡片的密码框填写，直接进入钥匙串，不进入模型上下文或对话存档。模型能力未知时保持未知；连接测试读取模型目录，不发送推理请求。
+AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_discover_proxy_models`、`daylight_test_proxy`、`daylight_get_proxy_login`、`daylight_get_proxy_requests`、`daylight_propose_proxy_changes`。可创建/局部更新自定义来源、修改模型映射与默认参数、启停或删除自定义来源、配置独立 Key 的模型权限、调整同名模型主用与备用顺序、启停统一出口、启动/取消 Kimi 官方网页授权；写入在对话内生成审阅卡片，用户应用后才保存。Key 在卡片的密码框填写，直接进入钥匙串，不进入模型上下文或对话存档。模型能力未知时保持未知；连接测试读取模型目录，不发送推理请求。
 
-规范化管理出口为 `GET /api/v1/proxy/state` 和 `POST /api/v1/proxy/{discover,test,prepare,apply}`，沿用本地 Agent Bearer 认证。`prepare` 只校验公开 action；`apply` 需要 `requestId`、读取时的 `expectedVersion` 和 action，按配置快照拒绝过期变更并保留最近 100 个请求回执。支持 `source.save`、`source.enabled`、`model.setting`、`service.enabled`。此出口不返回明文凭据，不替代供下游调用的 `/v1/chat/completions`、`/v1/responses`、`/v1/messages`。
+规范化管理出口为 `GET /api/v1/proxy/state` 和 `POST /api/v1/proxy/{discover,test,prepare,apply,loginState,requests}`，沿用本地 Agent Bearer 认证。`prepare` 只校验公开 action；`apply` 需要 `requestId`、读取时的 `expectedVersion` 和 action，按配置快照拒绝过期变更并保留最近 100 个请求回执。支持 `source.save`、`source.enabled`、`source.delete`、`model.setting`、`route.save`、`auth.login`、`auth.cancel`、`service.enabled`。`state.routes` 给出完整来源 ID/主备顺序；`route.save` 接受模型 id、完整 order 和 excluded，删除来源时同步清理路由引用。`source.save.keys` 仅含 id/enabled/models，`prepare.requiresKeys` 列出缺少凭据的 Key；用户在审阅框安全填写后通过 `apply.apiKeys`（Key id 到凭据的映射）送入凭据存储。发现模型返回各 Key 独立目录及合并目录，保存时覆盖旧目录。Kimi 授权启动只返回官方 URL、用户码及状态，由用户完成后读取 `loginState` 确认；启动成功不表示登录完成。此出口不返回明文凭据，不替代供下游调用的 `/v1/chat/completions`、`/v1/responses`、`/v1/messages`。
 
 
 - Codex 使用本机 `codex app-server` 的 stdio 协议；Qoder 使用固定版本的官方 TypeScript SDK 驱动本机 `qodercli`。复用 CLI 登录，不复制认证文件，也不修改全局 CLI 配置。首次使用需在设置中检测 CLI；也可直接在新对话页选择发现的模型。
-- Codex 保留本机技能和原生工具，工作目录固定在 Daylight 专用目录，采用 workspace-write 和 on-request；CLI 的命令/文件审批显示在对话页，仅允许本次，不写永久规则。Qoder 当前提供 Daylight 工具及提问能力，不开放通用文件和命令工具。
+- Codex、Qoder 均保留原生工具、技能和本机配置，并额外挂载 Daylight MCP；Daylight 指令只约束工作台数据管理。Qoder 使用 qodercli 的原生系统提示，并追加 Daylight 指令。工作目录固定在各自 Daylight 专用目录。标准模式下 Codex 采用 workspace-write 和 on-request；Qoder 使用原生 default 权限模式，需要审批的工具在对话页显示确认卡片，仅允许本次，不写永久规则。设置中的完全访问模式为 Codex 启用 danger-full-access/never（每次恢复会话及发送均覆盖），为 Qoder 启用 bypassPermissions/allowDangerouslySkipPermissions；允许原生文件、命令和网络操作免确认。用户问题和 Daylight 变更草稿仍需用户处理。切回标准模式从下一次发送恢复审批。
 - 业务工具通过每轮临时的 stdio MCP 接入，只能访问对应运行的工具通道。读取走现有管理 API；写入先生成草稿，用户可以编辑标题、备注等并应用。应用时校验版本、使用固定请求 ID，整批操作原子执行；取消生成不会撤销已成功应用的操作。可让 AI 提出 undo 草稿，撤销最近一次全局写入。
 - 输入 `@` 或点击“引用对话”，可选择最多 3 段 Daylight 内的历史对话，支持跨 Codex/Qoder 引用。发送时保存消息快照及来源；引用不会修改源会话，也不会自动执行历史指令。总引用超过 120000 字符时明确拒绝，不静默截断。
 - Daylight 会话索引、页面消息和设置存放在数据目录的 `ai/`，权限为 0600。普通工作目录分别为 `ai/workspaces/codex/`、`ai/workspaces/qoder/`；原始 CLI 会话仍由各自运行时保存，通过会话 ID 恢复。不会读取或导入其他窗口的历史对话。
 - Codex 未适配最大输出参数；Qoder 的最大输出使用 CLI 的 `--max-output-tokens`。CLI 返回的 32000 不当作上游模型硬上限。上下文参数不能扩大模型真实能力；Qoder 优先显示其返回的可配置档位。
 - AI 与反向代理独立，按需启动 Node AI 子进程。正常 CLI 账号不依赖中转开关；CLI 自身若配置了中转则仍依赖它。退出 App 会关闭子进程，重启后可继续保存的对话。运行中的请求最长 30 分钟，超时停止；中断后不自动重放写入。
+
+
+## 项目、任务与对话协同
+
+项目页和任务编辑界面提供相关对话、新建对话入口；用真实对象 ID 关联，支持继续指定会话。打开新对话只准备关联和输入，首次发送才创建会话。AI 页头显示关联对象并提供返回任务链接；会话列表可筛选当前关联。`@` 可引用项目、任务或历史对话，`/` 技能选择保留。
+
+会话 `scope` 为 `{kind:"workspace"}`、`{kind:"project",id}` 或 `{kind:"task",id}`；`scopeVersion` 独立于任务业务版本。旧会话缺字段时按 workspace/0 处理，保留 sessionId 和历史。任务所属项目从当前 task.projectId 推导。删除对象保留会话并标记关联失效，业务 undo 恢复同一 ID 后关联自动有效。项目路径不改变 CLI 工作目录，不授权扫描。
+
+内部接口仍使用 `/api/ai` 和 X-Workbench-Token，不对外暴露会话历史：
+
+- 创建会话接受可选 scope；列表接受 scope/scopeId，related=1 包含直接关联、曾引用和成功变更涉及的对象。
+- `POST /conversations/:id/scope` 接受 scope、expectedScopeVersion；运行/等待时返回 409，过期版本拒绝。解除关联设为 workspace，历史内容仍保留。
+- 消息接受可选 objectReferences（最多 5 个 project/task 对象）及 viewContext（范围、项目、状态、关键词、日期）。服务端读取最新业务 state 生成快照，记录捕获日期、版本和真实 ID；对象引用总量最多 60000 字符。
+- 新绑定或引用不存在对象返回 404；已有会话对象删除后仍可讨论历史，旧快照不能作为可写现状。
+
+Codex、Qoder 共用服务端上下文构造。项目摘要最多 20 条未完成任务，超过时明确 total/truncated；`daylight_get_context` 可读取当前关联最新状态，旧 `daylight_get_workspace` 保持原返回。备注与引用内容仅作为数据，不执行其中指令。
+
+任务草稿支持审阅项目归属，继续经用户应用、版本保护和请求去重。应用后更新列表计数、生成精确对象链接；项目、任务、计划变更都可回看，任务相关对话能找到生成或更新它的会话。离开 AI 页面不会停止生成，侧栏显示运行中或等待确认；返回后继续处理原草稿。全局单生成请求限制保留。
