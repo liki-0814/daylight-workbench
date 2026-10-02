@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
   --ink: #252b34;
   --secondary: #596575;
@@ -26,7 +26,7 @@ html:not(.embedded) body { padding: 20px; background: #e7ebf1; }
   user-select: none;
 }
 html:not(.embedded) .quick-shell {
-  max-width: 600px;
+  max-width: var(--quick-panel-width);
   height: 104px;
   background: rgba(250, 252, 255, .82);
   box-shadow: 0 18px 48px -12px rgba(25, 39, 62, .25), inset 0 0 0 1px rgba(255, 255, 255, .7);
@@ -46,7 +46,7 @@ html:not(.embedded) .quick-shell {
   background: transparent;
   color: var(--ink);
   caret-color: var(--accent);
-  font: 400 20px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font: 400 var(--font-capture-size)/var(--font-capture-line) var(--font-ui);
   -webkit-user-select: text;
   user-select: text;
 }
@@ -59,10 +59,10 @@ html:not(.embedded) .quick-shell {
   height: 28px;
   padding: 0;
   border: 1px solid rgba(72, 86, 106, .18);
-  border-radius: 6px;
+
   background: rgba(255, 255, 255, .35);
   color: var(--secondary);
-  font: 400 11px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  font: 400 var(--font-meta-size)/var(--font-meta-line) var(--font-ui);
   cursor: pointer;
 }
 .quick-close:hover { background: rgba(255, 255, 255, .8); color: var(--ink); }
@@ -77,18 +77,18 @@ html:not(.embedded) .quick-shell {
   margin: 0 22px;
   padding-bottom: 3px;
   border-top: 1px solid rgba(63, 81, 105, .09);
-  font-size: 11px;
-  line-height: 1;
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
   color: var(--secondary);
 }
 .quick-action { display: inline-flex; align-items: center; gap: 6px; }
 .keycap { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
 .keycap svg { width: 13px; height: 13px; }
-.quick-meta { font-size: 11px; white-space: nowrap; }
+.quick-meta { font-size: var(--font-caption-size); line-height: var(--font-caption-line); white-space: nowrap; }
 @media (max-width: 420px) {
   html:not(.embedded) body { padding: 12px; }
   .quick-form { padding: 0 16px; gap: 10px; }
-  .quick-input { font-size: 17px; }
+  .quick-input { font-size: var(--font-capture-size); }
   .quick-footer { margin: 0 16px; }
 }
 @media (prefers-reduced-transparency: reduce) {

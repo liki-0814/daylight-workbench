@@ -1,21 +1,41 @@
-.select-field { margin-bottom: 20px; }
-.select-label { display: block; font-size: 12px; margin-bottom: 8px; }
-workbench-select { display: block; min-width: 0; position: relative; }
+.select-field {
+  margin-bottom: var(--form-field-gap);
+}
+
+.select-label {
+  display: block;
+  font-size: var(--font-label-size);
+  margin-bottom: var(--field-label-gap);
+  line-height: var(--font-label-line);
+}
+
+workbench-select {
+  display: block;
+  min-width: 0;
+  position: relative;
+}
+
 .select-trigger {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
   text-align: left;
   border: 1px solid #dce4d3;
-  border-radius: 6px;
-  padding: 11px 12px;
+  border-radius: var(--button-radius);
+  min-height: var(--form-control-height);
+  padding: var(--form-control-padding);
   background: #fcfdfb;
   color: #374c2e;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--font-control-size);
+  line-height: var(--font-control-line);
 }
-.select-value { flex: 1; overflow-wrap: anywhere; }
+
+.select-value {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
 .select-trigger svg, .select-option svg {
   width: 16px;
   height: 16px;
@@ -26,8 +46,16 @@ workbench-select { display: block; min-width: 0; position: relative; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.select-trigger[aria-expanded="true"] { border-color: #7d9671; background: #f8faf5; }
-.select-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+.select-trigger[aria-expanded="true"] {
+  border-color: #7d9671;
+  background: #f8faf5;
+}
+
+.select-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
 .select-options {
   /* A separate anchored layer; expanding never changes the form height. */
   position: fixed;
@@ -42,29 +70,79 @@ workbench-select { display: block; min-width: 0; position: relative; }
   background: #fff;
   box-shadow: 0 3px 10px #20382008;
 }
-.select-options[hidden] { display: none; }
+
+.select-options[hidden] {
+  display: none;
+}
+
 .select-option {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 10px 11px;
   min-height: 40px;
   border-radius: 4px;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--font-control-size);
+  line-height: var(--font-control-line);
   color: #57694c;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-.select-option svg { visibility: hidden; }
-.select-option[aria-selected="true"] svg { visibility: visible; }
-.select-option[aria-selected="true"] { color: #365740; font-weight: 550; }
-.select-option.is-highlighted, .select-option:hover { background: #eef3e8; }
 
-.select-compact { margin: 0; }
-.select-compact .select-trigger { padding: 7px 10px; font-size: 12px; gap: 10px; }
-.select-compact .select-option { padding: 8px 10px; font-size: 12px; min-height: 36px; }
-.select-compact .select-label { font-size: 11px; color: var(--muted); }
-.select-label-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-:root[data-input-mode="pointer"] :is(button,a,input,textarea,select,summary):focus { outline: none; }
+.select-option svg {
+  visibility: hidden;
+}
+
+.select-option[aria-selected="true"] svg {
+  visibility: visible;
+}
+
+.select-option[aria-selected="true"] {
+  color: #365740;
+  font-weight: 550;
+}
+
+.select-option.is-highlighted, .select-option:hover {
+  background: #eef3e8;
+}
+
+.select-compact {
+  margin: 0;
+}
+
+.select-compact .select-trigger {
+  min-height: var(--compact-control-height);
+  padding: var(--compact-control-padding);
+  font-size: var(--font-compact-size);
+  line-height: var(--font-compact-line);
+  gap: 10px;
+}
+
+.select-compact .select-option {
+  padding: var(--space-2) 10px;
+  font-size: var(--font-compact-size);
+  min-height: 36px;
+  line-height: var(--font-compact-line);
+}
+
+.select-compact .select-label {
+  font-size: var(--font-label-size);
+  color: var(--muted);
+  line-height: var(--font-label-line);
+}
+
+.select-label-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+
+:root[data-input-mode="pointer"] :is(button,a,input,textarea,select,summary):focus {
+  outline: none;
+}

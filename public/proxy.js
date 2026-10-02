@@ -1,40 +1,42 @@
-import { createDiagnostics } from './components/proxy-diagnostics.js';
+import {createRoutesPage} from './model-routes.js';
 import { modelGroups, proxyPage } from './components/proxy-page.js';
 import {createCustomPage} from './custom-proxy.js';
 import { renderAgyQuota } from './components/agy-quota.js';
 import { selectField } from './components/select.js';
+import { mountDisclosures, refreshButton, setRefreshState } from './components/section.js';
 
 function createProviderPage({ getToken, source, common = false, getExampleModel }) {
-  const isAgy = source === 'agy', isGrok = source === 'grok', isCodex = source === 'codex', isLocal = isAgy || isGrok || isCodex;
-  const localName = isCodex ? 'Codex' : isGrok ? 'Grok' : 'AGY';
+  const isAgy = source === 'agy', isGrok = source === 'grok', isCodex = source === 'codex', isKimi = source === 'kimi', isLocal = isAgy || isGrok || isCodex || isKimi;
+  const localName = isKimi ? 'Kimi Code' : isCodex ? 'Codex' : isGrok ? 'Grok' : 'AGY';
   const root = document.createElement('section');
   root.id = `proxy-panel-${source}`; root.className = 'proxy-provider-page'; root.hidden = true;
   root.setAttribute('role', 'tabpanel'); root.setAttribute('aria-labelledby', `proxy-tab-${source}`);
   root.innerHTML = proxyPage;
+  mountDisclosures(root);
+  if (isLocal && !isKimi) root.querySelector('#account-action').outerHTML = refreshButton({id:'account-action',label:'刷新登录',attrs:{disabled:true}});
   root.querySelector('.topbar').remove(); root.querySelector('.page-heading').remove();
   root.querySelector('.proxy-account .proxy-caption').textContent = isLocal ? `${localName} 登录` : 'Qoder 账号';
   root.querySelector('.proxy-account').closest('section').setAttribute('aria-label', isLocal ? `${localName} 账号` : 'Qoder 账号');
   const nodes = new Map([...root.querySelectorAll('[id]')].map(node => [node.id, node]));
   const $ = id => nodes.get(id);
-  const sourceNote = document.createElement('p'); sourceNote.className = 'proxy-hint proxy-source-note'; sourceNote.setAttribute('role', 'status');
-  root.querySelector('.proxy-account').after(sourceNote);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   $('protocol-control').innerHTML = selectField({ id: 'protocol', name: 'protocol', label: '客户端协议', value: isCodex ? 'responses' : 'chat', compact: true, hideLabel: true, options: [{ value: 'chat', label: 'Chat Completions' }, { value: 'responses', label: 'Responses' }, { value: 'messages', label: 'Anthropic Messages' }] });
   nodes.set('protocol', root.querySelector('#protocol'));
   $('connection-result').textContent = '所有来源共用此地址、API Key 和代理开关。';
+  let kimiLogin = null, accountRefreshing = false;
   let status, visible = false, refreshing = false, working = false, checking = false, loginPolling = false, apiKey = '', models = [], settingsDirty = false, modelLoading = false;
   let creditsOwner = '', creditsVersion = 0, creditsLoading = false, creditsCheckedAt = 0, creditsUpdatedAt = '';
   let savingSettings = false, savingNode = false;
   const names = { stopped: '已停止', starting: '启动中…', running: '运行中', stopping: '停止中…' };
   async function api(path, body) {
-    const provider = isLocal && (path.startsWith('models') || path === 'quota' || path === 'auth/refresh') ? (isCodex ? 'codex-proxy' : source) : 'qoder';
+    const provider = isKimi && path.startsWith('auth/') ? 'kimi-proxy' : isLocal && (path.startsWith('models') || path === 'quota' || path === 'auth/refresh') ? (isCodex ? 'codex-proxy' : isKimi ? 'kimi-proxy' : source) : 'qoder';
     const response = await fetch(`/api/${provider}/${path === 'auth/refresh' ? 'status?refresh=1' : path}`, { method: body === undefined ? 'GET' : 'POST', headers: { 'x-workbench-token': getToken(), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(65_000) });
     let result;
     try { result = await response.json(); } catch { throw new Error('代理服务暂时无法连接，请稍后重试'); }
     if (!response.ok) throw new Error(result.error || '操作失败，请重试');
     return result;
   }
-  const sourceError = document.createElement('p'); sourceError.className = 'proxy-error'; sourceError.hidden = true; sourceError.setAttribute('role', 'alert'); sourceNote.after(sourceError);
+  const sourceError = document.createElement('p'); sourceError.className = 'proxy-error'; sourceError.hidden = true; sourceError.setAttribute('role', 'alert'); root.querySelector('.proxy-account').after(sourceError);
   function error(message = '') { const target = common ? $('service-error') : sourceError; target.textContent = message; target.hidden = !message; }
   function paint() {
     if (!status) return;
@@ -50,18 +52,19 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
       $('service-note').textContent = unavailable ? '在下方设置中选择 Node 22 或更新版本。' : running ? `${status.activeRequests} 个请求进行中 · 所有来源共用此开关` : '统一代理 · 至少一个来源可用即可开启';
     }
     $('account-name').textContent = status.account ? [status.account.organization, status.account.uid].filter(Boolean).join(' · ') : '尚未登录';
-    if (isLocal) $('account-name').textContent = status.sources?.[source]?.error || (status.sources?.[source]?.connected ? `已连接本机 ${localName}` : `尚未连接 · 请在终端运行 ${isCodex ? 'codex login' : isGrok ? 'grok login --oauth' : 'agy'} 登录后刷新`);
+    if (isLocal) $('account-name').textContent = status.sources?.[source]?.error || (status.sources?.[source]?.connected ? `已连接本机 ${localName}` : isKimi ? '尚未连接 · 请通过网页登录后刷新' : `尚未连接 · 请在终端运行 ${isCodex ? 'codex login' : isGrok ? 'grok login --oauth' : 'agy'} 登录后刷新`);
     const owner = isLocal ? (status.sources?.[source]?.connected ? source : '') : status.account ? [status.account.uid, status.account.organization].join(':') : '';
     if (owner !== creditsOwner) {
       creditsOwner = owner; creditsVersion++; creditsLoading = false; creditsCheckedAt = 0; creditsUpdatedAt = ''; $('usage-trend').replaceChildren();
       $('usage-list').replaceChildren(); $('usage-list').setAttribute('aria-busy', 'false'); $('usage-note').hidden = true;
       $('usage-summary').textContent = owner ? '' : isLocal ? '刷新登录后可查看额度状态。' : '登录 Qoder 后可查看 Credits 用量。';
-      $('refresh-usage').disabled = !owner; $('refresh-usage').textContent = '刷新';
-      if (visible && owner && !isCodex && $('usage-details').open) void loadUsage();
+      setRefreshState($('refresh-usage'), {disabled:!owner});
+      if (visible && owner && $('usage-details').open) void loadUsage();
     }
-    $('account-action').textContent = isLocal ? '刷新登录' : status.account ? '退出账号' : '登录 Qoder';
+    if (!isLocal || isKimi) $('account-action').textContent = isKimi ? '网页登录' : status.account ? '退出账号' : '登录 Qoder';
     $('account-action').hidden = !isLocal && settingsLocked;
     $('account-action').disabled = (!isLocal && running) || transition || unavailable;
+    setRefreshState($('account-refresh'), {loading:accountRefreshing,disabled:transition || unavailable});
     if (common) {
       $('base-url').value = $('protocol').value === 'messages' ? status.baseUrl?.replace(/\/v1$/, '') || '' : status.baseUrl || '';
       $('copy-url').disabled = !$('base-url').value;
@@ -82,15 +85,22 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
       $('save-node').disabled = running || transition || savingNode;
       $('node-path').disabled = running || transition;
     }
-    $('login-panel').hidden = isLocal || !status.login;
-    if (status.login) $('login-link').href = status.login.url;
+    $('login-panel').hidden = isLocal && !isKimi || !status.login;
+    if (status.login) {
+      $('login-link').href = status.login.url;
+      const expiresAt = status.login.expiresAt > 1e12 ? status.login.expiresAt : status.login.expiresAt * 1000;
+      const expired = Number.isFinite(expiresAt) && Date.now() >= expiresAt;
+      $('login-code').hidden = !status.login.userCode && !expired;
+      $('login-code').textContent = expired ? '授权已过期，请取消后重新登录。' : status.login.userCode ? '授权码：' + status.login.userCode : '';
+      $('login-link').hidden = expired;
+    }
     if (common && (status.runtimeError || status.lastError)) error(status.runtimeError || status.lastError);
     if (common && status.conflicts?.length) error(`模型名称冲突：${status.conflicts.join('、')}。请停用其中一个来源的同名模型。`);
   }
   async function refresh() {
     if (!getToken() || document.hidden || refreshing) return;
     refreshing = true;
-    try { status = await api('status'); paint(); if (!apiKey && !status.runtimeError) await loadKey(); if (visible && !isCodex && $('usage-details').open && (isLocal ? status.sources?.[source]?.connected : status.account) && Date.now() - creditsCheckedAt >= 60000) void loadUsage(); }
+    try { status = await api('status'); if(isKimi)status.login=kimiLogin; paint(); if (!apiKey && !status.runtimeError) await loadKey(); if (visible && $('usage-details').open && (isLocal ? status.sources?.[source]?.connected : status.account) && Date.now() - creditsCheckedAt >= 60000) void loadUsage(); }
     catch (e) { error(e.message); $('service-switch').disabled = true; }
     finally { refreshing = false; }
     return status;
@@ -129,9 +139,27 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
       finally { working = false; await refresh(); paint(); }
     };
   }
+  $('account-refresh').hidden = !isKimi;
+  $('account-refresh').onclick = async () => {
+    if (accountRefreshing) return;
+    accountRefreshing = true; paint(); error();
+    try {
+      await api('auth/refresh'); await refresh();
+      if ($('models-details').open) await loadModels(true);
+    } catch (e) { error(e.message); }
+    finally { accountRefreshing = false; paint(); }
+  };
   $('account-action').onclick = async () => {
     $('account-action').disabled = true; error();
+    if (isLocal && !isKimi) setRefreshState($('account-action'), {loading:true});
     try {
+      if (isKimi) {
+        const result=await api('auth/login',{});
+        kimiLogin=result?.status==='authenticated'?null:result;
+        await refresh();if(kimiLogin){$('login-note').textContent='点击下方链接，在浏览器完成 Kimi 授权，此页会自动更新。';paint();$('login-link').focus();}
+        else if($('models-details').open)await loadModels(true);
+        return;
+      }
       if (isLocal) { const result = await api('auth/refresh'); await refresh(); if (!result.connected) error(result.error); else if ($('models-details').open) await loadModels(); return; }
       if (status.account) {
         if (!await confirmAction('退出 Qoder？', '本机保存的 Qoder 登录凭证将被删除。重新登录后可继续使用代理。', '退出账号')) return;
@@ -142,14 +170,20 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
         $('login-note').textContent = '点击下方链接，在浏览器中完成授权，此页会自动更新。';
       }
       paint(); if (status.login) $('login-link').focus();
-    } catch (e) { error(e.message); } finally { paint(); }
+    } catch (e) { error(e.message); } finally { if (isLocal && !isKimi) setRefreshState($('account-action')); paint(); }
   };
-  $('login-cancel').onclick = async () => { try { await api('auth/cancel', {}); status.login = null; paint(); } catch (e) { error(e.message); } };
+  $('login-cancel').onclick = async () => { try { await api('auth/cancel', {}); status.login = null; kimiLogin=null; paint(); } catch (e) { error(e.message); } };
   async function pollLogin() {
-    if (isLocal || !status?.login || loginPolling || document.hidden) return;
+    if (isLocal && !isKimi || !status?.login || loginPolling || document.hidden) return;
     loginPolling = true;
     try {
-      if (Date.now() > status.login.expiresAt) { await api('auth/cancel', {}); status.login = null; error('登录链接已过期，请重新登录。'); paint(); return; }
+      if (!isKimi && Date.now() > status.login.expiresAt) { await api('auth/cancel', {}); status.login = null; error('登录链接已过期，请重新登录。'); paint(); return; }
+      if(isKimi){
+        const result=await api('auth/poll');
+        if(result?.status==='authenticated'){kimiLogin=null;await refresh();if($('models-details').open)await loadModels(true);}
+        else if(result&&result.status!=='pending'){kimiLogin=null;status.login=null;error('Kimi 登录未完成：'+result.status);paint();}
+        return;
+      }
       const result = await api('auth/poll', {});
       if (result.authorized) { await refresh(); if ($('models-details').open) await loadModels(); }
     } catch (e) { $('login-note').textContent = `${e.message}。可重试登录。`; }
@@ -191,13 +225,13 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
   function paintModels() {
     const field = (m, name, label, value, options) => `<div class="proxy-model-field" data-model="${esc(m.id)}" data-field="${name}">${selectField({ name, label, value, options, compact: true })}</div>`;
     const open=$('models-list').querySelector('.proxy-disabled-models')?.open||false;
-    $('models-list').innerHTML = modelGroups(models,m => `<div class="proxy-model"><div class="proxy-model-heading"><div>${esc(m.displayName || m.id)}<small>${esc(m.id)}</small></div><label class="proxy-checkbox"><input type="checkbox" data-model="${esc(m.id)}" data-field="enabled" ${m.enabled ? 'checked' : ''} aria-label="启用 ${esc(m.id)}">启用</label></div>${isGrok || isCodex ? `<p class="proxy-hint">CLI 上下文 ${m.contextWindow ? Number(m.contextWindow).toLocaleString() : '未提供'} · 最大输出 ${m.maxOutputTokens ? Number(m.maxOutputTokens).toLocaleString() : 'CLI 未声明'} · 中转默认不限制输出</p>` : ''}<div class="proxy-model-options">${m.contextWindows.length ? field(m, 'context', '默认上下文', m.contextWindows.find(w => w.isDefault)?.length, m.contextWindows.map(w => ({ value: w.length, label: Number(w.length).toLocaleString() }))) : ''}${m.reasoningEfforts.length ? field(m, 'effort', '默认推理强度', m.effort || 'auto', [{ value: 'auto', label: '自动' }, ...m.reasoningEfforts.map(level => ({ value: level, label: level }))]) : ''}${isGrok ? `<label class="proxy-model-budget">默认输出预算（可选）<input type="number" min="1" step="1" placeholder="不额外限制" value="${m.defaultMaxTokens || ''}" data-model="${esc(m.id)}" data-field="maxTokens" aria-label="${esc(m.displayName)} 默认正文输出"></label>` : ''}${isCodex ? field(m, 'serviceTier', '默认速度', m.serviceTier || 'auto', [{value:'auto',label:'跟随上游'},{value:'default',label:'标准'},...(m.serviceTiers || []).map(t=>({value:t.id,label:t.name}))]) : ''}${m.supportsFast ? `<label><input type="checkbox" data-model="${esc(m.id)}" data-field="fast" ${m.fast ? 'checked' : ''}>Fast</label>` : ''}</div></div>`,{open});
+    $('models-list').innerHTML = modelGroups(models,m => `<div class="proxy-model"><div class="proxy-model-heading"><div>${esc(m.displayName || m.id)}<small>${esc(m.id)}</small></div><label class="proxy-checkbox ui-first-line-slot"><input type="checkbox" data-model="${esc(m.id)}" data-field="enabled" ${m.enabled ? 'checked' : ''} aria-label="启用 ${esc(m.id)}">启用</label></div>${isGrok || isCodex || isKimi ? `<p class="proxy-hint">${isKimi ? '上游' : 'CLI'} 上下文 ${m.contextWindow ? Number(m.contextWindow).toLocaleString() : '未提供'} · 最大输出 ${m.maxOutputTokens ? Number(m.maxOutputTokens).toLocaleString() : '上游未提供'} · 中转默认不限制输出</p>` : ''}${isKimi && m.defaultEffort ? `<p class="proxy-hint">上游默认思考强度：${esc(m.defaultEffort)}${m.thinkingType === 'only' ? ' · 不支持关闭思考' : ''}</p>` : ''}${isKimi && !m.reasoningEfforts.length ? '<p class="proxy-hint">上游未提供可调思考档位，使用模型默认思考。</p>' : ''}<div class="proxy-model-options">${m.contextWindows.length ? field(m, 'context', '默认上下文', m.contextWindows.find(w => w.isDefault)?.length, m.contextWindows.map(w => ({ value: w.length, label: Number(w.length).toLocaleString() }))) : ''}${m.reasoningEfforts.length ? field(m, 'effort', '默认推理强度', m.effort || 'auto', [{ value: 'auto', label: '自动' }, ...m.reasoningEfforts.map(level => ({ value: level, label: level }))]) : ''}${isGrok ? `<label class="proxy-model-budget">默认输出预算（可选）<input type="number" min="1" step="1" placeholder="不额外限制" value="${m.defaultMaxTokens || ''}" data-model="${esc(m.id)}" data-field="maxTokens" aria-label="${esc(m.displayName)} 默认正文输出"></label>` : ''}${isCodex ? field(m, 'serviceTier', '默认速度', m.serviceTier || 'auto', [{value:'auto',label:'跟随上游'},{value:'default',label:'标准'},...(m.serviceTiers || []).map(t=>({value:t.id,label:t.name}))]) : ''}${m.supportsFast ? `<label><input type="checkbox" data-model="${esc(m.id)}" data-field="fast" ${m.fast ? 'checked' : ''}>Fast</label>` : ''}</div></div>`,{open});
   }
   async function loadModels(force = false) {
-    if (modelLoading) return; modelLoading = true; $('refresh-models').disabled = true; $('models-message').textContent = '正在获取模型…';
-    try { models = (await api(force === true ? 'models?refresh=1' : 'models')).models; paintModels(); $('models-message').textContent = models.length ? (isLocal ? '模型目录已缓存 · 点击刷新可重新发现' : '') : '账号暂无可用模型'; }
+    if (modelLoading) return; modelLoading = true; setRefreshState($('refresh-models'), {loading:true}); $('models-message').textContent = '正在获取模型…';
+    try { models = (await api(force === true ? 'models?refresh=1' : 'models')).models; paintModels(); $('models-message').textContent = models.length ? '' : '账号暂无可用模型'; }
     catch (e) { $('models-message').textContent = isLocal ? `请刷新 ${localName} 登录后重试。` : status.account ? e.message : '登录 Qoder 后可查看和设置模型。'; }
-    finally { modelLoading = false; $('refresh-models').disabled = false; }
+    finally { modelLoading = false; setRefreshState($('refresh-models')); }
   }
   $('models-list').onchange = async event => {
     const input = event.target, { model, field } = input.closest('[data-model]')?.dataset || {}; if (!model) return;
@@ -212,11 +246,29 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
     finally { input.disabled = false; }
   };
   $('models-details').ontoggle = () => { if ($('models-details').open && getToken()) void loadModels(); };
-  $('refresh-models').onclick = () => loadModels(true);
+  $('refresh-models').onclick = () => { void loadModels(true); };
   async function loadUsage() {
     if (creditsLoading) return;
+    if (isCodex || isKimi) {
+      const version=creditsVersion;
+      creditsLoading=true;creditsCheckedAt=Date.now();setRefreshState($('refresh-usage'), {loading:true});
+      $('usage-summary').textContent='正在读取订阅额度…';
+      try {
+        const result=await api('quota');
+        if(version!==creditsVersion)return;
+        $('usage-summary').textContent=result.buckets.length ? '' : '上游未提供可读取的额度。';
+        $('usage-list').innerHTML=result.buckets.map(bucket=>{
+          const known=Number.isFinite(bucket.usedPercent), remaining=known ? Math.max(0,Math.min(100,100-bucket.usedPercent)) : undefined;
+          const value=number=>Number.isFinite(number) ? number.toLocaleString('zh-CN',{maximumFractionDigits:1}) : '上游未提供';
+          return `<div class="proxy-model"><strong>${esc(bucket.name)}</strong><p class="proxy-hint">已用 ${known ? value(bucket.usedPercent)+'%' : '上游未提供'} · 剩余 ${known ? value(remaining)+'%' : '上游未提供'}</p>${known ? `<meter class="grok-quota-meter" min="0" max="100" value="${remaining}" aria-label="${esc(bucket.name)}剩余额度"></meter>` : ''}<p class="proxy-hint">${bucket.limit!==undefined ? `总量 ${value(bucket.limit)} · 已用 ${value(bucket.used)} · 剩余 ${value(bucket.remaining)} · ` : ''}${bucket.resetsAt ? esc(new Date(bucket.resetsAt).toLocaleString('zh-CN'))+' 重置' : '上游未提供重置时间'}</p></div>`;
+        }).join('');
+        $('usage-trend').replaceChildren();$('usage-note').hidden=true;
+      } catch(error) {if(version===creditsVersion)$('usage-summary').textContent=error.message;}
+      finally {if(version===creditsVersion){creditsLoading=false;setRefreshState($('refresh-usage'));}}
+      return;
+    }
     if (isGrok) {
-      creditsLoading = true; creditsCheckedAt = Date.now(); $('refresh-usage').disabled = true;
+      creditsLoading = true; creditsCheckedAt = Date.now(); setRefreshState($('refresh-usage'), {loading:true});
       try {
         const result = await api('quota'); $('usage-summary').textContent = result.message;
         const known = Number.isFinite(result.usedPercent), remaining = known ? Math.max(0, Math.min(100, 100 - result.usedPercent)) : 0;
@@ -226,11 +278,11 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
         $('usage-trend').replaceChildren(); $('usage-note').hidden = true;
       }
       catch (e) { $('usage-summary').textContent = e.message; }
-      finally { creditsLoading = false; $('refresh-usage').disabled = false; }
+      finally { creditsLoading = false; setRefreshState($('refresh-usage')); }
       return;
     }
     if (isAgy) {
-      creditsLoading = true; creditsCheckedAt = Date.now(); $('refresh-usage').disabled = true;
+      creditsLoading = true; creditsCheckedAt = Date.now(); setRefreshState($('refresh-usage'), {loading:true});
       $('usage-summary').textContent = '正在读取 AGY 模型额度…';
       try {
         const result = await api('quota');
@@ -239,12 +291,12 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
         $('usage-list').innerHTML = renderAgyQuota(result.groups);
         $('usage-trend').replaceChildren(); $('usage-note').hidden = true;
       } catch { $('usage-summary').textContent = 'AGY 额度获取失败，请刷新登录后重试。'; }
-      finally { creditsLoading = false; $('refresh-usage').disabled = false; }
+      finally { creditsLoading = false; setRefreshState($('refresh-usage')); }
       return;
     }
     if (!status?.account) { $('usage-summary').textContent = '登录 Qoder 后可查看 Credits 用量。'; return; }
     const version = ++creditsVersion; creditsCheckedAt = Date.now();
-    creditsLoading = true; $('refresh-usage').disabled = true; $('refresh-usage').textContent = '刷新中…';
+    creditsLoading = true; setRefreshState($('refresh-usage'), {loading:true});
     $('usage-summary').textContent = '正在读取 Credits 用量…'; $('usage-list').setAttribute('aria-busy', 'true');
     try {
       const result = await api('credits'); if (version !== creditsVersion) return;
@@ -271,15 +323,14 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
     } catch (e) {
       if (version === creditsVersion) $('usage-summary').textContent = `${e.message}。${$('usage-list').childElementCount ? `图表为上次数据（${creditsUpdatedAt}），可点击刷新重试。` : '可点击刷新重试。'}`;
     } finally {
-      if (version === creditsVersion) { creditsLoading = false; $('refresh-usage').disabled = false; $('refresh-usage').textContent = '刷新'; $('usage-list').setAttribute('aria-busy', 'false'); }
+      if (version === creditsVersion) { creditsLoading = false; setRefreshState($('refresh-usage')); $('usage-list').setAttribute('aria-busy', 'false'); }
     }
   }
   $('usage-details').ontoggle = () => { if ($('usage-details').open && getToken()) void loadUsage(); };
   $('refresh-usage').onclick = loadUsage;
   function hideKey() { $('api-key').type = 'password'; $('show-key').textContent = '显示'; }
 
-  if (isCodex) $('usage-details').remove();
-  if (isLocal && !isCodex) $('usage-details').querySelector('summary').firstChild.textContent = isGrok ? '订阅额度' : '模型额度';
+  if (isLocal) $('usage-details').querySelector('.ui-disclosure-title').textContent = isGrok || isCodex || isKimi ? '订阅额度' : '模型额度';
   root.querySelector('.workspace-footer').lastElementChild.textContent = isCodex ? 'Codex' : isGrok ? 'Grok' : isAgy ? 'Antigravity' : 'Qoder';
   root.querySelectorAll('[id]').forEach(node => { node.dataset.localId = node.id; node.id = `${source}-${node.id}`; });
   root.querySelectorAll('[for], [aria-labelledby]').forEach(node => {
@@ -293,12 +344,11 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
   return {
     element: root, service,
     refresh,
-    updateStatus(value) { status = value; paint(); if (visible && !isCodex && $('usage-details').open && Date.now() - creditsCheckedAt >= 60000) void loadUsage(); },
-    updateSource(text) { sourceNote.textContent = text; },
+    updateStatus(value) { status = isKimi ? {...value,login:kimiLogin} : value; paint(); if (visible && $('usage-details').open && Date.now() - creditsCheckedAt >= 60000) void loadUsage(); },
     setVisible(value) {
       if (visible === value) return;
       visible = value; root.hidden = !value;
-      if (value && status && !isCodex && $('usage-details').open) void loadUsage();
+      if (value && status && $('usage-details').open) void loadUsage();
       if (!value) { hideKey(); root.querySelectorAll('workbench-select').forEach(select => select.setOpen(false)); }
     },
     pollLogin, hideKey,
@@ -309,22 +359,21 @@ function createProviderPage({ getToken, source, common = false, getExampleModel 
 
 export function createProxyPage({ getToken }) {
   const root = document.createElement('main'); root.id = 'proxy-page'; root.className = 'proxy-page'; root.hidden = true;
-  root.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 反向代理</span></header><div class="workspace proxy-heading"><section class="page-heading"><div><h1>反向代理</h1><p>一个地址，连接你的模型</p></div></section><div class="proxy-tabs" role="tablist" aria-label="模型来源"><button id="proxy-tab-qoder" role="tab" aria-controls="proxy-panel-qoder" aria-selected="true" tabindex="0">Qoder</button><button id="proxy-tab-agy" role="tab" aria-controls="proxy-panel-agy" aria-selected="false" tabindex="-1">AGY</button><button id="proxy-tab-grok" role="tab" aria-controls="proxy-panel-grok" aria-selected="false" tabindex="-1">Grok</button><button id="proxy-tab-codex" role="tab" aria-controls="proxy-panel-codex" aria-selected="false" tabindex="-1">Codex</button><button id="proxy-tab-custom" role="tab" aria-controls="proxy-panel-custom" aria-selected="false" tabindex="-1">自定义</button></div></div>`;
-  const pages = { qoder: createProviderPage({ getToken, source: 'qoder', common: true, getExampleModel: () => pages[selected].getModel() }), agy: createProviderPage({ getToken, source: 'agy' }), grok: createProviderPage({ getToken, source: 'grok' }), codex: createProviderPage({getToken,source:'codex'}), custom:createCustomPage({getToken}) };
+  root.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 反向代理</span></header><div class="workspace proxy-heading"><section class="page-heading"><div><h1>反向代理</h1><p>一个地址，连接你的模型</p></div></section><div class="proxy-tabs" role="tablist" aria-label="模型来源"><button id="proxy-tab-qoder" role="tab" aria-controls="proxy-panel-qoder" aria-selected="true" tabindex="0">Qoder</button><button id="proxy-tab-agy" role="tab" aria-controls="proxy-panel-agy" aria-selected="false" tabindex="-1">AGY</button><button id="proxy-tab-grok" role="tab" aria-controls="proxy-panel-grok" aria-selected="false" tabindex="-1">Grok</button><button id="proxy-tab-codex" role="tab" aria-controls="proxy-panel-codex" aria-selected="false" tabindex="-1">Codex</button><button id="proxy-tab-kimi" role="tab" aria-controls="proxy-panel-kimi" aria-selected="false" tabindex="-1">Kimi</button><button id="proxy-tab-custom" role="tab" aria-controls="proxy-panel-custom" aria-selected="false" tabindex="-1">自定义</button><button id="proxy-tab-routes" role="tab" aria-controls="proxy-panel-routes" aria-selected="false" tabindex="-1">模型路由</button></div></div>`;
+  const pages = { qoder: createProviderPage({ getToken, source: 'qoder', common: true, getExampleModel: () => pages[selected].getModel() }), agy: createProviderPage({ getToken, source: 'agy' }), grok: createProviderPage({ getToken, source: 'grok' }), codex: createProviderPage({getToken,source:'codex'}), kimi:createProviderPage({getToken,source:'kimi'}), custom:createCustomPage({getToken,onRoutes:()=>select('routes')}), routes:createRoutesPage({getToken}) };
   root.querySelector('.proxy-tabs').before(pages.qoder.service);
   Object.values(pages).forEach(page => root.append(page.element));
-  const diagnostics = createDiagnostics({ getToken, onSources(rows) {
-    for (const row of rows) pages[row.id]?.updateSource(diagnostics.describe(row));
-  } });
-  root.append(diagnostics.element);
+  const footer = document.createElement('div'); footer.className = 'workspace proxy-footer';
+  footer.append(pages.qoder.service.querySelector('[data-local-id="settings-details"]'));
+  root.append(footer);
   let selected = 'qoder', visible = false, timer, refreshing = false;
   async function refresh() {
     if (!visible || document.hidden || refreshing) return;
     refreshing = true;
     try {
-      const [status] = await Promise.all([pages.qoder.refresh(), diagnostics.refresh()]);
-      if (status) for (const name of ['agy', 'grok', 'codex']) pages[name].updateStatus(status);
-      await pages.qoder.pollLogin();
+      const status = await pages.qoder.refresh();
+      if (status) for (const name of ['agy', 'grok', 'codex', 'kimi']) pages[name].updateStatus(status);
+      await pages.qoder.pollLogin(); await pages.kimi.pollLogin();
     } finally { refreshing = false; }
   }
   function select(source) {

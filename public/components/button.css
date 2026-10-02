@@ -1,0 +1,90 @@
+/* Shared actions; all configurable values live in design-system.css.
+   Existing class names remain aliases, with no per-page button skins. */
+button, [role="button"] {
+  font-family: var(--font-ui);
+  font-size: var(--font-button-size);
+  line-height: var(--font-button-line);
+  font-weight: var(--button-font-weight);
+  border-radius: var(--button-radius);
+  box-sizing: border-box;
+  color: inherit;
+  cursor: pointer;
+}
+button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacity: var(--button-disabled-opacity); }
+:is(button,a,input,textarea,select,summary,[role="button"]):focus-visible { outline: var(--button-focus-width) solid var(--green); outline-offset: var(--button-focus-offset); }
+
+.ui-button, .primary, .secondary, .capture, .small-button, .text-button, .icon-button, .danger-link, .ui-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--button-icon-gap);
+  font-family: var(--font-ui);
+  font-size: var(--font-button-size);
+  line-height: var(--font-button-line);
+  font-weight: var(--button-font-weight);
+  border-radius: var(--button-radius);
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+:is(.ui-button,.primary,.secondary,.small-button,.text-button,.icon-button,.danger-link,.ui-refresh-button) > .icon { width: var(--button-icon-size); height: var(--button-icon-size); flex-shrink: 0; }
+.ui-button-primary, .primary, .ui-button-secondary, .secondary, .capture, .ui-button-danger, .danger-button {
+  min-height: var(--button-height);
+  padding: var(--button-padding-block) var(--button-padding-inline);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--green);
+}
+.ui-button-primary, .primary { background: var(--green); border-color: var(--green); color: var(--paper); }
+.ui-button-text, .text-button, .danger-link {
+  min-height: var(--compact-button-height);
+  padding: var(--compact-button-padding-block) var(--space-2);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--green);
+}
+.small-button, .ui-refresh-button {
+  min-height: var(--compact-button-height);
+  padding: var(--compact-button-padding-block) var(--compact-button-padding-inline);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--green);
+}
+.ui-button-icon, .icon-button, .quick-close {
+  width: var(--icon-button-size);
+  min-width: var(--icon-button-size);
+  height: var(--icon-button-size);
+  min-height: var(--icon-button-size);
+  padding: var(--space-1);
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+.ui-button-danger, .danger-button { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+.danger-link { color: var(--danger); }
+:is(.ui-button,.primary,.secondary,.small-button,.text-button,.icon-button,.danger-link,.ui-refresh-button):hover:not(:disabled) { filter: brightness(.96); }
+:is(.ui-button-text,.ui-button-icon,.text-button,.icon-button,.ui-refresh-button):hover:not(:disabled) { background: var(--workbench-background); }
+.small-button.selected { background: var(--selection-background); color: var(--green); }
+
+/* Navigation, form selection and toggles retain their semantic variants. */
+:is(.proxy-tabs,.route-filters,.task-range-tabs,.ai-history-filters) > button { min-height: var(--compact-button-height); padding: var(--compact-button-padding-block) var(--compact-button-padding-inline); border-radius: var(--button-radius); }
+.proxy-tabs [role="tab"] {
+  padding: var(--space-3) var(--space-1);
+  border: 0;
+  border-bottom: var(--tab-indicator-width) solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-button-size);
+  line-height: var(--font-button-line);
+  font-weight: var(--tab-font-weight);
+}
+.proxy-tabs [aria-selected="true"] { color: var(--green); border-bottom-color: currentColor; }
+.select-trigger { font-size: var(--font-control-size); line-height: var(--font-control-line); border-radius: var(--button-radius); }
+.select-compact .select-trigger { font-size: var(--font-compact-size); line-height: var(--font-compact-line); }
+.ai-send,.ai-stop { width: var(--composer-action-size); height: var(--composer-action-size); min-height: var(--composer-action-size); border-radius: var(--button-radius); padding: 0; }
+.ai-send > svg { width: var(--button-icon-size); height: var(--button-icon-size); }
+
+.ui-refresh-label { display: grid; }
+.ui-refresh-label > span { grid-area: 1 / 1; }
+.ui-refresh-button [data-refresh-busy], .ui-refresh-button[aria-busy="true"] [data-refresh-idle] { visibility: hidden; }
+.ui-refresh-button[aria-busy="true"] [data-refresh-busy] { visibility: visible; }

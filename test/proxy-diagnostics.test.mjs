@@ -185,5 +185,5 @@ test('authenticated public diagnostics preserve wire responses and capture both 
   await api('/api/custom-proxy/save', { ...saved, apiKey: '', enabled: false });
   assert.equal((await api('/api/proxy/sources')).sources.find(s => s.id === 'custom:' + saved.id).verification.generation, undefined);
   assert.equal((await api('/api/qoder/usage')).retained, 4);
-  assert.equal((await fetch(base + '/components/proxy-diagnostics.js')).status, 200);
+  assert.equal((await fetch(base + '/components/proxy-diagnostics.js')).status, 404);
 });

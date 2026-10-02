@@ -1,0 +1,306 @@
+/* 全软件视觉配置入口，主窗口与快速搜索共用。
+   1. 字体按语义角色配置，字号与行高成对调整。
+   2. 全局留白、控件尺寸与页面宽度在 :root 中配置。
+   3. 模块用 var(...) 和下方 ui-* 布局类复用，避免各页重复定值。
+   4. --page-max-width: none 表示页面随窗口扩展，表单宽度单独配置。 */
+@font-face {
+  font-family: system-ui-fallback;
+  src: local("PingFang SC");
+}
+
+:root {
+  --font-ui: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-symbol-serif: Georgia, serif;
+
+  /* Text roles: size and line height always travel together. */
+  --font-page-size: 28px;
+  --font-page-line: 38px;
+  --font-dialog-size: 22px;
+  --font-dialog-line: 30px;
+  --font-section-size: 15px;
+  --font-section-line: 24px;
+  --font-body-size: 13px;
+  --font-body-line: 22px;
+  --font-caption-size: 12px;
+  --font-caption-line: 20px;
+  --font-meta-size: 11px;
+  --font-meta-line: 18px;
+  --font-label-size: var(--font-caption-size);
+  --font-label-line: var(--font-caption-line);
+  --font-control-size: var(--font-body-size);
+  --font-control-line: 20px;
+  --font-button-size: var(--font-caption-size);
+  --font-button-line: var(--font-caption-line);
+  --font-compact-size: var(--font-caption-size);
+  --font-compact-line: var(--font-caption-line);
+
+  /* Longer reading, code, and prominent numeric/brand information. */
+  --font-reading-size: 14px;
+  --font-reading-line: 26px;
+  --font-prose-heading-size: 18px;
+  --font-prose-heading-line: 26px;
+  --font-code-size: 12px;
+  --font-code-line: 20px;
+  --font-metric-size: 22px;
+  --font-metric-line: 30px;
+  --font-date-size: 43px;
+  --font-date-line: 50px;
+  --font-brand-size: 23px;
+  --font-brand-line: 30px;
+  --font-capture-size: 20px;
+  --font-capture-line: 28px;
+  --font-pi-mark-size: 29px;
+  --font-orbit-size: 36px;
+  --font-orbit-line: 44px;
+  --font-symbol-line: 1;
+
+  /* Spacing scale and the relationships shared by all pages. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --heading-copy-gap: var(--space-2);
+  --page-heading-gap: var(--space-7);
+  --page-footer-gap: var(--space-9);
+  --paragraph-gap: var(--space-3);
+  --metadata-gap: var(--space-1);
+  --section-gap: var(--space-6);
+  --form-field-gap: var(--space-5);
+  --field-label-gap: var(--space-2);
+  --feedback-inset: var(--space-4);
+  --text-action-height: calc(var(--font-button-line) + var(--space-2) + var(--space-2));
+  --feedback-row-height: max(var(--compact-control-height), var(--text-action-height));
+  --toolbar-row-height: var(--feedback-row-height);
+  --section-action-gap: var(--space-4);
+  --disclosure-inline-start: 2px;
+  --disclosure-marker-width: 21px;
+  --refresh-icon-size: 14px;
+  --button-icon-size: 16px;
+  --button-icon-gap: var(--space-2);
+  --button-radius: 6px;
+  --button-font-weight: 500;
+  --button-disabled-opacity: .45;
+  --button-focus-width: 2px;
+  --button-focus-offset: 3px;
+  --tab-indicator-width: 3px;
+  --tab-font-weight: 600;
+  --selection-control-size: 16px;
+  --button-padding-block: var(--space-2);
+  --button-padding-inline: var(--space-4);
+  --compact-button-padding-block: var(--space-1);
+  --compact-button-padding-inline: var(--space-3);
+  --panel-block-inset: var(--space-6);
+  --panel-inline-inset: 26px;
+  --dialog-inline-inset: 28px;
+  --form-control-height: 44px;
+  --form-control-line-height: var(--font-control-line);
+  --compact-control-height: 36px;
+  --form-control-padding-block: calc((var(--form-control-height) - var(--font-control-line) - 2px) / 2);
+  --form-control-padding: var(--form-control-padding-block) var(--space-3);
+  --compact-control-padding-block: calc((var(--compact-control-height) - var(--font-compact-line) - 2px) / 2);
+  --compact-control-padding: var(--compact-control-padding-block) 10px;
+  --button-height: 42px;
+  --compact-button-height: 36px;
+  --composer-action-size: 38px;
+  --icon-button-size: 28px;
+
+  /* Page containers expand with the window; forms keep a readable measure. */
+  --page-max-width: none;
+  --form-reading-width: 760px;
+  --form-panel-min-width: 580px;
+  --dialog-width: 650px;
+  --drawer-width: 720px;
+  --confirmation-width: 460px;
+  --quick-panel-width: 600px;
+
+  /* Page and task-column alignment, including responsive variants below. */
+  --page-inline: 43px;
+  --task-row-inset: var(--space-6);
+  --task-leading-width: 18px;
+  --task-column-gap: 13px;
+  --task-title-size: var(--font-body-size);
+
+  --green: #365944;
+  --muted: #768078;
+  --line: #e5e8e0;
+  --paper: #fff;
+  --danger: #a04436;
+  --warning: #9c5b24;
+  --warning-background: #fff5e8;
+  --selection-background: #edf2e6;
+  --soft: #eef2e9;
+  --workbench-text: #28332d;
+  --workbench-background: #f7f8f5;
+  font-family: var(--font-ui);
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line);
+  font-synthesis: none;
+}
+
+/* Explicit paragraph rhythm removes browser-default 1em margins. */
+p { margin: 0; }
+p + p { margin-top: var(--paragraph-gap); }
+small { font-size: var(--font-meta-size); line-height: var(--font-meta-line); }
+input[type="checkbox"], input[type="radio"] {
+  margin: 0;
+  width: var(--selection-control-size);
+  height: var(--selection-control-size);
+  flex-shrink: 0;
+  accent-color: var(--green);
+}
+
+.ui-feedback {
+  margin: 0;
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
+  overflow-wrap: anywhere;
+}
+.ui-feedback:empty { display: none; }
+[role="status"]:empty, [role="alert"]:empty { display: none; }
+.ui-feedback-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--feedback-row-height);
+}
+
+/* Controls stay centered on the first text line, even when content wraps. */
+.ui-first-line-slot {
+  display: flex;
+  align-items: center;
+  height: var(--font-body-line);
+  flex-shrink: 0;
+}
+
+/* A title, its description, and an action share the title's first row. */
+.ui-section-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--heading-copy-gap) var(--space-4);
+}
+.ui-section-heading > div:first-child { display: contents; }
+.ui-section-heading > div:first-child > :is(h2, h3) {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+.ui-section-heading > div:first-child > p {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+}
+.ui-section-heading > button { grid-column: 2; grid-row: 1; }
+
+.ui-section-description {
+  color: var(--muted);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
+  overflow-wrap: anywhere;
+}
+
+.ui-status-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line);
+  border-radius: var(--button-radius);
+}
+.ui-status-badge.is-warning { color: var(--warning); background: var(--warning-background); }
+
+/* Shared section headings own their actions; body rows only carry content. */
+.ui-disclosure { border-bottom: 1px solid var(--line); }
+.ui-disclosure-heading {
+  display: grid;
+  grid-template-columns: var(--disclosure-marker-width) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0;
+  min-height: calc(var(--compact-button-height) + var(--space-5) * 2);
+  padding: var(--space-5) calc(var(--panel-inline-inset) + 1px) var(--space-5) var(--disclosure-inline-start);
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line);
+  list-style: none;
+  cursor: pointer;
+}
+.ui-disclosure-heading::-webkit-details-marker { display: none; }
+.ui-disclosure-heading > .icon {
+  width: var(--refresh-icon-size);
+  height: var(--refresh-icon-size);
+  color: var(--muted);
+  transform: rotate(-90deg);
+}
+.ui-disclosure[open] > .ui-disclosure-heading > .icon { transform: none; }
+.ui-disclosure-title { min-width: 0; overflow-wrap: anywhere; }
+.ui-section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--section-action-gap);
+  margin-left: var(--section-action-gap);
+}
+.ui-disclosure-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--feedback-inset) calc(var(--panel-inline-inset) + 1px) var(--section-gap) calc(var(--disclosure-inline-start) + var(--disclosure-marker-width));
+}
+@media (max-width: 650px) {
+  .ui-section-actions { gap: var(--space-2); margin-left: var(--space-2); }
+  .ui-section-actions > .ui-section-description { max-width: 7em; }
+}
+
+/* Related settings share available space without stretching their form text. */
+.ui-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--form-panel-min-width)), 1fr));
+  align-items: start;
+  gap: var(--section-gap);
+}
+
+.ui-panel-stack {
+  display: grid;
+  gap: var(--section-gap);
+  min-width: 0;
+}
+
+@media (min-width: 1500px) {
+  :root { --page-inline: 60px; }
+}
+@media (max-width: 1150px) {
+  :root {
+    --page-inline: 26px;
+    --page-footer-gap: var(--space-7);
+    --task-row-inset: var(--space-4);
+    --task-column-gap: 9px;
+  }
+}
+@media (max-width: 650px) {
+  :root {
+    --font-page-size: 26px;
+    --font-page-line: 36px;
+    --font-date-size: 32px;
+    --font-date-line: 40px;
+    --font-brand-size: 16px;
+    --font-brand-line: 24px;
+    --font-pi-mark-size: 26px;
+    --icon-button-size: 24px;
+    --page-inline: 18px;
+    --page-heading-gap: var(--space-6);
+    --panel-block-inset: var(--space-5);
+    --panel-inline-inset: 18px;
+    --dialog-inline-inset: var(--space-5);
+    --task-row-inset: 14px;
+    --task-column-gap: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root { --font-capture-size: 18px; --font-capture-line: 26px; }
+}

@@ -1,3 +1,5 @@
+import { disclosureSection, refreshButton } from './section.js';
+
 export const proxyPage = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 反向代理</span></header>
     <div class="workspace proxy-workspace">
@@ -8,8 +10,8 @@ export const proxyPage = `
           <button id="service-switch" class="proxy-switch" type="button" role="switch" aria-checked="false" aria-label="开启代理" disabled><span></span></button>
         </div>
         <div id="service-error" class="proxy-error" role="alert" hidden></div>
-        <div class="proxy-account"><div><span class="proxy-caption">Qoder 账号</span><span id="account-name">正在读取…</span></div><button id="account-action" class="text-button" hidden disabled>登录 Qoder</button></div>
-        <div id="login-panel" class="proxy-login" hidden><p id="login-note">在浏览器中完成授权，此页会自动更新。</p><a id="login-link" rel="noreferrer" target="_blank">打开登录页面 ↗</a><button id="login-cancel" class="text-button">取消</button></div>
+        <div class="proxy-account"><div class="proxy-account-info"><span class="proxy-caption">Qoder 账号</span><span id="account-name">正在读取…</span></div><div class="proxy-account-actions">${refreshButton({id:'account-refresh',label:'刷新登录',attrs:{hidden:true,disabled:true}})}<button id="account-action" class="text-button" type="button" hidden disabled>登录 Qoder</button></div></div>
+        <div id="login-panel" class="proxy-login" hidden><p id="login-note">在浏览器中完成授权，此页会自动更新。</p><p id="login-code" hidden></p><a id="login-link" rel="noreferrer" target="_blank">打开登录页面 ↗</a><button id="login-cancel" class="text-button">取消</button></div>
       </section>
       <section class="proxy-panel proxy-connect" aria-labelledby="connect-heading">
         <div class="proxy-section-title"><h2 id="connect-heading">接入配置</h2><div id="protocol-control" class="proxy-protocol"></div></div>
@@ -20,10 +22,10 @@ export const proxyPage = `
         <div class="proxy-connect-actions"><button id="copy-example" class="secondary" disabled>复制请求示例</button><button id="test-connection" class="text-button" disabled>测试连接</button></div>
         <p id="connection-result" class="proxy-hint" role="status">开启代理后，即可在客户端中填写以上地址与密钥。</p>
       </section>
-      <details id="models-details" class="proxy-disclosure"><summary>模型设置<span>启用与默认参数</span></summary><div class="proxy-detail-body"><div class="proxy-section-title"><p class="proxy-hint">修改后立即生效，客户端可覆盖默认参数。</p><button id="refresh-models" class="text-button">刷新</button></div><p id="models-message" class="proxy-hint" role="status"></p><div id="models-list"></div></div></details>
-      <details id="usage-details" class="proxy-disclosure"><summary>Credits 用量<span>已用与剩余额度</span></summary><div class="proxy-detail-body"><div class="proxy-section-title"><p id="usage-summary" class="proxy-hint" role="status"></p><button id="refresh-usage" class="text-button">刷新</button></div><div id="usage-list" class="proxy-credits"></div><div id="usage-trend" class="proxy-credit-trend"></div><p id="usage-note" class="proxy-hint" hidden>账户额度包含其他客户端的使用；团队资源包包含团队使用。每小时保留一个快照，展示近 30 天已用额度变化；额度重置可能使曲线下降，不代表退款或单次请求费用。</p></div></details>
-      <details id="settings-details" class="proxy-disclosure"><summary>设置<span>端口与自动启动</span></summary><form id="settings-form" class="proxy-detail-body">
-        <p id="settings-readonly" class="proxy-hint" hidden></p>
+      ${disclosureSection({id:'models-details',className:'proxy-disclosure',title:'模型设置',description:'启用与默认参数',actions:refreshButton({id:'refresh-models',ariaLabel:'刷新模型'}),content:'<div id="models-list"></div><p id="models-message" class="proxy-hint proxy-model-message ui-feedback-row" role="status"></p>'})}
+      ${disclosureSection({id:'usage-details',className:'proxy-disclosure',title:'Credits 用量',description:'已用与剩余额度',actions:refreshButton({id:'refresh-usage',ariaLabel:'刷新额度'}),content:'<p id="usage-summary" class="proxy-hint" role="status"></p><div id="usage-list" class="proxy-credits"></div><div id="usage-trend" class="proxy-credit-trend"></div><p id="usage-note" class="proxy-hint" hidden>账户额度包含其他客户端的使用；团队资源包包含团队使用。每小时保留一个快照，展示近 30 天已用额度变化；额度重置可能使曲线下降，不代表退款或单次请求费用。</p>'})}
+      ${disclosureSection({id:'settings-details',className:'proxy-disclosure',title:'设置',description:'端口与自动启动',content:`<form id="settings-form" class="proxy-settings-form">
+        <p id="settings-readonly" class="proxy-hint ui-feedback-row" hidden></p>
         <div id="settings-edit" hidden>
         <label class="proxy-field">本机端口<input id="proxy-port" type="number" min="1024" max="65535" required value="4319"></label>
         <label class="proxy-checkbox"><input id="auto-start" type="checkbox">随 Daylight 启动代理</label>
@@ -31,7 +33,7 @@ export const proxyPage = `
         <p class="proxy-hint">关闭窗口后继续运行，退出 Daylight 时停止。</p>
         <div class="proxy-node"><span class="proxy-caption">Node 运行环境</span><p id="node-info" class="proxy-hint">正在检测…</p><div id="node-setting" hidden><label class="proxy-field">Node 路径 <input id="node-path" placeholder="留空自动检测，或填写绝对路径" spellcheck="false"></label><button id="save-node" type="button" class="text-button">重新检测 / 应用路径</button></div></div>
         <div id="settings-actions" class="proxy-section-title" hidden><button id="save-settings" class="secondary" type="submit">保存设置</button><button id="rotate-key" class="danger-link" type="button">更换 API Key</button></div><p id="settings-result" class="proxy-hint" role="status"></p>
-      </form></details>
+      </form>`})}
       <footer class="workspace-footer"><span>凭证与配置保存在本机</span><span>Qoder 协议桥</span></footer>
     </div>
 

@@ -13,3 +13,7 @@ await check('public/components');
 execFileSync(process.execPath, ['--check', 'public/proxy.js']);
 
 execFileSync(process.execPath, ['--check', 'public/custom-proxy.js']);
+
+execFileSync(process.execPath, ['--check', 'public/model-routes.js']);
+
+execFileSync(process.execPath, ['--check', 'public/cli-config.js']);

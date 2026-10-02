@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 let id = task["id"] as! String, active = task["status"] as? String == "active"
                 let parent = NSMenuItem(title: (active ? "▶ " : "") + (task["title"] as! String), action: nil, keyEquivalent: "")
                 let sub = NSMenu(); parent.submenu = sub; menu.addItem(parent)
-                let project = projects.first { $0["id"] as? String == task["projectId"] as? String }?["name"] as? String ?? "收件箱"
+                let project = projects.first { $0["id"] as? String == task["projectId"] as? String }?["name"] as? String ?? "未归类"
                 let info = NSMenuItem(title: project, action: nil, keyEquivalent: ""); info.isEnabled = false; sub.addItem(info)
                 sub.addItem(item("标记完成") { self.apply(["type": "task.status", "id": id, "status": "done"], version) })
                 sub.addItem(item(active ? "暂停任务" : "开始任务") { self.apply(["type": "task.status", "id": id, "status": active ? "todo" : "active"], version) })
@@ -105,14 +105,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             }
         }.resume()
     }
+    func isWorkbenchURL(_ url: URL) -> Bool {
+        url.scheme == "http" && url.host == "127.0.0.1" && url.port == Int(server.port)
+    }
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
         if navigationAction.shouldPerformDownload && (url.scheme == "blob" || url.absoluteString.hasPrefix(server.endpoint + "/")) { decisionHandler(.download) }
+        else if isWorkbenchURL(url) { decisionHandler(.allow) }
         else if navigationAction.navigationType == .linkActivated && ["http", "https"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url); decisionHandler(.cancel) }
-        else { decisionHandler(url.scheme == "http" && url.host == "127.0.0.1" && url.port == Int(server.port) ? .allow : .cancel) }
+        else { decisionHandler(.cancel) }
     }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url, ["http", "https"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) }
+        if let url = navigationAction.request.url {
+            if isWorkbenchURL(url) { webView.load(URLRequest(url: url)) }
+            else if navigationAction.navigationType == .linkActivated && ["http", "https"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) }
+        }
         return nil
     }
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) { download.delegate = self }
