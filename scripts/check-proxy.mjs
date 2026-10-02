@@ -7,10 +7,8 @@ async function check(directory) {
     else if (/\.(mjs|js)$/.test(file)) execFileSync(process.execPath, ['--check', file]);
   }
 }
-await check('qoder');
-await check('agy');
-await check('grok');
-await check('gateway');
+await check('proxy');
+await check('cli');
 await check('public/components');
 execFileSync(process.execPath, ['--check', 'public/proxy.js']);
 

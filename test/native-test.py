@@ -56,10 +56,17 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-test-') as tmp:
         assert request('/api/v1/state')[0] == 401
         assert request('/api/v1/state', headers={**headers, 'Origin': 'https://example.com'})[0] == 401
         assert request('/api/v1/capabilities', headers=headers)[1]['apiVersion'] == 1
+        assert request('/api/v1/capabilities', headers=headers)[1]['taskQuery']['path'] == '/api/v1/tasks'
+        query = request('/api/v1/tasks?scope=all&projectId=project-a&status=open', headers=headers)
+        assert query[0] == 200 and len(query[1]['tasks']) == 6, query
+        assert query[1]['counts'] == {'open': 6, 'done': 0, 'total': 6}
+        assert request('/api/v1/tasks?projectId=missing', headers=headers)[0] == 404
+        assert request('/api/v1/tasks?day=2026-02-30', headers=headers)[0] == 400
+        assert request('/api/v1/tasks')[0] == 401
         assert request('/api/v1/actions', b'{broken', headers=headers)[0] == 400
         assert request('/skills/daylight-workbench/SKILL.md')[0] == 404
         assert request('/.local/agent-token')[0] == 404
-        for path in ['/', '/app.js', '/components/proxy-page.js', '/components/settings-page.js', '/components/sidebar.js', '/components/icons.js', '/components/select.js', '/components/select.css', '/components/focus.js', '/components/task-notes.js', '/proxy.html', '/proxy.js', '/proxy.css', '/quick.html', '/quick.js', '/quick.css', '/quick-search.js']:
+        for path in ['/task-view.js', '/routes.js', '/', '/app.js', '/components/proxy-page.js', '/components/settings-page.js', '/components/sidebar.js', '/components/icons.js', '/components/select.js', '/components/select.css', '/components/focus.js', '/components/task-notes.js', '/proxy.html', '/proxy.js', '/proxy.css', '/quick.html', '/quick.js', '/quick.css', '/quick-search.js']:
             assert request(path)[0] == 200
         action = {'type': 'task.create', 'title': '原生运行时任务', 'projectId': 'project-a'}
         request_id = str(uuid.uuid4())

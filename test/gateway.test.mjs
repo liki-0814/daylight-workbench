@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';import path from 'node:path';import http from 'node:http';import {once} from 'node:events';
-import {CustomSources} from '../gateway/custom.js';import {convertRequest,events} from '../gateway/protocol.js';import {createQoderBridge} from '../qoder/bridge.js';
+import {CustomSources} from '../proxy/custom/provider.js';import {convertRequest,events} from '../proxy/shared/protocol.js';import {createProxyService} from '../proxy/service.js';
 const temp=async t=>{const dir=await mkdtemp(path.join(os.tmpdir(),'gateway-test-'));t.after(()=>rm(dir,{recursive:true,force:true,maxRetries:3}));return dir;};
 const secrets=()=>{const values=new Map();return{get:async id=>values.get(id),set:async(id,k)=>values.set(id,k),delete:async id=>values.delete(id)};};
 test('custom sources keep secrets out of settings, preserve blank keys and reject self loops',async t=>{
@@ -21,13 +21,22 @@ test('native conversion preserves opaque fields; cross conversion rejects lossy 
  const a=convertRequest(input,'chat','messages');assert.equal(a.messages.at(-1).content[0].tool_use_id,'c');
  assert.throws(()=>convertRequest({...input,response_format:{type:'json_object'}},'chat','messages'));
 });
+test('Pi Responses cache and auto-summary hints work across protocols without accepting opaque reasoning state',()=>{
+ const raw={model:'x',input:'hi',stream:true,store:false,prompt_cache_key:'session',include:['reasoning.encrypted_content'],reasoning:{effort:'high',summary:'auto'},tools:[{type:'function',name:'echo',parameters:{type:'object'},strict:false}],max_output_tokens:100};
+ const chat=convertRequest(raw,'responses','chat');assert.equal(chat.reasoning_effort,'high');assert.equal(chat.max_tokens,100);assert.equal(chat.tools[0].function.name,'echo');
+ assert.deepEqual(raw.reasoning,{effort:'high',summary:'auto'});
+ assert.equal(convertRequest(raw,'responses','messages').output_config.effort,'high');
+ const history={...raw,input:[{type:'reasoning',id:'rs_daylight-test',summary:[{type:'summary_text',text:'display only'}]},{role:'assistant',content:[{type:'output_text',text:'hello'}]},{role:'user',content:[{type:'input_text',text:'continue'}]}]};assert.equal(convertRequest(history,'responses','chat').messages.length,2);
+ assert.throws(()=>convertRequest({...history,input:[{type:'reasoning',id:'rs_daylight-test',summary:[],encrypted_content:'opaque'}]},'responses','chat'));
+ for(const patch of [{include:['other']},{reasoning:{effort:'high',summary:'detailed'}},{input:[{type:'reasoning',encrypted_content:'private'}]},{tools:[{type:'function',name:'echo',strict:true}]},{previous_response_id:'upstream'}])assert.throws(()=>convertRequest({...raw,...patch},'responses','chat'));
+});
 test('custom gateway supports native JSON and SSE, cross protocol, mapped model and live removal',async t=>{
  const dataDir=await temp(t);const upstream=http.createServer(async(req,res)=>{let body='';for await(const c of req)body+=c;const b=JSON.parse(body);assert.equal(b.model,'private');assert.equal(req.headers.authorization,'Bearer test-key');
   const usage={prompt_tokens:10,completion_tokens:2,prompt_tokens_details:{cached_tokens:4}};
   if(b.stream){res.writeHead(200,{'content-type':'text/event-stream'});res.end('data: '+JSON.stringify({model:'private',choices:[{delta:{content:'OK'},finish_reason:'stop'}],usage})+'\n\ndata: [DONE]\n\n');}
   else{res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({model:'private',choices:[{message:{role:'assistant',content:'OK'}}],usage,custom_field:'preserved'}));}});upstream.listen(0,'127.0.0.1');await once(upstream,'listening');
  const custom=new CustomSources({dataDir,secrets:secrets()});const s=await custom.save({name:'test',baseUrl:`http://127.0.0.1:${upstream.address().port}/v1`,apiKey:'test-key',protocol:'chat',models:[{id:'public',upstreamId:'private'}]});
- const bridge=await createQoderBridge({dataDir,customSources:custom,provider:{listModels:async()=>[]}});const management=http.createServer((q,r)=>bridge.handle(q,r));management.listen(0,'127.0.0.1');await once(management,'listening');
+ const bridge=await createProxyService({dataDir,customSources:custom,provider:{listModels:async()=>[]}});const management=http.createServer((q,r)=>bridge.handle(q,r));management.listen(0,'127.0.0.1');await once(management,'listening');
  t.after(async()=>{await bridge.close();management.closeAllConnections();management.close();upstream.closeAllConnections();upstream.close();});
  const base=`http://127.0.0.1:${management.address().port}`;const api=async(route,b)=>{const r=await fetch(base+route,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json();};
  const sock=http.createServer();sock.listen(0,'127.0.0.1');await once(sock,'listening');const port=sock.address().port;await new Promise(r=>sock.close(r));await api('/api/qoder/settings',{port,autoStart:false});const key=(await api('/api/qoder/key')).apiKey;await api('/api/qoder/service',{enabled:true});
@@ -63,7 +72,7 @@ test('failed custom validation does not erase an existing credential',async t=>{
 });
 
 test('Codex uses only account/model RPC, caches discovery and retries expired OAuth once',async t=>{
- const {CodexProvider}=await import('../gateway/codex.js');const {writeFile}=await import('node:fs/promises');
+ const {CodexProvider}=await import('../proxy/codex/provider.js');const {writeFile}=await import('node:fs/promises');
  const home=await temp(t),methods=[];const token='x.'+Buffer.from(JSON.stringify({exp:Date.now()/1000+3600})).toString('base64url')+'.x';
  await writeFile(path.join(home,'auth.json'),JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:token,account_id:'test-account'}}));
  let requests=0,body;
@@ -75,7 +84,7 @@ test('Codex uses only account/model RPC, caches discovery and retries expired OA
 });
 
 test('Codex declared SSE remains SSE when upstream labels it application/json',async()=>{
- const {relay}=await import('../gateway/relay.js');let result;
+ const {relay}=await import('../proxy/shared/relay.js');let result;
  const provider={forward:async()=>({response:new Response('event: response.completed\ndata: '+JSON.stringify({type:'response.completed',response:{status:'completed',output:[]}})+'\n\n',{headers:{'Content-Type':'application/json'}}),protocol:'responses',streaming:true,model:'test'})};
  await relay(provider,{model:'test'},'responses',{writeHead(){},end(t){result=JSON.parse(t);}},AbortSignal.timeout(1000),()=>{});
  assert.equal(result.status,'completed');

@@ -5,7 +5,7 @@ export const operations = {
   'project.create': 'name, path?, id?',
   'project.update': 'id, name?, path?',
   'project.delete': 'id (deletes project, all its tasks including completed tasks, and their plan references; local files are untouched)',
-  'task.create': 'title, projectId? (null = inbox), notes?, today?, id?',
+  'task.create': 'title, projectId? (null = 未归类（旧称收件箱）), notes?, today?, id?',
   'task.update': 'id, title?, projectId?, notes?',
   'task.status': 'id, status (todo | active | done)',
   'task.delete': 'id (also removes plan references)',

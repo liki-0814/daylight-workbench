@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
             assert request(route)[0] == 200
             assert request(route, headers={})[0] == 403
             assert request(route, headers={'x-workbench-token': token, 'Origin': 'https://example.com'})[0] == 403
-        assert request('/components/proxy-diagnostics.js')[0] == 200
+        assert request('/components/proxy-diagnostics.js')[0] == 404
         assert request('/api/qoder/status', headers={'x-workbench-token': token, 'Origin': 'https://example.com'})[0] == 403
         assert request('/proxy.html')[0] == 200
         assert request('/api/qoder/credits', headers={})[0] == 403

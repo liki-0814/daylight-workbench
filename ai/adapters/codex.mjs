@@ -1,5 +1,9 @@
 import { RPC, executable } from './process.mjs';
 import { instructions, definitions } from '../tools/definitions.mjs';
+export function accessPolicy(mode, cwd) {
+  const full = mode === 'full';
+  return { approvalPolicy: full ? 'never' : 'on-request', sandbox: full ? 'danger-full-access' : 'workspace-write', sandboxPolicy: full ? { type: 'dangerFullAccess' } : { type: 'workspaceWrite', writableRoots: [cwd], networkAccess: false } };
+}
 export async function discover(settings, cwd) {
   const bin = executable('codex', settings.path), rpc = new RPC(bin, ['app-server', '--listen', 'stdio://'], cwd);
   try {
@@ -49,13 +53,14 @@ export async function run({ conversation: c, cwd, mcp, text, skills = [], emit, 
     const config = { 'mcp_servers.daylight': { ...mcp, required: true, tool_timeout_sec: 3600, tools: Object.fromEntries(definitions.map(t => [t.name, { approval_mode: 'approve' }])) } };
     if (c.config.contextWindow) config.model_context_window = c.config.contextWindow;
     if (c.config.effort) config.model_reasoning_effort = c.config.effort;
-    const params = { cwd, model: c.config.model, approvalPolicy: 'on-request', approvalsReviewer: 'user', sandbox: 'workspace-write', developerInstructions: instructions.replace('仅使用 Daylight 工具，不执行代码、不读写文件。', '管理 Daylight 数据时必须使用 Daylight 工具，不直接编辑工作台数据文件。可以按本机技能的适用条件使用原生技能和工具，遵循 CLI 权限规则。'), config };
+    const { approvalPolicy, sandbox, sandboxPolicy } = accessPolicy(c.config.accessMode, cwd);
+    const params = { cwd, model: c.config.model, approvalPolicy, approvalsReviewer: 'user', sandbox, developerInstructions: instructions, config };
     const response = c.sessionId
       ? await rpc.call('thread/resume', { ...params, threadId: c.sessionId })
       : await rpc.call('thread/start', { ...params, allowProviderModelFallback: false, serviceName: 'daylight', ephemeral: false });
     threadId = response.thread.id; setSession(threadId);
     if (signal.aborted) throw new Error('已取消');
-    const turn = await rpc.call('turn/start', { threadId, model: c.config.model, ...(c.config.effort ? { effort: c.config.effort } : {}), input: [{ type: 'text', text, text_elements: [] }, ...skills.map(s => ({type:'skill',name:s.name,path:s.path}))] });
+    const turn = await rpc.call('turn/start', { threadId, model: c.config.model, approvalPolicy, sandboxPolicy, ...(c.config.effort ? { effort: c.config.effort } : {}), input: [{ type: 'text', text, text_elements: [] }, ...skills.map(s => ({type:'skill',name:s.name,path:s.path}))] });
     turnId = turn.turn.id;
     await done;
   } finally { signal.removeEventListener('abort', abort); rpc.onExit = null; rpc.close(); }

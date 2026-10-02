@@ -162,3 +162,26 @@ test('project editing shares UI/API behavior without changing tasks or plans', a
   assert.deepEqual(result.plans, state.plans);
   assert.throws(() => change(state, { ...action, name: '  ' }));
 });
+
+
+test('unified task API and new CLI query preserve legacy state views and read-only versions', async t => {
+  const dir=await mkdtemp(path.join(tmpdir(),'daylight-task-query-'));
+  const state=fixtureState(); state.tasks[0].status='done';state.tasks[0].completedAt='2026-10-01T00:00:00Z';state.tasks[7].projectId=null;state.plans['2026-10-01']=['task-2','task-1'];
+  await writeFile(path.join(dir,'state.json'),JSON.stringify({version:0,state}));
+  const server=await createWorkbench({dataDir:dir});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  t.after(async()=>{await server.closeProxy();await new Promise(r=>{server.close(r);server.closeAllConnections();});await rm(dir,{recursive:true,force:true});});
+  const url=`http://127.0.0.1:${server.address().port}`, token=(await readFile(path.join(dir,'agent-token'),'utf8')).trim();
+  const get=async route=>{const r=await fetch(url+route,{headers:{Authorization:'Bearer '+token}});return {status:r.status,...await r.json()};};
+  assert.equal((await fetch(url+'/api/v1/tasks')).status,401);
+  const today=await get('/api/v1/tasks?scope=today&status=open&day=2026-10-01');
+  assert.deepEqual(today.counts,{open:1,done:1,total:2}); assert.deepEqual(today.tasks.map(t=>t.id),['task-2']);
+  assert.equal((await get('/api/v1/tasks?projectId=missing')).status,404);
+  assert.equal((await get('/api/v1/tasks?day=2026-02-30')).status,400);
+  assert.equal((await get('/api/v1/tasks?status=invalid')).status,400);
+  assert.equal((await get('/api/v1/capabilities')).taskQuery.path,'/api/v1/tasks');
+  const cli=async(...args)=>JSON.parse((await run('python3',[client,'--url',url,'--data-dir',dir,...args])).stdout);
+  assert.equal((await cli('tasks','--unassigned','--status','open')).tasks[0].id,'task-8');
+  assert.equal((await cli('state','--view','all')).matchingTasks.length,8);
+  assert.deepEqual((await cli('state','--view','today','--date','2026-10-01')).matchingTasks.map(t=>t.id),['task-2','task-1']);
+  assert.equal((await get('/api/v1/state')).version,0);
+});

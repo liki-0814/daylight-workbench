@@ -5,11 +5,11 @@ import { once } from 'node:events';
 import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { RequestRecords, RequestTrace } from '../gateway/request-records.js';
-import { SourceState } from '../gateway/source-state.js';
-import { CustomSources } from '../gateway/custom.js';
+import { RequestRecords, RequestTrace } from '../proxy/shared/request-records.js';
+import { SourceState } from '../proxy/shared/source-state.js';
+import { CustomSources } from '../proxy/custom/provider.js';
 import { createWorkbench } from '../server.mjs';
-import { writeJson } from '../qoder/store.js';
+import { writeJson } from '../proxy/shared/store.js';
 
 async function directory(t) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'daylight-diagnostics-'));
@@ -17,6 +17,47 @@ async function directory(t) {
   return dir;
 }
 const model = id => ({ id, enabled: true, displayName: id, contextWindows: [], reasoningEfforts: [] });
+
+test('enabled custom routes retain failed connection badges across restart and retry the selected model', async t => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'daylight-route-health-'));
+  let offline = true, server, token, base;
+  const calls = [];
+  const custom = new CustomSources({ dataDir: dir, fetchImpl: async (_url, options) => {
+    const input = JSON.parse(options.body); calls.push(input.model);
+    if (offline) throw new TypeError('private connection failure');
+    return Response.json({ choices: [{ message: { role: 'assistant', content: 'OK' }, finish_reason: 'stop' }] });
+  } });
+  const saved = await custom.save({ name: 'Test source', baseUrl: 'https://fixture.invalid/v1', protocol: 'chat', auth: 'none', models: [model('first-model'), model('selected-model')] });
+  async function boot() {
+    server = await createWorkbench({ dataDir: dir, proxyOptions: { customSources: custom, provider: { cache: {}, listModels: async () => [] }, includeGateway: false, includeAgy: false, includeGrok: false } });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    base = `http://127.0.0.1:${server.address().port}`;
+    token = (await (await fetch(base + '/api/state')).json()).token;
+  }
+  async function stop() {
+    await server.closeProxy(); server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
+  const api = async (route, input) => {
+    const response = await fetch(base + route, { method: input ? 'POST' : 'GET', headers: { 'X-Workbench-Token': token, 'Content-Type': 'application/json' }, ...(input ? { body: JSON.stringify(input) } : {}) });
+    return { status: response.status, data: await response.json() };
+  };
+  t.after(async () => { if (server.listening) await stop(); await rm(dir, { recursive: true, force: true }); });
+  await boot();
+  assert.equal((await api('/api/custom-proxy/test', { id: saved.id })).status, 502);
+  await stop(); await boot();
+  let routes = (await api('/api/proxy/routes')).data.routes;
+  let selected = routes.find(r => r.id === 'selected-model');
+  assert.equal(selected.enabled, true); assert.equal(selected.sources[0].available, false);
+  assert.doesNotMatch(JSON.stringify(routes), /private connection failure/);
+  routes = (await api('/api/proxy/routes?retry=selected-model')).data.routes;
+  assert.equal(calls.at(-1), 'selected-model');
+  assert.equal(routes.find(r => r.id === 'selected-model').sources[0].available, false);
+  offline = false;
+  routes = (await api('/api/proxy/routes?retry=selected-model')).data.routes;
+  assert.equal(calls.at(-1), 'selected-model');
+  assert.equal(routes.find(r => r.id === 'selected-model').sources[0].available, true);
+});
 
 test('records preserve legacy rows, serialize concurrent writes and isolate persistence failure', async t => {
   const dir = await directory(t), file = path.join(dir, 'usage.json'), legacy = { provider: 'qoder', model: 'old', status: 200, time: new Date().toISOString() };

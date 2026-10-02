@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { createAIService } from './service.mjs';
-import { equalSecret, send } from '../qoder/bridge.js';
+import { equalSecret, send } from '../proxy/service.js';
 const token = process.env.DAYLIGHT_AI_TOKEN;
 if (!token || !process.env.DAYLIGHT_WORKBENCH_URL || !process.env.WORKBENCH_DATA_DIR) throw new Error('Missing AI runtime configuration');
 const ai = await createAIService({ dataDir: process.env.WORKBENCH_DATA_DIR, endpoint: process.env.DAYLIGHT_WORKBENCH_URL });

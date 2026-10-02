@@ -46,7 +46,7 @@ final class WorkbenchServer {
         let uuid: @convention(block) () -> String = { UUID().uuidString.lowercased() }
         engine.setObject(uuid, forKeyedSubscript: "randomUUID" as NSString)
         engine.evaluateScript("function structuredClone(x){return JSON.parse(JSON.stringify(x))}; Object.hasOwn ||= ((o,k)=>Object.prototype.hasOwnProperty.call(o,k));")
-        for file in ["public/model.js", "agent-api.mjs", "tray-model.mjs"] {
+        for file in ["public/model.js", "public/task-view.js", "agent-api.mjs", "tray-model.mjs"] {
             let source = try String(contentsOf: resources.appendingPathComponent(file), encoding: .utf8)
                 .components(separatedBy: "\n").filter { !$0.hasPrefix("import ") }.joined(separator: "\n").replacingOccurrences(of: "export ", with: "")
             engine.evaluateScript(source)
@@ -179,7 +179,7 @@ final class WorkbenchServer {
                 }
                 return
             }
-            if path.hasPrefix("/api/proxy/") || path.hasPrefix("/api/qoder/") || path.hasPrefix("/api/agy/") || path.hasPrefix("/api/grok/") || path.hasPrefix("/api/codex-proxy/") || path.hasPrefix("/api/custom-proxy/") || path.hasPrefix("/api/proxy-tools/") {
+            if path.hasPrefix("/api/cli/") || path.hasPrefix("/api/proxy/") || path.hasPrefix("/api/qoder/") || path.hasPrefix("/api/agy/") || path.hasPrefix("/api/grok/") || path.hasPrefix("/api/kimi-proxy/") || path.hasPrefix("/api/codex-proxy/") || path.hasPrefix("/api/custom-proxy/") || path.hasPrefix("/api/proxy-tools/") {
                 guard headers["x-workbench-token"] == webToken, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
                 proxy.handle(path: path + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
                     self.queue.async { self.reply(connection, code, object) }
@@ -196,8 +196,16 @@ final class WorkbenchServer {
                     }
                     return
                 }
+                if path == "/api/v1/tasks", method == "GET" {
+                    let items = URLComponents(string: "http://localhost/?" + query)?.queryItems ?? []
+                    var params: [String: String] = [:]
+                    for item in items { params[item.name] = item.value ?? "" }
+                    let expression = "(()=>{try{return {code:200,value:taskQuery(\(try jsonText(state)),\(version),\(try jsonText(params)))}}catch(e){return {code:e.status||400,value:{error:e.message}}}})()"
+                    let result = try js(expression) as! [String: Any]
+                    reply(connection, result["code"] as! Int, result["value"]!); return
+                }
                 if path == "/api/v1/state", method == "GET" { var result = snapshot; result["localDate"] = try js("localDate()"); reply(connection, 200, result); return }
-                if path == "/api/v1/capabilities", method == "GET" { reply(connection, 200, ["apiVersion": 1, "operations": try js("operations"), "retention": "last 100 successful request IDs", "writes": "POST /api/v1/actions {requestId, expectedVersion, day?, action}", "reads": "GET /api/v1/state"]); return }
+                if path == "/api/v1/capabilities", method == "GET" { reply(connection, 200, ["apiVersion": 1, "operations": try js("operations"), "taskQuery": try js("taskQueryCapability"), "retention": "last 100 successful request IDs", "writes": "POST /api/v1/actions {requestId, expectedVersion, day?, action}", "reads": "GET /api/v1/state"]); return }
                 guard path == "/api/v1/actions", method == "POST" else { reply(connection, 404, ["error": "接口不存在"]); return }
                 guard let input = try requestJSON(body) as? [String: Any], let id = input["requestId"] as? String, matches(id, "^[a-zA-Z0-9_-]{8,100}$"), let number = input["expectedVersion"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), let expectedVersion = input["expectedVersion"] as? Int, expectedVersion >= 0 else { throw Failure(message: "需要 requestId 和 expectedVersion") }
                 // Match Node's JSON.stringify fingerprint, including pre-migration receipts.
@@ -233,7 +241,7 @@ final class WorkbenchServer {
                 try persist(js("validate(\(try jsonText(input)))"))
                 reply(connection, 200, snapshot); return
             }
-            let files = ["/components/proxy-diagnostics.js": "components/proxy-diagnostics.js","/components/task-notes.js": "components/task-notes.js","/custom-proxy.js": "custom-proxy.js","/ai.js": "ai.js", "/components/ai-message.js": "components/ai-message.js", "/components/marked.js": "components/marked.js", "/components/purify.js": "components/purify.js", "/ai.css": "ai.css", "/ai-settings.js": "ai-settings.js", "/quick.html": "quick.html", "/quick.js": "quick.js", "/quick.css": "quick.css", "/quick-search.js": "quick-search.js", "/proxy.html": "index.html", "/proxy.js": "proxy.js", "/proxy.css": "proxy.css", "/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/style.css": "style.css", "/favicon.svg": "favicon.svg", "/components/proxy-page.js": "components/proxy-page.js", "/components/agy-quota.js": "components/agy-quota.js", "/components/settings-page.js": "components/settings-page.js", "/components/sidebar.js": "components/sidebar.js", "/components/icons.js": "components/icons.js", "/components/select.js": "components/select.js", "/components/focus.js": "components/focus.js", "/components/select.css": "components/select.css"]
+            let files = ["/task-view.js": "task-view.js", "/routes.js": "routes.js", "/components/action-links.js": "components/action-links.js", "/components/proxy-diagnostics.js": "components/proxy-diagnostics.js","/components/task-notes.js": "components/task-notes.js","/custom-proxy.js": "custom-proxy.js","/ai.js": "ai.js", "/components/ai-message.js": "components/ai-message.js", "/components/marked.js": "components/marked.js", "/components/purify.js": "components/purify.js", "/ai.css": "ai.css", "/ai-settings.js": "ai-settings.js", "/quick.html": "quick.html", "/quick.js": "quick.js", "/quick.css": "quick.css", "/quick-search.js": "quick-search.js", "/proxy.html": "index.html", "/proxy.js": "proxy.js", "/proxy.css": "proxy.css", "/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/style.css": "style.css", "/favicon.svg": "favicon.svg", "/components/proxy-page.js": "components/proxy-page.js", "/components/agy-quota.js": "components/agy-quota.js", "/components/settings-page.js": "components/settings-page.js", "/components/sidebar.js": "components/sidebar.js", "/components/icons.js": "components/icons.js", "/components/select.js": "components/select.js", "/components/focus.js": "components/focus.js", "/components/select.css": "components/select.css"]
             guard method == "GET", let file = files[path] else { reply(connection, 404, ["error": "页面不存在"]); return }
             let types = ["html": "text/html", "js": "text/javascript", "css": "text/css", "svg": "image/svg+xml"]
             let url = resources.appendingPathComponent("public").appendingPathComponent(file)

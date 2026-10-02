@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseUsage, mergeUsage } from '../qoder/llm/usage.js';
-import { renderChatResponse, renderChatStream } from '../qoder/providers/openai-chat.js';
-import { renderResponsesResponse, renderResponsesStream } from '../qoder/providers/openai-responses.js';
-import { renderMessagesResponse, renderMessagesStream } from '../qoder/providers/anthropic-messages.js';
+import { parseUsage, mergeUsage } from '../proxy/shared/llm/usage.js';
+import { renderChatResponse, renderChatStream } from '../proxy/shared/protocols/openai-chat.js';
+import { renderResponsesResponse, renderResponsesStream } from '../proxy/shared/protocols/openai-responses.js';
+import { renderMessagesResponse, renderMessagesStream } from '../proxy/shared/protocols/anthropic-messages.js';
 const events = [{type:'usage',usage:parseUsage({prompt_tokens:100,prompt_tokens_details:{cached_tokens:60,cache_write_tokens:10,audio_tokens:2}})}, {type:'text',delta:'OK'}, {type:'usage',usage:parseUsage({completion_tokens:20,completion_tokens_details:{reasoning_tokens:5}})}, {type:'finish',reason:'stop'}];
 const streamObjects = async renderer => { let text='';for await(const chunk of renderer(events,'test'))text+=chunk;return text.split('\n').filter(line=>line.startsWith('data: {')).map(line=>JSON.parse(line.slice(6))); };
 test('all three protocols preserve partial cumulative usage and cache in both modes',async()=>{

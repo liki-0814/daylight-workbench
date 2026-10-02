@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchCredits } from '../qoder/credits.js';
+import { fetchCredits } from '../proxy/qoder/credits.js';
 
 const personal = { unit: 'credits', used: 20, remaining: 80, total: 100 };
 const organization = { unit: 'credits', used: 38, remaining: 25962, cap: 26000, available: true };
@@ -74,7 +74,7 @@ test('HTTP, transport, and invalid JSON failures return a safe Chinese 502 error
 });
 
 test('Credits history isolates accounts, survives restart and retains bounded hourly snapshots including resets', async () => {
-  const { CreditsHistory } = await import('../qoder/credits-history.js');
+  const { CreditsHistory } = await import('../proxy/qoder/credits-history.js');
   const { mkdtemp, rm } = await import('node:fs/promises');
   const { tmpdir } = await import('node:os');
   const dir = await mkdtemp(`${tmpdir()}/credits-test-`), file = `${dir}/history.json`;

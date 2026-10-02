@@ -25,6 +25,14 @@ def main():
     state.add_argument('--project')
     state.add_argument('--view', choices=['all', 'today', 'inbox', 'done'], default='all')
     state.add_argument('--date')
+    tasks = commands.add_parser('tasks', help='统一任务查询；旧 state 命令保持兼容')
+    tasks.add_argument('--scope', choices=['all', 'today'], default='all')
+    tasks.add_argument('--status', choices=['all', 'open', 'done'], default='all')
+    group = tasks.add_mutually_exclusive_group()
+    group.add_argument('--project')
+    group.add_argument('--unassigned', action='store_true')
+    tasks.add_argument('--query')
+    tasks.add_argument('--date')
     export = commands.add_parser('export')
     export.add_argument('--out', required=True, help='New output file; existing files are never overwritten')
     apply = commands.add_parser('apply')
@@ -44,6 +52,14 @@ def main():
     token_file = Path(args.data_dir or config['data_dir']).expanduser() / 'agent-token'
     token = token_file.read_text().strip()
     route = '/api/v1/capabilities' if args.command == 'capabilities' else '/api/v1/state'
+    if args.command == 'tasks':
+        params = {'scope': args.scope, 'status': args.status}
+        for key, value in [('projectId', args.project), ('query', args.query), ('day', args.date)]:
+            if value is not None:
+                params[key] = value
+        if args.unassigned:
+            params['unassigned'] = '1'
+        route = '/api/v1/tasks?' + urllib.parse.urlencode(params)
     payload = None
     if args.command == 'apply':
         action = json.load(sys.stdin) if args.file == '-' else json.loads(Path(args.file).expanduser().read_text())
@@ -63,6 +79,8 @@ def main():
             detail = json.loads(error.read())
         except (ValueError, UnicodeError):
             detail = {'error': '本地接口返回错误'}
+        if args.command == 'tasks' and error.code == 404 and detail.get('error') == '接口不存在':
+            detail['hint'] = '服务尚不支持统一任务查询，请使用 state --view all|today|inbox|done'
         print(json.dumps({'httpStatus': error.code, **detail}, ensure_ascii=False), file=sys.stderr)
         return 1
     if args.command == 'state':

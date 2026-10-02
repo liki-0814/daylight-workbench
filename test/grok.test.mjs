@@ -5,10 +5,10 @@ import { once } from 'node:events';
 import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { GrokAuth } from '../grok/auth.js';
-import { GrokProvider } from '../grok/provider.js';
-import { compileRequest, decodeStream, parseUsage } from '../grok/responses.js';
-import { createQoderBridge } from '../qoder/bridge.js';
+import { GrokAuth } from '../proxy/grok/auth.js';
+import { GrokProvider } from '../proxy/grok/provider.js';
+import { compileRequest, decodeStream, parseUsage } from '../proxy/grok/responses.js';
+import { createProxyService } from '../proxy/service.js';
 const model={id:'grok-test',enabled:true,reasoningEfforts:['low','high'],defaultEffort:'high',contextWindows:[]};
 const auth={credential:async()=>({token:'private-token',identity:'account-a',version:'1.0.41'})};
 const events=[
@@ -64,7 +64,7 @@ test('one address routes Grok on all three protocols, preserves native output an
   bodies.push(JSON.parse(opts.body));assert.equal(opts.headers.Authorization,'Bearer private-token');return sse();
  }});
  const q={listModels:async()=>[{...model,id:'qoder-test'}],async *stream(){yield{type:'text',delta:'qoder'};yield{type:'finish',reason:'stop'};}};
- const bridge=await createQoderBridge({dataDir:dir,provider:q,grokProvider:g});
+ const bridge=await createProxyService({dataDir:dir,provider:q,grokProvider:g});
  const management=http.createServer((req,res)=>bridge.handle(req,res));management.listen(0,'127.0.0.1');await once(management,'listening');
  const base=`http://127.0.0.1:${management.address().port}`;
  const api=async(route,body)=>{const r=await fetch(base+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return {status:r.status,data:await r.json()};};

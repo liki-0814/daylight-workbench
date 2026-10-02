@@ -5,10 +5,10 @@ import { once } from 'node:events';
 import { mkdtemp, rm, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createQoderBridge, send } from '../qoder/bridge.js';
-import { encodeBody, decodeBody } from '../qoder/body-codec.js';
-import { signCosy, aesDecryptInfo } from '../qoder/cosy.js';
-import { parseModelList } from '../qoder/models.js';
+import { createProxyService, send } from '../proxy/service.js';
+import { encodeBody, decodeBody } from '../proxy/qoder/body-codec.js';
+import { signCosy, aesDecryptInfo } from '../proxy/qoder/cosy.js';
+import { parseModelList } from '../proxy/qoder/models.js';
 import { createWorkbench } from '../server.mjs';
 
 const teamModel = { key: 'team-model', display_name: 'Qwen3.8-Max（采供线专属）', source: 'byokTeams', format: 'openai' };
@@ -48,7 +48,7 @@ function fakeUpstream() {
 async function freePort() { const s = http.createServer(); s.listen(0, '127.0.0.1'); await once(s, 'listening'); const port = s.address().port; await new Promise(r => s.close(r)); return port; }
 async function fixture(t, seed = true) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-qoder-'));
-  const fake = fakeUpstream(); const bridge = await createQoderBridge({ dataDir, fetchImpl: fake.fetch });
+  const fake = fakeUpstream(); const bridge = await createProxyService({ dataDir, fetchImpl: fake.fetch });
   if (seed) await bridge.accounts.save(structuredClone(account));
   const management = http.createServer((req, res) => { if (req.headers['x-workbench-token'] !== 'test') return send(res, 403, {}); void bridge.handle(req, res); });
   management.listen(0, '127.0.0.1'); await once(management, 'listening');
@@ -126,6 +126,22 @@ test('manual lifecycle, PKCE login, key protection, overlay, non-streaming and s
   await assert.rejects(fetch(`http://127.0.0.1:${f.port}/v1/models`));
 });
 
+test('Responses developer instructions reach Qoder as system instructions in JSON and SSE', async t => {
+  const f = await fixture(t); await f.api('service', { enabled: true });
+  for (const stream of [false, true]) {
+    const response = await f.client('responses', { model: 'test-model', stream,
+      instructions: 'Base instructions', input: [
+        { role: 'developer', content: [{ type: 'input_text', text: 'Developer instructions' }] },
+        { role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+      ],
+    });
+    assert.equal(response.status, 200); await response.text();
+    const { body } = f.fake.calls.at(-1);
+    assert.equal(body.system, 'Base instructions\n\nDeveloper instructions');
+    assert.deepEqual(body.messages.map(m => m.role), ['user']);
+  }
+});
+
 test('queue retries reuse conversation, rotate request id, exhaust as 503, and reject truncated streams', async t => {
   const f = await fixture(t); await f.api('service', { enabled: true });
   await writeFile(path.join(f.dataDir, 'qoder/settings.json'), JSON.stringify({ queueRetry: { enabled: true, maxRetries: 2, delayMs: 100 } }));
@@ -155,7 +171,7 @@ test('port collision restores stopped state; force stop cancels active requests;
 test('auto-start persists; corrupt proxy configuration leaves task APIs available and protected', async t => {
   const f = await fixture(t);
   await f.api('settings', { port: f.port, autoStart: true });
-  const reloaded = await createQoderBridge({ dataDir: f.dataDir, fetchImpl: f.fake.fetch });
+  const reloaded = await createProxyService({ dataDir: f.dataDir, fetchImpl: f.fake.fetch });
   await reloaded.initialize(); assert.equal((await reloaded.status()).state, 'running'); await reloaded.close();
   const state = await readFile(path.join(f.dataDir, 'qoder/service.json'), 'utf8'); assert.ok(!state.includes('private-access'));
   await writeFile(path.join(f.dataDir, 'qoder/service.json'), '{broken');

@@ -69,7 +69,7 @@ final class ProxyRuntime {
             nodePath = selected.0; version = selected.1; token = try secureToken()
             let task = Process(), pipe = Pipe(), output = Pipe()
             task.executableURL = URL(fileURLWithPath: nodePath)
-            task.arguments = [resources.appendingPathComponent("\(helper)/sidecar.mjs").path]
+            task.arguments = [resources.appendingPathComponent(helper == "ai" ? "ai/sidecar.mjs" : "proxy/sidecar.mjs").path]
             var env = ProcessInfo.processInfo.environment
             env["WORKBENCH_DATA_DIR"] = directory.path; env[helper == "ai" ? "DAYLIGHT_AI_TOKEN" : "DAYLIGHT_QODER_TOKEN"] = token
             if let workbenchURL { env["DAYLIGHT_WORKBENCH_URL"] = workbenchURL }

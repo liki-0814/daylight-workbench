@@ -21,11 +21,9 @@ shutil.copytree(root / 'public', resources / 'public', dirs_exist_ok=True)
 shutil.copytree(root / 'licenses', resources / 'licenses', dirs_exist_ok=True)
 for notice in ('LICENSE', 'THIRD_PARTY_NOTICES.md'):
     shutil.copy2(root / notice, resources / notice)
-shutil.copytree(root / 'qoder', resources / 'qoder', dirs_exist_ok=True)
-shutil.copytree(root / 'agy', resources / 'agy', dirs_exist_ok=True)
-shutil.copytree(root / 'gateway', resources / 'gateway', dirs_exist_ok=True)
+shutil.copytree(root / 'proxy', resources / 'proxy', dirs_exist_ok=True)
+shutil.copytree(root / 'cli', resources / 'cli', dirs_exist_ok=True)
 subprocess.run(['swiftc', '-O', str(root / 'native/Credentials.swift'), '-o', str(resources / 'DaylightCredentials')], check=True)
-shutil.copytree(root / 'grok', resources / 'grok', dirs_exist_ok=True)
 shutil.copytree(root / 'ai', resources / 'ai', dirs_exist_ok=True)
 # SDK adapter only; qodercli and Node remain external local installations.
 shutil.copytree(root / 'node_modules', resources / 'node_modules', ignore=shutil.ignore_patterns('.bin', '*.map', '_bundled'), dirs_exist_ok=True)

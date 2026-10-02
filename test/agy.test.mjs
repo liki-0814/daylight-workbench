@@ -5,10 +5,10 @@ import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { AgyAuth } from '../agy/auth.js';
-import { AgyProvider, compileRequest } from '../agy/provider.js';
-import { ModelRouter } from '../qoder/router.js';
-import { createQoderBridge } from '../qoder/bridge.js';
+import { AgyAuth } from '../proxy/agy/auth.js';
+import { AgyProvider, compileRequest } from '../proxy/agy/provider.js';
+import { ModelRouter } from '../proxy/shared/router.js';
+import { createProxyService } from '../proxy/service.js';
 
 const json = value => new Response(JSON.stringify(value));
 const model = id => ({ id, enabled: true, contextWindows: [], reasoningEfforts: [] });
@@ -21,16 +21,16 @@ test('keychain decoding and expired credentials renew once without an agent prom
   } });
   assert.deepEqual(await Promise.all([auth.token(), auth.token()]), ['secret', 'secret']); assert.equal(renewals, 1);
 });
-test('router preserves names, tolerates one unavailable provider, and rejects collisions', async () => {
+test('router preserves names, tolerates one unavailable provider, and merges identical names', async () => {
   const a = { listModels: async () => [model('alpha')], async *stream() { yield { type: 'text', delta: 'qoder' }; } };
   const b = { listModels: async () => [model('beta')], async *stream() { yield { type: 'text', delta: 'agy' }; } };
   const r = new ModelRouter({ qoder: a, agy: b });
   assert.deepEqual((await r.listModels()).map(m => m.id), ['alpha', 'beta']);
   assert.equal((await Array.fromAsync(r.stream({model:'beta'}, {})))[0].delta, 'agy');
   b.listModels = async () => [model('alpha')];
-  assert.equal((await Array.fromAsync(r.stream({model:'alpha'}, {})))[0].code, 'invalid_request');
+  assert.equal((await Array.fromAsync(r.stream({model:'alpha'}, {})))[0].delta, 'qoder');
   b.listModels = async () => { throw new Error('secret must not leak'); };
-  assert.deepEqual((await r.listModels()).map(m => m.id), []); assert.ok(!JSON.stringify(r.errors).includes('secret'));
+  assert.deepEqual((await r.listModels()).filter(m=>m.enabled).map(m => m.id), ['alpha']); assert.ok(!JSON.stringify(r.errors).includes('secret'));
 });
 test('AGY compiles system, image and tool roundtrip without adding agent tools', () => {
   const request = { system:'custom', messages:[{role:'user',content:'weather'}, {role:'assistant',content:'',toolCalls:[{id:'call1',name:'weather',arguments:'{"city":"杭州"}'}]}, {role:'tool',toolCallId:'call1',content:'sunny'}], options:{} };
@@ -51,7 +51,7 @@ test('one gateway/key serves Qoder and AGY; all protocols stream and aggregate; 
     const bytes=Buffer.from(wire); let pos=0; return new Response(new ReadableStream({pull(c){if(pos>=bytes.length)return c.close();c.enqueue(bytes.subarray(pos,pos+=5));}}));
   }});
   const qoder = {listModels:async()=>[model('qoder-model')],async *stream(){yield {type:'text',delta:'qoder-ok'};yield {type:'finish',reason:'stop'};}};
-  const bridge=await createQoderBridge({dataDir:dir,provider:qoder,agyProvider:agy});
+  const bridge=await createProxyService({dataDir:dir,provider:qoder,agyProvider:agy});
   const management=http.createServer((req,res)=>bridge.handle(req,res));management.listen(0,'127.0.0.1');await once(management,'listening');
   const base=`http://127.0.0.1:${management.address().port}`;
   const api=async(route,body)=>{const r=await fetch(base+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return {code:r.status,data:await r.json()};};
@@ -101,9 +101,9 @@ test('public AGY catalog follows live CLI IDs rather than the older upstream rec
 });
 
 test('AGY controls survive all request decoders; unsupported controls fail explicitly', async () => {
- const {decodeChatRequest}=await import('../qoder/providers/openai-chat.js');
- const {decodeResponsesRequest}=await import('../qoder/providers/openai-responses.js');
- const {decodeMessagesRequest}=await import('../qoder/providers/anthropic-messages.js');
+ const {decodeChatRequest}=await import('../proxy/shared/protocols/openai-chat.js');
+ const {decodeResponsesRequest}=await import('../proxy/shared/protocols/openai-responses.js');
+ const {decodeMessagesRequest}=await import('../proxy/shared/protocols/anthropic-messages.js');
  const opus={id:'claude-opus-4-6-thinking',isReasoning:true,upstreamId:'claude-opus-4-6-thinking',maxOutputTokens:64000};
  const comp=r=>compileRequest(r,new Map(),opus);
  for(const [decode,body] of [[decodeChatRequest,{messages:[{role:'user',content:'hi'}],reasoning_effort:'low'}],[decodeResponsesRequest,{input:'hi',reasoning:{effort:'medium'}}],[decodeMessagesRequest,{messages:[{role:'user',content:'hi'}],thinking:{type:'adaptive'},output_config:{effort:'high'}}]]) {
@@ -122,7 +122,7 @@ test('AGY controls survive all request decoders; unsupported controls fail expli
 });
 
 test('AGY thinking signatures roundtrip in Messages JSON and SSE without joining signed blocks', async () => {
- const {decodeMessagesRequest,renderMessagesResponse,renderMessagesStream}=await import('../qoder/providers/anthropic-messages.js');
+ const {decodeMessagesRequest,renderMessagesResponse,renderMessagesStream}=await import('../proxy/shared/protocols/anthropic-messages.js');
  const events=[{type:'reasoning',delta:'first'},{type:'reasoning_signature',signature:'sig1'},{type:'reasoning',delta:'second'},{type:'reasoning_signature',signature:'sig2'},{type:'text',delta:'answer'},{type:'finish',reason:'stop'}];
  const response=await renderMessagesResponse(events,'claude-opus-4-6-thinking');
  assert.deepEqual(response.content.slice(0,2),[{type:'thinking',thinking:'first',signature:'sig1'},{type:'thinking',thinking:'second',signature:'sig2'}]);
@@ -134,8 +134,8 @@ test('AGY thinking signatures roundtrip in Messages JSON and SSE without joining
 });
 
 test('AGY usage snapshots preserve missing counters and expose only observed cache counts', async () => {
- const {agyUsage}=await import('../agy/generation.js');
- const {mergeUsage,chatUsage,responsesUsage,messagesUsage}=await import('../qoder/llm/usage.js');
+ const {agyUsage}=await import('../proxy/agy/generation.js');
+ const {mergeUsage,chatUsage,responsesUsage,messagesUsage}=await import('../proxy/shared/llm/usage.js');
  const first=agyUsage({promptTokenCount:100,candidatesTokenCount:20,thoughtsTokenCount:5,cachedContentTokenCount:80});
  const usage=mergeUsage(first,agyUsage({totalTokenCount:125}));
  assert.equal(usage.outputTokens,25);assert.equal(usage.cacheHitRate,.8);
@@ -179,9 +179,9 @@ test('Gemini 3.8 exposes one model and routes protocol effort or saved default t
   return new Response('data: {"response":{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}}\n\n');
  }});
  const models=await p.listModels();assert.deepEqual(models.map(m=>m.id),['gemini-3.8-flash']);assert.deepEqual(models[0].reasoningEfforts,['low','medium','high']);
- const {decodeChatRequest,renderChatResponse}=await import('../qoder/providers/openai-chat.js');
- const {decodeResponsesRequest}=await import('../qoder/providers/openai-responses.js');
- const {decodeMessagesRequest}=await import('../qoder/providers/anthropic-messages.js');
+ const {decodeChatRequest,renderChatResponse}=await import('../proxy/shared/protocols/openai-chat.js');
+ const {decodeResponsesRequest}=await import('../proxy/shared/protocols/openai-responses.js');
+ const {decodeMessagesRequest}=await import('../proxy/shared/protocols/anthropic-messages.js');
  const router=new ModelRouter({agy:p});
  for (const level of ['low','medium','high']) for(const request of [decodeChatRequest({model:models[0].id,messages:[{role:'user',content:'hi'}],reasoning_effort:level}),decodeResponsesRequest({model:models[0].id,input:'hi',reasoning:{effort:level}}),decodeMessagesRequest({model:models[0].id,messages:[{role:'user',content:'hi'}],output_config:{effort:level}})]) {
   const r=await renderChatResponse(router.stream(request),request.model);
