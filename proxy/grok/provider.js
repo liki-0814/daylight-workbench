@@ -1,14 +1,24 @@
+import {parseModels} from './models.js';
+import {grokQuota} from './quota.js';
+import {decodeRequest} from '../shared/protocol.js';
+import {CatalogCache} from '../shared/catalog-cache.js';
+import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
+import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { GrokAuth, authError } from './auth.js';
-import { compileRequest, decodeStream, invalid } from './responses.js';
-import { readJson, writeJson, serial } from '../shared/store.js';
+import { compileRequest, decodeStream, invalid,renderNativeStream,renderNativeResponse } from './protocol.js';
+import { readJson, writeJson } from '../shared/store.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
 export class GrokProvider {
+  async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'maxTokens']);}
+  close(){this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();}
+  async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',renderers:{responses:[renderNativeStream,renderNativeResponse]},headerTimeoutOnly:true,events:this.stream(request,context)};}
+  snapshot(){return sourceSnapshot({id:'grok',name:'Grok',identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,authentication:{mode:'local',operations:['refresh']},capabilities:{quota:true,editableSource:false},nativeProtocols:['responses']});}
   constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth() }) {
     Object.assign(this, { fetchImpl, auth });
-    this.directory = path.join(dataDir, 'grok'); this.mutate = serial(); this.active = 0;
+    this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));
   }
   async call(endpoint, body, signal, credential, retried = false, observe = () => {}) {
     const a = credential || await this.auth.credential();
@@ -38,75 +48,44 @@ export class GrokProvider {
     }
     return response;
   }
+  get cache(){return this.catalogCache.value;}
   async catalog(force = false) {
     const a = await this.auth.credential();
-    if (this.cache?.identity !== a.identity) this.cache = null;
-    if (!this.cache) {
-      const cached = await readJson(path.join(this.directory, 'catalog.json'), null);
-      if (cached?.identity === a.identity && cached.schemaVersion === 1 && Array.isArray(cached.models)) this.cache = cached;
+    if(!this.cache||this.cache.identity!==a.identity){
+      const cached=await readJson(path.join(this.directory,'catalog.json'),null);
+      if(cached?.schemaVersion===1&&Array.isArray(cached.models))this.catalogCache.seed(cached,a.identity);
     }
-    if (!force && this.cache && Date.now() - this.cache.at < 300000) return this.cache;
-    if (!this.loading || this.loadingIdentity !== a.identity) {
-      this.loadingIdentity = a.identity;
-      const task = (async () => {
+    return this.catalogCache.get({identity:a.identity,refresh:force,load:async()=>{
         const data = await (await this.call('models', undefined, undefined, a)).json();
-        if (!Array.isArray(data.data)) throw new Error('invalid model catalog');
-        const models = data.data.filter(m => m.api_backend === 'responses' && !m.hidden).map(m => ({
-          id: m.id, provider: 'grok', source: 'grok', displayName: m.name || m.id, enabled: true,
-          contextWindows: [], contextWindow: m.context_window, maxOutputTokens: m.max_completion_tokens ?? undefined,
-          isVL: true, isReasoning: !!m.supports_reasoning_effort,
-          reasoningEfforts: (m.reasoning_efforts || []).map(e => e.value ?? e.id), defaultEffort: m.reasoning_effort,
-          capabilities: { tools: true, structuredOutput: true, parallelTools: true, nativeResponses: true, nativeSearch: !!m.supports_backend_search, vision: true, statefulResponses: false, output_limit_excludes_reasoning: true },
-        }));
-        const cache = { schemaVersion: 1, at: Date.now(), identity: a.identity, models };
-        // A credential switch during discovery must not overwrite the new account's cache.
-        if ((await this.auth.credential()).identity === a.identity) { this.cache = cache; await writeJson(path.join(this.directory, 'catalog.json'), cache); }
-        return cache;
-      })();
-      this.loading = task;
-      task.finally(() => { if (this.loading === task) this.loading = null; }).catch(() => {});
-    }
-    return this.loading;
+        const models=parseModels(data);
+        if((await this.auth.credential()).identity!==a.identity)throw authError();
+        return {schemaVersion:1,models};
+      },commit:async cache=>{
+        if((await this.auth.credential()).identity!==a.identity)throw authError();
+        await writeJson(path.join(this.directory,'catalog.json'),cache);
+      }});
   }
-  async listModels(force = false) {
+  async catalogModels(force=false) {
     const cache = await this.catalog(force), settings = await readJson(path.join(this.directory, 'settings.json'), { disabled: [] });
-    return cache.models.map(m => ({ ...m, enabled: !settings.disabled.includes(m.id), effort: settings.efforts?.[m.id], defaultMaxTokens: settings.maxTokens?.[m.id] }));
+    return applyModelSettings(cache.models, settings);
   }
   async status(force = false) {
     try { await this.listModels(force); this.lastError = null; return { connected: true, discoveredAt: new Date(this.cache.at).toISOString(), authMode: 'cli_oauth' }; }
     catch (e) { this.lastError = e.code === 'source_auth_required' ? e.message : 'Grok 无法连接，请检查登录状态与网络'; return { connected: false, error: this.lastError }; }
   }
   async quota() {
-    const a = await this.auth.credential();
-    if (this.quotaCache?.identity === a.identity && Date.now() - this.quotaCache.at < 60000) return this.quotaCache.result;
-    if (!this.quotaLoading || this.quotaIdentity !== a.identity) {
-      this.quotaIdentity = a.identity;
-      const task = (async () => {
-      const { config } = await (await this.call('billing?format=credits', undefined, undefined, a)).json();
-      const result = { available: !!config, updatedAt: new Date().toISOString(),
-        usedPercent: Number.isFinite(config?.creditUsagePercent) ? config.creditUsagePercent : undefined,
-        period: config?.currentPeriod, shared: config?.isUnifiedBillingUser,
-        message: config ? '账户订阅额度 · 包含其他 Grok 客户端使用' : '上游暂未提供订阅额度',
-      };
-      if ((await this.auth.credential()).identity === a.identity) this.quotaCache = { identity: a.identity, at: Date.now(), result };
-      return result;
-      })();
-      this.quotaLoading = task;
-      task.finally(() => { if (this.quotaLoading === task) this.quotaLoading = null; }).catch(() => {});
-    }
-    return this.quotaLoading;
+    const a=await this.auth.credential();
+    const cached=await this.quotaCatalogCache.get({identity:a.identity,load:async()=>{
+      const payload=await (await this.call('billing?format=credits',undefined,undefined,a)).json();
+      if((await this.auth.credential()).identity!==a.identity)throw authError();
+      return {result:grokQuota(payload)};
+    }});
+    return cached.result;
   }
-  async setModel({ id, field, value }) {
-    return this.mutate(async () => {
-      const model = (await this.listModels()).find(m => m.id === id);
-      if (!model) throw invalid('模型不存在');
-      const file = path.join(this.directory, 'settings.json'), settings = await readJson(file, { disabled: [] });
-      if (field === 'enabled' && typeof value === 'boolean') settings.disabled = value ? settings.disabled.filter(x => x !== id) : [...new Set([...settings.disabled, id])];
-      else if (field === 'effort' && (value === 'auto' || model.reasoningEfforts.includes(value))) { settings.efforts ||= {}; if (value === 'auto') delete settings.efforts[id]; else settings.efforts[id] = value; }
-      else if (field === 'maxTokens' && (value === null || Number.isInteger(value) && value > 0 && (!model.maxOutputTokens || value <= model.maxOutputTokens))) { settings.maxTokens ||= {}; if (value === null) delete settings.maxTokens[id]; else settings.maxTokens[id] = value; }
-      else throw invalid('不支持的模型设置值');
-      await writeJson(file, settings); return this.listModels();
-    });
+
+  async setModel(input) {
+    const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');
+    await this.settings.save(model,input,{fields:['contextWindow', 'maxOutputTokens', 'enabled', 'effort', 'maxTokens'],invalid,error:'不支持的模型设置值'});return this.listModels();
   }
   async *stream(request, { signal, observe = () => {} } = {}) {
     if (this.active >= 4) { yield { type: 'error', code: '429', message: 'Grok 已有 4 个请求进行中，请稍后重试' }; return; }

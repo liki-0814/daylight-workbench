@@ -1,5 +1,80 @@
-import * as crypto from "node:crypto";
-import { randomHex, uuid } from "../shared/utils.js";
+import * as crypto from 'node:crypto';
+import {randomHex, uuid} from '../shared/utils.js';
+
+export function sessionFromAccount(config, account) {
+  const c = account.credential;
+  return {
+    uid: c.uid, accessToken: c.access, machineId: c.machineId, machineToken: c.machineToken,
+    cosyVersion: config.cosyVersion, organizationId: c.organizationId,
+    organizationTags: c.organizationTags, dataPolicy: c.dataPolicy,
+  };
+}
+
+function identityOf(session) {
+  return { uid: session.uid, securityOauthToken: session.accessToken, cosyVersion: session.cosyVersion };
+}
+
+function signingHeaders(session, sig) {
+  return {
+    authorization: sig.authorization,
+    'cosy-user': session.uid, 'cosy-key': sig.cosyKey, 'cosy-date': sig.cosyDate,
+    'cosy-machineid': session.machineId, 'cosy-machinetoken': session.machineToken,
+    'cosy-version': session.cosyVersion, 'login-version': 'v2',
+    ...(session.organizationId ? { 'cosy-organization-id': session.organizationId } : {}),
+    ...(session.organizationTags ? { 'cosy-organization-tags': session.organizationTags } : {}),
+    ...(session.dataPolicy ? { 'cosy-data-policy': session.dataPolicy } : {}),
+  };
+}
+
+// Only Qoder's COSY wire protocol belongs here. Public protocol conversion,
+// routing and diagnostics are shared by all providers.
+export class QoderHttp {
+  constructor(config, fetchImpl = fetch) { Object.assign(this, { config, fetchImpl }); }
+  algoUrl(pathname) { return new URL(pathname, this.config.compatUrl).toString(); }
+    async openapi(method, pathname, req) {
+        const url = new URL(pathname, this.config.openapiUrl);
+        if (req.query) {
+            for (const [k, v] of Object.entries(req.query)){
+                if (v !== undefined) url.searchParams.set(k, String(v));
+            }
+        }
+        const headers = {
+            authorization: `Bearer ${req.token}`,
+            accept: "application/json",
+            ...req.headers
+        };
+        let body;
+        if (req.body !== undefined) {
+            body = JSON.stringify(req.body);
+            headers["content-type"] = "application/json";
+        }
+        return this.fetchImpl(url.toString(), {
+            method,
+            headers,
+            body,
+            signal: req.signal
+        });
+    }
+
+  async signedGet(fullUrl, session, opts = {}) {
+    const sig = signCosy({ url: fullUrl, body: '', identity: identityOf(session), temporaryKey: opts.temporaryKey, timestamp: opts.timestamp });
+    return this.fetchImpl(fullUrl, { method: 'GET', headers: { ...signingHeaders(session, sig), accept: 'application/json' }, signal: opts.signal });
+  }
+  async signedInference(fullUrl, req) {
+    const sig = signCosy({ url: fullUrl, body: req.encodedBody, identity: identityOf(req.session), temporaryKey: req.temporaryKey, requestId: req.requestId, timestamp: req.timestamp });
+    return this.fetchImpl(fullUrl, {
+      method: 'POST', body: req.encodedBody, signal: req.signal,
+      headers: {
+        ...signingHeaders(req.session, sig),
+        'x-model-key': req.modelKey, 'x-model-source': 'system', 'cosy-scene': 'assistant',
+        'cosy-clienttype': '5', 'cosy-machinetype': '5', 'cosy-business-product': 'cli',
+        'cosy-business-type': 'agent', accept: 'text/event-stream',
+        'accept-encoding': 'identity', 'content-type': 'text/plain;charset=UTF-8',
+      },
+    });
+  }
+}
+
 export const RSA_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDA8iMH5c02LilrsERw9t6Pv5Nc
 4k6Pz1EaDicBMpdpxKduSZu5OANqUq8er4GM95omAGIOPOh+Nx0spthYA2BqGz+l

@@ -1,3 +1,4 @@
+import {outputBudget,reasoningEffort} from './request-parameters.js';
 import {decodeChatRequest} from './protocols/openai-chat.js';
 import {decodeMessagesRequest} from './protocols/anthropic-messages.js';
 import {decodeResponsesRequest} from './protocols/openai-responses.js';
@@ -5,6 +6,11 @@ import {SseParser} from './llm/sse.js';
 import {parseUsage,mergeUsage} from './llm/usage.js';
 export const invalid=(message,param)=>Object.assign(new Error(message),{status:400,code:'invalid_request',param});
 const decoders={chat:decodeChatRequest,messages:decodeMessagesRequest,responses:decodeResponsesRequest};
+// Decode only when an event adapter needs canonical messages; native relays retain raw fields.
+export function decodeRequest(raw,protocol){
+ try{return {...decoders[protocol](raw),raw};}
+ catch{throw invalid('请求格式不正确，请检查消息与工具字段');}
+}
 const allowed={chat:'model messages tools tool_choice stream stream_options max_tokens max_completion_tokens reasoning_effort service_tier parallel_tool_calls store',responses:'model input instructions tools tool_choice stream max_output_tokens reasoning service_tier parallel_tool_calls store',messages:'model messages system tools tool_choice stream max_tokens thinking output_config'};
 export function convertRequest(raw,from,to){
  if(from===to)return structuredClone(raw);
@@ -33,8 +39,8 @@ export function convertRequest(raw,from,to){
  if(raw.output_config&&Object.keys(raw.output_config).some(k=>k!=='effort'))throw invalid('该 output_config 需使用原生协议');
  if(Array.isArray(seq)&&seq.some(m=>m.reasoning_content||Array.isArray(m.content)&&m.content.some(b=>b.type==='tool_result')&&m.content.some(b=>b.type!=='tool_result')))throw invalid('混合工具结果或推理历史需使用原生协议');
  const c=decoders[from](raw),out={model:raw.model,stream:true};
- const max=raw.max_output_tokens??raw.max_completion_tokens??raw.max_tokens;
- const effort=raw.reasoning_effort??raw.reasoning?.effort??raw.output_config?.effort;
+ const max=outputBudget(raw);
+ const effort=reasoningEffort(raw);
  if(raw.thinking&&raw.thinking.type!=='adaptive')throw invalid('手动 thinking 预算请使用原生协议');
  const texts=x=>typeof x==='string'?[{type:'text',text:x}]:x||[];
  const image=(url,target)=>{if(target==='messages'){const m=/^data:([^;]+);base64,(.*)$/s.exec(url);return{type:'image',source:m?{type:'base64',media_type:m[1],data:m[2]}:{type:'url',url}};}return target==='chat'?{type:'image_url',image_url:{url}}:{type:'input_image',image_url:url};};

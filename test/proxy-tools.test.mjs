@@ -4,7 +4,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createProxyTools} from '../proxy/shared/tools.js';
-import {CustomSources} from '../proxy/custom/provider.js';
+import {CustomSources} from '../proxy/custom/sources.js';
 async function fixture(t, options = {}) {
  const dataDir=await mkdtemp(path.join(tmpdir(),'daylight-proxy-tools-'));t.after(()=>rm(dataDir,{recursive:true,force:true}));
  const secrets=new Map(),keys={get:async id=>secrets.get(id),set:async(id,v)=>secrets.set(id,v),delete:async id=>secrets.delete(id)};

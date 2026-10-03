@@ -1,3 +1,4 @@
+import {validOutputBudget,validSampling} from '../shared/request-parameters.js';
 const invalid = message => Object.assign(new Error(message), { status: 400, code: 'invalid_request' });
 export function reasoningEfforts(model) {
   if (model.effortRoutes) return model.reasoningEfforts;
@@ -8,10 +9,10 @@ export function generationConfig(request, model = {}) {
   if (o.unsupported?.length) throw invalid(`AGY 暂不支持：${o.unsupported.join('、')}`);
   if (o.contextLength !== undefined) throw invalid('AGY 暂不支持覆盖上下文长度');
   const c = { maxOutputTokens: o.maxTokens ?? 8192 };
-  if (!Number.isInteger(c.maxOutputTokens) || c.maxOutputTokens < 1 || (model.maxOutputTokens && c.maxOutputTokens > model.maxOutputTokens)) throw invalid('max_tokens 超出模型允许范围');
+  if (!validOutputBudget(c.maxOutputTokens,model.maxOutputTokens)) throw invalid('max_tokens 超出模型允许范围');
   for (const [key, value, max] of [['temperature', o.temperature, 2], ['topP', o.topP, 1]]) {
     if (value === undefined) continue;
-    if (!Number.isFinite(value) || value < 0 || value > max) throw invalid(`${key} 超出允许范围`);
+    if (!validSampling(value,max)) throw invalid(`${key} 超出允许范围`);
     c[key] = value;
   }
   if (o.topK !== undefined) {
@@ -74,4 +75,44 @@ export function agyUsage(u) {
     cacheReadTokens: count(u.cachedContentTokenCount),
     outputDetails: thought === undefined ? undefined : { reasoning_tokens: thought },
   }).filter(([,v]) => v !== undefined));
+}
+
+export function compileRequest(request, signatures = new Map(), model = {}) {
+  const calls = new Map();
+  const contents = request.messages.map(message => {
+    const parts = [];
+    if (message.role === 'assistant') for (const thought of message.thinkingBlocks || []) {
+      if (!thought.signature) throw invalid('AGY 思考块回传需要原始 signature');
+      parts.push({ text: thought.text, thought: true, thoughtSignature: thought.signature });
+    }
+    if (message.role === 'tool') {
+      const call = calls.get(message.toolCallId);
+      if (!call) throw invalid('工具结果缺少对应的 assistant tool_call');
+      parts.push({ functionResponse: { id: message.toolCallId, name: call.name, response: { result: message.content } } });
+    } else {
+      for (const part of typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : message.content || []) {
+        if (part.type === 'text' && part.text) parts.push({ text: part.text });
+        else if (part.type === 'image') {
+          const match = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(part.url);
+          if (!match) throw invalid('AGY 图片需使用 base64 data URL');
+          parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+        }
+      }
+      for (const call of message.toolCalls || []) {
+        calls.set(call.id, call);
+        let args; try { args = JSON.parse(call.arguments || '{}'); } catch { throw invalid('工具参数必须是 JSON'); }
+        const saved = signatures.get(call.id);
+        if (saved && (saved.name !== call.name || saved.args !== JSON.stringify(args))) throw invalid('工具调用内容与原始签名不匹配');
+        parts.push({ functionCall: { id: call.id, name: call.name, args }, ...(saved?.signature ? { thoughtSignature: saved.signature } : {}) });
+      }
+    }
+    return { role: message.role === 'assistant' ? 'model' : 'user', parts };
+  }).filter(message => message.parts.length);
+  if (!contents.length) throw invalid('需要非空消息');
+  const body = { contents, generationConfig: generationConfig(request, model) };
+  if (request.system) body.systemInstruction = { parts: [{ text: request.system }] };
+  if (request.tools?.length) body.tools = [{ functionDeclarations: request.tools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters })) }];
+  const config = toolConfig(request);
+  if (config) body.toolConfig = config;
+  return body;
 }

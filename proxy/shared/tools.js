@@ -4,7 +4,7 @@ import path from 'node:path';
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const sourceFields=['id','name','baseUrl','protocol','auth','enabled','models','endpoint','modelsEndpoint','defaultMaxTokens','keys'];
-const modelFields=['id','upstreamId','enabled','contextWindow','maxOutputTokens','defaultMaxTokens','reasoningEfforts','effort','isVL','isReasoning'];
+const modelFields=['id','upstreamId','enabled','contextWindow','maxOutputTokens','defaultMaxTokens','reasoningEfforts','effort','isVL','isReasoning','contextLimit','outputLimit'];
 const only=(value,keys)=>Object.fromEntries(Object.entries(value||{}).filter(([k])=>keys.includes(k)));
 const prefix=id=>['codex','kimi'].includes(id)?id+'-proxy':id;
 export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.discover(id),getSources=async()=>[],getRoutes=async()=>[]}) {
@@ -61,6 +61,7 @@ export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.
       const snap=await state(),s=snap.sources.find(s=>s.id===a.sourceId),m=s?.models.find(m=>m.id===a.id);
       if(!m)fail('来源或模型不存在');
       const fields=s.id==='kimi'?['enabled','effort']:s.kind==='custom'?['enabled','contextWindow','maxOutputTokens','defaultMaxTokens','reasoningEfforts','effort']:s.id==='codex'?['enabled','effort','serviceTier']:s.id==='grok'?['enabled','effort','maxTokens']:s.id==='agy'?['enabled','effort']:['enabled','context','effort','fast'];
+      if(s.kind!=='custom')fields.push('contextWindow','maxOutputTokens');
       if(!fields.includes(a.field))fail('此来源不支持该模型设置');
       if(['enabled','fast'].includes(a.field)){if(typeof a.value!=='boolean')fail('开关必须为布尔值');}
       else if(['context','contextWindow','maxOutputTokens','defaultMaxTokens','maxTokens'].includes(a.field)){if(!Number.isSafeInteger(a.value)||a.value<1)fail('Token 参数必须为正整数');}

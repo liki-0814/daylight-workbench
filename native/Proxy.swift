@@ -104,7 +104,7 @@ final class ProxyRuntime {
     func handle(path: String, method: String, body: Data, completion: @escaping (Int, Any) -> Void) {
         queue.async {
             if self.helper == "ai", self.controlPort == nil { self.boot() }
-            if path == "/api/qoder/runtime", method == "POST" {
+            if (path == "/api/qoder/runtime" || path == "/api/proxy/runtime"), method == "POST" {
                 guard let object = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any], let custom = object["nodePath"] as? String,
                       custom.isEmpty || (custom.hasPrefix("/") && !custom.contains("\n")) else { completion(400, ["error": "Node 路径必须为绝对路径，留空可自动检测"]); return }
                 let save = {

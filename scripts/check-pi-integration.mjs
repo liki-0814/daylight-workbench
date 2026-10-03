@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createProxyService } from '../proxy/service.js';
-import { CustomSources } from '../proxy/custom/provider.js';
+import { CustomSources } from '../proxy/custom/sources.js';
 
 const piRoot = process.argv[2];
 if (!piRoot) throw new Error('Pass the installed pi-coding-agent package directory');

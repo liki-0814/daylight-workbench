@@ -1,55 +1,32 @@
-import {codexQuota} from '../shared/quota.js';
-import os from 'node:os';
+import {parseModels} from './models.js';
+import {codexQuota} from './quota.js';
+import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
+import {CodexAuth} from './auth.js';
+import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import path from 'node:path';
-import {createHash} from 'node:crypto';
-import {RPC, executable} from '../../ai/adapters/process.mjs';
-import {readJson,writeJson,serial} from '../shared/store.js';
 import {invalid,convertRequest} from '../shared/protocol.js';
 
 export class CodexProvider {
-  constructor({dataDir,fetchImpl=fetch,home=process.env.CODEX_HOME || path.join(os.homedir(),'.codex'),rpcFactory=()=>new RPC(executable('codex'),['app-server','--listen','stdio://'],os.homedir())}) {
-    Object.assign(this,{home,fetchImpl,rpcFactory});this.file=path.join(dataDir,'codex-proxy/settings.json');this.mutate=serial();
+  async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'serviceTier']);}
+  async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
+  snapshot(){return sourceSnapshot({id:'codex',name:'Codex',identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,authentication:{mode:'local',operations:['refresh']},capabilities:{quota:true,editableSource:false,requestOutputBudget:false},nativeProtocols:['responses']});}
+  constructor({dataDir,fetchImpl=fetch,auth,...options}) {
+    this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth(options);this.file=path.join(dataDir,'codex-proxy/settings.json');this.settings=modelSettings(this.file);
   }
-  async quota() {
-    await this.read();
-    const rpc=this.rpcFactory();
-    try {await rpc.initialize();await rpc.call('account/read',{refreshToken:true});return codexQuota(await rpc.call('account/rateLimits/read',{}));}
-    finally {rpc.close();}
+  async read(){return this.auth.read();}
+  async quota(){return codexQuota(await this.auth.quota());}
+  async discover(force=false){
+    const catalog=await this.auth.discover(force);
+    this.identity=catalog.identity;
+    this.cache={identity:catalog.identity,at:catalog.at,models:parseModels(catalog)};return this.auth.read();
   }
-  async read() {
-    const a=await readJson(path.join(this.home,'auth.json'),null);
-    if(a?.auth_mode!=='chatgpt'||!a.tokens?.access_token||!a.tokens?.account_id)throw Object.assign(new Error('请先在本机 Codex 登录 ChatGPT，再刷新登录'),{status:401});
-    let exp=0;try{exp=JSON.parse(Buffer.from(a.tokens.access_token.split('.')[1],'base64url')).exp*1000;}catch{}
-    this.identity=createHash('sha256').update(a.tokens.account_id).digest('hex');
-    return {token:a.tokens.access_token,account:a.tokens.account_id,exp,identity:this.identity};
-  }
-  async discover(force=false) {
-    let a=await this.read();
-    if(!force&&this.cache?.identity===a.identity&&Date.now()-this.cache.at<300000&&a.exp>Date.now()+60000)return a;
-    if(!this.loading){
-      this.loading=(async()=>{
-        const rpc=this.rpcFactory();
-        try {await rpc.initialize();await rpc.call('account/read',{refreshToken:true});const all=[];let cursor;
-          do {const r=await rpc.call('model/list',{limit:100,...(cursor?{cursor}:{})});all.push(...r.data);cursor=r.nextCursor;}while(cursor);
-          const current=await this.read();const meta=await readJson(path.join(this.home,'models_cache.json'),{models:[]});
-          this.cache={identity:current.identity,at:Date.now(),models:all.filter(m=>!m.hidden).map(m=>{
-            const c=meta.models?.find(x=>x.slug===m.model)||{};
-            return {id:m.model,provider:'codex',source:'codex',displayName:m.displayName||m.model,enabled:true,contextWindows:[],contextWindow:c.context_window,maxOutputTokens:c.max_output_tokens,
-              isVL:m.inputModalities?.includes('image')||false,isReasoning:true,reasoningEfforts:(m.supportedReasoningEfforts||[]).map(e=>e.reasoningEffort).filter(e=>e!=='ultra'),defaultEffort:m.defaultReasoningEffort,
-              serviceTiers:m.serviceTiers||[],capabilities:{nativeResponses:true,service_tiers:m.serviceTiers||[],tools:true}};
-          })};return current;
-        }finally{rpc.close();}
-      })().finally(()=>{this.loading=null;});
-    }
-    a=await this.loading;return a;
-  }
-  async listModels(force=false){await this.discover(force);const s=await readJson(this.file,{});return this.cache.models.map(m=>({...m,enabled:!s.disabled?.includes(m.id),effort:s.efforts?.[m.id],serviceTier:s.tiers?.[m.id]}));}
+  close(){this.auth.close();}
+  async catalogModels(force=false){await this.discover(force);return applyModelSettings(this.cache.models,await this.settings.read());}
   async status(force=false){try{await this.listModels(force);this.lastError=null;return{connected:true,authMode:'codex_oauth'};}catch{this.lastError='无法读取本机 Codex 登录，请在 Codex 登录后刷新';return{connected:false,error:this.lastError};}}
-  async setModel({id,field,value}){return this.mutate(async()=>{const m=(await this.listModels()).find(m=>m.id===id);if(!m)throw invalid('模型不存在');const s=await readJson(this.file,{});
-    if(field==='enabled'&&typeof value==='boolean')s.disabled=value?(s.disabled||[]).filter(x=>x!==id):[...new Set([...(s.disabled||[]),id])];
-    else if(field==='effort'&&(value==='auto'||m.reasoningEfforts.includes(value))){s.efforts||={};if(value==='auto')delete s.efforts[id];else s.efforts[id]=value;}
-    else if(field==='serviceTier'&&(['auto','default',...m.serviceTiers.map(t=>t.id)].includes(value))){s.tiers||={};if(value==='auto')delete s.tiers[id];else s.tiers[id]=value;}
-    else throw invalid('不支持的模型设置');await writeJson(this.file,s);return this.listModels();});}
+  async setModel(input) {
+    const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');
+    await this.settings.save(model,input,{fields:['contextWindow', 'maxOutputTokens', 'enabled', 'effort', 'serviceTier'],invalid,error:'不支持的模型设置'});return this.listModels();
+  }
   async forward(raw,protocol,{signal,observe=()=>{}}) {
     observe({stage:'discovery'});
     const model=(await this.listModels()).find(m=>m.id===raw.model&&m.enabled);if(!model)throw invalid('模型已停用或不存在');

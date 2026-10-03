@@ -29,3 +29,19 @@ export function diagnosticError(error) {
   const code = typeof upstreamCode === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(upstreamCode) ? upstreamCode : undefined;
   return { category, code, status: error.status, hint: errorHints[category] };
 }
+
+/** Public metadata: no credential, transport or mutable settings object escapes. */
+export function sourceSnapshot({id,name,identityKey,configured=true,connected=false,error,checkedAt,catalogIdentityKey,authentication,capabilities={},nativeProtocols=[],revision}) {
+ return {id,name,kind:id.startsWith('custom:')?'custom':'builtin',enabled:true,configured,connected,error,identityKey,revision:revision||identityKey,checkedAt,catalogIdentityKey,authentication,capabilities,nativeProtocols};
+}
+export function modelCapabilities(models,fields){
+ return models.map(model=>({...model,settingFields:[...new Set([...fields,'contextWindow','maxOutputTokens'])].filter(field=>field!=='context'||model.contextWindows?.length).filter(field=>field!=='effort'||model.reasoningEfforts?.length).filter(field=>field!=='fast'||model.supportsFast)}));
+}
+
+/**
+ * Provider.execute({raw,protocol,model,conversationId,stateful}, {signal,observe,conversationId})
+ * -> {kind:'response', response, protocol, streaming, ...relayMetadata}
+ *  | {kind:'events', events:AsyncIterable, renderers?, headerTimeoutOnly?}
+ * Snapshot and execution never expose credentials. Native results retain opaque upstream fields;
+ * event adapters decode raw requests themselves using shared/protocol.js.
+ */

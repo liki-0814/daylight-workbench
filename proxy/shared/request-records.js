@@ -25,8 +25,10 @@ export class RequestTrace {
       row.stages[this.stage] = (row.stages[this.stage] || 0) + performance.now() - this.stageStarted;
       this.stage = info.stage; this.stageStarted = performance.now();
     }
-    if (info.provider && row.provider && info.provider !== row.provider) { delete row.keyId; delete row.error; delete row.outcome; delete row.requestedTemperature; delete row.effectiveTemperature; }
+    if (info.provider && row.provider && info.provider !== row.provider) { delete row.keyId; delete row.error; delete row.outcome; delete row.requestedTemperature; delete row.effectiveTemperature;delete row.upstreamErrorStatus;delete row.upstreamErrorCode; }
     for (const key of metadata) if (['string', 'number', 'boolean'].includes(typeof info[key])) row[key] = info[key];
+    if(Number.isInteger(info.upstreamErrorStatus)&&info.upstreamErrorStatus>=400&&info.upstreamErrorStatus<600)row.upstreamErrorStatus=info.upstreamErrorStatus;
+    if(typeof info.upstreamErrorCode==='string'&&/^[a-zA-Z0-9_.-]{1,80}$/.test(info.upstreamErrorCode))row.upstreamErrorCode=info.upstreamErrorCode;
     if (info.usage) {
       const usage = Object.fromEntries(counters.filter(key => count(info.usage[key])).map(key => [key, info.usage[key]]));
       for (const key of ['inputDetails', 'outputDetails']) if (info.usage[key]) usage[key] = Object.fromEntries(detailCounters.filter(name => count(info.usage[key][name])).map(name => [name, info.usage[key][name]]));
@@ -42,7 +44,7 @@ export class RequestTrace {
     if (event.retries !== undefined) this.entry.retries = Math.max(this.entry.retries || 0, event.retries);
     if (['text', 'reasoning', 'tool_call'].includes(event.type)) this.observe({ content: !!(event.delta || event.name || event.argumentsDelta), toolCall: event.type === 'tool_call' });
     if (event.type === 'finish') this.observe({ finish: event.reason });
-    if (event.type === 'error') { this.fail({ code: event.code }); this.entry.upstreamCode = this.entry.error.code; }
+    if (event.type === 'error') { this.observe({upstreamErrorStatus:event.upstreamErrorStatus,upstreamErrorCode:event.upstreamErrorCode});this.fail({ code: event.code }); this.entry.upstreamCode = this.entry.error.code; }
   }
   fail(error, outcome = 'failed') {
     this.entry.outcome = outcome;

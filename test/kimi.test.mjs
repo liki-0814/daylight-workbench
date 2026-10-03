@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {KimiProvider,KimiAuth} from '../proxy/kimi/provider.js';
+import {KimiProvider} from '../proxy/kimi/provider.js';
+import {KimiAuth} from '../proxy/kimi/auth.js';
 import {RequestTrace} from '../proxy/shared/request-records.js';
 const jwt=user=>`header.${Buffer.from(JSON.stringify({user_id:user})).toString('base64url')}.signature`;
 async function fixture(t){const dir=await mkdtemp(path.join(os.tmpdir(),'daylight-kimi-'));t.after(()=>rm(dir,{recursive:true,force:true}));let user='user-a';const calls=[];const auth={credential:async()=>({access_token:jwt(user)})};const p=new KimiProvider({dataDir:dir,auth,fetchImpl:async(url,init)=>{calls.push({url,init});return url.endsWith('/models')?Response.json({data:[{id:'kimi-for-coding',display_name:'K2.8 Preview',context_length:1048576,supports_reasoning:true},{id:'other'}]}):Response.json({choices:[{message:{content:'OK'},finish_reason:'stop'}]});}});return{p,calls,switchUser:()=>{user='user-b';}};}
@@ -13,7 +14,7 @@ test('Kimi OAuth refresh retries once and never replays on a switched account',a
 test('Kimi login responses expose only approved browser URLs and never device or bearer tokens',()=>{const auth=new KimiAuth();const result=auth.safeLogin({status:'pending',verification_uri_complete:'https://auth.kimi.com/activate?code=123',user_code:'123',access_token:'private',device_code:'private'});assert.equal(result.userCode,'123');assert.ok(!JSON.stringify(result).includes('private'));assert.throws(()=>auth.safeLogin({verification_uri:'http://evil.example'}),/授权地址/);});
 
 test('all four confirmed Kimi model IDs omit any provided temperature; other providers and parameters stay intact',async()=>{
- const {omitKimiTemperature,isOfficialKimiUrl}=await import('../proxy/kimi/parameters.js');
+ const {omitKimiTemperature,isOfficialKimiUrl}=await import('../proxy/shared/request-parameters.js');
  for(const model of ['kimi-for-coding','kimi-for-coding-highspeed','k3','k3-256k'])for(const temperature of [0,0.7,1,2]){const input={temperature,top_p:0.8},events=[];omitKimiTemperature(input,model,e=>events.push(e));assert.deepEqual(input,{top_p:0.8});assert.equal(events[0].effectiveTemperature,'omitted');}
  const other={temperature:0.7};omitKimiTemperature(other,'other');assert.equal(other.temperature,0.7);assert.equal(isOfficialKimiUrl('https://stable.monkeyapi.net/v1'),false);
 });

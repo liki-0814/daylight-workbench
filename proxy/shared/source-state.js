@@ -12,7 +12,8 @@ export class SourceState {
   checked(id, provider, models, error) {
     // A custom provider's listModels reads configuration, not its upstream.
     if (provider.source) return;
-    const at = error ? Date.now() : provider.cache?.at || Date.now();
+    const snapshot=provider.snapshot?.();
+    const at = error ? Date.now() : snapshot ? snapshot.checkedAt||Date.now() : provider.cache?.at||Date.now();
     this.checks.set(id, { at: new Date(at).toISOString(), models: models || this.checks.get(id)?.models || [], error: error && diagnosticError(error) });
   }
   discovered(source, models, error) {
@@ -20,22 +21,22 @@ export class SourceState {
   }
   invalidate(id) { this.checks.delete(id); }
   revision(id, provider) {
-    const source = provider.source;
+    const source = provider.source, snapshot=provider.snapshot?.();
     const models = this.checks.get(id)?.models;
     return hash(source || {
       id,
-      identity: provider.identity ?? provider.auth?.identity ?? provider.cache?.identity ?? provider.cache?.id ?? provider.cache?.project,
+      identity: snapshot ? snapshot.identityKey : provider.identity ?? provider.auth?.identity ?? provider.cache?.identity ?? provider.cache?.id ?? provider.cache?.project,
       models: models?.map(m => Object.fromEntries(modelFields.filter(k => m[k] !== undefined).map(k => [k, m[k]]))),
     });
   }
-  snapshot(providers, custom, records, conflicts, qoderConfigured) {
+  snapshot(providers, custom, records, conflicts, qoderConfigured,describe=id=>providers[id]?.snapshot?.()) {
     const definitions = [
       ...Object.entries(providers).filter(([, p]) => !p.source).map(([id, provider]) => ({ id, name: names[id] || id, provider, enabled: true })),
       ...custom.map(source => ({ id: 'custom:' + source.id, name: source.name, provider: providers['custom:' + source.id] || { source }, enabled: source.enabled })),
     ];
     return definitions.map(({ id, name, provider, enabled }) => {
-      const check = this.checks.get(id), revision = this.revision(id, provider);
-      const configured = id === 'qoder' ? qoderConfigured : !provider.source || provider.source.auth === 'none' || provider.source.hasKey;
+      const check = this.checks.get(id), revision = this.revision(id, provider),description=describe(id);
+      const configured = description?.configured ?? (id === 'qoder' ? qoderConfigured : !provider.source || provider.source.auth === 'none' || provider.source.hasKey);
       const models = provider.source?.models || check?.models || [];
       const routableModels = models.filter(m => m.enabled !== false && !conflicts.includes(m.id)).length;
       const rows = records.filter(r => r.provider === id && r.sourceRevision === revision);
@@ -50,7 +51,7 @@ export class SourceState {
       if (!configured) state = 'unconfigured';
       if (!enabled) state = 'disabled';
       return {
-        id, name, enabled, state, configured, routableModels, checkedAt: check?.at, error,
+        ...description,id, name, enabled, state, configured,revision, routableModels, checkedAt: check?.at, error,
         verification: {
           generation: verified.at(-1)?.time,
           streaming: verified.findLast(r => r.streaming)?.time,

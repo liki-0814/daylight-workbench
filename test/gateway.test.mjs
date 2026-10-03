@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';import path from 'node:path';import http from 'node:http';import {once} from 'node:events';
-import {CustomSources} from '../proxy/custom/provider.js';import {convertRequest,events} from '../proxy/shared/protocol.js';import {createProxyService} from '../proxy/service.js';
+import {CustomSources} from '../proxy/custom/sources.js';import {convertRequest,events} from '../proxy/shared/protocol.js';import {createProxyService} from '../proxy/service.js';
 const temp=async t=>{const dir=await mkdtemp(path.join(os.tmpdir(),'gateway-test-'));t.after(()=>rm(dir,{recursive:true,force:true,maxRetries:3}));return dir;};
 const secrets=()=>{const values=new Map();return{get:async id=>values.get(id),set:async(id,k)=>values.set(id,k),delete:async id=>values.delete(id)};};
 test('custom sources keep secrets out of settings, preserve blank keys and reject self loops',async t=>{

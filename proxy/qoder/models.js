@@ -1,4 +1,8 @@
-import { REASONING_EFFORTS, normalizeEffort } from "../shared/llm/index.js";
+import {applyCapacitySettings} from '../shared/model-settings.js';
+import {REASONING_EFFORTS, normalizeEffort, contextWindowRejection, effortRejection} from '../shared/llm/index.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+
 function firstDefined(...vals) {
     for (const v of vals)if (v !== undefined && v !== null) return v;
     return undefined;
@@ -125,39 +129,240 @@ export function parseModelList(body, scene = "assistant") {
     }
     return out;
 }
-export function parseModelRef(ref) {
-    const trimmed = ref.trim();
-    const match = /^(.*)\[([^\]]+)\]$/.exec(trimmed);
-    const id = match?.[1]?.trim();
-    if (!match || !id) return {
-        id: trimmed
-    };
-    const raw = match[2].trim().toLowerCase();
-    const scaled = /^(\d+(?:\.\d+)?)([km])?$/.exec(raw);
-    if (!scaled) return {
-        id,
-        invalidWindow: raw
-    };
-    const unit = scaled[2];
-    const magnitude = unit === "m" ? 1_000_000 : unit === "k" ? 1_000 : 1;
-    const window = Number(scaled[1]) * magnitude;
-    if (!Number.isSafeInteger(window) || window <= 0) return {
-        id,
-        invalidWindow: raw
-    };
-    return {
-        id,
-        window
-    };
-}
+
 export async function fetchModels(http, session) {
-    if (session.profile.catalog === "static") {
-        return session.profile.staticModels ?? [];
-    }
-    const base = session.profile.hosts.inference;
-    const url = new URL("/algo/api/v2/model/list", base).toString();
+    const url = http.algoUrl("/algo/api/v2/model/list");
     const res = await http.signedGet(url, session);
     if (!res.ok) throw new Error(`model/list failed: ${res.status} ${await res.text()}`);
     const body = await res.json();
-    return parseModelList(body, session.profile.catalogScene ?? "assistant");
+    return parseModelList(body);
+}
+
+export const DEFAULT_QUEUE_RETRY = {
+    enabled: true,
+    maxRetries: 2,
+    delayMs: 3_000
+};
+export const QUEUE_RETRY_BOUNDS = {
+    maxRetries: {
+        min: 1,
+        max: 5
+    },
+    delayMs: {
+        min: 100,
+        max: 30_000
+    }
+};
+export const QUEUE_RETRY_MAX_DELAY_MS = 30_000;
+export function resolveQueueRetry(settings) {
+    return {
+        ...DEFAULT_QUEUE_RETRY,
+        ...settings.queueRetry
+    };
+}
+export function queueRetryRejection(policy) {
+    for (const field of [
+        "maxRetries",
+        "delayMs"
+    ]){
+        const { min, max } = QUEUE_RETRY_BOUNDS[field];
+        const value = policy[field];
+        if (!Number.isInteger(value) || value < min || value > max) {
+            return `queue retry ${field} ${value} is out of range — expected an integer between ${min} and ${max}`;
+        }
+    }
+    return undefined;
+}
+export function queueRetryDelay(failedAttempt, policy) {
+    return Math.min(policy.delayMs * 2 ** (failedAttempt - 1), QUEUE_RETRY_MAX_DELAY_MS);
+}
+function empty() {
+    return {
+        disabled: [],
+        context: {},
+        fast: {},
+        effort: {}
+    };
+}
+function settingsPath(accountFile) {
+    return path.join(path.dirname(accountFile), "settings.json");
+}
+export async function loadSettings(accountFile) {
+    try {
+        const text = await fs.readFile(settingsPath(accountFile), "utf8");
+        const parsed = JSON.parse(text);
+        return {
+            disabled: parsed.disabled ?? [],
+            context: parsed.context ?? {},
+            fast: parsed.fast ?? {},
+            effort: parsed.effort ?? {},
+            capacities: parsed.capacities ?? {},
+            ...parsed.queueRetry ? {
+                queueRetry: parsed.queueRetry
+            } : {}
+        };
+    } catch (error) {
+        if (error.code !== "ENOENT") throw new Error("模型设置无法读取，原文件已保留");
+        return empty();
+    }
+}
+export async function saveSettings(accountFile, settings) {
+    const file = settingsPath(accountFile);
+    await fs.mkdir(path.dirname(file), {
+        recursive: true
+    });
+    const staging = `${file}.${process.pid}.tmp`;
+    await fs.writeFile(staging, JSON.stringify(settings, null, 2), {
+        mode: 0o600
+    });
+    await fs.rename(staging, file);
+}
+export function applySettings(models, settings) {
+    const disabled = new Set(settings.disabled);
+    return applyCapacitySettings(models,settings).map((m)=>{
+        const overrideCtx = settings.context[m.id];
+        const contextWindows = overrideCtx !== undefined ? m.contextWindows.map((w)=>({
+                ...w,
+                isDefault: w.length === overrideCtx
+            })) : m.contextWindows;
+        return {
+            ...m,
+            enabled: !disabled.has(m.id),
+            fast: settings.fast[m.id] ?? false,
+            effort: settings.effort[m.id] ?? m.effort,
+            contextWindows
+        };
+    });
+}
+export const EFFORT_AUTO = "auto";
+export function applyModelsCommand(sub, args, settings, catalog) {
+    const next = {
+        capacities: {...settings.capacities},
+        disabled: [
+            ...settings.disabled
+        ],
+        context: {
+            ...settings.context
+        },
+        fast: {
+            ...settings.fast
+        },
+        effort: {
+            ...settings.effort
+        },
+        ...settings.queueRetry ? {
+            queueRetry: {
+                ...settings.queueRetry
+            }
+        } : {}
+    };
+    const requireModel = (id)=>{
+        if (!id) throw new Error(`usage: models ${sub} <model-id> …`);
+        const model = catalog.find((m)=>m.id === id);
+        if (!model) throw new Error(`unknown model: ${id}`);
+        return model;
+    };
+    switch(sub){
+        case "enable":
+        case "disable":
+            {
+                const { id } = requireModel(args[0]);
+                next.disabled = next.disabled.filter((d)=>d !== id);
+                if (sub === "disable") next.disabled.push(id);
+                return {
+                    settings: next,
+                    message: `${sub}d ${id}`
+                };
+            }
+        case "context":
+            {
+                const model = requireModel(args[0]);
+                const length = Number(args[1]);
+                if (!Number.isFinite(length)) {
+                    throw new Error("usage: models context <model-id> <length>");
+                }
+                const rejection = contextWindowRejection(model, length);
+                if (rejection) throw new Error(rejection);
+                next.context[model.id] = length;
+                return {
+                    settings: next,
+                    message: `context window for ${model.id} = ${length}`
+                };
+            }
+        case "fast":
+            {
+                const onoff = args[1];
+                if (onoff !== "on" && onoff !== "off") {
+                    throw new Error("usage: models fast <model-id> on|off");
+                }
+                const { id } = requireModel(args[0]);
+                next.fast[id] = onoff === "on";
+                return {
+                    settings: next,
+                    message: `fast for ${id} = ${onoff}`
+                };
+            }
+        case "effort":
+            {
+                const level = args[1];
+                if (!args[0] || !level) {
+                    throw new Error(`usage: models effort <model-id> <${REASONING_EFFORTS.join("|")}|${EFFORT_AUTO}>`);
+                }
+                if (level.toLowerCase() === EFFORT_AUTO) {
+                    const { id } = requireModel(args[0]);
+                    delete next.effort[id];
+                    return {
+                        settings: next,
+                        message: `effort for ${id} cleared — the model's own default applies`
+                    };
+                }
+                const effort = normalizeEffort(level);
+                if (!effort) {
+                    throw new Error(`unknown effort "${level}" (expected ${REASONING_EFFORTS.join(", ")} or ${EFFORT_AUTO})`);
+                }
+                const model = requireModel(args[0]);
+                const rejection = effortRejection(model, effort);
+                if (rejection) throw new Error(rejection);
+                next.effort[model.id] = effort;
+                return {
+                    settings: next,
+                    message: `effort for ${model.id} = ${effort}`
+                };
+            }
+        case "queue-retry":
+            {
+                const field = args[0];
+                const next2 = {
+                    ...next.queueRetry ?? {}
+                };
+                if (field === "on" || field === "off") {
+                    next2.enabled = field === "on";
+                    next.queueRetry = next2;
+                    return {
+                        settings: next,
+                        message: `queue retry ${field === "on" ? "enabled" : "disabled"}`
+                    };
+                }
+                const key = field === "max" ? "maxRetries" : field === "delay" ? "delayMs" : undefined;
+                const value = Number(args[1]);
+                if (key === undefined || !Number.isInteger(value)) {
+                    throw new Error("usage: models queue-retry on|off | max <1-5> | delay <100-30000>");
+                }
+                const candidate = {
+                    ...DEFAULT_QUEUE_RETRY,
+                    ...next2,
+                    [key]: value
+                };
+                const rejection = queueRetryRejection(candidate);
+                if (rejection) throw new Error(rejection);
+                next2[key] = value;
+                next.queueRetry = next2;
+                return {
+                    settings: next,
+                    message: `queue retry ${key} = ${value}`
+                };
+            }
+        default:
+            throw new Error(`unknown subcommand: models ${sub}`);
+    }
 }

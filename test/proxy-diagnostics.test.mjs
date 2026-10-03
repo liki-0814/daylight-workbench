@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { RequestRecords, RequestTrace } from '../proxy/shared/request-records.js';
 import { SourceState } from '../proxy/shared/source-state.js';
-import { CustomSources } from '../proxy/custom/provider.js';
+import { CustomSources } from '../proxy/custom/sources.js';
 import { createWorkbench } from '../server.mjs';
 import { writeJson } from '../proxy/shared/store.js';
 

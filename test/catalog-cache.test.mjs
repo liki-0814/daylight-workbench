@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ModelRouter } from '../proxy/shared/router.js';
 import { createProxyService } from '../proxy/service.js';
-import { CustomSources } from '../proxy/custom/provider.js';
+import { CustomSources } from '../proxy/custom/sources.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';

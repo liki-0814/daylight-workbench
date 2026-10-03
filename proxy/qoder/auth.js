@@ -1,5 +1,7 @@
-import { randomBytes, createHash, randomUUID } from 'node:crypto';
-import { sessionFromAccount } from './http.js';
+import {randomBytes, createHash, randomUUID} from 'node:crypto';
+import {sessionFromAccount} from './transport.js';
+import {unlink} from 'node:fs/promises';
+import {readJson, writeJson, serial} from '../shared/store.js';
 
 export function startAuthorize(config) {
   const verifier = randomBytes(32).toString('base64url');
@@ -62,4 +64,34 @@ export async function refreshCredential(http, credential) {
   const data = await response.json(), access = accessOf(data);
   if (!access) throw new Error('刷新令牌失败，请重新登录');
   return { ...credential, access, refresh: data.refresh_token || data.refreshToken || credential.refresh, expires: expiry(data, access) };
+}
+
+export class AccountStore {
+  constructor(file) { this.file = file; this.run = serial(); }
+  async load() {
+    const account = await readJson(this.file, null);
+    if (account && (!account.credential?.access || !account.credential?.uid)) throw new Error('账号文件无效，请重新登录');
+    this.current=account;return account;
+  }
+  async require() { const value = await this.load(); if (!value) throw new Error('请先登录 Qoder'); return value; }
+  async save(account) { await writeJson(this.file, account);this.current=account; }
+  logout() { return this.run(async () => {await unlink(this.file).catch(error => { if (error.code !== 'ENOENT') throw error; });this.current=null;}); }
+}
+
+// The provider owns login state; management owns the stop-before-account-change policy.
+export class QoderAuth {
+ constructor({accounts,http,config,fetchImpl,onChange=()=>{}}){Object.assign(this,{accounts,http,config,fetchImpl,onChange});}
+ async login(){this.pending=startAuthorize(this.config);return{url:this.pending.url,expiresAt:this.pending.expiresAt};}
+ async poll(){
+  if(!this.pending||Date.now()>this.pending.expiresAt){this.pending=null;throw Object.assign(new Error('登录链接已过期，请重新登录'),{status:400});}
+  if(!this.polling){const login=this.pending;
+   this.polling=pollLogin(this.http,this.config,login,this.fetchImpl).then(account=>this.accounts.run(async()=>{
+    if(this.pending!==login)return false;
+    if(account){await this.accounts.save(account);this.pending=null;this.onChange();return true;}return false;
+   })).finally(()=>{this.polling=null;});
+  }
+  return{authorized:await this.polling};
+ }
+ async cancel(){this.pending=null;return{ok:true};}
+ async logout(){this.pending=null;await this.accounts.logout();this.onChange();return{ok:true};}
 }

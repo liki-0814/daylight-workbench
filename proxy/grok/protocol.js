@@ -1,3 +1,4 @@
+import {reasoningEffort,outputBudget,conflictingChatBudgets,validOutputBudget,validSampling,validEffort} from '../shared/request-parameters.js';
 import { LLMError } from '../shared/llm/canonical.js';
 import { SseParser } from '../shared/llm/sse.js';
 
@@ -12,14 +13,14 @@ export function compileRequest(request, model) {
   const p = request.options.protocol, raw = request.raw;
   if (!raw || !allowed[p]) throw invalid('请求协议无效');
   checkKeys(raw, allowed[p].split(' '), '');
-  const effort = raw.reasoning_effort ?? raw.reasoning?.effort ?? raw.output_config?.effort ?? model.effort ?? model.defaultEffort;
-  if (effort !== undefined && !model.reasoningEfforts.includes(effort)) throw invalid(`可用推理强度：${model.reasoningEfforts.join('、')}`, 'reasoning_effort');
+  const effort = reasoningEffort(raw, model.effort ?? model.defaultEffort);
+  if (effort !== undefined && !validEffort(effort,model.reasoningEfforts)) throw invalid(`可用推理强度：${model.reasoningEfforts.join('、')}`, 'reasoning_effort');
   if (raw.thinking !== undefined && (raw.thinking?.type !== 'adaptive' || Object.keys(raw.thinking).some(k => !['type', 'display'].includes(k)) || raw.thinking.display !== undefined && raw.thinking.display !== 'summarized')) throw invalid('Grok 仅支持 adaptive thinking 与推理档位，不支持手动思考预算或关闭思考', 'thinking');
   checkKeys(raw.reasoning, ['effort', 'summary'], 'reasoning.');
   checkKeys(raw.output_config, ['effort'], 'output_config.');
-  if (raw.max_tokens !== undefined && raw.max_completion_tokens !== undefined && raw.max_tokens !== raw.max_completion_tokens) throw invalid('最大输出参数冲突', 'max_tokens');
-  const max = raw.max_output_tokens ?? raw.max_completion_tokens ?? raw.max_tokens ?? model.defaultMaxTokens;
-  if (max !== undefined && (!Number.isInteger(max) || max < 1 || model.maxOutputTokens && max > model.maxOutputTokens)) throw invalid('最大输出必须是模型范围内的正整数', 'max_tokens');
+  if (conflictingChatBudgets(raw)) throw invalid('最大输出参数冲突', 'max_tokens');
+  const max = outputBudget(raw,model.defaultMaxTokens);
+  if (max !== undefined && !validOutputBudget(max,model.maxOutputTokens)) throw invalid('最大输出必须是模型范围内的正整数', 'max_tokens');
   if (raw.store === true) throw invalid('Grok 中转使用无状态历史，请传入完整 input；不支持 store=true', 'store');
   if (raw.include !== undefined && !Array.isArray(raw.include)) throw invalid('include 必须为数组', 'include');
   if (raw.include?.some(x => x !== 'reasoning.encrypted_content')) throw invalid('不支持的 include 项', 'include');
@@ -30,7 +31,7 @@ export function compileRequest(request, model) {
   }
   if (max !== undefined) body.max_output_tokens = max;
   for (const k of ['temperature', 'top_p']) if (raw[k] !== undefined) {
-    if (!Number.isFinite(raw[k]) || raw[k] < 0 || raw[k] > (k === 'temperature' ? 2 : 1)) throw invalid(`${k} 超出范围`, k);
+    if (!validSampling(raw[k],k === 'temperature' ? 2 : 1)) throw invalid(`${k} 超出范围`, k);
     body[k] = raw[k];
   }
   if (raw.parallel_tool_calls !== undefined) {

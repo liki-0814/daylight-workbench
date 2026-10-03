@@ -7,7 +7,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { GrokAuth } from '../proxy/grok/auth.js';
 import { GrokProvider } from '../proxy/grok/provider.js';
-import { compileRequest, decodeStream, parseUsage } from '../proxy/grok/responses.js';
+import { compileRequest, decodeStream, parseUsage } from '../proxy/grok/protocol.js';
 import { createProxyService } from '../proxy/service.js';
 const model={id:'grok-test',enabled:true,reasoningEfforts:['low','high'],defaultEffort:'high',contextWindows:[]};
 const auth={credential:async()=>({token:'private-token',identity:'account-a',version:'1.0.41'})};

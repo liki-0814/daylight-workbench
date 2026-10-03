@@ -2,13 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createProxyService, send } from '../proxy/service.js';
 import { encodeBody, decodeBody } from '../proxy/qoder/body-codec.js';
-import { signCosy, aesDecryptInfo } from '../proxy/qoder/cosy.js';
+import { signCosy, aesDecryptInfo } from '../proxy/qoder/transport.js';
 import { parseModelList } from '../proxy/qoder/models.js';
+import { QoderHttp, sessionFromAccount } from '../proxy/qoder/transport.js';
 import { createWorkbench } from '../server.mjs';
 
 const teamModel = { key: 'team-model', display_name: 'Qwen3.8-Max（采供线专属）', source: 'byokTeams', format: 'openai' };
@@ -67,6 +69,30 @@ test('protocol codec and COSY signing preserve Unicode and exact signed path', (
   assert.equal(sig.signedPath, '/test');
   const payload = JSON.parse(Buffer.from(sig.payload, 'base64'));
   assert.deepEqual(JSON.parse(aesDecryptInfo(payload.info, '0123456789abcdef')), { uid: 'u', security_oauth_token: 'secret' });
+});
+
+test('Qoder transport preserves signed body, dual tokens and organization headers', async () => {
+  const config = { compatUrl: 'https://qoder.invalid', cosyVersion: '1.0.41' };
+  const organization = { organizationId: 'org-test', organizationTags: 'tag-one,tag-two', dataPolicy: 'AGREE' };
+  const session = sessionFromAccount(config, { ...account, credential: { ...account.credential, ...organization } });
+  const body = encodeBody({ messages: [{ role: 'user', content: '签名测试😀' }] });
+  const url = new URL('/algo/test?Encode=1', config.compatUrl).href;
+  const signing = { temporaryKey: '0123456789abcdef', timestamp: 1000, requestId: 'request-test' };
+  const expected = signCosy({ ...signing, url, body, identity: { uid: 'test', securityOauthToken: 'private-access', cosyVersion: config.cosyVersion } });
+  let sent;
+  const transport = new QoderHttp(config, async (url, options) => { sent = { url, ...options }; return new Response(); });
+  await transport.signedInference(url, { ...signing, session, encodedBody: body, modelKey: 'test-model' });
+  assert.equal(sent.body, body);
+  // RSA PKCS#1 padding is randomized, so verify the actual wire signature
+  // against its own encrypted key rather than a second signing operation.
+  const digest = createHash('md5').update(`${expected.payload}\n${sent.headers['cosy-key']}\n1000\n${body}\n/test`).digest('hex');
+  assert.equal(sent.headers.authorization, `Bearer COSY.${expected.payload}.${digest}`);
+  assert.equal(sent.headers['cosy-machinetoken'], 'private-machine');
+  assert.equal(sent.headers['cosy-organization-id'], organization.organizationId);
+  assert.equal(sent.headers['cosy-organization-tags'], organization.organizationTags);
+  assert.equal(sent.headers['cosy-data-policy'], organization.dataPolicy);
+  assert.equal(sent.headers['x-model-key'], 'test-model');
+  assert.equal(sent.headers['x-model-source'], 'system');
 });
 
 test('model discovery excludes team and labeled exclusive models while preserving organization models and their settings', () => {
@@ -139,6 +165,25 @@ test('Responses developer instructions reach Qoder as system instructions in JSO
     const { body } = f.fake.calls.at(-1);
     assert.equal(body.system, 'Base instructions\n\nDeveloper instructions');
     assert.deepEqual(body.messages.map(m => m.role), ['user']);
+  }
+});
+
+test('Responses parallel tool history reaches Qoder as a complete assistant batch', async t => {
+  const f = await fixture(t); await f.api('service', { enabled: true });
+  for (const stream of [false, true]) {
+    const response = await f.client('responses', { model: 'test-model', stream, input: [
+      { role: 'user', content: 'Run both tools' },
+      { type: 'function_call', call_id: 'call_a', name: 'echo', arguments: '{}' },
+      { type: 'function_call', call_id: 'call_b', name: 'echo', arguments: '{}' },
+      { type: 'function_call_output', call_id: 'call_a', output: 'A' },
+      { type: 'function_call_output', call_id: 'call_b', output: 'B' },
+      { role: 'user', content: 'Continue' },
+    ] });
+    assert.equal(response.status, 200); await response.text();
+    const { messages } = f.fake.calls.at(-1).body;
+    assert.deepEqual(messages.map(m => m.role), ['user', 'assistant', 'tool', 'tool', 'user']);
+    assert.deepEqual(messages[1].tool_calls.map(t => t.id), ['call_a', 'call_b']);
+    assert.deepEqual(messages.slice(2, 4).map(m => m.tool_call_id), ['call_a', 'call_b']);
   }
 });
 

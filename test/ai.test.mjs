@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createWorkbench } from '../server.mjs';
-import { CustomSources } from '../proxy/custom/provider.js';
+import { CustomSources } from '../proxy/custom/sources.js';
 import { createAIService, validateSettings } from '../ai/service.mjs';
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const listen = s => new Promise(r => s.listen(0, '127.0.0.1', r));

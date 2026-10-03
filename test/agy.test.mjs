@@ -6,7 +6,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { AgyAuth } from '../proxy/agy/auth.js';
-import { AgyProvider, compileRequest } from '../proxy/agy/provider.js';
+import { AgyProvider } from '../proxy/agy/provider.js';
+import {compileRequest} from '../proxy/agy/protocol.js';
 import { ModelRouter } from '../proxy/shared/router.js';
 import { createProxyService } from '../proxy/service.js';
 
@@ -79,17 +80,17 @@ test('one gateway/key serves Qoder and AGY; all protocols stream and aggregate; 
 });
 test('truncated AGY streams fail rather than reporting success', async () => {
  const p=new AgyProvider({dataDir:'/tmp/unused',auth:{token:async()=> 'secret'},fetchImpl:async()=>new Response('data: {"response":{"candidates":[{"content":{"parts":[{"text":"partial"}]}}]}}\n\n')});
- p.listModels=async()=>[{...model('m'),upstreamId:'m'}];p.cache={project:'p'};
+ p.listModels=async()=>[{...model('m'),upstreamId:'m'}];p.catalogCache.value={project:'p'};
  const events=await Array.fromAsync(p.stream({model:'m',messages:[{role:'user',content:'hi'}],options:{}}));
  assert.equal(events.at(-1).code,'incomplete_stream');
 });
 
 test('quota uses upstream pool windows; missing values are never rendered as full quota', async () => {
- const {renderAgyQuota}=await import('../public/components/agy-quota.js');
- const html=renderAgyQuota([{displayName:'Gemini Models',buckets:[{window:'5h',remainingFraction:0.993,resetTime:'2026-09-30T00:00:00Z'}]}],new Date('2026-09-29T22:00:00Z'));
- assert.match(html,/99.3%/);assert.match(html,/5 小时/);assert.match(html,/7 天/);assert.match(html,/暂无额度数据/);assert.doesNotMatch(html,/100%/);
  const p=new AgyProvider({dataDir:'/tmp/unused',auth:{token:async()=> 'secret'},fetchImpl:async url=>{assert.match(url,/retrieveUserQuotaSummary$/);return json({groups:[{displayName:'actual pool',buckets:[]}]});}});
  p.catalog=async()=>({project:'p'});assert.equal((await p.quota()).groups[0].displayName,'actual pool');
+ const {renderQuota}=await import('../public/proxy/quota-panel.js');
+ p.call=async()=>json({groups:[{displayName:'Gemini Models',buckets:[{window:'5h',remainingFraction:0.993,resetTime:'2026-09-30T00:00:00Z'},{window:'weekly'}]}]});
+ const quota=await p.quota(),html=renderQuota(quota);assert.ok(Math.abs(quota.buckets[0].usedPercent-0.7)<1e-9);assert.match(html,/0.7%/);assert.match(html,/5 小时/);assert.match(html,/7 天/);assert.match(html,/暂无占比/);assert.doesNotMatch(html,/100%/);
 });
 
 test('public AGY catalog follows live CLI IDs rather than the older upstream recommended group', async () => {
@@ -134,7 +135,7 @@ test('AGY thinking signatures roundtrip in Messages JSON and SSE without joining
 });
 
 test('AGY usage snapshots preserve missing counters and expose only observed cache counts', async () => {
- const {agyUsage}=await import('../proxy/agy/generation.js');
+ const {agyUsage}=await import('../proxy/agy/protocol.js');
  const {mergeUsage,chatUsage,responsesUsage,messagesUsage}=await import('../proxy/shared/llm/usage.js');
  const first=agyUsage({promptTokenCount:100,candidatesTokenCount:20,thoughtsTokenCount:5,cachedContentTokenCount:80});
  const usage=mergeUsage(first,agyUsage({totalTokenCount:125}));
@@ -163,7 +164,7 @@ test('AGY defaults persist independently; explicit effort overrides saved defaul
 test('AGY streaming usage merges partial upstream counters before adding thinking tokens', async () => {
  const frames=[{usageMetadata:{promptTokenCount:100,candidatesTokenCount:2,thoughtsTokenCount:10,cachedContentTokenCount:90}},{usageMetadata:{candidatesTokenCount:5,totalTokenCount:115},candidates:[{content:{parts:[{text:'ok'}]},finishReason:'STOP'}]}];
  const p=new AgyProvider({dataDir:'/tmp/unused',auth:{token:async()=> 'secret'},fetchImpl:async()=>new Response(frames.map(response=>`data: ${JSON.stringify({response})}\n\n`).join(''))});
- p.listModels=async()=>[{...model('m'),upstreamId:'m'}];p.cache={project:'p'};
+ p.listModels=async()=>[{...model('m'),upstreamId:'m'}];p.catalogCache.value={project:'p'};
  const events=await Array.fromAsync(p.stream({model:'m',messages:[{role:'user',content:'hi'}],options:{}}));
  const usage=events.filter(e=>e.type==='usage').at(-1).usage;
  assert.equal(usage.outputTokens,15);assert.equal(usage.inputTokens,100);assert.equal(usage.cacheReadTokens,90);

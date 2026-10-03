@@ -45,7 +45,7 @@ test('Pi tool drafts preview without writing, persist overrides, synchronize, an
 });
 
 test('custom reasoning capabilities persist, drive Pi mappings and default upstream effort',async t=>{
-  const {CustomSources}=await import('../proxy/custom/provider.js');
+  const {CustomSources}=await import('../proxy/custom/sources.js');
   const {modelConfig}=await import('../cli/pi-config.js');
   const dataDir=await mkdtemp(path.join(tmpdir(),'daylight-efforts-'));t.after(()=>rm(dataDir,{recursive:true,force:true}));
   const bodies=[];

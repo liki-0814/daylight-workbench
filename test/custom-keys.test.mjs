@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import {once} from 'node:events';
-import {CustomSources} from '../proxy/custom/provider.js';
+import {CustomSources} from '../proxy/custom/sources.js';
 import {ModelRouter} from '../proxy/shared/router.js';
 import {relay} from '../proxy/shared/relay.js';
 import {createProxyService} from '../proxy/service.js';

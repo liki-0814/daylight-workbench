@@ -1,4 +1,4 @@
-import { parseModelRef } from '../qoder/models.js';
+import { parseModelRef } from './llm/models.js';
 import { readJson, writeJson, serial } from './store.js';
 import { createHash } from 'node:crypto';
 

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,mkdir} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {kimiQuota,codexQuota} from '../proxy/shared/quota.js';
+import {kimiQuota} from '../proxy/kimi/quota.js';
+import {codexQuota} from '../proxy/codex/quota.js';
 import {KimiProvider} from '../proxy/kimi/provider.js';
 import {CodexProvider} from '../proxy/codex/provider.js';
 test('subscription quota preserves absent values and distinct windows',()=>{
@@ -23,7 +24,7 @@ test('Codex quota reuses the official app server and always closes it',async()=>
  let closed=0,calls=[];
  const provider=new CodexProvider({dataDir:home,home,rpcFactory:()=>({initialize:async()=>{},call:async(method)=>{calls.push(method);return method==='account/read'?{}:{rateLimits:{primary:{usedPercent:12,windowDurationMins:300}}};},close:()=>closed++})});
  assert.equal((await provider.quota()).buckets[0].usedPercent,12);assert.deepEqual(calls,['account/read','account/rateLimits/read']);assert.equal(closed,1);
- provider.rpcFactory=()=>({initialize:async()=>{},call:async()=>{throw Error('unavailable')},close:()=>closed++});await assert.rejects(provider.quota(),/unavailable/);assert.equal(closed,2);
+ provider.auth.rpcFactory=()=>({initialize:async()=>{},call:async()=>{throw Error('unavailable')},close:()=>closed++});await assert.rejects(provider.quota(),/unavailable/);assert.equal(closed,2);
 });
 
 test('quota resources are available to the AI bridge',async()=>{

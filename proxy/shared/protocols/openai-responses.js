@@ -41,16 +41,17 @@ export function decodeResponsesRequest(req) {
                     toolCallId: item.call_id
                 });
             } else if (item.type === "function_call") {
-                messages.push({
-                    role: "assistant",
-                    content: "",
-                    toolCalls: [
-                        {
-                            id: item.call_id ?? createId("call"),
-                            name: item.name ?? "",
-                            arguments: item.arguments ?? "{}"
-                        }
-                    ]
+                // Responses emits one item per call; message protocols require
+                // the whole parallel batch before any of its tool results.
+                let turn = messages.at(-1);
+                if (turn?.role !== "assistant" || !turn.toolCalls?.length) {
+                    turn = { role: "assistant", content: "", toolCalls: [] };
+                    messages.push(turn);
+                }
+                turn.toolCalls.push({
+                    id: item.call_id ?? createId("call"),
+                    name: item.name ?? "",
+                    arguments: item.arguments ?? "{}"
                 });
             } else {
                 const role = item.role ?? "user";
