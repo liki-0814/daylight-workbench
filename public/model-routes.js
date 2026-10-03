@@ -1,3 +1,4 @@
+import {createProxyApi} from './proxy/api.js';
 import {createProxyDrawer} from './components/proxy-drawer.js';
 import { refreshButton, sectionHeading, setRefreshState } from './components/section.js';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -7,11 +8,11 @@ export function selectModelRoutes(routes, { scope = 'all', query = '' } = {}) {
  return routes.filter(route => route.enabled && (scope !== 'multiple' || route.sources.filter(s => s.enabled).length > 1) && route.id.toLowerCase().includes(query.trim().toLowerCase()));
 }
 
-export function createRoutesPage({getToken}) {
+export function createRoutesPage({getToken,api:client=createProxyApi(getToken)}) {
  const root=document.createElement('section');root.id='proxy-panel-routes';root.className='proxy-provider-page';root.hidden=true;root.setAttribute('role','tabpanel');root.setAttribute('aria-labelledby','proxy-tab-routes');
  root.innerHTML=`<div class="workspace"><section class="proxy-panel">${sectionHeading({title:'模型路由',description:'同名模型对外只显示一次，优先使用主用来源，失败时按顺序尝试备用。',className:'custom-proxy-heading route-heading',actions:refreshButton({ariaLabel:'刷新模型路由',attrs:{'data-refresh':true}})})}<div class="route-toolbar"><label class="route-search"><span>搜索模型</span><input type="search" data-search placeholder="搜索模型名称"></label><div class="route-filters" role="group" aria-label="模型范围"><button type="button" class="text-button" data-filter="multiple" aria-pressed="true">多个来源</button><button type="button" class="text-button" data-filter="all" aria-pressed="false">全部模型</button></div></div><p class="proxy-hint" role="status" data-status></p><div data-routes-list></div></section></div>`;
  const $=s=>root.querySelector(s),drawer=createProxyDrawer(root);let routes=[],filter='multiple',visible=false,busy=false;
- async function api(body, query=''){const response=await fetch('/api/proxy/routes'+query,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','x-workbench-token':getToken()},body:body?JSON.stringify(body):undefined});const data=await response.json();if(!response.ok)throw Error(data.error || '操作失败');return data;}
+ const api=(body,query='')=>client.request('routes'+query,body);
  const sourceName=(r,id)=>r.sources.find(s=>s.id===id)?.name || id;
  function render(){const query=$('[data-search]').value,rows=selectModelRoutes(routes,{scope:filter,query});
   $('[data-routes-list]').innerHTML=rows.length?`<div class="route-table"><div class="route-table-head"><span>模型</span><span>来源</span><span>主用</span><span>备用顺序</span><span></span></div>${rows.map(r=>{

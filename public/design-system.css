@@ -170,6 +170,22 @@ input[type="checkbox"], input[type="radio"] {
   min-height: var(--feedback-row-height);
 }
 
+/* Label actions keep their hit area without increasing the field's label row. */
+.ui-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--font-label-line);
+}
+
+.ui-field-label-action {
+  display: flex;
+  align-items: center;
+  height: var(--font-label-line);
+  flex-shrink: 0;
+}
+
 /* Controls stay centered on the first text line, even when content wraps. */
 .ui-first-line-slot {
   display: flex;
