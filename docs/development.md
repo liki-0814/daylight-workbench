@@ -40,15 +40,23 @@ API 只管理工作台数据，不执行关联目录中的代码或部署。不�
 
 `public/task-view.js` 统一日期范围、项目、关键词、状态及计数；网页与 Node 直接复用，原生服务加载同一文件到 JavaScriptCore。`public/routes.js` 集中处理新旧 Hash。新增公开接口是 `/api/v1/tasks`，旧业务 schema、actions 和 CLI state 语义不变。AI 关联位于 `ai/context.mjs` 和会话存档，不写入业务 state；导航条件也不写入业务 state。
 
+视图规则、旧链接与删除恢复见 [任务与导航](tasks.md)，会话关联与草稿契约见 [AI 说明](ai.md)。
+
 验证包括 `test/task-view.test.mjs`、Agent API/Skill 集成测试、AI 关联与草稿测试和 `test/native-test.py` 的原生查询契约。使用 WORKBENCH_DATA_DIR 临时目录测试，避免真实任务或会话数据。独立安装的 Skill 需另外更新，改仓库并不等于已安装 Skill 已更新。
 
 Pi 个性化配置：POST /api/cli/pi/configuration 接收 api、expectedVersion、modelOverrides，使用版本保护持久保存，不直接写 Pi 文件。每模型支持 contextWindow、maxTokens、reasoning、input 和 thinkingLevelMap；缺失映射使用目录/Pi 默认，null 表示不支持。GET state 返回 configuration（有效值）及 overrides（用户覆盖）；prepare/apply 可接受覆盖，自动同步复用持久覆盖。
 
 ## 中转代码结构
 
-所有中转代码集中在 `proxy/`：`service.js` 负责统一服务，`sidecar.mjs` 是桌面应用的进程入口；`qoder/`、`agy/`、`grok/`、`codex/`、`kimi/`、`custom/` 保存对应来源的适配，`shared/` 保存协议转换、路由、凭据存储和请求记录。新增来源时复用公共服务和前端 `public/proxy.js` 的 `createProviderPage`，只添加来源适配与确有必要的差异。
+中转由 `proxy/service.js` 组装并管理生命周期；`gateway.js` 处理推理、路由回退和输出；`management.js` 提供直接管理操作及 HTTP 入口；`providers.js` 注册六类来源；`sidecar.mjs` 是桌面侧车入口。来源目录按 `provider/auth/models/quota/protocol` 职责命名（不支持额度或无专属协议的来源省略相应文件），仅保存对应认证、目录/额度解析、协议与执行逻辑，公共代码不从来源私有字段推断状态。
 
-目录调整只影响源码和打包路径。已有 `/api/qoder` 等管理接口、推理接口以及用户数据目录继续兼容，避免让代码整理触发用户配置迁移。
+`proxy/shared/request-parameters.js` 负责推理参数规则，`model-settings.js` 负责默认设置的串行原子写入，`catalog-cache.js` 负责目录缓存、身份隔离和失效中的并发请求；其余 shared 模块提供协议转换、路由、凭据存储、额度规范化和请求记录。
+
+前端 `public/proxy.js` 只组装页面与标签。`public/proxy/api.js` 统一 HTTP 请求，`state.js` 管理轮询与资源状态，`service-panel.js` 管理公共服务，`source-page.js` 按认证描述与模型能力渲染来源；`model-list.js` / `model-options.js`、`quota-panel.js` 共享模型和额度组件；`custom-sources.js` 保留自定义来源的草稿、Key 权限及保存事务。模型路由也使用同一 API 客户端。
+
+新增来源通常只需注册来源描述并实现 `snapshot/listModels/execute/close`，即时模型设置、认证和额度按能力提供。公共推理入口接收原始请求，原生适配器保留字段，事件适配器使用 shared 协议解码，结果通过 `kind: response/events` 选择输出路径。完整文件职责、接口与问题记录见 [中转架构](proxy-architecture.md)。
+
+旧 `/api/qoder` 等管理接口、`/v1` 推理接口及数据路径保持兼容；新前端使用 `/api/proxy` 统一入口。目录检查与实际推理检查分别声明，不把原来的免费目录测试改成付费生成。源码整理不迁移用户配置，也不安装或替换本机 App。
 
 ## 全局界面配置与组件
 
@@ -64,3 +72,5 @@ Pi 个性化配置：POST /api/cli/pi/configuration 接收 api、expectedVersion
 `public/components/button.js` 的 `actionButton` 生成原生按钮，支持 primary、secondary、text、icon、danger 变体；`button.css` 统一按钮、可操作链接、导航与选择控件的外观和交互状态，并兼容现有类名。该样式在各页面样式之后加载。新增操作优先复用这些组件，事件仍使用原来的点击代理、表单提交和键盘行为。
 
 `public/components/section.js` 提供 `sectionHeading`、`disclosureSection` 和 `refreshButton`。折叠标题、说明与刷新在同一操作行，正文共用起点和留白；`mountDisclosures` 保留折叠行为，`setRefreshState` 统一加载状态并保持刷新按钮宽度稳定。来源账号、模型与额度页面共用这套模板。
+
+字段标签旁有操作时，使用 `design-system.css` 的 `ui-field-label` 与 `ui-field-label-action`。动作容器使用标签行高，内部按钮保留公共点击尺寸，不把标签行撑高；相邻普通字段与下拉框保持同一控件起点。自定义来源的 API Key / 添加 Key 使用该布局，避免每个页面另设偏移量。
