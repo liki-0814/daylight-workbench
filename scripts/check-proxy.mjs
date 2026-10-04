@@ -8,6 +8,8 @@ async function check(directory) {
   }
 }
 await check('proxy');
+await check('core');
+for (const file of ['native/core-entry.js','scripts/build-native-core.mjs']) execFileSync(process.execPath, ['--check', file]);
 await check('cli');
 await check('public/components');
 execFileSync(process.execPath, ['--check', 'public/proxy.js']);

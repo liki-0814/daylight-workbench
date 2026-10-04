@@ -11,7 +11,7 @@
 桌面版占用本机 4318 端口。开发网页服务与桌面应用不能同时占用该端口；如提示占用，先停止开发服务。`PORT` 和 `WORKBENCH_DATA_DIR` 可用于隔离验证。
 
 
-原生服务提供 `/api/v1/tasks` 并发布 capabilities.taskQuery，加载与网页相同的 task-view.js 选择器；routes.js 和 AI 上下文模块随资源打包。菜单中使用“未归类”名称。任务与链接契约见 [任务与导航](tasks.md)。重新打包和原生隔离测试不会自动替换 /Applications/Daylight.app。
+原生服务通过构建生成的 `native-core.js` 加载共享业务与接口契约，不再改写源码的 import/export；具体职责见 [开发说明](development.md#网页与原生共享契约)。原生服务提供 `/api/v1/tasks` 并发布 capabilities.taskQuery，加载与网页相同的 task-view.js 选择器；routes.js 和 AI 上下文模块随资源打包。菜单中使用“未归类”名称。任务与链接契约见 [任务与导航](tasks.md)。重新打包和原生隔离测试不会自动替换 /Applications/Daylight.app。
 
 Pi 模型配置抽屉支持手动上下文、最大输出 Token、扩展思考、图片输入和 thinkingLevelMap。参数保存在 Daylight 的 cli/pi-sync.json，目录刷新与后续同步均保留；保存配置不会直接写入 Pi，手动或已开启的自动同步才会应用。恢复跟随目录可清除覆盖。
 

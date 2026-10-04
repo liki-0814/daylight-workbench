@@ -98,6 +98,7 @@ npm run pack:mac
 npm run test:native
 python3 test/native-proxy-test.py
 python3 test/native-ai-test.py
+npm run test:contracts
 ```
 
 Node 测试使用临时数据目录与模拟上游；原生测试针对实际 App 二进制。测试通过不代表真实账号或所有上游能力都已验证。
@@ -106,6 +107,7 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | --- | --- |
 | `public/` | 网页、交互组件与样式 |
 | `native/` | macOS 外壳、菜单栏与本地服务 |
+| `core/` | 网页与原生共享的接口、任务写入契约和资源清单 |
 | `ai/` | AI 会话、CLI 适配和业务工具 |
 | `proxy/` | 统一中转服务入口，`shared/` 放公共协议、路由、存储和请求记录 |
 | `proxy/{qoder,agy,grok,codex,kimi,custom}/` | 各来源的认证和推理适配 |

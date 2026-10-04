@@ -22,6 +22,8 @@ resources.mkdir(parents=True, exist_ok=True)
 subprocess.run(['swiftc', '-O', '-whole-module-optimization', '-Xlinker', '-dead_strip', '-target', 'arm64-apple-macos13.0', str(root / 'native/Server.swift'), str(root / 'native/Proxy.swift'), str(root / 'native/Launcher.swift'), str(root / 'native/main.swift'), '-o', str(contents / 'MacOS/Daylight')], check=True)
 subprocess.run(['strip', '-x', str(contents / 'MacOS/Daylight')], check=True)
 shutil.copytree(root / 'public', resources / 'public', dirs_exist_ok=True)
+shutil.copytree(root / 'core', resources / 'core', dirs_exist_ok=True)
+subprocess.run(['node', str(root / 'scripts/build-native-core.mjs'), str(resources)], check=True)
 shutil.copytree(root / 'licenses', resources / 'licenses', dirs_exist_ok=True)
 for notice in ('LICENSE', 'THIRD_PARTY_NOTICES.md'):
     shutil.copy2(root / notice, resources / notice)

@@ -6,13 +6,14 @@ import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { buildRuntime } from '../scripts/build-runtime.mjs';
+import { buildNativeCore } from '../scripts/build-native-core.mjs';
 import { trimRuntime } from '../scripts/trim-runtime.mjs';
 
 test('packaging removes unreachable files while retaining both windows, native APIs, dynamic MCP and licenses', async t => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const resources = await mkdtemp(path.join(os.tmpdir(), 'daylight-trim-'));
   t.after(() => rm(resources, { recursive: true, force: true }));
-  for (const folder of ['public', 'proxy', 'ai', 'cli', 'licenses']) {
+  for (const folder of ['public', 'proxy', 'ai', 'cli', 'licenses', 'core']) {
     await cp(path.join(root, folder), path.join(resources, folder), { recursive: true });
   }
   await cp(path.join(root, 'agent-api.mjs'), path.join(resources, 'agent-api.mjs'));
@@ -21,13 +22,14 @@ test('packaging removes unreachable files while retaining both windows, native A
   await mkdir(path.join(resources, 'proxy/test-cache'));
   await writeFile(path.join(resources, 'proxy/test-cache/unused.json'), '{}');
   await writeFile(path.join(resources, 'ai/unused.mjs'), 'throw Error("must not enter the App");');
+  await buildNativeCore(resources);
   const bundle = await buildRuntime(resources);
   const nativeModel = await readFile(path.join(resources, 'public/model.js'), 'utf8');
   const report = await trimRuntime(resources);
   assert.ok(report.removed.includes('ai/unused.mjs'));
   assert.ok(report.removed.includes('proxy/test-cache/unused.json'));
   assert.ok(report.removed.includes('ai/adapters/qoder-events.mjs'), 'SDK adapter dependencies are already compiled into the runtime bundle');
-  for (const file of ['public/index.html', 'public/quick.html', 'public/components/button.css', 'public/components/section.js', 'public/components/purify.js', 'ai/mcp-server.mjs', 'proxy/sidecar.mjs', 'ai/sidecar.mjs', 'agent-api.mjs', 'tray-model.mjs', bundle.entry]) {
+  for (const file of ['native-core.js', 'public/index.html', 'public/quick.html', 'public/components/button.css', 'public/components/section.js', 'public/components/purify.js', 'ai/mcp-server.mjs', 'proxy/sidecar.mjs', 'ai/sidecar.mjs', 'agent-api.mjs', 'tray-model.mjs', bundle.entry]) {
     assert.ok(report.files.includes(file), 'Missing runtime entry/dependency: ' + file);
     await access(path.join(resources, file));
   }

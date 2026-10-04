@@ -46,12 +46,9 @@ final class WorkbenchServer {
         let uuid: @convention(block) () -> String = { UUID().uuidString.lowercased() }
         engine.setObject(uuid, forKeyedSubscript: "randomUUID" as NSString)
         engine.evaluateScript("function structuredClone(x){return JSON.parse(JSON.stringify(x))}; Object.hasOwn ||= ((o,k)=>Object.prototype.hasOwnProperty.call(o,k));")
-        for file in ["public/model.js", "public/task-view.js", "agent-api.mjs", "tray-model.mjs"] {
-            let source = try String(contentsOf: resources.appendingPathComponent(file), encoding: .utf8)
-                .components(separatedBy: "\n").filter { !$0.hasPrefix("import ") }.joined(separator: "\n").replacingOccurrences(of: "export ", with: "")
-            engine.evaluateScript(source)
-            if let error = engine.exception { throw Failure(message: error.toString()) }
-        }
+        engine.evaluateScript(try String(contentsOf: resources.appendingPathComponent("native-core.js"), encoding: .utf8))
+        if let error = engine.exception { throw Failure(message: error.toString()) }
+        engine.evaluateScript("var {validate,initialState,localDate,change,taskQuery,taskQueryCapability,applyAction,operations,getTrayState,resolveRoute,capabilities,fingerprintText,prepareTaskWrite}=Daylight;")
         let fm = FileManager.default
         let file = directory.appendingPathComponent("state.json")
         let legacy = fm.homeDirectoryForCurrentUser.appendingPathComponent("liki_dev/daylight-workbench/.local")
@@ -172,31 +169,27 @@ final class WorkbenchServer {
     func handle(_ connection: NWConnection, method: String, path: String, headers: [String: String], body: Data, query: String = "") {
         guard headers["host"] == "127.0.0.1:\(port)" else { reply(connection, 403, ["error": "仅允许本机访问"]); return }
         do {
-            if path.hasPrefix("/api/ai/") {
-                guard headers["x-workbench-token"] == webToken, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
-                ai.handle(path: path + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
-                    self.queue.async { self.reply(connection, code, object) }
-                }
-                return
+            let dispatch = try js("resolveRoute(\(try jsonText(path)),\(try jsonText(method)))") as! [String: Any]
+            let handler = dispatch["handler"] as! String
+            let auth = dispatch["auth"] as! String
+            if auth == "web" || auth == "webOrigin" {
+                guard headers["x-workbench-token"] == webToken,
+                      auth == "webOrigin" ? headers["origin"] == endpoint : (headers["origin"] == nil || headers["origin"] == endpoint) else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
             }
-            if path.hasPrefix("/api/cli/") || path.hasPrefix("/api/proxy/") || path.hasPrefix("/api/qoder/") || path.hasPrefix("/api/agy/") || path.hasPrefix("/api/grok/") || path.hasPrefix("/api/kimi-proxy/") || path.hasPrefix("/api/codex-proxy/") || path.hasPrefix("/api/custom-proxy/") || path.hasPrefix("/api/proxy-tools/") {
-                guard headers["x-workbench-token"] == webToken, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
-                proxy.handle(path: path + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
-                    self.queue.async { self.reply(connection, code, object) }
-                }
-                return
-            }
-            if path.hasPrefix("/api/v1/") {
+            if auth == "agent" {
                 let provided = Array((headers["authorization"] ?? "").utf8), expected = Array("Bearer \(agentToken)".utf8)
                 let valid = provided.count == expected.count && zip(provided, expected).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) } == 0
                 guard valid, headers["origin"] == nil || headers["origin"] == endpoint else { reply(connection, 401, ["error": "本机接口认证失败"]); return }
-                if path.hasPrefix("/api/v1/proxy/") {
-                    proxy.handle(path: path.replacingOccurrences(of: "/api/v1/proxy/", with: "/api/proxy-tools/"), method: method, body: body) { code, object in
-                        self.queue.async { self.reply(connection, code, object) }
-                    }
-                    return
+            }
+            if handler == "ai" || handler == "proxy" {
+                let target = dispatch["target"] as! String
+                (handler == "ai" ? ai : proxy).handle(path: target + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
+                    self.queue.async { self.reply(connection, code, object) }
                 }
-                if path == "/api/v1/tasks", method == "GET" {
+                return
+            }
+            if auth == "agent" {
+                if handler == "tasks" {
                     let items = URLComponents(string: "http://localhost/?" + query)?.queryItems ?? []
                     var params: [String: String] = [:]
                     for item in items { params[item.name] = item.value ?? "" }
@@ -204,45 +197,29 @@ final class WorkbenchServer {
                     let result = try js(expression) as! [String: Any]
                     reply(connection, result["code"] as! Int, result["value"]!); return
                 }
-                if path == "/api/v1/state", method == "GET" { var result = snapshot; result["localDate"] = try js("localDate()"); reply(connection, 200, result); return }
-                if path == "/api/v1/capabilities", method == "GET" { reply(connection, 200, ["apiVersion": 1, "operations": try js("operations"), "taskQuery": try js("taskQueryCapability"), "retention": "last 100 successful request IDs", "writes": "POST /api/v1/actions {requestId, expectedVersion, day?, action}", "reads": "GET /api/v1/state"]); return }
-                guard path == "/api/v1/actions", method == "POST" else { reply(connection, 404, ["error": "接口不存在"]); return }
-                guard let input = try requestJSON(body) as? [String: Any], let id = input["requestId"] as? String, matches(id, "^[a-zA-Z0-9_-]{8,100}$"), let number = input["expectedVersion"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), let expectedVersion = input["expectedVersion"] as? Int, expectedVersion >= 0 else { throw Failure(message: "需要 requestId 和 expectedVersion") }
-                // Match Node's JSON.stringify fingerprint, including pre-migration receipts.
+                if handler == "state" { var result = snapshot; result["localDate"] = try js("localDate()"); reply(connection, 200, result); return }
+                if handler == "capabilities" { reply(connection, 200, try js("capabilities()")); return }
+                guard handler == "actions" else { reply(connection, 404, ["error": "接口不存在"]); return }
                 guard let raw = String(data: body, encoding: .utf8) else { throw Failure(message: "请求必须使用 UTF-8") }
-                let normalized = try js("JSON.stringify(JSON.parse(\(try jsonText(raw))))") as! String
+                let normalized = try js("fingerprintText(\(try jsonText(raw)))") as! String
                 let fingerprint = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
-                if let receipt = (record["receipts"] as? [[String: Any]] ?? []).first(where: { $0["requestId"] as? String == id }) {
-                    guard receipt["fingerprint"] as? String == fingerprint else { reply(connection, 409, ["error": "requestId 已用于不同请求"]); return }
-                    var result = snapshot; result["replayed"] = true; result["appliedVersion"] = receipt["appliedVersion"]
-                    reply(connection, 200, result); return
+                let args = "\(try jsonText(record)),JSON.parse(\(try jsonText(raw))),\(try jsonText(fingerprint))"
+                var result = try js("prepareTaskWrite(\(args))") as! [String: Any]
+                if result["needsPrevious"] as? Bool == true {
+                    let previous = (try? JSONSerialization.jsonObject(with: Data(contentsOf: directory.appendingPathComponent("state.previous.json")))) ?? NSNull()
+                    result = try js("prepareTaskWrite(\(args),{previous:\(try jsonText(previous))})") as! [String: Any]
                 }
-                guard expectedVersion == version else { reply(connection, 409, ["error": "数据版本已变化，请重新读取并核对操作", "version": version]); return }
-                let day = try input["day"] ?? js("localDate()")
-                let dayText = try jsonText(day)
-                guard try js("typeof \(dayText) === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(\(dayText)) && Number.isFinite(Date.parse(\(dayText))) && new Date(\(dayText)).toISOString().slice(0,10) === \(dayText)") as? Bool == true else { throw Failure(message: "无效日期") }
-                guard let action = input["action"] as? [String: Any] else { throw Failure(message: "action 必须是对象") }
-                let next: Any
-                if action["type"] as? String == "undo" {
-                    guard let previous = try? JSONSerialization.jsonObject(with: Data(contentsOf: directory.appendingPathComponent("state.previous.json"))) as? [String: Any], previous["state"] != nil else { throw Failure(message: "没有可撤销的上一版数据") }
-                    guard previous["version"] as? Int == version - 1 else { throw Failure(message: "上一版数据不匹配") }
-                    next = try js("validate(\(try jsonText(previous["state"]!)))")
-                } else { next = try js("applyAction(\(try jsonText(state)),\(try jsonText(action)),\(dayText))") }
-                let appliedVersion = version + 1
-                try persist(next, receipt: ["requestId": id, "fingerprint": fingerprint, "appliedVersion": appliedVersion])
-                var result = snapshot; result["replayed"] = false; result["appliedVersion"] = appliedVersion
-                reply(connection, 200, result); return
+                if let receipt = result["receipt"] as? [String: Any] { try persist(result["state"]!, receipt: receipt) }
+                reply(connection, result["code"] as! Int, result["value"]!); return
             }
-            if path == "/api/state", method == "GET" { var result = snapshot; result["token"] = webToken; reply(connection, 200, result); return }
-            if path == "/api/state", method == "PUT" {
-                guard headers["origin"] == endpoint, headers["x-workbench-token"] == webToken else { reply(connection, 403, ["error": "本机会话验证失败，请刷新页面"]); return }
+            if handler == "webState" { var result = snapshot; result["token"] = webToken; reply(connection, 200, result); return }
+            if handler == "webWrite" {
                 guard headers["if-match"] == String(version) else { reply(connection, 409, ["error": "其他窗口已更新数据，请重新打开表单"]); return }
                 let input = try requestJSON(body)
                 try persist(js("validate(\(try jsonText(input)))"))
                 reply(connection, 200, snapshot); return
             }
-            let files = ["/proxy/api.js": "proxy/api.js", "/proxy/state.js": "proxy/state.js", "/proxy/service-panel.js": "proxy/service-panel.js", "/proxy/source-page.js": "proxy/source-page.js", "/proxy/model-list.js": "proxy/model-list.js", "/proxy/model-options.js": "proxy/model-options.js", "/proxy/quota-panel.js": "proxy/quota-panel.js", "/proxy/custom-sources.js": "proxy/custom-sources.js", "/components/button.js": "components/button.js", "/components/button.css": "components/button.css", "/components/section.js": "components/section.js", "/components/action-links.js": "components/action-links.js", "/task-view.js": "task-view.js", "/routes.js": "routes.js","/cli-config.js": "cli-config.js", "/cli-config.css": "cli-config.css", "/model-routes.js": "model-routes.js", "/components/proxy-drawer.js": "components/proxy-drawer.js", "/components/task-notes.js": "components/task-notes.js","/ai.js": "ai.js", "/components/ai-message.js": "components/ai-message.js", "/components/marked.js": "components/marked.js", "/components/purify.js": "components/purify.js", "/ai.css": "ai.css", "/ai-settings.js": "ai-settings.js", "/quick.html": "quick.html", "/quick.js": "quick.js", "/quick.css": "quick.css", "/quick-search.js": "quick-search.js", "/proxy.html": "index.html", "/proxy.js": "proxy.js", "/proxy.css": "proxy.css", "/": "index.html", "/app.js": "app.js", "/model.js": "model.js", "/design-system.css": "design-system.css", "/style.css": "style.css", "/favicon.svg": "favicon.svg",   "/components/settings-page.js": "components/settings-page.js", "/components/sidebar.js": "components/sidebar.js", "/components/icons.js": "components/icons.js", "/components/select.js": "components/select.js", "/components/focus.js": "components/focus.js", "/components/select.css": "components/select.css"]
-            guard method == "GET", let file = files[path] else { reply(connection, 404, ["error": "页面不存在"]); return }
+            guard let file = dispatch["file"] as? String else { reply(connection, 404, ["error": "页面不存在"]); return }
             let types = ["html": "text/html", "js": "text/javascript", "css": "text/css", "svg": "image/svg+xml"]
             let url = resources.appendingPathComponent("public").appendingPathComponent(file)
             send(connection, 200, try Data(contentsOf: url), type: (types[url.pathExtension] ?? "text/plain") + "; charset=utf-8")

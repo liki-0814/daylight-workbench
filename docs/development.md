@@ -8,6 +8,16 @@
 
 `WORKBENCH_DATA_DIR` 可指定数据目录，测试使用临时目录，与真实数据隔离。导出是用户可读的业务数据；尚未提供导入 UI。恢复上一版可停止服务后，将 `state.previous.json` 复制为 `state.json`，再启动。此操作会用上一版替换当前数据，请先保存当前文件副本。
 
+## 网页与原生共享契约
+
+`core/web-assets.json` 是静态资源允许列表，网页与原生服务共同使用；新增页面资源只在这里登记。`core/contracts.js` 统一接口的方法、鉴权类别、AI/中转转发目标与 capabilities，运行时分别执行 HTTP 收发和鉴权，未知 Agent 路径也先鉴权再拒绝。
+
+`core/task-write.js` 统一任务写请求校验、版本检查、回执去重、撤销和业务变更判断，返回待保存的 state/receipt 或错误。Node 的写锁和异步文件写入、Swift 的串行队列和原子写入保留在各自服务中。请求指纹继续使用原请求的 JSON.stringify 文本与 SHA-256，保留旧回执兼容；读取上一版期间 Node 保持写锁。
+
+`native/core-entry.js` 声明 JavaScriptCore 所需导出，`scripts/build-native-core.mjs` 将它编译成安装包中的 `native-core.js`。UUID 由原生桥提供；不再通过删 import/export 文本拼接源码。任务管理仍无需 Node。新增原生共享函数时更新入口导出和调用端；Node-only 模块不能进入这个依赖图。
+
+构建 App 后运行 `npm run test:contracts`：同一组 HTTP 用例分别检查 Node 和实际原生二进制，包括鉴权、非法输入、版本、原子失败、删除/撤销、重启去重、旧回执和资源允许列表。运行时特有错误文案及时间字段不要求逐字相同。测试只使用临时数据目录，不替换已安装 App。
+
 ## 外部 AI skill
 
 Skill 源文件随本仓库提交，位于 `skills/daylight-workbench/`，独立安装，不进入 App 或 DMG。本机按用户指定安装到 `~/agents/skills/daylight-workbench/`（没有前导点）。不假定所有 AI 宿主自动扫描这个目录，未发现 skill 时请让 AI 读取该目录的 SKILL.md。

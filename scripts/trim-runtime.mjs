@@ -7,14 +7,15 @@ import { pathToFileURL } from 'node:url';
 
 // Browser windows, native JavaScriptCore and spawned helper processes have
 // independent entry points. Dynamic MCP startup must be retained explicitly.
+const nativeAssets = ['native-core.js'];
 const htmlEntries = ['index.html', 'quick.html'];
 const nodeEntries = ['proxy/sidecar.mjs', 'ai/sidecar.mjs', 'ai/mcp-server.mjs', 'agent-api.mjs', 'tray-model.mjs'];
 
 async function minimizeWeb(publicDir, files) {
   const report = { files: [], beforeBytes: 0, afterBytes: 0 };
-  // Native JavaScriptCore evaluates these sources after removing import/export
-  // declarations. Preserve that source contract; other web modules keep URLs
-  // and public exports, so no caller or relative resource path changes.
+  // Keep shared task modules in source form for package inspection. Native
+  // consumers use native-core.js; other web modules retain URLs and public
+  // exports, so no caller or relative resource path changes.
   const nativeScripts = new Set(['model.js', 'task-view.js']);
   for (const file of files) {
     const relative = path.relative(publicDir, file);
@@ -41,7 +42,7 @@ async function graph(root, entries, platform) {
 
 export async function trimRuntime(resources) {
   const publicDir=path.join(resources,'public');
-  const assets=new Set(htmlEntries.map(file=>path.join(publicDir,file))),entries=[];
+  const assets=new Set([...htmlEntries.map(file=>path.join(publicDir,file)), ...nativeAssets.map(file=>path.join(resources,file))]),entries=[];
   for(const file of htmlEntries) {
     const html=await readFile(path.join(publicDir,file),'utf8');
     for(const match of html.matchAll(/(?:src|href)="\/([^"#?]+)"/g)) {
@@ -66,9 +67,9 @@ export async function trimRuntime(resources) {
       else if(!keep.has(file)) {removed.push(path.relative(resources,file));await rm(file);}
     }
   }
-  for(const folder of ['public','proxy','ai','cli']) await visit(path.join(resources,folder));
+  for(const folder of ['public','proxy','ai','cli','core']) await visit(path.join(resources,folder));
   const minified = await minimizeWeb(publicDir, web);
-  return {entries:htmlEntries.map(file=>'public/'+file).concat(nodeEntries),files:[...keep].map(file=>path.relative(resources,file)).sort(),removed:removed.sort(),minified};
+  return {entries:htmlEntries.map(file=>'public/'+file).concat(nodeEntries,nativeAssets),files:[...keep].map(file=>path.relative(resources,file)).sort(),removed:removed.sort(),minified};
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) {

@@ -14,7 +14,8 @@
     "desktop": "npm run pack:mac && open dist/native/Daylight.app",
     "pack:mac": "python3 scripts/build-native.py",
     "dist:mac": "python3 scripts/build-native.py --dmg",
-    "test:native": "python3 test/native-test.py"
+    "test:native": "python3 test/native-test.py",
+    "test:contracts": "python3 test/task-contract-test.py"
   },
   "description": "本地项目与任务工作台，支持 AI 对话与统一模型中转",
   "license": "MIT",

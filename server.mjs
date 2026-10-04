@@ -4,8 +4,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { initialState, validate, localDate } from './public/model.js';
-import { taskQuery, taskQueryCapability } from './public/task-view.js';
-import { applyAction, operations } from './agent-api.mjs';
+import { taskQuery } from './public/task-view.js';
+import { resolveRoute, capabilities } from './core/contracts.js';
+import { prepareTaskWrite } from './core/task-write.js';
 import { defaultDataDir, migrateLegacyData } from './storage.mjs';
 
 import { createAIService } from './ai/service.mjs';
@@ -75,56 +76,50 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
     if (req.headers.host !== expectedHost) return send(403, { error: '请使用本机 127.0.0.1 地址访问' });
     try {
       const route = new URL(req.url, `http://${expectedHost}`).pathname;
-      if (route.startsWith('/api/ai/')) {
-        if (req.headers['x-workbench-token'] !== token || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(403, { error: '本机会话验证失败，请刷新页面' });
-        return await (await getAI()).handle(req, res);
+      const dispatch = resolveRoute(route, req.method);
+      if (dispatch.auth === 'web' || dispatch.auth === 'webOrigin') {
+        if (req.headers['x-workbench-token'] !== token || (dispatch.auth === 'webOrigin' ? req.headers.origin !== `http://${expectedHost}` : req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(403, { error: '本机会话验证失败，请刷新页面' });
       }
-      if ((route.startsWith('/api/cli/') || route.startsWith('/api/proxy/') || route.startsWith('/api/qoder/') || route.startsWith('/api/agy/') || route.startsWith('/api/grok/') || route.startsWith('/api/kimi-proxy/') || route.startsWith('/api/codex-proxy/') || route.startsWith('/api/custom-proxy/') || route.startsWith('/api/proxy-tools/'))) {
-        if (req.headers['x-workbench-token'] !== token || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(403, { error: '本机会话验证失败，请刷新页面' });
+      if (dispatch.auth === 'agent') {
+        const bearer = req.headers.authorization?.replace(/^Bearer /, '') || '';
+        if (!/^[a-f0-9]{64}$/.test(bearer) || !timingSafeEqual(Buffer.from(bearer), Buffer.from(agentToken)) || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(401, { error: '本地 Agent API 认证失败' });
+      }
+      if (dispatch.handler === 'ai' || dispatch.handler === 'proxy') {
+        req.url = req.url.replace(route, dispatch.target);
+        if (dispatch.handler === 'ai') return await (await getAI()).handle(req, res);
         if (!proxy) return send(503, { error: proxyError });
         return await proxy.handle(req, res);
       }
-      if (route.startsWith('/api/v1/')) {
-        const bearer = req.headers.authorization?.replace(/^Bearer /, '') || '';
-        if (!/^[a-f0-9]{64}$/.test(bearer) || !timingSafeEqual(Buffer.from(bearer), Buffer.from(agentToken)) || (req.headers.origin && req.headers.origin !== `http://${expectedHost}`)) return send(401, { error: '本地 Agent API 认证失败' });
-        if (route.startsWith('/api/v1/proxy/')) { if (!proxy) return send(503, {error:proxyError}); req.url=req.url.replace('/api/v1/proxy/','/api/proxy-tools/'); return await proxy.handle(req,res); }
-        if (route === '/api/v1/tasks' && req.method === 'GET') {
-          try { const params = Object.fromEntries(new URL(req.url, `http://${expectedHost}`).searchParams); return send(200, taskQuery(record.state, record.version, params)); }
-          catch (e) { return send(e.status || 400, { error: e.message }); }
-        }
-        if (route === '/api/v1/state' && req.method === 'GET') return send(200, { ...snapshot(), localDate: localDate() });
-        if (route === '/api/v1/capabilities' && req.method === 'GET') return send(200, { apiVersion: 1, operations, taskQuery: taskQueryCapability, retention: 'last 100 successful request IDs', writes: 'POST /api/v1/actions {requestId, expectedVersion, day?, action}', reads: 'GET /api/v1/state' });
-        if (route !== '/api/v1/actions' || req.method !== 'POST') return send(404, { error: '接口不存在' });
+      if (dispatch.handler === 'tasks') {
+        try { return send(200, taskQuery(record.state, record.version, Object.fromEntries(new URL(req.url, `http://${expectedHost}`).searchParams))); }
+        catch (e) { return send(e.status || 400, { error: e.message }); }
+      }
+      if (dispatch.handler === 'state') return send(200, { ...snapshot(), localDate: localDate() });
+      if (dispatch.handler === 'capabilities') return send(200, capabilities());
+      if (dispatch.handler === 'missing') return send(404, { error: '接口不存在' });
+      if (dispatch.handler === 'actions') {
         let body;
         try { body = await readBody(req); } catch (error) { return send(400, { error: error.message }); }
-        if (!body || typeof body.requestId !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(body.requestId) || !Number.isInteger(body.expectedVersion) || body.expectedVersion < 0) return send(400, { error: '需要合法的 requestId 和 expectedVersion' });
         const fingerprint = createHash('sha256').update(JSON.stringify(body)).digest('hex');
-        const receipt = (record.receipts || []).find(r => r.requestId === body.requestId);
-        if (receipt) {
-          if (receipt.fingerprint !== fingerprint) return send(409, { error: 'requestId 已用于不同的请求' });
-          return send(200, { ...snapshot(), replayed: true, appliedVersion: receipt.appliedVersion });
-        }
-        if (writing || body.expectedVersion !== record.version) return send(409, { error: '数据版本已变化，请重新读取并核对操作', version: record.version });
-        const day = body.day ?? localDate();
-        if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day)) || new Date(day).toISOString().slice(0, 10) !== day) return send(400, { error: 'day 必须是有效的 YYYY-MM-DD 日期' });
-        writing = true;
-        try {
-          let state;
+        let decision = prepareTaskWrite(record, body, fingerprint, { busy: writing });
+        if (decision.needsPrevious) {
+          // Reserve the write while loading the previous record asynchronously.
+          writing = true;
           try {
-            if (body.action?.type === 'undo') {
-              const previous = JSON.parse(await readFile(path.join(dataDir, 'state.previous.json'), 'utf8'));
-              if (previous.version !== record.version - 1) throw new Error('上一版数据不匹配');
-              state = validate(previous.state);
-            } else state = applyAction(record.state, body.action, day);
-          } catch (error) { return send(400, { error: error.message }); }
-          const appliedVersion = record.version + 1;
-          await persist(state, { requestId: body.requestId, fingerprint, appliedVersion });
-          return send(200, { ...snapshot(), replayed: false, appliedVersion });
-        } finally { writing = false; }
+            let previous;
+            try { previous = JSON.parse(await readFile(path.join(dataDir, 'state.previous.json'), 'utf8')); } catch { previous = null; }
+            decision = prepareTaskWrite(record, body, fingerprint, { previous });
+            if (decision.receipt) await persist(decision.state, decision.receipt);
+            return send(decision.code, decision.value);
+          } finally { writing = false; }
+        }
+        if (!decision.receipt) return send(decision.code, decision.value);
+        writing = true;
+        try { await persist(decision.state, decision.receipt); return send(decision.code, decision.value); }
+        finally { writing = false; }
       }
-      if (route === '/api/state' && req.method === 'GET') return send(200, { ...snapshot(), token });
-      if (route === '/api/state' && req.method === 'PUT') {
-        if (req.headers.origin !== `http://${expectedHost}` || req.headers['x-workbench-token'] !== token) return send(403, { error: '本机会话验证失败，请刷新页面' });
+      if (dispatch.handler === 'webState') return send(200, { ...snapshot(), token });
+      if (dispatch.handler === 'webWrite') {
         let input;
         try { input = await readBody(req); } catch (error) { return send(400, { error: error.message }); }
         if (writing || req.headers['if-match'] !== String(record.version)) return send(409, { error: '其他窗口已更新数据，已为你加载最新内容，请重新操作' });
@@ -138,10 +133,8 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
         } finally { writing = false; }
         return;
       }
-      const files = { '/proxy/api.js': 'proxy/api.js', '/proxy/state.js': 'proxy/state.js', '/proxy/service-panel.js': 'proxy/service-panel.js', '/proxy/source-page.js': 'proxy/source-page.js', '/proxy/model-list.js': 'proxy/model-list.js', '/proxy/model-options.js': 'proxy/model-options.js', '/proxy/quota-panel.js': 'proxy/quota-panel.js', '/proxy/custom-sources.js': 'proxy/custom-sources.js', '/components/button.js': 'components/button.js', '/components/button.css': 'components/button.css', '/components/section.js': 'components/section.js', '/components/action-links.js': 'components/action-links.js', '/model-routes.js': 'model-routes.js', '/components/proxy-drawer.js': 'components/proxy-drawer.js',   '/components/task-notes.js': 'components/task-notes.js',  '/ai.js': 'ai.js', '/components/ai-message.js': 'components/ai-message.js', '/components/marked.js': 'components/marked.js', '/components/purify.js': 'components/purify.js', '/ai.css': 'ai.css', '/ai-settings.js': 'ai-settings.js', '/quick.html': 'quick.html', '/quick.js': 'quick.js', '/quick.css': 'quick.css', '/quick-search.js': 'quick-search.js', '/proxy.html': 'index.html', '/proxy.js': 'proxy.js', '/proxy.css': 'proxy.css', '/': 'index.html', '/app.js': 'app.js', '/model.js': 'model.js', '/design-system.css': 'design-system.css', '/style.css': 'style.css', '/favicon.svg': 'favicon.svg',   '/components/settings-page.js': 'components/settings-page.js', '/components/sidebar.js': 'components/sidebar.js', '/components/icons.js': 'components/icons.js', '/components/select.js': 'components/select.js', '/components/focus.js': 'components/focus.js', '/components/select.css': 'components/select.css' };
-      Object.assign(files, { '/task-view.js': 'task-view.js', '/routes.js': 'routes.js', '/cli-config.js': 'cli-config.js', '/cli-config.css': 'cli-config.css' });
-      if (req.method !== 'GET' || !files[route]) return send(404, { error: '页面不存在' });
-      const file = files[route];
+      if (!dispatch.file) return send(404, { error: '页面不存在' });
+      const file = dispatch.file;
       const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
       res.writeHead(200, { 'Content-Type': `${types[path.extname(file)]}; charset=utf-8` });
       res.end(await readFile(path.join(root, 'public', file)));

@@ -1,0 +1,321 @@
+[
+  {
+    "name": "auth missing",
+    "path": "/api/v1/state",
+    "code": 401,
+    "auth": "none"
+  },
+  {
+    "name": "wrong token",
+    "path": "/api/v1/state",
+    "code": 401,
+    "auth": "wrong"
+  },
+  {
+    "name": "foreign origin",
+    "path": "/api/v1/state",
+    "code": 401,
+    "headers": {
+      "Origin": "https://example.com"
+    }
+  },
+  {
+    "name": "capabilities",
+    "path": "/api/v1/capabilities",
+    "code": 200,
+    "expect": {
+      "apiVersion": 1
+    }
+  },
+  {
+    "name": "unknown API",
+    "path": "/api/v1/unknown",
+    "code": 404
+  },
+  {
+    "name": "wrong method",
+    "path": "/api/v1/actions",
+    "code": 404
+  },
+  {
+    "name": "bad JSON",
+    "path": "/api/v1/actions",
+    "code": 400,
+    "raw": "{broken",
+    "method": "POST"
+  },
+  {
+    "name": "boolean version",
+    "path": "/api/v1/actions",
+    "code": 400,
+    "method": "POST",
+    "body": {
+      "requestId": "invalid-version",
+      "expectedVersion": true,
+      "action": {
+        "type": "undo"
+      }
+    }
+  },
+  {
+    "name": "invalid date",
+    "path": "/api/v1/actions",
+    "code": 400,
+    "method": "POST",
+    "body": {
+      "expectedVersion": 0,
+      "requestId": "invalid-date",
+      "day": "2026-02-30",
+      "action": {
+        "type": "undo"
+      }
+    }
+  },
+  {
+    "name": "old receipt survives shared runtime",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "replayed": true,
+      "appliedVersion": 0,
+      "version": 0
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 0,
+      "requestId": "legacy-receipt-000",
+      "action": {
+        "type": "task.create",
+        "title": "旧回执"
+      }
+    }
+  },
+  {
+    "name": "project create",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "version": 1
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 0,
+      "requestId": "project-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "project.create",
+        "id": "p-contract",
+        "name": "契约项目",
+        "path": "/tmp/untouched"
+      }
+    }
+  },
+  {
+    "name": "project replay",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "replayed": true,
+      "version": 1
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 0,
+      "requestId": "project-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "project.create",
+        "id": "p-contract",
+        "name": "契约项目",
+        "path": "/tmp/untouched"
+      }
+    }
+  },
+  {
+    "name": "same ID changed action",
+    "path": "/api/v1/actions",
+    "code": 409,
+    "method": "POST",
+    "body": {
+      "expectedVersion": 0,
+      "requestId": "project-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "project.create",
+        "name": "other"
+      }
+    }
+  },
+  {
+    "name": "stale write",
+    "path": "/api/v1/actions",
+    "code": 409,
+    "method": "POST",
+    "body": {
+      "expectedVersion": 0,
+      "requestId": "stale-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "task.create",
+        "title": "stale"
+      }
+    }
+  },
+  {
+    "name": "atomic failure",
+    "path": "/api/v1/actions",
+    "code": 400,
+    "method": "POST",
+    "body": {
+      "expectedVersion": 1,
+      "requestId": "failed-batch-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "batch",
+        "actions": [
+          {
+            "type": "task.create",
+            "id": "must-not-exist",
+            "title": "temporary"
+          },
+          {
+            "type": "plan.add",
+            "id": "missing"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "task create",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "version": 2
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 1,
+      "requestId": "task-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "task.create",
+        "id": "t-contract",
+        "title": "契约任务",
+        "projectId": "p-contract",
+        "today": true
+      }
+    }
+  },
+  {
+    "name": "task done",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "version": 3
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 2,
+      "requestId": "done-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "task.status",
+        "id": "t-contract",
+        "status": "done"
+      }
+    }
+  },
+  {
+    "name": "cascade delete",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "version": 4,
+      "state": {
+        "schema": 1,
+        "projects": [],
+        "tasks": [],
+        "plans": {
+          "2026-10-04": []
+        }
+      }
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 3,
+      "requestId": "delete-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "project.delete",
+        "id": "p-contract"
+      }
+    }
+  },
+  {
+    "name": "undo",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "expect": {
+      "version": 5
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 4,
+      "requestId": "undo-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "undo"
+      }
+    }
+  },
+  {
+    "name": "replay after restart and undo",
+    "path": "/api/v1/actions",
+    "code": 200,
+    "restart": true,
+    "expect": {
+      "version": 5,
+      "appliedVersion": 4,
+      "replayed": true
+    },
+    "method": "POST",
+    "body": {
+      "expectedVersion": 3,
+      "requestId": "delete-contract",
+      "day": "2026-10-04",
+      "action": {
+        "type": "project.delete",
+        "id": "p-contract"
+      }
+    }
+  },
+  {
+    "name": "task query",
+    "path": "/api/v1/tasks?scope=today&status=done&day=2026-10-04",
+    "code": 200,
+    "expect": {
+      "version": 5,
+      "counts": {
+        "open": 0,
+        "done": 1,
+        "total": 1
+      }
+    }
+  },
+  {
+    "name": "invalid query",
+    "path": "/api/v1/tasks?day=2026-02-30",
+    "code": 400
+  },
+  {
+    "name": "blocked asset",
+    "path": "/.local/agent-token",
+    "code": 404
+  },
+  {
+    "name": "blocked traversal",
+    "path": "/../state.json",
+    "code": 404
+  }
+]
