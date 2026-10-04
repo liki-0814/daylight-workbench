@@ -11,10 +11,12 @@ import {invalid,convertRequest} from '../shared/protocol.js';
 
 const BASE='https://api.kimi.com/coding/v1';
 
+export const sourceDescription = {id:'kimi',name:'Kimi Code',authentication:{mode:'browser',operations:['login', 'poll', 'cancel', 'refresh']},capabilities:{quota:true,editableSource:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['chat']};
+
 export class KimiProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort']);}
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
-  snapshot(){return sourceSnapshot({id:'kimi',name:'Kimi Code',identityKey:this.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,authentication:{mode:'browser',operations:['login', 'poll', 'cancel', 'refresh']},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat']});}
+  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
  constructor({dataDir,fetchImpl=fetch,auth=new KimiAuth({fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.file=path.join(dataDir,'kimi-proxy/settings.json');this.catalogCache=new CatalogCache();this.settings=modelSettings(this.file);}
  get cache(){return this.catalogCache.value;}
  async credential(force=false){const token=await this.auth.credential(force);let account;try{const claims=JSON.parse(Buffer.from(token.access_token.split('.')[1],'base64url'));account=claims.user_id||claims.sub;}catch{}this.identity=createHash('sha256').update(String(account||token.access_token)).digest('hex');return token;}

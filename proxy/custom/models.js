@@ -1,3 +1,4 @@
+export const customSettingFields = ['enabled','contextWindow','maxOutputTokens','defaultMaxTokens','reasoningEfforts','effort'];
 import {applyCapacitySettings} from '../shared/model-settings.js';
 import {invalid} from '../shared/protocol.js';
 const limits=['contextWindow','maxOutputTokens','defaultMaxTokens','contextLimit','outputLimit'];

@@ -13,3 +13,12 @@ export function fixtureState() {
     plans: {},
   };
 }
+
+// Explicit public descriptions supplied by fake providers (no production fallback).
+export const fixtureSources = () => [
+ {id:'qoder',kind:'builtin',authentication:{operations:['login','poll','cancel','logout']}},
+ {id:'agy',kind:'builtin',authentication:{operations:['refresh']}},
+ {id:'grok',kind:'builtin',authentication:{operations:['refresh']}},
+ {id:'codex',kind:'builtin',authentication:{operations:['refresh']}},
+ {id:'kimi',kind:'builtin',authentication:{operations:['login','poll','cancel','refresh']}},
+];

@@ -11,11 +11,13 @@ import { compileRequest, decodeStream, invalid,renderNativeStream,renderNativeRe
 import { readJson, writeJson } from '../shared/store.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
+export const sourceDescription = {id:'grok',name:'Grok',authentication:{mode:'local',operations:['refresh'],instruction:'请在本机运行 grok login --oauth 登录后刷新'},capabilities:{quota:true,editableSource:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['responses']};
+
 export class GrokProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'maxTokens']);}
   close(){this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',renderers:{responses:[renderNativeStream,renderNativeResponse]},headerTimeoutOnly:true,events:this.stream(request,context)};}
-  snapshot(){return sourceSnapshot({id:'grok',name:'Grok',identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,authentication:{mode:'local',operations:['refresh']},capabilities:{quota:true,editableSource:false},nativeProtocols:['responses']});}
+  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
   constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth() }) {
     Object.assign(this, { fetchImpl, auth });
     this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));

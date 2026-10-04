@@ -9,7 +9,7 @@ import {SourceState} from './shared/source-state.js';
 import {readJson,writeJson,serial} from './shared/store.js';
 import {createProviders} from './providers.js';
 import {createGateway,fail} from './gateway.js';
-import {createManagement} from './management.js';
+import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
 export async function createProxyService({ dataDir, fetchImpl = fetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, customSources, piOptions = {} } = {}) {
@@ -87,6 +87,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
       return { failedSources, models: catalog.filter(m => m.enabled).map(m => ({
       id: m.id, name: m.displayName || m.id, source: m.provider,
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
+      pi:registry.snapshot(m.provider)?.capabilities?.pi,
       ...(providers[m.provider]?.source?.protocol ? {nativeProtocol:providers[m.provider].source.protocol} : {}),
       ...((m.contextWindow || m.contextWindows?.find(w=>w.isDefault)?.length) ? {contextWindow:m.contextWindow || m.contextWindows.find(w=>w.isDefault).length} : {}), ...(m.maxOutputTokens ? {maxOutputTokens:m.maxOutputTokens} : {}),
       ...(m.reasoningEfforts?.length ? {reasoningEfforts:m.reasoningEfforts} : {}), ...(m.thinkingLevelMap ? {thinkingLevelMap:m.thinkingLevelMap} : {}),
@@ -113,7 +114,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
     },
   };
   const management=createManagement({registry,router,sourceState,records,status,sources,service,pi,getTools:()=>tools});
-  const tools=createProxyTools({dataDir,custom,discoverCustom:id=>management.discoverCustom(id,{withKeys:true}),getSources:sources,getRoutes:()=>router.routes(),call:management.call});
+  const tools=createProxyTools({dataDir,custom,discoverCustom:id=>management.discoverCustom(id,{withKeys:true}),getSources:sources,getRoutes:()=>router.routes(),call:management.call,readConfiguration:createLegacyReader(management.call)});
   const handle=management.handle;
   // Startup errors belong to this module, never prevent task management from opening.
   const initialize = () => settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();

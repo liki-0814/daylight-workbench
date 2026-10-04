@@ -3,6 +3,22 @@ import {RequestTrace} from './shared/request-records.js';
 import {events,observeResponse} from './shared/protocol.js';
 import {normalizeQuota} from './shared/quota.js';
 
+export const legacyReadResources={'pi.state':'/api/cli/pi/state','qoder.credits':'/api/qoder/credits','agy.quota':'/api/agy/quota','grok.quota':'/api/grok/quota','kimi.quota':'/api/kimi-proxy/quota','codex.quota':'/api/codex-proxy/quota','qoder.login':'/api/proxy/status'};
+export function createLegacyReader(call) {
+ return async(resource,options={})=>{
+  if(resource==='pi.prepare')return call('/api/cli/pi/prepare',options);
+  const route=legacyReadResources[resource];if(!route)fail('读取资源不存在');
+  if(resource==='pi.state'&&Object.keys(options).some(k=>!['api','refresh'].includes(k)))fail('Pi 参数无效');
+  const query=resource==='pi.state'?new URLSearchParams({...options.api?{api:options.api}:{},...options.refresh?{refresh:'1'}:{}}).toString():'';
+  let result=await call(route+(query?'?'+query:''));
+  if(resource==='qoder.login'){
+   if(result.login){await call('/api/proxy/sources/qoder/auth/poll');result=await call('/api/proxy/status');}
+   return Object.fromEntries(Object.entries(result).filter(([key])=>['account','login','state','port','autoStart'].includes(key)));
+  }
+  return result;
+ };
+}
+
 const legacy={qoder:'qoder',agy:'agy',grok:'grok','codex-proxy':'codex','kimi-proxy':'kimi'};
 
 // Direct operations and HTTP routes share this boundary. No fake req/res for tools.

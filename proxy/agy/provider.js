@@ -12,11 +12,13 @@ import { readJson } from '../shared/store.js';
 import { SseParser } from '../shared/llm/sse.js';
 const invalid = message => Object.assign(new Error(message), { status: 400, code: 'invalid_request' });
 
+export const sourceDescription = {id:'agy',name:'AGY',authentication:{mode:'local',operations:['refresh'],instruction:'请在终端运行 agy 登录后刷新'},capabilities:{quota:true,editableSource:false},nativeProtocols:['messages']};
+
 export class AgyProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort']);}
   close(){this.catalogCache.invalidate();this.signatures.clear();}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',events:this.stream(request,context)};}
-  snapshot(){return sourceSnapshot({id:'agy',name:'AGY',identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,authentication:{mode:'local',operations:['refresh']},capabilities:{quota:true,editableSource:false},nativeProtocols:['messages']});}
+  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
   constructor({ dataDir, fetchImpl = fetch, auth = new AgyAuth() }) {
     Object.assign(this, { fetchImpl, auth });
     this.file = path.join(dataDir, 'agy/settings.json'); this.catalogCache=new CatalogCache();this.signatures = new Map(); this.settings=modelSettings(this.file);

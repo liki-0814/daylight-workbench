@@ -15,9 +15,7 @@ const positive = value => Number.isSafeInteger(value) && value > 0;
 const filenames = ['models.json', 'settings.json'];
 export const piAPIs = ['openai-responses', 'openai-completions', 'anthropic-messages'];
 function unavailableReason(model, api) {
-  if (model.source === 'codex' && api !== 'openai-responses') return 'Codex 通道需用 Responses，不能接收 Pi 的输出预算';
-  if (api === 'anthropic-messages' && (['kimi', 'grok'].includes(model.source) || model.source.startsWith('custom:') && model.nativeProtocol !== 'messages')) return '此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions';
-  return '';
+  return typeof model.pi?.[api] === 'string' ? model.pi[api] : '';
 }
 
 async function piInfo() {

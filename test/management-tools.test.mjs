@@ -1,3 +1,5 @@
+import {fixtureSources} from './fixtures.mjs';
+import {createLegacyReader} from '../proxy/management.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
@@ -17,8 +19,8 @@ test('operation links distinguish proxy, Pi, AI, projects and tasks',()=>{
 });
 test('Qoder default context is part of the reviewed proxy version',async()=>{
   let context=1000,writes=0;
-  const call=async(url,input)=>url==='/api/qoder/status'?{state:'stopped',port:4319,autoStart:false}:url.endsWith('/models')?{models:[{id:'m',enabled:true,contextWindows:[{length:1000,isDefault:context===1000},{length:2000,isDefault:context===2000}]}]}:(writes++,{});
-  const tools=createProxyTools({call,custom:null,dataDir:'/private/tmp/unused-proxy-context'});
+  const call=async(url,input)=>url==='/api/proxy/status'?{state:'stopped',port:4319,autoStart:false}:url.endsWith('/models')?{models:[{id:'m',enabled:true,contextWindows:[{length:1000,isDefault:context===1000},{length:2000,isDefault:context===2000}]}]}:(writes++,{});
+  const tools=createProxyTools({call,custom:null,getSources:async()=>fixtureSources(),readConfiguration:createLegacyReader(call),dataDir:'/private/tmp/unused-proxy-context'});
   const before=await tools.state();context=2000;
   assert.notEqual((await tools.state()).version,before.version);
   await assert.rejects(tools.apply({requestId:'context-stale',expectedVersion:before.version,action:{type:'model.setting',sourceId:'qoder',id:'m',field:'context',value:1000}}),/发生变化/);
@@ -29,8 +31,8 @@ test('Pi tool drafts preview without writing, persist overrides, synchronize, an
   const piDir=path.join(dataDir,'pi');
   const pi=createPiConfig({dataDir,piDir,getInfo:async()=>({installed:true}),getCatalog:async()=>[{id:'m',name:'M',source:'kimi',enabled:true,isVL:true}],getGateway:async()=>({state:'running',baseUrl:'http://127.0.0.1:4319/v1',apiKey:'private-key'})});
   await pi.start();t.after(()=>pi.close());
-  const call=async(url,input)=>url.startsWith('/api/cli/pi/state')?pi.state(new URL(url,'http://localhost').searchParams.get('api')||undefined):url.startsWith('/api/cli/pi/')?pi[url.split('/').at(-1)](input):url==='/api/qoder/status'?{state:'stopped'}:{models:[]};
-  const tools=createProxyTools({call,custom:null,dataDir});
+  const call=async(url,input)=>url.startsWith('/api/cli/pi/state')?pi.state(new URL(url,'http://localhost').searchParams.get('api')||undefined):url.startsWith('/api/cli/pi/')?pi[url.split('/').at(-1)](input):url==='/api/proxy/status'?{state:'stopped'}:{models:[]};
+  const tools=createProxyTools({call,custom:null,getSources:async()=>fixtureSources(),readConfiguration:createLegacyReader(call),dataDir});
   const state=await tools.read({resource:'pi.state'});assert(!JSON.stringify(state).includes('private-key'));
   const draft=await tools.prepare({action:{type:'pi.configuration',options:{modelOverrides:{m:{contextWindow:9999,maxTokens:222,input:['text','image']}}}}});
   await assert.rejects(readFile(path.join(piDir,'models.json')),{code:'ENOENT'});

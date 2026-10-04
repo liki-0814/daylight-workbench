@@ -6,10 +6,12 @@ import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import path from 'node:path';
 import {invalid,convertRequest} from '../shared/protocol.js';
 
+export const sourceDescription = {id:'codex',name:'Codex',authentication:{mode:'local',operations:['refresh']},capabilities:{quota:true,editableSource:false,requestOutputBudget:false,pi:{'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'}},nativeProtocols:['responses']};
+
 export class CodexProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'serviceTier']);}
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
-  snapshot(){return sourceSnapshot({id:'codex',name:'Codex',identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,authentication:{mode:'local',operations:['refresh']},capabilities:{quota:true,editableSource:false,requestOutputBudget:false},nativeProtocols:['responses']});}
+  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
   constructor({dataDir,fetchImpl=fetch,auth,...options}) {
     this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth(options);this.file=path.join(dataDir,'codex-proxy/settings.json');this.settings=modelSettings(this.file);
   }

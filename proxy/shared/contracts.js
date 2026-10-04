@@ -45,3 +45,15 @@ export function modelCapabilities(models,fields){
  * Snapshot and execution never expose credentials. Native results retain opaque upstream fields;
  * event adapters decode raw requests themselves using shared/protocol.js.
  */
+
+// Structural validation is shared; each provider remains authoritative for persistence.
+export function validateModelSetting(model, {field,value}) {
+ const fail=message=>{throw Object.assign(new Error(message),{status:400});};
+ if(!model.settingFields?.includes(field))fail('此来源不支持该模型设置');
+ if(['enabled','fast'].includes(field)&&typeof value!=='boolean')fail('开关必须为布尔值');
+ if(['context','contextWindow','maxOutputTokens','defaultMaxTokens','maxTokens'].includes(field)&&(!Number.isSafeInteger(value)||value<1))fail('Token 参数必须为正整数');
+ if(field==='reasoningEfforts'&&(!Array.isArray(value)||value.length>16||value.some(e=>typeof e!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(e))))fail('思考档位需为有效字符串列表');
+ if(field==='effort'&&value!=='auto'&&!model.reasoningEfforts?.includes(value))fail('该模型未提供此思考强度');
+ if(field==='serviceTier'&&!['auto','default',...(model.serviceTiers||[]).map(t=>t.id)].includes(value))fail('该模型未提供此速度档位');
+ if(field==='fast'&&value&&!model.supportsFast)fail('该模型不支持 Fast');
+}

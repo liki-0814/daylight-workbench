@@ -1,3 +1,5 @@
+import {fixtureSources} from './fixtures.mjs';
+import {createLegacyReader} from '../proxy/management.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
@@ -11,15 +13,15 @@ async function fixture(t, options = {}) {
  const custom=new CustomSources({dataDir,secrets:keys,fetchImpl:async()=>Response.json({data:[{id:'found',context_window:1000,max_output_tokens:100}]})});
  let service={state:'stopped',port:4319,autoStart:false,apiKey:'must-not-leak'},requests=0;
  const call=async(url,input)=>{
-  if(url==='/api/qoder/status')return service;
-  if(url.endsWith('/models')||url.includes('/models?'))return{models:[{id:'m',enabled:true,reasoningEfforts:['low'],contextWindow:1000}]};
+  if(url==='/api/proxy/status')return service;
+  if(url.endsWith('/models')||url.includes('/models?'))return{models:[{id:'m',enabled:true,reasoningEfforts:['low'],contextWindow:1000,settingFields:['enabled','effort','contextWindow','maxOutputTokens']}]};
   if(url==='/api/custom-proxy/delete'){await custom.remove(input.id);requests++;return{ok:true};}
   if(url==='/api/custom-proxy/save')return{source:await custom.save(input)};
-  if(url==='/api/qoder/service'){service={...service,state:input.enabled?'running':'stopped'};requests++;return service;}
-  if(url==='/api/qoder/test')return{message:'ok'};
+  if(url==='/api/proxy/service'){service={...service,state:input.enabled?'running':'stopped'};requests++;return service;}
+  if(url==='/api/proxy/check')return{message:'ok'};
   requests++;return{ok:true};
  };
- return{dataDir,tools:createProxyTools({call,custom,dataDir,...options}),custom,secrets,requests:()=>requests};
+ return{dataDir,tools:createProxyTools({call,custom,dataDir,readConfiguration:createLegacyReader(call),...options,getSources:async()=>{const overrides=await options.getSources?.()||[];return fixtureSources().map(s=>({...s,...overrides.find(o=>o.id===s.id)}));}}),custom,secrets,requests:()=>requests};
 }
 test('proxy drafts validate without writes or credentials; apply stores key separately and replays safely',async t=>{
  const f=await fixture(t);const snapshot=await f.tools.state();assert(!JSON.stringify(snapshot).includes('must-not-leak'));
@@ -79,7 +81,7 @@ test('deletion is prepared without writes then removes source and every stored K
 test('routing validates full source order, applies only after review and rejects stale preferences',async t=>{
  let routes=[{id:'m',order:['a','b'],excluded:[],sources:[{id:'a',available:true},{id:'b',available:true}]}];
  const f=await fixture(t,{getRoutes:async()=>routes,call:async(url,input)=>{
-  if(url==='/api/qoder/status')return{state:'running'};
+  if(url==='/api/proxy/status')return{state:'running'};
   if(url==='/api/proxy/routes'){routes=[{...routes[0],order:input.order,excluded:input.excluded}];return{ok:true};}
   return{models:[]};
  }});
@@ -96,12 +98,12 @@ test('Kimi login actions and polling expose only safe authorization status',asyn
  let starts=0,cancelled=0;
  const login={status:'pending',verificationUrl:'https://auth.kimi.com/device',userCode:'TEST-CODE'};
  const f=await fixture(t,{call:async(url)=>{
-  if(url==='/api/qoder/status')return{state:'running'};
-  if(url==='/api/kimi-proxy/status')return{connected:false};
-  if(url==='/api/kimi-proxy/auth/poll')return login;
-  if(url==='/api/kimi-proxy/auth/login'){starts++;return login;}
-  if(url==='/api/kimi-proxy/auth/cancel'){cancelled++;return{status:'cancelled'};}
-  return{models:[{id:'k3',enabled:true}]};
+  if(url==='/api/proxy/status')return{state:'running'};
+  if(url==='/api/proxy/sources/kimi/status')return{connected:false};
+  if(url==='/api/proxy/sources/kimi/auth/poll')return login;
+  if(url==='/api/proxy/sources/kimi/auth/login'){starts++;return login;}
+  if(url==='/api/proxy/sources/kimi/auth/cancel'){cancelled++;return{status:'cancelled'};}
+  return{models:[{id:'k3',enabled:true,settingFields:['enabled','effort']}]};
  }});
  const before=await f.tools.state();assert(before.sources.some(s=>s.id==='kimi'));
  const action={type:'auth.login',sourceId:'kimi'},draft=await f.tools.prepare({action});assert(draft.impact.length);assert.equal(starts,0);

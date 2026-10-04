@@ -14,7 +14,7 @@ async function fixture(t, options = {}) {
   const models = { extra: true, providers: { other: { apiKey: 'other-private' }, daylight: { api: 'openai-completions', apiKey: 'old-private', baseUrl: 'http://127.0.0.1:1/v1', models: [{ id: 'old', name: 'Old', custom: 'keep' }, { id: 'a', name: 'Old A', maxTokens: 444, compat: { supportsDeveloperRole: false }, headers: { Authorization: 'model-private' } }] } } };
   const settings = { defaultProvider: 'other', defaultModel: 'old-default', defaultThinkingLevel: 'high', extensions: ['keep'] };
   await writeJson(path.join(piDir, 'models.json'), models); await writeJson(path.join(piDir, 'settings.json'), settings);
-  let catalog = [{ id: 'a', name: 'A', source: 'codex', sourceName: 'Codex', contextWindow: 272000, isReasoning: true }, { id: 'b', name: 'B', source: 'kimi', sourceName: 'Kimi' }];
+  let catalog = [{ id: 'a', name: 'A', source: 'codex', pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'}, sourceName: 'Codex', contextWindow: 272000, isReasoning: true }, { id: 'b', name: 'B', source: 'kimi', pi: {'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}, sourceName: 'Kimi' }];
   let gateway = { baseUrl: 'http://127.0.0.1:4319/v1', apiKey: 'proxy-private', state: 'running' };
   const getCatalog = async () => catalog, getGateway = async () => gateway;
   const serviceOptions = { dataDir, piDir, getCatalog, getGateway, getInfo: async () => ({ installed: true, version: 'test' }), ...options };
@@ -65,7 +65,7 @@ test('known incompatible Pi protocol combinations are blocked before any write',
   const f = await fixture(t), before = await f.text('models');
   assert((await f.pi.state('openai-completions')).models[0].unavailableReason);
   await assert.rejects(f.pi.prepare({ api: 'openai-completions' }), /Codex 通道/);
-  f.setCatalog([{ id: 'b', name: 'B', source: 'kimi' }]);
+  f.setCatalog([{ id: 'b', name: 'B', source: 'kimi', pi: {'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'} }]);
   await assert.rejects(apply(f.pi, { api: 'anthropic-messages' }), /缓存与思考/);
   f.setCatalog([{ id: 'native', name: 'Native', source: 'custom:one', nativeProtocol: 'messages' }]);
   assert.equal((await f.pi.prepare({ api: 'anthropic-messages' })).api, 'anthropic-messages');
@@ -87,7 +87,7 @@ test('stale files, key changes and catalog changes reject apply; external edits 
   await assert.rejects(f.pi.apply({ ids: ['a'], expectedVersion: state.version, requestId: 'stale-files' }), /已变化/);
   const current = await f.pi.state(); f.setGateway({ baseUrl: 'http://127.0.0.1:4319/v1', apiKey: 'rotated', state: 'running' });
   await assert.rejects(f.pi.apply({ ids: ['a'], expectedVersion: current.version, requestId: 'stale-key' }), /已变化/);
-  const catalogBefore = await f.pi.state(); f.setCatalog([{ id: 'a', name: 'new', source: 'codex' }]);
+  const catalogBefore = await f.pi.state(); f.setCatalog([{ id: 'a', name: 'new', source: 'codex', pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'} }]);
   await assert.rejects(f.pi.apply({ ids: ['a'], expectedVersion: catalogBefore.version, requestId: 'stale-catalog' }), /已变化/);
   await apply(f.pi, {});
   await writeFile(path.join(f.piDir, 'models.json'), '{broken');
@@ -153,7 +153,7 @@ test('automatic switch is durable, syncs additions/removals and metadata, and re
   const state = await f.pi.state();
   await f.pi.automatic({ enabled: true, expectedVersion: state.version, requestId: 'enable-auto' });
   assert.equal((await f.pi.state()).automatic.enabled, true);
-  f.setCatalog([{ id: 'b', name: 'New B', source: 'kimi', contextWindow: 10000 }, { id: 'new', name: 'New', source: 'qoder' }]);
+  f.setCatalog([{ id: 'b', name: 'New B', source: 'kimi', pi: {'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}, contextWindow: 10000 }, { id: 'new', name: 'New', source: 'qoder' }]);
   assert.equal((await f.pi.autoSync()).ok, true);
   const saved = (await f.json('models')).providers.daylight;
   assert.deepEqual(saved.models.map(m => m.id), ['b', 'new']); assert.equal(saved.models[0].contextWindow, 10000);
@@ -169,10 +169,10 @@ test('automatic sync fails closed on unavailable catalogs or external Pi edits; 
   const f = await fixture(t); await f.pi.start(); t.after(() => f.pi.close());
   await f.pi.automatic({ enabled: true, expectedVersion: (await f.pi.state()).version, requestId: 'enable-auto' });
   const before = await f.text('models');
-  f.setCatalog({ models: [{ id: 'a', name: 'A', source: 'codex' }], failedSources: [{ id: 'kimi', name: 'Kimi' }] });
+  f.setCatalog({ models: [{ id: 'a', name: 'A', source: 'codex', pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'} }], failedSources: [{ id: 'kimi', name: 'Kimi' }] });
   assert.equal((await f.pi.autoSync()).ok, false); assert.equal(await f.text('models'), before);
   await assert.rejects(apply(f.pi, {}, 'unavailable'), /目录读取失败/);
-  f.setCatalog([{ id: 'a', name: 'A', source: 'codex' }]);
+  f.setCatalog([{ id: 'a', name: 'A', source: 'codex', pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'} }]);
   await writeJson(path.join(f.piDir, 'models.json'), { ...await f.json('models'), manual: true });
   const edited = await f.text('models'); assert.match((await f.pi.autoSync()).error, /外部修改/); assert.equal(await f.text('models'), edited);
   await apply(f.pi, {}, 'manual-resume'); assert.equal((await f.pi.state()).automatic.error, '');
@@ -188,7 +188,7 @@ test('a successfully read empty catalog clears only Daylight, with backup and ex
 test('never configured sources do not block first setup; previously managed sources cannot disappear on a failed refresh after restart', async t => {
   const f = await fixture(t);
   await writeJson(path.join(f.piDir, 'models.json'), { ...f.models, providers: { other: f.models.providers.other } });
-  const models = [{ id: 'a', name: 'A', source: 'codex' }];
+  const models = [{ id: 'a', name: 'A', source: 'codex', pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'} }];
   f.setCatalog({ models, failedSources: [{ id: 'agy', name: 'AGY', unconfigured: true }] });
   await apply(f.pi, {});
   assert.equal((await f.pi.state()).catalogError, '');
@@ -279,6 +279,6 @@ test('automatic Pi sync reads the shared catalog without force and leaves unchan
 });
 
 test('Kimi thinking-only restriction preserves its declared effort mappings', () => {
-  const configured = modelConfig({ id: 'kimi/k3', name: 'K3', source: 'kimi', isReasoning: true, reasoningEfforts: ['low', 'high', 'max'], thinkingLevelMap: { off: null } });
+  const configured = modelConfig({ id: 'kimi/k3', name: 'K3', source: 'kimi', pi: {'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}, isReasoning: true, reasoningEfforts: ['low', 'high', 'max'], thinkingLevelMap: { off: null } });
   assert.deepEqual(configured.thinkingLevelMap, { off: null, minimal: null, low: 'low', medium: null, high: 'high', xhigh: null, max: 'max' });
 });

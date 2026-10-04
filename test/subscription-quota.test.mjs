@@ -29,7 +29,9 @@ test('Codex quota reuses the official app server and always closes it',async()=>
 
 test('quota resources are available to the AI bridge',async()=>{
  const {createProxyTools}=await import('../proxy/shared/tools.js');
- const calls=[];const tools=createProxyTools({dataDir:os.tmpdir(),custom:null,call:async url=>{calls.push(url);return {buckets:[]};}});
+ const {createLegacyReader}=await import('../proxy/management.js');
+ const calls=[],call=async url=>{calls.push(url);return {buckets:[]};};
+ const tools=createProxyTools({dataDir:os.tmpdir(),custom:null,call,readConfiguration:createLegacyReader(call)});
  await tools.read({resource:'kimi.quota'});await tools.read({resource:'codex.quota'});
  assert.deepEqual(calls,['/api/kimi-proxy/quota','/api/codex-proxy/quota']);
 });

@@ -1,22 +1,16 @@
 import {decodeRequest} from './shared/protocol.js';
-import {QoderProvider,loadConfig} from './qoder/provider.js';
+import {QoderProvider,sourceDescription as qoderDescription,loadConfig} from './qoder/provider.js';
 import {AccountStore} from './qoder/auth.js';
 import {QoderHttp} from './qoder/transport.js';
-import {AgyProvider} from './agy/provider.js';
-import {GrokProvider} from './grok/provider.js';
-import {CodexProvider} from './codex/provider.js';
-import {KimiProvider} from './kimi/provider.js';
+import {AgyProvider,sourceDescription as agyDescription} from './agy/provider.js';
+import {GrokProvider,sourceDescription as grokDescription} from './grok/provider.js';
+import {CodexProvider,sourceDescription as codexDescription} from './codex/provider.js';
+import {KimiProvider,sourceDescription as kimiDescription} from './kimi/provider.js';
 import {CustomSources} from './custom/sources.js';
 import {sourceSnapshot} from './shared/contracts.js';
 
 // These descriptions also keep injected test providers on the public contract.
-const builtins={
- qoder:{name:'Qoder',authentication:{mode:'browser',operations:['login','poll','cancel','logout'],requiresStoppedService:true},nativeProtocols:['chat']},
- agy:{name:'AGY',authentication:{mode:'local',operations:['refresh'],instruction:'请在终端运行 agy 登录后刷新'},nativeProtocols:['messages']},
- grok:{name:'Grok',authentication:{mode:'local',operations:['refresh'],instruction:'请在终端运行 grok login --oauth 登录后刷新'},nativeProtocols:['responses']},
- codex:{name:'Codex',authentication:{mode:'local',operations:['refresh'],instruction:'请在本机 Codex 登录 ChatGPT 后刷新'},nativeProtocols:['responses']},
- kimi:{name:'Kimi Code',authentication:{mode:'browser',operations:['login','poll','cancel','refresh']},nativeProtocols:['chat']},
-};
+const builtins={qoder:qoderDescription,agy:agyDescription,grok:grokDescription,codex:codexDescription,kimi:kimiDescription};
 export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort}){
  const config={...loadConfig(dataDir),...overrides},accounts=new AccountStore(config.accountFile);
  const transport=(url,options={})=>fetchImpl(url,{...options,redirect:'error',signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(300000)]):AbortSignal.timeout(30000)});
@@ -32,7 +26,7 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
  function snapshot(id){
   const p=providers[id],defaults=builtins[id];if(!p)return undefined;
   const own=p.snapshot?.()||sourceSnapshot({id,...defaults,identityKey:p.identity??p.auth?.identity??p.cache?.identity??p.cache?.id??p.cache?.project,connected:!!p.cache&&!p.lastError,error:p.lastError,checkedAt:p.cache?.at,configured:id==='qoder'?!!provider||!!accounts.current:true,capabilities:{quota:!!(p.quota||p.credits),editableSource:false}});
-  return {...own,authentication:{...defaults?.authentication,...own.authentication},...(id==='qoder'&&provider?{configured:true}:{})};
+  return {...own,authentication:{...defaults?.authentication,...own.authentication},capabilities:{...defaults?.capabilities,...own.capabilities},...(id==='qoder'&&provider?{configured:true}:{})};
  }
  async function sync(){
   const next=custom?await custom.providers():{},removed=[];

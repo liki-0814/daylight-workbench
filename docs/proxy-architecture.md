@@ -32,7 +32,7 @@
 
 | 文件/目录 | 功能 |
 | --- | --- |
-| `contracts.js` | 来源快照、设置能力、执行结果契约、诊断错误分类 |
+| `contracts.js` | 来源快照、模型可设置字段及值校验、执行结果契约、诊断错误分类 |
 | `router.js` | 聚合目录、别名、主备顺序、排除来源、冷却与来源级会话绑定 |
 | `source-state.js` | 根据公开快照、目录检查和真实请求记录生成来源状态与已观察能力 |
 | `request-records.js` | 一次客户端请求一条记录，包含路由尝试、阶段耗时、状态和真实用量 |
@@ -46,7 +46,7 @@
 | `quota.js` | 额度公共格式、数值与单位规范化，保留缺失值 |
 | `store.js` | JSON 读取、原子写入与串行操作 |
 | `secrets.js` | 自定义 Key 与敏感额外请求头的 Keychain 存取 |
-| `tools.js` | AI state/prepare/apply 等操作、审阅草稿、配置版本与操作回执 |
+| `tools.js` | AI state/prepare/apply 等操作、读取来源能力的审阅草稿、配置版本与操作回执 |
 | `utils.js` | 少量基础工具 |
 
 来源缓存保存上游目录；router 缓存保存聚合目录与路由，两者责任不同。保存模型默认值只重算有效目录，不触发无关来源的远程发现。请求显式值优先于已保存默认值，再由上游使用缺省值；公共机制不强加全局采样、思考或输出预算默认值。
@@ -160,6 +160,14 @@ execute 输入为 `{raw,protocol,model,conversationId,stateful}`，context 携�
 表内缩写路径沿用同一前缀。来源 ID 必须 URL 编码，Custom 为 `custom:<配置 ID>`。认证操作使用固定允许列表。外部 Agent 的 `/api/v1/proxy` 与 AI 草稿契约见 [AI 说明](ai.md)。
 
 旧 `/api/qoder`、`/api/agy`、`/api/grok`、`/api/codex-proxy`、`/api/kimi-proxy`、`/api/custom-proxy` 继续映射同一管理操作，保持原方法、响应与测试副作用。共享配置仍使用历史 `qoder/` 数据路径，源码整理不迁移配置或更换凭据来源。原生同协议保留搜索/引用/reasoning/签名，跨协议不能无损表示时明确拒绝。
+
+## 来源能力与管理工具
+
+每个内置 provider 导出一份 `sourceDescription`，生产 snapshot 与注册表的兼容描述共用它。来源 `snapshot().authentication.operations` 声明可用授权操作，`listModels()` 中的 `settingFields` 声明每个模型可修改字段。公共 AI 管理工具从实际来源目录枚举来源，使用 `/api/proxy/sources/:id`，不按来源名称枚举字段或授权路径；字段的通用类型和能力校验位于 contracts，实际保存仍由 provider 或 Custom 的完整配置事务处理。未声明的字段与授权操作拒绝执行。
+
+Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配置提供给工具；逐 Key 权限与保存事务保持独立。来源 `capabilities.pi` 按 Pi API 名称给出已知不兼容原因，中转 service 将它带入共享客户端目录；cli/pi-config 不再根据来源名称决定协议限制。未声明限制不补造验证证据。
+
+历史管理路径及旧配置资源名称的映射只留在 management 的兼容层，tools 通过注入的兼容读取函数保留旧资源响应。新增来源时实现能力与执行入口并在 providers 注册，公共工具和 Pi 不需要增加来源名称分支。`test/source-capabilities.test.mjs` 使用陌生来源 ID 核验设置、授权、重试和 Pi 限制。
 
 ## 问题记录：并行工具历史导致 Qoder 502
 
