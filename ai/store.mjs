@@ -22,6 +22,7 @@ export class AIStore {
     const target = path.join(this.root, file), tmp = target + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(value), { mode: 0o600 }); fs.renameSync(tmp, target);
   }
-  save(c) { c.updatedAt = new Date().toISOString(); this.conversations.set(c.id, c); this.write(`conversations/${c.id}.json`, c); }
+  save(c) { c.updatedAt = new Date(Math.max(Date.now(), (Date.parse(c.updatedAt) || 0) + 1)).toISOString(); this.conversations.set(c.id, c); this.write(`conversations/${c.id}.json`, c); }
+  remove(id) { fs.unlinkSync(path.join(this.root, 'conversations', `${id}.json`)); this.conversations.delete(id); }
   workspace(backend) { const dir = path.join(this.root, 'workspaces', backend); fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); return dir; }
 }

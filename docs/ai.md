@@ -36,3 +36,26 @@ AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_
 Codex、Qoder 共用服务端上下文构造。项目摘要最多 20 条未完成任务，超过时明确 total/truncated；`daylight_get_context` 可读取当前关联最新状态，旧 `daylight_get_workspace` 保持原返回。备注与引用内容仅作为数据，不执行其中指令。
 
 任务草稿支持审阅项目归属，继续经用户应用、版本保护和请求去重。应用后更新列表计数、生成精确对象链接；项目、任务、计划变更都可回看，任务相关对话能找到生成或更新它的会话。离开 AI 页面不会停止生成，侧栏显示运行中或等待确认；返回后继续处理原草稿。全局单生成请求限制保留。
+
+## 对话删除
+
+历史列表采用紧凑的标题、新建入口、筛选和两行对话条目。鼠标悬停或键盘聚焦时显示条目的「⋯」删除入口，触屏持续可见；窄屏保留横向历史切换。删除前显示对话标题与影响，取消默认聚焦。删除当前对话后回到新对话，其他对话的输入草稿保留；引用选择同步移除已删除条目。
+
+删除全部 Daylight 聊天记录且无法撤销。项目任务、其他对话已保存的引用快照、CLI 自身历史及工作目录保留。运行中或等待确认的对话须先结束。接口同时检查 AI 元数据版本和目标 updatedAt，确认期间发生变化会拒绝删除。
+
+内置 AI 先用 `daylight_get_ai` 读取目标，再通过 `daylight_propose_ai_changes` 提交 `ai.conversation.delete`（id、expectedUpdatedAt）草稿，必须经用户审阅应用，当前运行对话不可删除。外部 Skill 提供 `conversations` 与 `delete-conversation`，经 Agent Bearer 接口调用同一服务逻辑。API 和客户端参数见 [Skill API](../skills/daylight-workbench/references/api.md)。
+
+## 实现职责与维护
+
+| 文件 | 职责 |
+| --- | --- |
+| `ai/service.mjs` | 服务组装、工作台 API 客户端与 HTTP 路由，保留原有导出兼容入口 |
+| `ai/conversations.mjs` | 默认设置、目录发现、会话创建/关联/模型/删除和管理回执 |
+| `ai/run-manager.mjs` | 生成请求、全局单运行限制、超时、取消、审批等待器和运行状态 |
+| `ai/drafts.mjs` | 任务/代理/AI 草稿的校验与应用，保护版本和原请求重试 |
+| `ai/tools/dispatch.mjs` | MCP 工具分发到会话、运行与草稿服务，不直接操作运行表 |
+| `ai/http.mjs` | 请求体限制、JSON 响应、工具通道凭证比较与错误类型 |
+
+会话管理通过只读运行查询判断目标是否可修改；运行表和审批等待器只由 run-manager 修改。草稿应用期间标记 applying，停止请求被拒绝；写结果未知时保留 submitted、原 action 和 requestId，重新应用只能重试原请求。HTTP 层不直接修改这些状态。存储、上下文、事件和 Codex/Qoder adapters 继续使用原模块。
+
+新增会话管理操作放在 conversations；新增生成、取消或审批行为放在 run-manager；新增业务草稿放在 drafts 并接入 tools/dispatch。`test/ai-lifecycle.test.mjs` 覆盖两个后端的等待/取消/关闭及未知写结果重试；现有 AI API、草稿与删除测试继续核验公开行为。

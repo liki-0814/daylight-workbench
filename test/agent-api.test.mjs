@@ -185,3 +185,28 @@ test('unified task API and new CLI query preserve legacy state views and read-on
   assert.deepEqual((await cli('state','--view','today','--date','2026-10-01')).matchingTasks.map(t=>t.id),['task-2','task-1']);
   assert.equal((await get('/api/v1/state')).version,0);
 });
+
+test('external Skill conversation API enforces auth, deletion, restart replay and preserves business state', async () => {
+  const dataDir=await mkdtemp(path.join(tmpdir(),'daylight-chat-cli-'));
+  let server;
+  try {
+    const {AIStore}=await import('../ai/store.mjs');const store=new AIStore(dataDir);
+    const id=randomUUID();store.save({id,title:'待删除聊天',backend:'codex',config:{model:'test'},scope:{kind:'workspace'},status:'idle',messages:[],createdAt:new Date().toISOString()});
+    const boot=async()=>{server=await createWorkbench({dataDir});await new Promise(r=>server.listen(0,'127.0.0.1',r));return `http://127.0.0.1:${server.address().port}`;};
+    let url=await boot();
+    const cli=async(...args)=>JSON.parse((await run('python3',[client,'--url',url,'--data-dir',dataDir,...args])).stdout);
+    assert.equal((await fetch(url+'/api/v1/ai/state')).status,401);
+    const token=(await readFile(path.join(dataDir,'agent-token'),'utf8')).trim();
+    assert.equal((await fetch(url+'/api/v1/ai/state',{headers:{Authorization:'Bearer '+token,Origin:'https://example.com'}})).status,401);
+    assert.deepEqual((await cli('capabilities')).aiConversations.operations,['ai.conversation.delete']);
+    const before=await cli('state'),snapshot=await cli('conversations');
+    assert.equal(snapshot.conversations[0].id,id);
+    const args=['delete-conversation','--id',id,'--updated-at',snapshot.conversations[0].updatedAt,'--expected-version',snapshot.version,'--request-id',randomUUID()];
+    assert.equal((await cli(...args)).ok,true);
+    assert.equal((await cli('conversations')).conversations.length,0);
+    assert.deepEqual((await cli('state')).state,before.state);
+    await new Promise(r=>server.close(r));url=await boot();
+    assert.equal((await cli(...args)).ok,true);
+    assert.equal((await cli('conversations')).conversations.length,0);
+  } finally {if(server?.listening)await new Promise(r=>server.close(r));await rm(dataDir,{recursive:true,force:true});}
+});

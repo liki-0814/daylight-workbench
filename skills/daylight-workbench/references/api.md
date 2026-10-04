@@ -84,3 +84,16 @@ python3 "$SKILL/scripts/workbench.py" tasks --unassigned --query '接口'
 ```
 
 旧 `state --view all|today|inbox|done` 仍兼容：all 包含所有状态，today 保留计划内已完成项及顺序，inbox 是未归类待办的旧名称。取消 UI 收件箱入口不改变 null 归属、action 或导出合同。
+
+## AI 对话查询与删除
+
+`capabilities.aiConversations` 声明此能力；沿用 Agent Bearer 和本机 Origin 检查。
+
+- `GET /api/v1/ai/state` 返回 `{version,settings,conversations}`，version 为字符串。列表包括 id/title/backend/config/scope/status/updatedAt/messageCount，不返回消息内容或凭据。
+- `POST /api/v1/ai/actions` 仅接受删除操作：
+
+```json
+{"requestId":"unique-request-id","expectedVersion":"读取到的字符串版本","action":{"type":"ai.conversation.delete","id":"真实对话ID","expectedUpdatedAt":"目标的updatedAt"}}
+```
+
+返回 `{ok:true,status:"applied",action}`；最近 100 个管理回执跨重启保存，同 requestId/同 action 可重试，同 ID 换 action 返回 409。expectedVersion 检查 AI 设置与会话元数据；expectedUpdatedAt 保护目标内容。运行中、等待确认或目标已变化返回 409，不存在返回 404。删除该对话的 Daylight 存档及列表条目，不删除 CLI 自身历史、工作目录、项目任务或其他对话保存的引用快照。不可撤销，业务 `undo` 不恢复 AI 对话。界面使用同语义的 `/api/ai/state` 与 `/api/ai/actions`，使用本机会话鉴权。

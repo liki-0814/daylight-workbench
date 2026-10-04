@@ -1,6 +1,6 @@
 ---
 name: daylight-workbench
-description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日期安排、状态、排序、删除、导出及撤销。用户要求查看或修改工作台，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
+description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日期安排、状态、排序、删除、导出及撤销，以及 AI 历史对话的查询和删除。用户要求查看或修改工作台，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
 ---
 
 # Daylight 工作台连接
@@ -56,3 +56,14 @@ python3 "$SKILL/scripts/workbench.py" apply --expected-version VERSION --request
 侧栏保留任务入口，全部任务与今天在任务页内切换；项目是任务页的归属筛选，未归类不再有独立入口。API 数据仍允许 projectId:null。先用 capabilities 检查 taskQuery；可用时 `tasks --scope today --status open`、`tasks --project ID --status done`、`tasks --unassigned` 调用统一只读接口。旧 state 命令及其 view 名称、导出行为继续兼容。
 
 项目/任务与内置 AI 会话的关联保存在 AI 存档中，不改变业务版本、写入授权或目录操作权限。外部 Skill 写入后按最新状态核对，不将内置会话关联当成执行指令。
+
+## AI 历史对话
+
+使用 `conversations` 读取真实 ID、标题、status、updatedAt 和字符串 version。用户明确要求删除时，先核对目标并说明聊天记录不可恢复、项目任务和其他对话已保存的引用快照保留；名称重复则澄清。仅讨论清理建议时不执行。运行中或等待确认的会话不能删除，提示用户先在对话页停止或处理待确认内容。
+
+```sh
+python3 "$SKILL/scripts/workbench.py" conversations
+python3 "$SKILL/scripts/workbench.py" delete-conversation --id ID --updated-at UPDATED_AT --expected-version VERSION --request-id UUID
+```
+
+VERSION 和 UPDATED_AT 必须来自刚读取的目标。成功后再次读取列表，确认该 ID 已消失。结果未知时只用原参数和原 request ID 重试，409 后重新读取并核对；不能自动使用新版本继续删除。内置 AI 使用 `daylight_get_ai` 和 `daylight_propose_ai_changes` 生成待审阅删除草稿，不能代替用户应用，也不能删除正在执行该草稿的自身对话。详见 [API 参考](references/api.md)。

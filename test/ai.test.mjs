@@ -32,6 +32,12 @@ async function fixture(t) {
       const response=await fetch(mcp.env.DAYLIGHT_TOOL_URL,{method:'POST',headers:{Authorization:`Bearer ${mcp.env.DAYLIGHT_TOOL_TOKEN}`},body:JSON.stringify({name:'daylight_propose_proxy_changes',arguments:{summary:'开启 Pi 自动同步',action:{type:'pi.automatic',options:{enabled:true}}}})});
       const result=await response.json();emit({type:'delta',text:result.ok?'Pi 已配置':'未保存'});
     }
+    else if (text.startsWith('delete-conversation:')) {
+      const id=text.slice('delete-conversation:'.length);
+      const target=ai.store.conversations.get(id);
+      const response=await fetch(mcp.env.DAYLIGHT_TOOL_URL,{method:'POST',headers:{Authorization:`Bearer ${mcp.env.DAYLIGHT_TOOL_TOKEN}`},body:JSON.stringify({name:'daylight_propose_ai_changes',arguments:{summary:'删除测试对话',action:{type:'ai.conversation.delete',id,expectedUpdatedAt:target.updatedAt}}})});
+      const result=await response.json();emit({type:'delta',text:result.ok?'对话已删除':'未删除'});
+    }
     else if (text === 'ai-settings') {
       const response=await fetch(mcp.env.DAYLIGHT_TOOL_URL,{method:'POST',headers:{Authorization:`Bearer ${mcp.env.DAYLIGHT_TOOL_TOKEN}`},body:JSON.stringify({name:'daylight_propose_ai_changes',arguments:{summary:'更新 AI 默认模型',action:{type:'ai.settings',settings:{...settings,codex:{...settings.codex,model:'test-qoder',effort:''}}}}})});
       const result=await response.json();emit({type:'delta',text:result.ok?'AI 设置已保存':'未保存'});
@@ -279,4 +285,45 @@ test('Pi operations execute through the AI tool bridge only after user approval'
   const result=await f.api(`conversations/${c.id}/answer`,{id:pending.pending.id,approve:true});assert.equal(result.status,200,JSON.stringify(result));
   await f.wait(c.id,c=>c.status==='idle');
   assert.equal((await f.ai.tool(f.ai.store.conversations.get(c.id),'daylight_get_configuration',{resource:'pi.state'})).automatic.enabled,true);
+});
+
+test('conversation deletion checks target revision, removes disk state, retains tasks and replays receipts', async t => {
+  const f=await fixture(t), target=(await f.api('conversations',{})).conversation;
+  await f.apply({type:'task.create',id:'keep-task',title:'保留任务'});
+  const snapshot=await f.api('state');
+  const request={requestId:crypto.randomUUID(),expectedVersion:snapshot.version,action:{type:'ai.conversation.delete',id:target.id,expectedUpdatedAt:target.updatedAt}};
+  assert.equal((await f.api('actions',{...request,action:{...request.action,expectedUpdatedAt:'stale'}})).status,409);
+  assert.equal((await f.api('actions',{...request,expectedVersion:'stale'})).status,409);
+  assert.equal((await f.api('actions',request)).ok,true);
+  assert.equal((await f.api('conversations/'+target.id)).status,404);
+  const {AIStore}=await import('../ai/store.mjs');
+  assert.equal(new AIStore(f.dir).conversations.has(target.id),false);
+  assert.equal((await f.api('actions',request)).ok,true);
+  assert.equal((await f.api('actions',{...request,action:{...request.action,id:crypto.randomUUID()}})).status,409);
+  assert.equal((await f.state()).tasks[0].id,'keep-task');
+  const other=(await f.api('conversations',{})).conversation;
+  await f.api(`conversations/${other.id}/message`,{text:'ask'});
+  const waiting=await f.wait(other.id,c=>c.status==='waiting');
+  const activeRequest={requestId:crypto.randomUUID(),expectedVersion:(await f.api('state')).version,action:{type:'ai.conversation.delete',id:other.id,expectedUpdatedAt:waiting.updatedAt}};
+  assert.equal((await f.api('actions',activeRequest)).status,409);
+  await f.api(`conversations/${other.id}/cancel`,{});
+  await f.wait(other.id,c=>c.status==='interrupted');
+});
+
+test('AI deletion is inert until reviewed, protects changed targets and cannot delete its own running conversation', async t => {
+  const f=await fixture(t), target=(await f.api('conversations',{})).conversation, caller=(await f.api('conversations',{})).conversation;
+  await f.api(`conversations/${caller.id}/message`,{text:'delete-conversation:'+target.id});
+  const pending=await f.wait(caller.id,c=>c.pending?.type==='aiChanges');
+  assert.equal((await f.api('conversations/'+target.id)).status,200);
+  assert.match(pending.pending.impact[0],/无法撤销/);
+  const stored=f.ai.store.conversations.get(target.id);stored.messages.push({role:'user',text:'changed'});f.ai.store.save(stored);
+  assert.equal((await f.api(`conversations/${caller.id}/answer`,{id:pending.pending.id,approve:true})).status,409);
+  await f.api(`conversations/${caller.id}/answer`,{id:pending.pending.id,approve:false});
+  await f.wait(caller.id,c=>c.status==='idle');
+  await f.api(`conversations/${caller.id}/message`,{text:'delete-conversation:'+target.id});
+  const fresh=await f.wait(caller.id,c=>c.pending?.type==='aiChanges');
+  await assert.rejects(f.ai.tool(f.ai.store.conversations.get(caller.id),'daylight_propose_ai_changes',{summary:'删除自身',action:{type:'ai.conversation.delete',id:caller.id,expectedUpdatedAt:f.ai.store.conversations.get(caller.id).updatedAt}}),/请先结束/);
+  assert.equal((await f.api(`conversations/${caller.id}/answer`,{id:fresh.pending.id,approve:true})).status,200);
+  const done=await f.wait(caller.id,c=>c.status==='idle');assert.match(done.messages.at(-1).text,/对话已删除/);
+  assert.equal((await f.api('conversations/'+target.id)).status,404);
 });

@@ -33,6 +33,12 @@ def main():
     group.add_argument('--unassigned', action='store_true')
     tasks.add_argument('--query')
     tasks.add_argument('--date')
+    commands.add_parser('conversations', help='读取 AI 会话列表、版本和 updatedAt')
+    delete = commands.add_parser('delete-conversation', help='删除明确指定的已结束对话；不可撤销')
+    delete.add_argument('--id', required=True)
+    delete.add_argument('--updated-at', required=True)
+    delete.add_argument('--expected-version', required=True)
+    delete.add_argument('--request-id', required=True)
     export = commands.add_parser('export')
     export.add_argument('--out', required=True, help='New output file; existing files are never overwritten')
     apply = commands.add_parser('apply')
@@ -61,6 +67,12 @@ def main():
             params['unassigned'] = '1'
         route = '/api/v1/tasks?' + urllib.parse.urlencode(params)
     payload = None
+    if args.command == 'conversations':
+        route = '/api/v1/ai/state'
+    if args.command == 'delete-conversation':
+        route = '/api/v1/ai/actions'
+        payload = {'requestId': args.request_id, 'expectedVersion': args.expected_version,
+                   'action': {'type': 'ai.conversation.delete', 'id': args.id, 'expectedUpdatedAt': args.updated_at}}
     if args.command == 'apply':
         action = json.load(sys.stdin) if args.file == '-' else json.loads(Path(args.file).expanduser().read_text())
         payload = {'requestId': args.request_id, 'expectedVersion': args.expected_version, 'action': action}

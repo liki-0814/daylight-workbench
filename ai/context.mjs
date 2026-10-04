@@ -1,3 +1,4 @@
+import { httpError } from './http.mjs';
 import { selectTasks } from '../public/task-view.js';
 
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
@@ -60,4 +61,18 @@ export function relatedReasons(c, target, state) {
     return exact(ref) || belongs(ref) || (target.kind === 'project' && a.projectId === target.id);
   }))) reasons.push('曾更新');
   return reasons;
+}
+
+export function referenceSnapshots(ids, currentId, conversations) {
+  if (ids === undefined) return [];
+  if (!Array.isArray(ids) || ids.length > 3 || ids.some(id => typeof id !== 'string')) throw httpError('一次最多引用 3 段对话');
+  let size = 0;
+  return [...new Set(ids)].map(id => {
+    const c = conversations.get(id);
+    if (!c || id === currentId) throw httpError('引用对话不存在或与当前对话相同');
+    const messages = c.messages.map(({role,text}) => ({role,text}));
+    size += JSON.stringify(messages).length;
+    if (size > 120000) throw httpError('引用内容超过 120000 字符，请减少引用对话，或先在原对话中整理摘要');
+    return { id, title: c.title, backend: c.backend, capturedAt: new Date().toISOString(), messages };
+  });
 }
