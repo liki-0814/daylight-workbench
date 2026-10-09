@@ -1,0 +1,152 @@
+[
+  {
+    "accountWidth": 1034,
+    "height": 73,
+    "loginHidden": false,
+    "overflow": false,
+    "provider": "Qoder",
+    "width": 1360,
+    "x": 282,
+    "y": 547
+  },
+  {
+    "accountWidth": 1034,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "AGY",
+    "width": 1360,
+    "x": 282,
+    "y": 547
+  },
+  {
+    "accountWidth": 1034,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Grok",
+    "width": 1360,
+    "x": 282,
+    "y": 547
+  },
+  {
+    "accountWidth": 1034,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Codex",
+    "width": 1360,
+    "x": 282,
+    "y": 547
+  },
+  {
+    "accountWidth": 1034,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Kimi",
+    "width": 1360,
+    "x": 282,
+    "y": 547
+  },
+  {
+    "accountWidth": 536,
+    "height": 73,
+    "loginHidden": false,
+    "overflow": false,
+    "provider": "Qoder",
+    "width": 800,
+    "x": 237,
+    "y": 547
+  },
+  {
+    "accountWidth": 536,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "AGY",
+    "width": 800,
+    "x": 237,
+    "y": 547
+  },
+  {
+    "accountWidth": 536,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Grok",
+    "width": 800,
+    "x": 237,
+    "y": 547
+  },
+  {
+    "accountWidth": 536,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Codex",
+    "width": 800,
+    "x": 237,
+    "y": 547
+  },
+  {
+    "accountWidth": 536,
+    "height": 73,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Kimi",
+    "width": 800,
+    "x": 237,
+    "y": 547
+  },
+  {
+    "accountWidth": 352,
+    "height": 82,
+    "loginHidden": false,
+    "overflow": false,
+    "provider": "Qoder",
+    "width": 390,
+    "x": 19,
+    "y": 538
+  },
+  {
+    "accountWidth": 352,
+    "height": 82,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "AGY",
+    "width": 390,
+    "x": 19,
+    "y": 538
+  },
+  {
+    "accountWidth": 352,
+    "height": 82,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Grok",
+    "width": 390,
+    "x": 19,
+    "y": 538
+  },
+  {
+    "accountWidth": 352,
+    "height": 82,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Codex",
+    "width": 390,
+    "x": 19,
+    "y": 538
+  },
+  {
+    "accountWidth": 352,
+    "height": 82,
+    "loginHidden": true,
+    "overflow": false,
+    "provider": "Kimi",
+    "width": 390,
+    "x": 19,
+    "y": 538
+  }
+]

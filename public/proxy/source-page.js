@@ -17,7 +17,7 @@ export function createSourcePage({store,source,name,confirmAction}){
   const identityKey=description?.identityKey;if(identity!==identityKey){identity=identityKey;models.reset();quota.reset();if(visible){models.setVisible(true);quota.setVisible(true);}}
   quota.element.hidden=!description?.capabilities.quota;
   const locked=authentication.requiresStoppedService&&status?.state!=='stopped',action=$('[data-action]');
-  const operation=account&&ops.includes('logout')?'logout':ops.includes('login')?'login':null;
+  const operation=account&&ops.includes('logout')?'logout':!connected&&ops.includes('login')?'login':null;
   action.hidden=locked||!operation;action.dataset.operation=operation||'';
   action.textContent=operation==='logout'?'退出账号':'网页登录';action.disabled=busy||!description||!!status?.runtimeError;
   const refresh=$('[data-refresh-account]');refresh.hidden=!ops.includes('refresh');setRefreshState(refresh,{loading:busy,disabled:busy||!!status?.runtimeError});

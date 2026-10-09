@@ -8,8 +8,18 @@
   "build": "npm run dist:mac passed; DMG verified with hdiutil",
   "bundle": "Packaged source-page.js and proxy.css match minified source",
   "browser": {
-    "providers": ["Qoder", "AGY", "Grok", "Codex", "Kimi"],
-    "widths": [1360, 800, 390],
+    "providers": [
+      "Qoder",
+      "AGY",
+      "Grok",
+      "Codex",
+      "Kimi"
+    ],
+    "widths": [
+      1360,
+      800,
+      390
+    ],
     "layoutEvidence": "layout.json",
     "horizontalOverflow": false,
     "keyboardTabSelection": "ArrowLeft from Kimi selected Codex and retained tab focus",
@@ -20,5 +30,26 @@
     "screenshot": "installed-kimi.png",
     "dataEvidence": "installation.json"
   },
-  "limits": "No login/logout or paid inference initiated; browser geometry checks and installed Kimi screenshot do not constitute exhaustive authentication E2E."
+  "limits": "No login/logout or paid inference initiated; browser geometry checks and installed Kimi screenshot do not constitute exhaustive authentication E2E.",
+  "followup": {
+    "date": "2026-10-09",
+    "changes": [
+      "Hide login when source is connected",
+      "Keep shared account information at compact-button minimum height even without actions"
+    ],
+    "validation": [
+      "npm run check passed",
+      "npm test: 333 passed",
+      "npm run dist:mac passed; hdiutil verify passed",
+      "Five source tabs switched at 1360/800/390 widths: matching account dimensions, no overflow",
+      "Installed running proxy: Qoder without actions matches Kimi account height; connected Kimi has refresh only",
+      "Installed bundle equals built bundle; signature verified; task and conversation state preserved"
+    ],
+    "evidence": [
+      "followup-layout.json",
+      "followup-installation.json",
+      "installed-kimi-followup.png",
+      "installed-qoder-followup.png"
+    ]
+  }
 }
