@@ -1,14 +1,25 @@
 import AppKit
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKDownloadDelegate, WKUIDelegate {
+private final class MenuAction: NSObject {
+    let invoke: () -> Void
+    init(_ invoke: @escaping () -> Void) { self.invoke = invoke }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKDownloadDelegate, WKUIDelegate, NSMenuDelegate {
     let server: WorkbenchServer
     var window: NSWindow!
     var web: WKWebView!
     var status: NSStatusItem!
     var launcher: Launcher!
     var timer: Timer?
-    var actions: [String: () -> Void] = [:]
+    var focusTray: FocusTray!
+    var focusNotifications: FocusNotifications!
+    var wakeObserver: NSObjectProtocol?
+    var traySnapshot: [String: Any]?
+    var pendingTraySnapshot: [String: Any]?
+    var menuTracking = false
+    var trayTicks = 0
     init(_ server: WorkbenchServer) { self.server = server }
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { try server.start { error in
@@ -18,11 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     func fail(_ error: Error) { let alert = NSAlert(); alert.messageText = "Daylight"; alert.informativeText = error.localizedDescription; alert.runModal() }
     func item(_ title: String, key: String = "", action: @escaping () -> Void) -> NSMenuItem {
-        let id = UUID().uuidString; actions[id] = action
         let result = NSMenuItem(title: title, action: #selector(performItem(_:)), keyEquivalent: key)
-        result.target = self; result.representedObject = id; return result
+        // AppKit can deliver the action after menuDidClose has rebuilt the menu.
+        // Its sender owns the callback until delivery, independently of the current menu.
+        result.target = self; result.representedObject = MenuAction(action); return result
     }
-    @objc func performItem(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { actions[id]?() } }
+    @objc func performItem(_ sender: NSMenuItem) { (sender.representedObject as? MenuAction)?.invoke() }
     func setup() {
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu(); appItem.submenu = appMenu; menu.addItem(appItem)
@@ -39,17 +51,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.mainMenu = menu
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua); window.backgroundColor = NSColor(calibratedRed: 0.97, green: 0.98, blue: 0.96, alpha: 1); window.title = "Daylight · 任务管理"; window.minSize = NSSize(width: 760, height: 560); window.isReleasedWhenClosed = false; window.center()
+        focusTray = FocusTray(server: server, show: { [weak self] in self?.show($0) }, fail: { [weak self] in self?.fail($0) })
+        focusNotifications = FocusNotifications(server: server, show: { [weak self] in self?.show($0) })
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
+        config.userContentController.add(focusNotifications, name: "focusNotifications")
         web = WKWebView(frame: .zero, configuration: config); web.navigationDelegate = self; web.uiDelegate = self; window.contentView = web
+        focusNotifications.attach(web)
         web.load(URLRequest(url: URL(string: server.endpoint + "/")!))
         launcher = Launcher(server: server); launcher.install()
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         status.button?.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Daylight")
         server.onChange = { [weak self] in self?.updateTray() }
-        updateTray(); timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.updateTray() }
+        server.onFocusChange = { [weak self] in self?.updateTray() }
+        updateTray()
+        timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.focusTray.updateText()
+            if let tray = self.traySnapshot?["tray"] as? [String: Any], let pending = tray["pending"] as? [[String: Any]] { self.status.button?.title = self.focusTray.title(pendingCount: pending.count) }
+            self.trayTicks += 1; if self.trayTicks % 30 == 0 { self.updateTray() }
+        }
+        RunLoop.main.add(timer!, forMode: .common)
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.focusNotifications.refreshPermission(); self?.updateTray() }
         show()
     }
-    func applicationWillTerminate(_ notification: Notification) { launcher?.stop(); server.proxy.shutdown(); server.ai.shutdown() }
+    func applicationWillTerminate(_ notification: Notification) {
+        timer?.invalidate(); focusNotifications?.stop(); launcher?.stop()
+        if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
+        server.queue.async { self.server.focus.close() }
+        server.proxy.shutdown(); server.ai.shutdown()
+    }
+    func applicationDidBecomeActive(_ notification: Notification) { focusNotifications?.refreshPermission(); if status != nil { updateTray() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { show(); return true }
     func show(_ route: String? = nil) {
@@ -58,17 +89,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
     func updateTray() {
-        let snapshot = server.queue.sync { server.snapshot }
+        server.traySnapshot { [weak self] snapshot in
+            guard let self else { return }
+            if let focus = snapshot["focus"] as? [String: Any] { self.focusTray.update(focus); self.focusNotifications.process(focus) }
+            if self.menuTracking { self.pendingTraySnapshot = snapshot; return }
+            self.rebuildTray(snapshot)
+        }
+    }
+    func menuWillOpen(_ menu: NSMenu) { menuTracking = true; updateTray() }
+    func menuDidClose(_ menu: NSMenu) {
+        menuTracking = false
+        if let snapshot = pendingTraySnapshot { pendingTraySnapshot = nil; rebuildTray(snapshot) }
+        else { updateTray() }
+    }
+    func rebuildTray(_ snapshot: [String: Any]) {
+        traySnapshot = snapshot
         let state = snapshot["state"] as! [String: Any], version = snapshot["version"] as! Int
-        let tray = server.queue.sync { try! server.js("getTrayState(\(try! jsonText(state)),localDate())") as! [String: Any] }
+        guard let tray = snapshot["tray"] as? [String: Any] else { return }
         let tasks = tray["pending"] as! [[String: Any]]
         let projects = state["projects"] as! [[String: Any]]
         let today = tray["today"] as! [[String: Any]], other = tray["other"] as! [[String: Any]]
         let ids = today.map { $0["id"] as! String }
-        status.button?.title = " 待办 \(tasks.count)"
-        // Keep only application menu callbacks; discard closures owned by the previous tray menu.
-        if let old = status.menu { clearActions(old) }
-        let menu = NSMenu()
+        status.button?.title = focusTray.title(pendingCount: tasks.count)
+        let menu = NSMenu(); menu.delegate = self
+        for item in focusTray.items(make: { title, action in self.item(title, action: action) }) { menu.addItem(item) }
         func label(_ title: String) { let item = NSMenuItem(title: title, action: nil, keyEquivalent: ""); item.isEnabled = false; menu.addItem(item) }
         for (title, group) in [("今日任务", today), ("其他待办", other)] {
             label("\(title) · \(group.count)")
@@ -81,6 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 let info = NSMenuItem(title: project, action: nil, keyEquivalent: ""); info.isEnabled = false; sub.addItem(info)
                 sub.addItem(item("标记完成") { self.apply(["type": "task.status", "id": id, "status": "done"], version) })
                 sub.addItem(item(active ? "暂停任务" : "开始任务") { self.apply(["type": "task.status", "id": id, "status": active ? "todo" : "active"], version) })
+                sub.addItem(item("开始专注") { self.focusTray.start(taskId: id) })
                 sub.addItem(item(ids.contains(id) ? "移出今天" : "加入今天") { self.apply(["type": ids.contains(id) ? "plan.remove" : "plan.add", "id": id], version) })
                 sub.addItem(item("查看任务") { self.show("task=" + (id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)) })
             }
@@ -88,11 +133,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             menu.addItem(.separator())
         }
         menu.addItem(item("新建任务…") { self.show("new") }); menu.addItem(item("快速搜索…") { self.launcher.toggle() }); menu.addItem(item("打开工作台") { self.show("today") })
+        menu.addItem(item("打开日历") { self.show("calendar") }); menu.addItem(item("查看专注统计") { self.show("focus") })
         menu.addItem(item("打开数据目录") { NSWorkspace.shared.open(self.server.directory) })
         menu.addItem(.separator()); menu.addItem(withTitle: "退出 Daylight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         status.menu = menu
     }
-    func clearActions(_ menu: NSMenu) { for item in menu.items { if let id = item.representedObject as? String { actions.removeValue(forKey: id) }; if let sub = item.submenu { clearActions(sub) } } }
     func apply(_ action: [String: Any], _ version: Int) {
         var request = URLRequest(url: URL(string: server.endpoint + "/api/v1/actions")!); request.httpMethod = "POST"
         request.setValue("Bearer " + server.agentToken, forHTTPHeaderField: "Authorization"); request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -131,7 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
 let env = ProcessInfo.processInfo.environment
 let headless = CommandLine.arguments.contains("--headless")
-if !headless, let existing = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == Bundle.main.bundleIdentifier && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) { existing.activate(options: [.activateAllWindows]); exit(0) }
+// GUI acceptance may use a separate temporary directory and port without disturbing an installed instance.
+let isolatedGUI = CommandLine.arguments.contains("--isolated-gui") && env["WORKBENCH_DATA_DIR"] != nil && env["PORT"] != nil && env["PORT"] != "4318"
+if !headless && !isolatedGUI, let existing = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == Bundle.main.bundleIdentifier && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) { existing.activate(options: [.activateAllWindows]); exit(0) }
 let resources = Bundle.main.resourceURL!
 let directory = env["WORKBENCH_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Daylight")
 do {

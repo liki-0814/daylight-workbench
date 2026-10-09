@@ -1,0 +1,38 @@
+{
+  "pid": 81182,
+  "expectedBinarySHA256": "8950c2ea44e12885b6252a832ec354ff85f5b92bd572ce2218e61ac5e68a3c3f",
+  "kind": "real installed App, precise-PID read-only task/calendar navigation and single-window captures",
+  "OSNotificationPermissionRequested": false,
+  "businessMutationsRequested": false,
+  "wholeDesktopCaptured": false,
+  "inputValuesOutput": false,
+  "actions": [
+    {
+      "label": "任务",
+      "AXPress": 0,
+      "purpose": "normalize verified read-only plain root to canonical tasks route"
+    }
+  ],
+  "pages": [],
+  "startupNormalization": {
+    "defaultRootVerified": true,
+    "exactReadOnlyInputsVerified": true,
+    "emptySearchVerified": true,
+    "businessMutationRequested": false
+  },
+  "preflight": {
+    "URLSafe": true,
+    "page": "tasks",
+    "count": 1,
+    "webAreaCount": 1,
+    "windowCount": 1,
+    "dialogOrSheetCount": 0,
+    "controlCount": 2,
+    "unknownControlCount": 0,
+    "verifiedLabels": true,
+    "emptySearch": true,
+    "safeToReplaceUI": true
+  },
+  "passed": false,
+  "error": "Installed presentation resources differ from the verified workspace"
+}

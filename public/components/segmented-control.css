@@ -1,0 +1,51 @@
+.ui-segmented-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  gap: var(--field-label-gap);
+}
+
+.ui-segmented-label {
+  color: var(--muted);
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line);
+}
+
+.ui-segmented {
+  --segmented-inset: 3px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--segmented-inset);
+  min-height: var(--compact-control-height);
+  padding: var(--segmented-inset);
+  background: var(--soft);
+  border-radius: 9px;
+  font-size: var(--font-compact-size);
+  line-height: var(--font-compact-line);
+}
+
+.ui-segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--compact-control-height) - var(--segmented-inset) * 2);
+  border: 0;
+  background: transparent;
+  padding: 0 var(--compact-button-padding-inline);
+  border-radius: var(--button-radius);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ui-segmented button[aria-checked=true] {
+  background: var(--paper);
+  color: var(--workbench-text);
+  box-shadow: 0 1px 3px #0001;
+}
+
+.ui-segmented button:disabled {
+  opacity: var(--button-disabled-opacity);
+  cursor: default;
+}

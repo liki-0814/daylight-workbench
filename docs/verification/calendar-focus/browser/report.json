@@ -1,0 +1,66 @@
+{
+  "checks": [
+    {
+      "name": "calendar visible",
+      "ok": true
+    },
+    {
+      "name": "date details count",
+      "ok": true
+    },
+    {
+      "name": "wide no overflow",
+      "ok": true
+    },
+    {
+      "name": "calendar arrow key selection",
+      "ok": true
+    },
+    {
+      "name": "atomic reschedule dedup",
+      "ok": true
+    },
+    {
+      "name": "undo restores source and target",
+      "ok": true
+    },
+    {
+      "name": "future creation stays on chosen date",
+      "ok": true
+    },
+    {
+      "name": "task focus summary visible",
+      "ok": true
+    },
+    {
+      "name": "focus does not start task",
+      "ok": true
+    },
+    {
+      "name": "focus pause resume finish history",
+      "ok": true
+    },
+    {
+      "name": "statistics narrow no overflow",
+      "ok": true
+    },
+    {
+      "name": "calendar narrow no overflow",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "calendar-wide.png",
+    "task-focus-summary.png",
+    "focus-running.png",
+    "focus-statistics-wide.png",
+    "focus-statistics-narrow.png",
+    "calendar-narrow.png"
+  ]
+}

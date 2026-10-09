@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-10-07T12:32:01.044Z",
+  "viewport": {
+    "width": 1440,
+    "height": 1100,
+    "deviceScaleFactor": 1,
+    "mobile": false
+  },
+  "browser": "Independent headless Chrome; disposable profile",
+  "model": "Codex mock adapter only; no external model inference",
+  "scope": {
+    "ui": "Current complete app, public/ai.js and public/focus/draft-card.js via actual temporary Node HTTP service",
+    "review": "Real local tool proposal -> focus prepare -> pending card. Synthetic task/current session seeded 8 minutes 20 seconds into a 25-minute work phase.",
+    "recovery": "Real approved focus.pause save, then controlled conversation fixture restores submitted-before-result state; actual service restart maps submitted to unknown. Original approved body/impact preserved. This simulates the crash window, not an actual process crash.",
+    "notVerified": [
+      "Native App rendering",
+      "Installed App",
+      "OS notifications",
+      "Real external model inference",
+      "Actual crash timing"
+    ]
+  },
+  "checks": [
+    {
+      "name": "actual local tool produces focus draft",
+      "ok": true
+    },
+    {
+      "name": "prepare returns trusted title, phase, target, elapsed and remaining",
+      "ok": true,
+      "detail": {
+        "title": "完善专注统计页面",
+        "phase": "work",
+        "targetMs": 1500000,
+        "elapsedMs": 500065,
+        "remainingMs": 999935
+      }
+    },
+    {
+      "name": "ai-focus-review card fully visible without page overflow",
+      "ok": true,
+      "detail": {
+        "text": "审阅专注变更\n\n暂停「完善专注统计页面」这一轮工作计时，稍后继续。\n\n暂停计时 · 工作\n\n任务：完善专注统计页面\n\n时长：25 分钟\n\n已计时：8 分钟 · 剩余：16 分钟\n\n操作详情\n\n草稿有效至 20:42:01；状态变化后须重新核对。\n\n计时不会自动完成任务；专注历史不能用任务撤销恢复。设置变更不会弹出系统通知授权。\n\n取消草稿\n应用专注变更",
+        "bounds": {
+          "x": 530,
+          "y": 380,
+          "width": 838,
+          "height": 380
+        },
+        "wholeCardVisible": true,
+        "viewportWidth": 1440,
+        "documentWidth": 1440
+      }
+    },
+    {
+      "name": "ai-focus-review shows all trusted review fields",
+      "ok": true,
+      "detail": "审阅专注变更\n\n暂停「完善专注统计页面」这一轮工作计时，稍后继续。\n\n暂停计时 · 工作\n\n任务：完善专注统计页面\n\n时长：25 分钟\n\n已计时：8 分钟 · 剩余：16 分钟\n\n操作详情\n\n草稿有效至 20:42:01；状态变化后须重新核对。\n\n计时不会自动完成任务；专注历史不能用任务撤销恢复。设置变更不会弹出系统通知授权。\n\n取消草稿\n应用专注变更"
+    },
+    {
+      "name": "approved pause actually saved with mock waiter resolved once",
+      "ok": true
+    },
+    {
+      "name": "actual restart retains original approved body and trusted impact in unknown state",
+      "ok": true
+    },
+    {
+      "name": "ai-focus-recovery card fully visible without page overflow",
+      "ok": true,
+      "detail": {
+        "text": "上次专注提交待核对\n\n暂停「完善专注统计页面」这一轮工作计时，稍后继续。\n\n暂停计时 · 工作\n\n任务：完善专注统计页面\n\n时长：25 分钟\n\n已计时：8 分钟 · 剩余：16 分钟\n\n操作详情\n\n响应未确认，操作可能已经执行。核对只重试已批准的原请求，不创建新操作。\n\n核对原请求",
+        "bounds": {
+          "x": 530,
+          "y": 446,
+          "width": 838,
+          "height": 346
+        },
+        "wholeCardVisible": true,
+        "viewportWidth": 1440,
+        "documentWidth": 1440
+      }
+    },
+    {
+      "name": "ai-focus-recovery shows all trusted review fields",
+      "ok": true,
+      "detail": "上次专注提交待核对\n\n暂停「完善专注统计页面」这一轮工作计时，稍后继续。\n\n暂停计时 · 工作\n\n任务：完善专注统计页面\n\n时长：25 分钟\n\n已计时：8 分钟 · 剩余：16 分钟\n\n操作详情\n\n响应未确认，操作可能已经执行。核对只重试已批准的原请求，不创建新操作。\n\n核对原请求"
+    },
+    {
+      "name": "unknown recovery offers original request verification without cancel",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true
+    }
+  ],
+  "exceptions": [],
+  "screenshots": [
+    "ai-focus-review.png",
+    "ai-focus-recovery.png"
+  ],
+  "sourceSha256": {
+    "public/ai.js": "661e2e0c9be49ea5bb9ec8f800d8087188e81f01cbedecc7f3cd700bbf94f0b1",
+    "public/focus/draft-card.js": "b33ced5a44567cad5b9f8012e68c6c4021c2870ca58bb6402149ae3eb6812a2b",
+    "core/focus-write.js": "222534bf7f6b5166c3254bddb92e4dfc7b3bc5943186ae3f898dc8aebdf15e5d",
+    "ai/focus-submissions.mjs": "10cc91a3640a8b86fc44c5f32bc11548694ccd122541ebe3a7b28407e91c1464",
+    "dist/native/Daylight.app/Contents/MacOS/Daylight": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15"
+  },
+  "cleanup": {
+    "profileRemoved": true,
+    "dataRemoved": true,
+    "temporaryServicesStopped": true,
+    "browserStopped": true,
+    "installedAppTouched": false,
+    "userDataTouched": false
+  },
+  "servicePorts": [
+    55270,
+    55303
+  ],
+  "browserPID": 60047,
+  "passed": true
+}

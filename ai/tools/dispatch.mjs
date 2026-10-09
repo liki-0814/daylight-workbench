@@ -4,10 +4,26 @@ import { buildContext } from '../context.mjs';
 import { httpError } from '../http.mjs';
 import { validateAction, normalizeAction, impact } from '../drafts.mjs';
 import { definitions } from './definitions.mjs';
+import { assertFocusDraftAllowed } from '../focus-submissions.mjs';
 
 export function createToolDispatch({ api, get, aiState, prepareAI, pending }) {
   async function tool(c, name, args = {}) {
     if (!definitions.some(t => t.name === name)) throw httpError('未知工作台工具');
+    const reads = {daylight_get_calendar:'calendar',daylight_get_focus:'focus/state',daylight_get_focus_statistics:'focus/statistics',daylight_get_focus_sessions:'focus/sessions',daylight_get_task_focus_summary:'focus/task-summary'};
+    if (reads[name]) {
+      const definition=definitions.find(t=>t.name===name),allowed=Object.keys(definition.inputSchema.properties);
+      if (!args || typeof args!=='object' || Array.isArray(args) || Object.keys(args).some(key=>!allowed.includes(key))) throw httpError('查询包含未知字段');
+      const params=Object.fromEntries(Object.entries(args).filter(([key,value])=>value!==undefined&&!(key==='unassigned'&&value===false)).map(([key,value])=>[key,key==='unassigned'&&value===true?'1':value]));
+      return api(reads[name],undefined,params);
+    }
+    if (name === 'daylight_propose_focus_changes') {
+      if (!args || Object.keys(args).some(key=>!['summary','action'].includes(key)) || typeof args.summary!=='string' || !args.summary.trim()) throw httpError('需要专注动作和变更说明');
+      assertFocusDraftAllowed(c);
+      await api('focus/state');
+      const prepared=await api('focus/prepare',{action:args.action});
+      assertFocusDraftAllowed(c);
+      return pending(c,{type:'focusChanges',summary:args.summary,action:prepared.normalizedAction,version:prepared.focusVersion,taskVersion:prepared.taskVersion,requestId:randomUUID(),...(prepared.expiresAt===undefined?{}:{expiresAt:prepared.expiresAt}),impact:prepared.impact});
+    }
     if (name === 'daylight_get_configuration') return api('proxy/read', args);
     if (name === 'daylight_get_ai') return args.conversationId ? {conversation:get(args.conversationId)} : aiState();
     if (name === 'daylight_propose_ai_changes') {

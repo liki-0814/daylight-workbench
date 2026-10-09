@@ -2,6 +2,7 @@ import { actionLinks } from './components/action-links.js';
 import { conversationRoute } from './routes.js';
 import { markdown, processMessage } from './components/ai-message.js';
 import { selectField } from './components/select.js';
+import { focusDraftCard, focusSubmissionCard } from './focus/draft-card.js';
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const running = c => c && ['running', 'waiting'].includes(c.status);
 export function createAIPage({ getToken, onChanged }) {
@@ -46,7 +47,7 @@ export function createAIPage({ getToken, onChanged }) {
   const objectLabel = ref => ref.kind === 'project' ? workspace.projects.find(p=>p.id===ref.id)?.name || '项目已删除' : workspace.tasks.find(t=>t.id===ref.id)?.title || '任务已删除';
   const api = async (route, data) => {
     const res = await fetch('/api/ai' + route, { method: data === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', 'X-Workbench-Token': getToken() }, ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
-    const result = await res.json(); if (!res.ok) throw Object.assign(new Error(result.error || 'AI 请求失败'),{status:res.status}); return result;
+    const result = await res.json(); if (!res.ok) throw Object.assign(new Error(result.error || 'AI 请求失败'),{...result,status:res.status}); return result;
   };
   const error = e => { $('.ai-error').textContent = e?.message || ''; };
   function paint() {
@@ -63,11 +64,12 @@ export function createAIPage({ getToken, onChanged }) {
       const nearBottom = document.documentElement.scrollHeight - innerHeight - scrollY < 220;
       const disclosures = new Map([...$('.ai-messages').querySelectorAll('[data-disclosure]')].map(el => [el.dataset.disclosure,el.open]));
       lastMessages = messages;
-      $('.ai-messages').innerHTML = c?.messages.length ? c.messages.map(m => m.role === 'process' ? processMessage(m) : `<article class="ai-message ai-${esc(m.role)}">${m.role === 'operation' ? '<div class="ai-message-label">工作台</div>' : ''}<div class="ai-message-text ${m.role === 'assistant' ? 'ai-markdown' : ''}">${m.role === 'assistant' ? markdown(m.text) : esc(m.text)}</div>${m.references?.length ? `<div class="ai-source-links">${m.references.map(r => `<button type="button" class="text-button" data-conversation="${esc(r.id)}">@ ${esc(r.title)}</button>`).join('')}</div>` : ''}${m.context?.objectReferences?.length ? `<div class="ai-source-links">${m.context.objectReferences.map(r=>`<a class="text-button" href="#${r.kind}=${encodeURIComponent(r.id)}">@ ${esc(r.label)}</a>`).join('')}</div>` : ''}${m.skills?.length ? `<div class="ai-source-links">${m.skills.map(s => `<span class="muted">/ ${esc(s.name)}</span>`).join('')}</div>` : ''}${m.action ? actionLinks(m.action) : ''}</article>`).join('') : `<div class="ai-welcome"><span class="ai-orbit">✳</span><h2>把想法变成下一步</h2><p>可以一起梳理项目、完善任务内容，或安排今天。<br>不清楚的地方先问你，变更审阅后再保存。</p><div class="ai-suggestions"><button type="button" data-prompt="先查看我的项目和任务，帮我梳理下一步。不要直接创建任务，有不清楚的先问我。">梳理项目</button><button type="button" data-prompt="帮我安排今天。先了解我的时间和优先级，再给出建议。">安排今天</button></div></div>`;
+      $('.ai-messages').innerHTML = c?.messages.length ? c.messages.map(m => m.role === 'process' ? processMessage(m) : `<article class="ai-message ai-${esc(m.role)}">${m.role === 'operation' ? '<div class="ai-message-label">工作台</div>' : ''}<div class="ai-message-text ${m.role === 'assistant' ? 'ai-markdown' : ''}">${m.role === 'assistant' ? markdown(m.text) : esc(m.text)}</div>${m.references?.length ? `<div class="ai-source-links">${m.references.map(r => `<button type="button" class="text-button" data-conversation="${esc(r.id)}">@ ${esc(r.title)}</button>`).join('')}</div>` : ''}${m.context?.objectReferences?.length ? `<div class="ai-source-links">${m.context.objectReferences.map(r=>`<a class="text-button" href="#${r.kind}=${encodeURIComponent(r.id)}">@ ${esc(r.label)}</a>`).join('')}</div>` : ''}${m.skills?.length ? `<div class="ai-source-links">${m.skills.map(s => `<span class="muted">/ ${esc(s.name)}</span>`).join('')}</div>` : ''}${m.action ? actionLinks(m.action,m.day) : ''}</article>`).join('') : `<div class="ai-welcome"><span class="ai-orbit">✳</span><h2>把想法变成下一步</h2><p>可以一起梳理项目、完善任务内容，或安排今天。<br>不清楚的地方先问你，变更审阅后再保存。</p><div class="ai-suggestions"><button type="button" data-prompt="先查看我的项目和任务，帮我梳理下一步。不要直接创建任务，有不清楚的先问我。">梳理项目</button><button type="button" data-prompt="帮我安排今天。先了解我的时间和优先级，再给出建议。">安排今天</button></div></div>`;
       $('.ai-messages').querySelectorAll('[data-disclosure]').forEach(el => { if (disclosures.has(el.dataset.disclosure)) el.open=disclosures.get(el.dataset.disclosure); });
       if (nearBottom && c?.messages.length && visible) requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
     }
-    if ((c?.pending?.id || null) !== pendingId) { pendingId = c?.pending?.id || null; renderPending(c?.pending); }
+    const pendingKey=c?.focusSubmission && !c.focusSubmission.acknowledged ? `${c.focusSubmission.id}:${c.focusSubmission.status}:${c.pending?.id || ''}:${JSON.stringify(c.focusSubmission.error || c.focusSubmission.result?.error || '')}` : c?.pending?.id || null;
+    if (pendingKey !== pendingId) { pendingId = pendingKey; renderPending(c?.pending); }
     $('.ai-stop').hidden = !running(c);
     $('.ai-send').disabled = busy || running(c);
     $('.ai-new').disabled = busy;
@@ -77,14 +79,18 @@ export function createAIPage({ getToken, onChanged }) {
     if (c?.error) $('.ai-error').textContent = c.error;
   }
   function renderPending(p) {
+    const submission=current?.focusSubmission, recovery=submission&&!submission.acknowledged?focusSubmissionCard(submission,workspace):'';
+    if (recovery && (!p || p.type==='focusChanges'&&p.id===submission.id)) { $('.ai-pending').innerHTML=recovery; return; }
+    if (p?.type==='focusChanges') { $('.ai-pending').innerHTML=recovery+focusDraftCard(p,workspace); return; }
     if (!p) { $('.ai-pending').replaceChildren(); return; }
     if (p.type === 'permission') $('.ai-pending').innerHTML = `<div class="ai-card"><h3>${current?.backend === 'qoder' ? 'Qoder' : 'Codex'} 请求确认</h3><p>${esc(p.question)}</p><pre class="ai-permission-details">${esc(p.details)}</pre><div class="ai-card-actions"><button type="button" class="secondary" data-reject>拒绝</button><button type="button" class="primary" data-apply>允许本次</button></div></div>`;
     else if (['proxyChanges','aiChanges'].includes(p.type)) $('.ai-pending').innerHTML = `<div class="ai-card"><h3>审阅配置变更</h3><p>${esc(p.summary)}</p>${(p.impact||[]).map(t=>`<p class="ai-impact">${esc(t)}</p>`).join('')}<details open><summary>配置详情</summary><pre class="ai-permission-details">${esc(JSON.stringify(p.action,null,2))}</pre></details>${(p.requiresKeys?.length?p.requiresKeys:p.requiresKey?[{id:'default',label:'API Key'}]:[]).map(k=>`<label>${esc(k.label)}<input type="password" data-proxy-key-id="${esc(k.id)}" autocomplete="new-password" placeholder="安全填写，不会进入对话" required></label>`).join('')}<div class="ai-card-actions"><button type="button" class="secondary" data-reject>取消草稿</button><button type="button" class="primary" data-apply>应用变更</button></div><small>配置变化后需要重新核对。连接测试不发送推理请求。</small></div>`;
     else if (p.type === 'question') $('.ai-pending').innerHTML = `<form class="ai-answer-form ai-card"><h3>需要你补充</h3><p>${esc(p.question)}</p><label>你的回答<textarea name="answer" rows="3" required maxlength="10000"></textarea></label><button class="primary" type="submit">继续</button></form>`;
     else {
       const list = p.action.type === 'batch' ? p.action.actions : [p.action];
-      $('.ai-pending').innerHTML = `<div class="ai-card"><h3>审阅变更</h3><p>${esc(p.summary)}</p>${p.impact.map(t => `<p class="ai-impact">${esc(t)}</p>`).join('')}<div class="ai-draft-fields">${list.map((a, i) => `<div class="ai-draft-item"><strong>${esc(actionLabel(a.type))}</strong>${Object.entries(a).filter(([k]) => ['title', 'name', 'notes', 'path'].includes(k)).map(([k, v]) => `<label>${{title:'任务标题',name:'项目名称',notes:'任务内容',path:'关联目录'}[k]}<${k === 'notes' ? 'textarea rows="4"' : 'input type="text"'} data-index="${i}" data-field="${k}" ${k === 'notes' ? '' : `value="${esc(v)}"`}>${k === 'notes' ? esc(v) + '</textarea>' : ''}</label>`).join('')}${['task.create','task.update'].includes(a.type) ? `<div class="ai-draft-project">${selectField({name:'draft-project-'+i,label:'所属项目',value:(a.projectId === undefined ? workspace.tasks.find(t=>t.id===a.id)?.projectId : a.projectId) || '',options:[{value:'',label:'未归类'},...workspace.projects.map(p=>({value:p.id,label:p.name}))]})}</div>` : ''}<p class="muted">${esc(a.type==='task.status' ? '状态：'+ ({todo:'待办',active:'进行中',done:'已完成'}[a.status] || a.status) : a.type.startsWith('plan.') ? '安排日期：'+p.day : '')}</p><details><summary>操作详情</summary><pre>${esc(JSON.stringify(a, null, 2))}</pre></details></div>`).join('')}</div><div class="ai-card-actions"><button type="button" class="secondary" data-reject>取消草稿</button><button type="button" class="primary" data-apply>应用变更</button></div><small>工作台发生变化时会要求重新核对。应用后可撤销最近一次操作。</small></div>`;
+      $('.ai-pending').innerHTML = `<div class="ai-card"><h3>审阅变更</h3><p>${esc(p.summary)}</p>${p.impact.map(t => `<p class="ai-impact">${esc(t)}</p>`).join('')}<div class="ai-draft-fields">${list.map((a, i) => `<div class="ai-draft-item"><strong>${esc(actionLabel(a.type))}</strong>${Object.entries(a).filter(([k]) => ['title', 'name', 'notes', 'path'].includes(k)).map(([k, v]) => `<label>${{title:'任务标题',name:'项目名称',notes:'任务内容',path:'关联目录'}[k]}<${k === 'notes' ? 'textarea rows="4"' : 'input type="text"'} data-index="${i}" data-field="${k}" ${k === 'notes' ? '' : `value="${esc(v)}"`}>${k === 'notes' ? esc(v) + '</textarea>' : ''}</label>`).join('')}${['task.create','task.update'].includes(a.type) ? `<div class="ai-draft-project">${selectField({name:'draft-project-'+i,label:'所属项目',value:(a.projectId === undefined ? workspace.tasks.find(t=>t.id===a.id)?.projectId : a.projectId) || '',options:[{value:'',label:'未归类'},...workspace.projects.map(p=>({value:p.id,label:p.name}))]})}</div>` : ''}<p class="muted">${esc(a.type==='task.status' ? '状态：'+ ({todo:'待办',active:'进行中',done:'已完成'}[a.status] || a.status) : a.type==='plan.reschedule' ? '改期：'+a.fromDay+' → '+a.toDay : a.type.startsWith('plan.') ? '安排日期：'+(a.day || p.day) : a.type==='task.create'&&a.planDay ? '安排日期：'+a.planDay : '')}</p><details><summary>操作详情</summary><pre>${esc(JSON.stringify(a, null, 2))}</pre></details></div>`).join('')}</div><div class="ai-card-actions"><button type="button" class="secondary" data-reject>取消草稿</button><button type="button" class="primary" data-apply>应用变更</button></div><small>工作台发生变化时会要求重新核对。应用后可撤销最近一次操作。</small></div>`;
     }
+    if(current?.focusSubmission && !current.focusSubmission.acknowledged) $('.ai-pending').insertAdjacentHTML('afterbegin',focusSubmissionCard(current.focusSubmission,workspace));
   }
   async function loadModels() {
     loadingModels = true; paint();
@@ -187,12 +193,17 @@ export function createAIPage({ getToken, onChanged }) {
       else if (b.dataset.removeReference) { references = references.filter(r => r.id !== b.dataset.removeReference); paintReferences(); }
       else if (b.dataset.prompt) { $('#ai-message').value = b.dataset.prompt; resizeInput(); $('#ai-message').focus(); }
       else if (b.classList.contains('ai-stop') && current) { current = (await api(`/conversations/${current.id}/cancel`, {})).conversation; paint(); }
+      else if (b.dataset.focusSubmission && current?.focusSubmission) {
+        const id=current.id; b.disabled=true;
+        try { const r=await api(`/conversations/${id}/focus-submission`,{id:b.dataset.submissionId,action:b.dataset.focusSubmission});if(current?.id===id){current=r.conversation;paint();}onChanged?.({kind:'focus'}); }
+        finally {b.disabled=false;}
+      }
       else if ((b.hasAttribute('data-apply') || b.hasAttribute('data-reject')) && current?.pending) {
         const p = current.pending, id = current.id; b.disabled = true;
         const action = p.action ? structuredClone(p.action) : undefined, list = action?.type === 'batch' ? action.actions : action ? [action] : [];
         element.querySelectorAll('[name^="draft-project-"][data-edited]').forEach(input=>{list[Number(input.name.slice(14))].projectId=input.value || null;});
         element.querySelectorAll('[data-field]').forEach(input => { list[Number(input.dataset.index)][input.dataset.field] = input.value; });
-        try { const r = await api(`/conversations/${id}/answer`, { id: p.id, approve: b.hasAttribute('data-apply'), action, ...(p.type==='proxyChanges'&&b.hasAttribute('data-apply')?{apiKeys:Object.fromEntries([...element.querySelectorAll('[data-proxy-key-id]')].map(input=>[input.dataset.proxyKeyId,input.value]))}:{}) }); if (current?.id === id) { current = r.conversation; paint(); } await loadWorkspace(); onChanged?.(); }
+        try { const r = await api(`/conversations/${id}/answer`, { id: p.id, approve: b.hasAttribute('data-apply'), action, ...(p.type==='proxyChanges'&&b.hasAttribute('data-apply')?{apiKeys:Object.fromEntries([...element.querySelectorAll('[data-proxy-key-id]')].map(input=>[input.dataset.proxyKeyId,input.value]))}:{}) }); if (current?.id === id) { current = r.conversation; paint(); } if(p.type!=='focusChanges')await loadWorkspace(); onChanged?.(p.type==='focusChanges'?{kind:'focus'}:undefined); }
         finally { b.disabled = false; }
       }
     } catch (e) { error(e); }
@@ -217,4 +228,4 @@ export function createAIPage({ getToken, onChanged }) {
     } catch (e) { if (ticket!==opening) return; current=null; selectedScope={kind:'workspace'}; pendingId=null; renderPending(null); paint(); error(e); await list().catch(error); }
   }, setVisible(value) { visible = value; element.hidden = !value; clearInterval(timer); if (value) { void loadWorkspace().catch(error); void list().catch(error); void refresh(); void loadModels(); timer = setInterval(refresh, 700); } } };
 }
-function actionLabel(type) { return ({'project.create':'创建项目','project.update':'修改项目','project.delete':'删除项目','task.create':'新增任务','task.update':'修改任务','task.status':'更新任务状态','task.delete':'删除任务','plan.add':'加入日期安排','plan.remove':'移出日期安排','plan.move':'调整顺序','plan.set':'更新日期安排',undo:'撤销最近操作'})[type] || type; }
+function actionLabel(type) { return ({'project.create':'创建项目','project.update':'修改项目','project.delete':'删除项目','task.create':'新增任务','task.update':'修改任务','task.status':'更新任务状态','task.delete':'删除任务','plan.add':'加入日期安排','plan.remove':'移出日期安排','plan.reschedule':'跨日改期','plan.move':'调整顺序','plan.set':'更新日期安排',undo:'撤销最近操作'})[type] || type; }

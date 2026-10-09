@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-10-07T13:50:32.616679+00:00",
+  "installedPID": 36268,
+  "systemEventsCounts": [
+    1,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "nativeWebAreaPresent": true,
+  "nativeAXURLType": "CFURL",
+  "systemEventsFailureStage": "AXURL attribute value read",
+  "systemEventsErrorNumber": -10000,
+  "helper": "/Users/liki/liki_dev/daylight-workbench/.local/verification/native-calendar-url-guard.py",
+  "helperSHA256": "66e494eeddb22baa4b4d2a3629f5cfdd1b1c28cdd0ab351d17502bc6a8b20f10",
+  "nativeGuard": {
+    "calendarURL": true,
+    "count": 1
+  },
+  "nativeGuardExitCode": 0,
+  "installedAppActions": false,
+  "productionFilesChanged": false,
+  "helperPrintsInputOrURL": false
+}

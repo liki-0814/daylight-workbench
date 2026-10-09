@@ -1,0 +1,27 @@
+{
+  "checks": [
+    {
+      "name": "calendar at 390px has no page overflow",
+      "ok": true
+    },
+    {
+      "name": "running global bar at 390px stays inside viewport",
+      "ok": true
+    },
+    {
+      "name": "statistics at 390px has no page overflow",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "calendar-390.png",
+    "focus-widget-390.png",
+    "focus-statistics-390.png"
+  ]
+}

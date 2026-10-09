@@ -1,5 +1,6 @@
 import { applyAction } from '../agent-api.mjs';
 import { localDate, validate } from '../public/model.js';
+import { isCivilDate } from './date.js';
 
 // Keep JSON.stringify ordering compatible with receipts produced before this refactor.
 export const fingerprintText = raw => JSON.stringify(JSON.parse(raw));
@@ -15,7 +16,7 @@ export function prepareTaskWrite(record, input, fingerprint, { busy = false, pre
   }
   if (busy || input.expectedVersion !== record.version) return reject(409, '数据版本已变化，请重新读取并核对操作', { version: record.version });
   const day = input.day ?? localDate();
-  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day)) || new Date(day).toISOString().slice(0, 10) !== day) return reject(400, 'day 必须是有效的 YYYY-MM-DD 日期');
+  if (!isCivilDate(day)) return reject(400, 'day 必须是有效的 YYYY-MM-DD 日期');
   try {
     let state;
     if (input.action?.type === 'undo') {
@@ -27,5 +28,5 @@ export function prepareTaskWrite(record, input, fingerprint, { busy = false, pre
     const appliedVersion = record.version + 1;
     return { code: 200, state, receipt: { requestId: input.requestId, fingerprint, appliedVersion },
       value: { version: appliedVersion, state, replayed: false, appliedVersion } };
-  } catch (error) { return reject(400, error.message); }
+  } catch (error) { return reject(error.status || 400, error.message, error.code ? { code: error.code } : {}); }
 }

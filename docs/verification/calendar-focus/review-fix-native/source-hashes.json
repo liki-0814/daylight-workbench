@@ -1,0 +1,9 @@
+{
+  "native/Focus.swift": "5bb50b2a5e2714e55e100e4ca09d7121bccef79a975224967d9040d1d065dbee",
+  "native/FocusNotifications.swift": "6c4a44cc195ff917be631666a40c03039912f68ee637e1dfc6c360d5199fd21a",
+  "native/FocusTimeZone.swift": "2d9b4071de3a97e974ce8fcb2313a5b2e8071fce978889c105c23a602a460c54",
+  "test/focus-contract-test.py": "b2fa9110297ea531fc64fdac47bdfa73f8087f6068984d15be5e702f89cb7353",
+  "test/native-focus-notification-test.py": "c8219e6c038135f23b2d05bedad7a385baf5436f82c36f6049dcbf5d0e170189",
+  "dist/native/Daylight.app/Contents/MacOS/Daylight": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+  "dist/native/Daylight.app/Contents/Resources/native-core.js": "75375d02fec7b60826ffa40cae64408f3ca3a3cfacadc7553360613a23d215bd"
+}

@@ -1,0 +1,2 @@
+import { escapeButtonText as esc } from './button.js';
+export const metricCard = ({ label, value, unit = '', note = '', state = 'ready' }) => `<section class="ui-metric-card" aria-busy="${state === 'loading'}"><h3>${esc(label)}</h3><p class="ui-metric-value">${state === 'error' ? '—' : esc(value)}${unit ? `<small>${esc(unit)}</small>` : ''}</p>${note ? `<p class="ui-metric-note">${esc(note)}</p>` : ''}</section>`;

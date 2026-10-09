@@ -1,0 +1,71 @@
+{
+  "generatedAt": "2026-10-07T13:44:44.961Z",
+  "passed": true,
+  "binarySha256": "fac96f6e8322213ed13b635a7ce971f26afa3cbef1e3f9ee37e3214f7c02c840",
+  "assets": [
+    {
+      "file": "public/components/date-field.js",
+      "sourceSha256": "8670f8157ee2cf9a343b109be9c0b40481cf416ea75eccd026a2e6aa45489744",
+      "packagedSha256": "a67ceb57aa80cf8f4fca4a5535ad18f332023704dff85e080f07a9b17cc54a01",
+      "matches": true
+    },
+    {
+      "file": "public/components/date-field.css",
+      "sourceSha256": "6adbdfda416eb966785d10b758904a46d4062e0d69e67ded2ec502eb6c5c2074",
+      "packagedSha256": "ad4887028787b0583c98d1035d73f26925998f624a8a431096e32882c0a57f9b",
+      "matches": true
+    },
+    {
+      "file": "public/components/date-range.js",
+      "sourceSha256": "b52c82ab0abb2868bbf514c9fd14fe9e5dffad0625e8c250c020d5f083ef4939",
+      "packagedSha256": "95ba20ac601fea5c0d5891f95c88e2eed5a4c3fb9092cec4b9a24c29dd0818ef",
+      "matches": true
+    },
+    {
+      "file": "public/components/date-range.css",
+      "sourceSha256": "e821a7667fcad9e534f3fdd87a50cbdf0cfc8907bb02c93815e737d1d4f9ab38",
+      "packagedSha256": "2bfb5e4ee2c9d71f990a2f0988d68fc505ae4eefa3ddf07a826008aead58eac7",
+      "matches": true
+    },
+    {
+      "file": "public/components/segmented-control.js",
+      "sourceSha256": "1cafbd5903e8835b77ec2f9497321b510986b919d9343a0813cef93e5e289773",
+      "packagedSha256": "17a743a63d3d4eee2a95592d27b74f1f83581694ab1ca60f8207145d2c258007",
+      "matches": true
+    },
+    {
+      "file": "public/components/segmented-control.css",
+      "sourceSha256": "243f9b5184c5576262b21bcf62081e8a16673fcabcd2d482eb5027f79979f51a",
+      "packagedSha256": "328ef5d54532244703f9c40658039042fb532680d91504c0807d21aa926f695f",
+      "matches": true
+    },
+    {
+      "file": "public/calendar/page.js",
+      "sourceSha256": "625bb1a6361c512d3d1427711f8c77c584c732ec5f15ee80e8af3d2098fdc94b",
+      "packagedSha256": "cf98fdf30222b134550c55d13962d2cd5a173abbf3fa4fe705198d047ff25ecb",
+      "matches": true
+    },
+    {
+      "file": "public/calendar/calendar.css",
+      "sourceSha256": "47fe966e799e3b04f1b45f30ecf0d46648c30656617a16059a388085455ec949",
+      "packagedSha256": "47fe966e799e3b04f1b45f30ecf0d46648c30656617a16059a388085455ec949",
+      "matches": true
+    },
+    {
+      "file": "public/focus/focus.css",
+      "sourceSha256": "88328c4c96844fc2f59796141ddc40caf3bcfd9a68bf445f619bcd46b2a8102b",
+      "packagedSha256": "cf0d9ff1f173256aec1a79b1d163ffc904834fc3bebb670dacfa0cc2a0b5d345",
+      "matches": true
+    },
+    {
+      "file": "public/design-system.css",
+      "sourceSha256": "3b443b128089d1cd75f5a4e5f61e03da21dc7ddc7288a2de72e29a28389be059",
+      "packagedSha256": "c3b3a4222e393cf50b32e1edf7eab466eb2d643817187c7f1aac303cc5708f54",
+      "matches": true
+    }
+  ],
+  "chromePassed": true,
+  "webkitEvidence": "../statistics-filter-webkit/metadata.json",
+  "webkitPassed": true,
+  "webkitSourceHashesMatch": true
+}

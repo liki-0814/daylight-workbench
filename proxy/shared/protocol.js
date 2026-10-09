@@ -44,21 +44,32 @@ export function convertRequest(raw,from,to){
  if(raw.thinking&&raw.thinking.type!=='adaptive')throw invalid('手动 thinking 预算请使用原生协议');
  const texts=x=>typeof x==='string'?[{type:'text',text:x}]:x||[];
  const image=(url,target)=>{if(target==='messages'){const m=/^data:([^;]+);base64,(.*)$/s.exec(url);return{type:'image',source:m?{type:'base64',media_type:m[1],data:m[2]}:{type:'url',url}};}return target==='chat'?{type:'image_url',image_url:{url}}:{type:'input_image',image_url:url};};
- const content=(x,role)=>texts(x).map(p=>p.type==='image'?image(p.url,to):{type:to==='responses'?(role==='assistant'?'output_text':'input_text'):'text',text:p.text});
+ const content=(x,role)=>texts(x).map(p=>p.type==='image'?image(p.url,to):{type:to==='responses'?(role==='assistant'?'output_text':'input_text'):'text',text:p.text}).filter(p=>p.type==='image'||typeof p.text==='string'&&p.text.length>0);
+ // Chat-completions upstreams expect assistant history as a plain string; block arrays leak into replies.
+ const chatContent=(x,role)=>{const parts=content(x,role);if(parts.every(p=>p.type==='text'))return parts.map(p=>p.text).join('');return parts;};
+ // Tool results follow each protocol's wire shape: Chat is text-only (images move to their own user
+ // turn), Messages keeps native image blocks inside tool_result, Responses uses input_* part arrays.
+ const toolParts=x=>texts(x),toolImages=x=>toolParts(x).filter(p=>p.type==='image'&&p.url);
+ const toolText=x=>{const parts=toolParts(x),text=parts.filter(p=>p.type==='text'&&p.text).map(p=>p.text).join('\n');return text||(toolImages(x).length?'(see attached image)':'(no tool output)');};
+ const toolOutput=x=>{const images=toolImages(x),text=toolText(x);return images.length?[{type:'input_text',text},...images.map(p=>({type:'input_image',detail:'auto',image_url:p.url}))]:text;};
+ const imageTurn=images=>images.length?[{role:'user',content:[{type:'text',text:'Attached image(s) from tool result:'},...images.map(p=>({type:'image_url',image_url:{url:p.url}}))]}]:[];
+ const toolResultBlocks=x=>{const blocks=toolParts(x).map(p=>p.type==='image'?image(p.url,'messages'):{type:'text',text:p.text}).filter(b=>b.type==='image'||b.text);return blocks.length?blocks:[{type:'text',text:toolText(x)}];};
  if(to==='responses'){
   if(c.system)out.instructions=c.system;
-  out.input=c.messages.flatMap(m=>m.role==='tool'?[{type:'function_call_output',call_id:m.toolCallId,output:typeof m.content==='string'?m.content:JSON.stringify(m.content)}]:[...(texts(m.content).length?[{role:m.role,content:content(m.content,m.role)}]:[]),...(m.toolCalls||[]).map(t=>({type:'function_call',call_id:t.id,name:t.name,arguments:t.arguments}))]);
+  out.input=c.messages.flatMap(m=>m.role==='tool'?[{type:'function_call_output',call_id:m.toolCallId,output:toolOutput(m.content)}]:[...(texts(m.content).length?[{role:m.role,content:content(m.content,m.role)}]:[]),...(m.toolCalls||[]).map(t=>({type:'function_call',call_id:t.id,name:t.name,arguments:t.arguments}))]);
   if(max!==undefined)out.max_output_tokens=max;if(effort)out.reasoning={effort};
  }else if(to==='chat'){
-  out.messages=[...(c.system?[{role:'system',content:c.system}]:[]),...c.messages.map(m=>m.role==='tool'?{role:'tool',tool_call_id:m.toolCallId,content:m.content}:{role:m.role,content:content(m.content,m.role),...(m.toolCalls?.length?{tool_calls:m.toolCalls.map(t=>({id:t.id,type:'function',function:{name:t.name,arguments:t.arguments}}))}:{})})];
+  out.messages=[...(c.system?[{role:'system',content:c.system}]:[]),...c.messages.flatMap(m=>m.role==='tool'?[{role:'tool',tool_call_id:m.toolCallId,content:toolText(m.content)},...imageTurn(toolImages(m.content))]:[{role:m.role,content:m.role==='assistant'?chatContent(m.content,m.role):content(m.content,m.role),...(m.toolCalls?.length?{tool_calls:m.toolCalls.map(t=>({id:t.id,type:'function',function:{name:t.name,arguments:t.arguments}}))}:{})}])];
   if(max!==undefined)out.max_tokens=max;if(effort)out.reasoning_effort=effort;
  }else{
   if(max===undefined)throw invalid('转换为 Messages 需要显式 max_tokens 或模型默认输出预算');
   out.max_tokens=max;if(c.system)out.system=c.system;
-  out.messages=c.messages.map(m=>m.role==='tool'?{role:'user',content:[{type:'tool_result',tool_use_id:m.toolCallId,content:m.content}]}:{role:m.role,content:[...content(m.content,m.role),...(m.toolCalls||[]).map(t=>({type:'tool_use',id:t.id,name:t.name,input:JSON.parse(t.arguments)}))]});
+  out.messages=c.messages.map(m=>m.role==='tool'?{role:'user',content:[{type:'tool_result',tool_use_id:m.toolCallId,content:toolResultBlocks(m.content)}]}:{role:m.role,content:[...content(m.content,m.role),...(m.toolCalls||[]).map(t=>({type:'tool_use',id:t.id,name:t.name,input:JSON.parse(t.arguments)}))]});
   if(effort){out.thinking={type:'adaptive'};out.output_config={effort};}
  }
- if(c.tools)out.tools=c.tools.map(t=>to==='messages'?{name:t.name,description:t.description,input_schema:t.parameters}:to==='chat'?{type:'function',function:t}:{type:'function',...t});
+ if(c.tools)out.tools=c.tools.map(t=>{const {name,description}=t;
+  const parameters=t.parameters||{type:'object',properties:{}};
+  return to==='messages'?{name,description,input_schema:parameters}:to==='chat'?{type:'function',function:{name,description,parameters}}:{type:'function',name,description,parameters};});
  if(raw.tool_choice!==undefined){const t=raw.tool_choice;const name=t?.function?.name??t?.name;const kind=typeof t==='string'?t:t?.type;
   if(to==='messages')out.tool_choice=name?{type:'tool',name}:{type:kind==='required'?'any':kind};
   else out.tool_choice=name?(to==='chat'?{type:'function',function:{name}}:{type:'function',name}):kind==='any'?'required':kind;
@@ -84,9 +95,13 @@ export function observeResponse(body, protocol, observe) {
  observe({content,toolCall});
 }
 
+export function readWithIdle(reader,ms,message){
+ let timer;const idle=new Promise((_,reject)=>{timer=setTimeout(()=>{reject(Object.assign(new Error(message),{code:'idle_timeout'}));void reader.cancel().catch(()=>{});},ms);});
+ idle.catch(()=>{});const raced=Promise.race([reader.read(),idle]).finally(()=>clearTimeout(timer));raced.catch(()=>{});raced.cancel=()=>clearTimeout(timer);return raced;
+}
 export async function* events(response,protocol,model,observe=()=>{}){
- const reader=response.body.getReader(),decoder=new TextDecoder(),parser=new SseParser();let terminal=false,usage,finish='stop';const toolArgs=new Map(),outputItems=new Map();
- try{while(true){let timer;const part=await Promise.race([reader.read(),new Promise((_,reject)=>{timer=setTimeout(()=>{reject(Object.assign(new Error('上游响应空闲超时'),{code:'idle_timeout'}));void reader.cancel().catch(()=>{});},300000)})]).finally(()=>clearTimeout(timer));
+ const reader=response.body.getReader(),decoder=new TextDecoder(),parser=new SseParser();let terminal=false,usage,finish='stop',read;const toolArgs=new Map(),outputItems=new Map();
+ try{while(true){read=readWithIdle(reader,300000,'上游响应空闲超时');const part=await read;
   for(const f of part.done?parser.flush():parser.push(decoder.decode(part.value,{stream:true}))){if(!f.data)continue;if(f.data==='[DONE]'){terminal=true;continue;}if(f.data.length>4000000)throw new Error('上游事件过大');const e=JSON.parse(f.data);
    if(e.error||e.type==='error'||e.type==='response.failed'){observe({error:{code:e.error?.code||e.response?.error?.code,status:502}});throw Object.assign(new Error('上游返回错误'),{status:502});}
    observeResponse(e,protocol,observe);
@@ -117,5 +132,5 @@ export async function* events(response,protocol,model,observe=()=>{}){
   if(terminal||part.done)break;
  }
  if(!terminal){observe({error:{code:'incomplete_stream'}});throw new Error('上游连接提前结束');}if(usage)yield{type:'usage',usage};observe({finish});yield{type:'finish',reason:finish};
- }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+ }finally{read?.cancel();await reader.cancel().catch(()=>{});reader.releaseLock();}
 }

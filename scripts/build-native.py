@@ -19,7 +19,8 @@ contents = app / 'Contents'
 resources = contents / 'Resources'
 resources.mkdir(parents=True, exist_ok=True)
 (contents / 'MacOS').mkdir(exist_ok=True)
-subprocess.run(['swiftc', '-O', '-whole-module-optimization', '-Xlinker', '-dead_strip', '-target', 'arm64-apple-macos13.0', str(root / 'native/Server.swift'), str(root / 'native/Proxy.swift'), str(root / 'native/Launcher.swift'), str(root / 'native/main.swift'), '-o', str(contents / 'MacOS/Daylight')], check=True)
+module_cache = str(pathlib.Path(build_directory.name) / 'swift-cache')
+subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', '-whole-module-optimization', '-Xlinker', '-dead_strip', '-target', 'arm64-apple-macos13.0', *[str(root / 'native' / name) for name in ('Server.swift', 'Focus.swift', 'FocusTimeZone.swift', 'FocusNotifications.swift', 'FocusTray.swift', 'Proxy.swift', 'Launcher.swift', 'main.swift')], '-o', str(contents / 'MacOS/Daylight')], check=True)
 subprocess.run(['strip', '-x', str(contents / 'MacOS/Daylight')], check=True)
 shutil.copytree(root / 'public', resources / 'public', dirs_exist_ok=True)
 shutil.copytree(root / 'core', resources / 'core', dirs_exist_ok=True)
@@ -31,7 +32,7 @@ shutil.copy2(root / 'agent-api.mjs', resources / 'agent-api.mjs')
 shutil.copy2(root / 'native/tray-model.mjs', resources / 'tray-model.mjs')
 shutil.copytree(root / 'proxy', resources / 'proxy', dirs_exist_ok=True)
 shutil.copytree(root / 'cli', resources / 'cli', dirs_exist_ok=True)
-subprocess.run(['swiftc', '-O', str(root / 'native/Credentials.swift'), '-o', str(resources / 'DaylightCredentials')], check=True)
+subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(root / 'native/Credentials.swift'), '-o', str(resources / 'DaylightCredentials')], check=True)
 shutil.copytree(root / 'ai', resources / 'ai', dirs_exist_ok=True)
 # Compile the adapter dependency graph instead of copying npm's installation tree.
 subprocess.run(['node', str(root / 'scripts/build-runtime.mjs'), str(resources)], check=True)

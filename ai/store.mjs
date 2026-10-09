@@ -11,6 +11,12 @@ export class AIStore {
       if (!/^[a-f0-9-]+\.json$/.test(file)) continue;
       const c = this.read(`conversations/${file}`);
       if (['running', 'waiting'].includes(c.status)) { finishEvents(c); c.status = 'interrupted'; c.pending = null; c.error = '上次运行已中断，可以继续发送消息。'; }
+      if (c.focusSubmission) {
+        if (c.focusSubmission.status === 'submitted') c.focusSubmission.status = 'unknown';
+        delete c.focusSubmission.applying;
+        // A submission is durable; an unapproved pending card is only run-local.
+        if (c.pending?.type === 'focusChanges') c.pending = null;
+      }
       this.conversations.set(c.id, c);
     }
   }

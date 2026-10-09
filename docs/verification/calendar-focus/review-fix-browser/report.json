@@ -1,0 +1,115 @@
+{
+  "checks": [
+    {
+      "name": "first civil month renders with previous navigation disabled",
+      "ok": true
+    },
+    {
+      "name": "first day keyboard clamps at valid boundary",
+      "ok": true
+    },
+    {
+      "name": "last civil month renders all dates and inaccessible padded cells",
+      "ok": true
+    },
+    {
+      "name": "last day arrow end and page navigation stay within civil range",
+      "ok": true
+    },
+    {
+      "name": "ordinary date selections replace browser history",
+      "ok": true
+    },
+    {
+      "name": "month navigation pushes browser history",
+      "ok": true
+    },
+    {
+      "name": "frozen widget and panel cannot resume before trusted boundary",
+      "ok": true
+    },
+    {
+      "name": "tick enables frozen resume without replacing control nodes",
+      "ok": true
+    },
+    {
+      "name": "widget sends exact resume action after clock recovery",
+      "ok": true
+    },
+    {
+      "name": "zero remainder cannot resume after clock recovery",
+      "ok": true
+    },
+    {
+      "name": "failed delivery is visible in result panel and settings",
+      "ok": true
+    },
+    {
+      "name": "delivery failure preserves independent permission state and dirty settings",
+      "ok": true
+    },
+    {
+      "name": "platform error is rendered as escaped text in both surfaces",
+      "ok": true
+    },
+    {
+      "name": "same outcome updates delivery error after runtime changes",
+      "ok": true
+    },
+    {
+      "name": "delivery feedback has no 390px horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "successful scheduling clears error without claiming receipt",
+      "ok": true
+    },
+    {
+      "name": "old runtime error cannot mark a new none or pending outcome as failed",
+      "ok": true
+    },
+    {
+      "name": "older native snapshots without runtime error retain localized failed-delivery feedback",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "docs/verification/calendar-focus/review-fix-browser/calendar-last-month.png",
+    "docs/verification/calendar-focus/review-fix-browser/delivery-error-settings-wide.png",
+    "docs/verification/calendar-focus/review-fix-browser/delivery-error-settings-390.png"
+  ],
+  "generatedAt": "2026-10-07T11:59:42.559Z",
+  "verificationScope": {
+    "browser": "Independent headless Chrome with a disposable profile",
+    "actualCalendarPage": "Checks 1-6 use the application calendar, live temporary Node service and browser input/history APIs.",
+    "componentSimulation": "Checks 7-18 mount real widget/panel/settings modules in Chrome with controlled focus snapshots and simulated native getStatus replies. They verify UI behavior, not OS clock changes, real resume persistence, authorization or notification delivery.",
+    "exceptionGuard": "Check 19 checks runtime exceptions.",
+    "fixtureData": "Temporary fixtureState; no installed App or user data was changed."
+  },
+  "unitChecks": {
+    "command": "node --test test/date.test.mjs test/calendar-routes.test.mjs test/calendar.test.mjs test/focus-presentation.test.mjs test/focus-settings.test.mjs test/focus-controller.test.mjs test/focus-routing.test.mjs",
+    "tests": 24,
+    "passed": 24,
+    "failed": 0
+  },
+  "staticChecks": {
+    "command": "node scripts/check-focus.mjs",
+    "exitCode": 0
+  },
+  "sourceSha256": {
+    "core/date.js": "d900507058d67c95959967779d17d1f818a1e84f00dcdb20595eb1b9fa2323de",
+    "public/calendar/page.js": "f2054eeec15421b14eaa2161b7db24f10fd9bc31282587553e0d86552d394b37",
+    "public/components/calendar-grid.js": "664c728b88e4c5aa62ec48906bd4709696521e68b5147ec8976c7ea90934a710",
+    "public/components/calendar-grid.css": "da0e228a899373a55c3a7a81dfc15c8fe03a40e90b07e392c3df7852c9d3f7f7",
+    "public/focus/widget.js": "fa3d40bebf30c07d79273aca35de9fbdfbeeaebbf0790e4d70ef435debf03070",
+    "public/focus/panel.js": "b5f54147477d33e7eec9ccbd619ad93109a9a7aeedab5af052f2a8fa7a678d31",
+    "public/focus/settings.js": "06e6018e1570e885551c8efb6a890a6613beef11df337165af10908706f919a6",
+    "public/focus/presentation.js": "b4b119dd658616f48f4bf0659edab6caa74a75601df4dbc55f31e02938d2e870"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "checks": [
+    {
+      "name": "settings dirty input survives external change and save is blocked",
+      "ok": true
+    },
+    {
+      "name": "settings explicit reset loads latest and enables save",
+      "ok": true
+    },
+    {
+      "name": "unsaved task edits require confirmation before focus start",
+      "ok": true
+    },
+    {
+      "name": "focus starts from saved task and preserves the draft input",
+      "ok": true
+    },
+    {
+      "name": "task detail running cumulative refreshes after 15 seconds",
+      "ok": true
+    },
+    {
+      "name": "cancel switch leaves paused original session untouched",
+      "ok": true
+    },
+    {
+      "name": "confirmed switch ends old session and does not change task status",
+      "ok": true
+    },
+    {
+      "name": "settings at 390px has no page overflow",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "settings-dirty.png",
+    "task-summary-running.png",
+    "switch-paused-confirmation.png",
+    "settings-narrow.png"
+  ]
+}

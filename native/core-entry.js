@@ -4,3 +4,8 @@ export { applyAction, operations } from '../agent-api.mjs';
 export { getTrayState } from './tray-model.mjs';
 export { resolveRoute, capabilities, webAssets } from '../core/contracts.js';
 export { fingerprintText, prepareTaskWrite } from '../core/task-write.js';
+export { calendarQuery } from '../core/calendar-query.js';
+export { initialFocusRecord, validateFocusRecord, focusSnapshot, applyFocusAction, resolveFocusTermination, reconcileFocus, consumeFocusNotification, focusExport } from '../core/focus-model.js';
+export { prepareFocusWrite, prepareFocusAction } from '../core/focus-write.js';
+export { validateFocusQuery } from '../core/focus-contracts.js';
+export { focusStatistics, focusTaskSummary, focusSessionQuery } from '../core/focus-statistics.js';

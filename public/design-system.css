@@ -44,6 +44,11 @@
   --font-code-line: 20px;
   --font-metric-size: 22px;
   --font-metric-line: 30px;
+  --font-timer-size: 40px;
+  --font-timer-line: 48px;
+  --metric-grid-gap: var(--space-3);
+  --chart-accent: var(--green);
+  --progress-track: var(--soft);
   --font-date-size: 43px;
   --font-date-line: 50px;
   --font-brand-size: 23px;
@@ -121,6 +126,7 @@
 
   /* Page and task-column alignment, including responsive variants below. */
   --page-inline: 43px;
+  --sidebar-width: 238px;
   --task-row-inset: var(--space-6);
   --task-leading-width: 18px;
   --task-column-gap: 13px;
@@ -154,6 +160,14 @@ input[type="checkbox"], input[type="radio"] {
   flex-shrink: 0;
   accent-color: var(--green);
 }
+
+.ui-setting-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding: var(--space-4) 0; cursor: pointer; }
+.ui-setting-row + .ui-setting-row { border-top: 1px solid var(--line); }
+.ui-setting-row > span { min-width: 0; }
+.ui-setting-title { display: block; font-size: var(--font-body-size); line-height: var(--font-body-line); font-weight: 500; }
+.ui-setting-description { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
+.ui-input { width: 100%; box-sizing: border-box; min-height: var(--form-control-height); border: 1px solid var(--line); border-radius: 8px; padding: var(--form-control-padding); color: var(--workbench-text); background: var(--paper); font: inherit; font-size: var(--font-control-size); line-height: var(--font-control-line); }
+.ui-input:focus-visible,.ui-setting-row input:focus-visible{outline:2px solid var(--green);outline-offset:3px}
 
 .ui-feedback {
   margin: 0;

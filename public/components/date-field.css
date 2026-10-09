@@ -1,0 +1,33 @@
+.ui-date-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--field-label-gap);
+  color: var(--muted);
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line);
+}
+
+.ui-date-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--form-control-height);
+  min-height: var(--form-control-height);
+  padding: var(--form-control-padding);
+  border: 1px solid var(--line);
+  border-radius: var(--button-radius);
+  background: var(--paper);
+  color: var(--workbench-text);
+  font: inherit;
+  font-size: var(--font-control-size);
+  line-height: var(--font-control-line);
+}
+
+.ui-date-field-compact input {
+  height: var(--compact-control-height);
+  min-height: var(--compact-control-height);
+  padding: var(--compact-control-padding);
+  font-size: var(--font-compact-size);
+  line-height: var(--font-compact-line);
+}

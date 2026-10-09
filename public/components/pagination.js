@@ -1,0 +1,3 @@
+import { actionButton, escapeButtonText as esc } from './button.js';
+export const pagination = ({ hasPrevious, hasNext, label }) => `<nav class="ui-pagination" aria-label="会话记录分页">${actionButton({ label: '上一页', attrs: { 'data-page-direction': 'previous', disabled: !hasPrevious } })}<span>${esc(label)}</span>${actionButton({ label: '下一页', attrs: { 'data-page-direction': 'next', disabled: !hasNext } })}</nav>`;
+export function mountPagination(root, { onChange }) { const abort = new AbortController(); root.addEventListener('click', event => { const button = event.target.closest('[data-page-direction]'); if (button && root.contains(button) && !button.disabled) onChange(button.dataset.pageDirection); }, { signal: abort.signal }); return () => abort.abort(); }

@@ -51,8 +51,13 @@ export function createModelList({store,source}){
 }
 
 // Draft mode keeps edits in the Custom transaction; the same module owns all model rows.
+const effortLevels=['none','minimal','low','medium','high','xhigh','max'];
+function effortChoices(model){
+ const selected=new Set(model.reasoningEfforts||[]),levels=[...effortLevels,...selected].filter((level,index,all)=>all.indexOf(level)===index);
+ return `<div class="custom-effort-field" role="group" aria-label="支持的思考档位"><span>支持的思考档位</span><div class="custom-effort-choices">${levels.map(level=>`<label class="proxy-checkbox"><input type="checkbox" data-effort value="${esc(level)}" ${selected.has(level)?'checked':''}>${esc(level)}</label>`).join('')}</div></div>`;
+}
 export function renderDraftModelRow(m,i){
  const field=(name,label,value,options,disabled=false)=>`<div class="proxy-model-field" data-draft-field="${name}">${selectField({name,label,value,options,disabled,compact:true})}</div>`;
  const effort=m.reasoningEfforts?.length?field('effort','默认推理强度',m.effort||'auto',[{value:'auto',label:'自动'},...m.reasoningEfforts.map(level=>({value:level,label:level}))]):'';
- return `<div class="custom-model-row proxy-model" data-model-index="${i}">${modelHeading(m,`<input type="checkbox" data-selected ${m.enabled!==false?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}</div><details><summary>选项</summary><div class="custom-proxy-grid"><label>对外名称<input data-alias value="${esc(m.id)}" placeholder="${esc(m.upstreamId)}"></label><label>上下文上限<input data-context-limit type="number" min="1" value="${capacityLimit(m,'contextWindow')||''}" placeholder="上游未提供"></label><label>支持的思考档位<input data-efforts value="${esc((m.reasoningEfforts||[]).join(', '))}" placeholder="例如 low, high, max"></label><label>最大输出上限<input data-output-limit type="number" min="1" value="${capacityLimit(m,'maxOutputTokens')||''}" placeholder="上游未提供"></label></div></details></div>`;
+ return `<div class="custom-model-row proxy-model" data-model-index="${i}">${modelHeading(m,`<input type="checkbox" data-selected ${m.enabled!==false?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}</div><details><summary>选项</summary><div class="custom-proxy-grid"><label>对外名称<input data-alias value="${esc(m.id)}" placeholder="${esc(m.upstreamId)}"></label><label>上下文上限<input data-context-limit type="number" min="1" value="${capacityLimit(m,'contextWindow')||''}" placeholder="上游未提供"></label>${effortChoices(m)}<label>最大输出上限<input data-output-limit type="number" min="1" value="${capacityLimit(m,'maxOutputTokens')||''}" placeholder="上游未提供"></label></div></details></div>`;
 }

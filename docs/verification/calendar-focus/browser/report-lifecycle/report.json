@@ -1,0 +1,31 @@
+{
+  "checks": [
+    {
+      "name": "hidden browser tab makes no periodic statistics or session queries",
+      "ok": true
+    },
+    {
+      "name": "returning visible refreshes reports immediately",
+      "ok": true
+    },
+    {
+      "name": "paused work makes no periodic statistics or session queries",
+      "ok": true
+    },
+    {
+      "name": "paused work makes no periodic today summary queries",
+      "ok": true
+    },
+    {
+      "name": "leaving report pages stops their periodic queries while work continues",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": []
+}

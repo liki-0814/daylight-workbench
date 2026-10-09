@@ -1,0 +1,4658 @@
+{
+  "generatedAt": "2026-10-07T14:04:31.317Z",
+  "source": "Current complete Node app; synthetic data and disposable Chrome profile",
+  "checks": [
+    {
+      "name": "new shared component served through registered asset",
+      "ok": true
+    },
+    {
+      "name": "same option order all 1440",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 1440",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order today 1440",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy today 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view today 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits today 1440",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order calendar 1440",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy calendar 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view calendar 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits calendar 1440",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order all 1440",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 1440",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "all/today/calendar navigation geometry is identical 1440",
+      "ok": true,
+      "detail": [
+        {
+          "view": "#all",
+          "viewportWidth": 1440,
+          "documentWidth": 1440,
+          "width": 236,
+          "height": 44,
+          "left": 281,
+          "right": 517,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#today&status=open",
+          "viewportWidth": 1440,
+          "documentWidth": 1440,
+          "width": 236,
+          "height": 44,
+          "left": 281,
+          "right": 517,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+          "viewportWidth": 1440,
+          "documentWidth": 1440,
+          "width": 236,
+          "height": 44,
+          "left": 281,
+          "right": 517,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#tasks&status=open",
+          "viewportWidth": 1440,
+          "documentWidth": 1440,
+          "width": 236,
+          "height": 44,
+          "left": 281,
+          "right": 517,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "same option order all 768",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 768",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order today 768",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy today 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view today 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits today 768",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order calendar 768",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy calendar 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view calendar 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits calendar 768",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order all 768",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 768",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 768,
+        "documentWidth": 768,
+        "width": 236,
+        "height": 44,
+        "left": 236,
+        "right": 472,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "all/today/calendar navigation geometry is identical 768",
+      "ok": true,
+      "detail": [
+        {
+          "view": "#all",
+          "viewportWidth": 768,
+          "documentWidth": 768,
+          "width": 236,
+          "height": 44,
+          "left": 236,
+          "right": 472,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#today&status=open",
+          "viewportWidth": 768,
+          "documentWidth": 768,
+          "width": 236,
+          "height": 44,
+          "left": 236,
+          "right": 472,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+          "viewportWidth": 768,
+          "documentWidth": 768,
+          "width": 236,
+          "height": 44,
+          "left": 236,
+          "right": 472,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#tasks&status=open",
+          "viewportWidth": 768,
+          "documentWidth": 768,
+          "width": 236,
+          "height": 44,
+          "left": 236,
+          "right": 472,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "same option order all 390",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 390",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order today 390",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy today 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view today 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits today 390",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order calendar 390",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy calendar 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view calendar 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits calendar 390",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order all 390",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 390",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 390,
+        "documentWidth": 390,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "all/today/calendar navigation geometry is identical 390",
+      "ok": true,
+      "detail": [
+        {
+          "view": "#all",
+          "viewportWidth": 390,
+          "documentWidth": 390,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#today&status=open",
+          "viewportWidth": 390,
+          "documentWidth": 390,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+          "viewportWidth": 390,
+          "documentWidth": 390,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#tasks&status=open",
+          "viewportWidth": 390,
+          "documentWidth": 390,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "same option order all 320",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 320",
+      "ok": true,
+      "detail": {
+        "view": "#all",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order today 320",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy today 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view today 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits today 320",
+      "ok": true,
+      "detail": {
+        "view": "#today&status=open",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order calendar 320",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy calendar 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view calendar 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits calendar 320",
+      "ok": true,
+      "detail": {
+        "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": null,
+            "chosen": false,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": "page",
+            "chosen": true,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same option order all 320",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same sun/calendar icon policy all 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "one correct current view all 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "name": "navigation fits all 320",
+      "ok": true,
+      "detail": {
+        "view": "#tasks&status=open",
+        "viewportWidth": 320,
+        "documentWidth": 320,
+        "width": 236,
+        "height": 44,
+        "left": 18,
+        "right": 254,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "all/today/calendar navigation geometry is identical 320",
+      "ok": true,
+      "detail": [
+        {
+          "view": "#all",
+          "viewportWidth": 320,
+          "documentWidth": 320,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#today&status=open",
+          "viewportWidth": 320,
+          "documentWidth": 320,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+          "viewportWidth": 320,
+          "documentWidth": 320,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": null,
+              "chosen": false,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": "page",
+              "chosen": true,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        },
+        {
+          "view": "#tasks&status=open",
+          "viewportWidth": 320,
+          "documentWidth": 320,
+          "width": 236,
+          "height": 44,
+          "left": 18,
+          "right": 254,
+          "options": [
+            {
+              "view": "all",
+              "text": "全部任务",
+              "icon": false,
+              "current": "page",
+              "chosen": true,
+              "width": 72,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "today",
+              "text": "今天",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            },
+            {
+              "view": "calendar",
+              "text": "日历",
+              "icon": true,
+              "current": null,
+              "chosen": false,
+              "width": 74,
+              "height": 36,
+              "fontSize": "12px",
+              "lineHeight": "20px",
+              "padding": "4px 12px"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "project/inbox preserve all-tasks selection #project=project-a",
+      "ok": true,
+      "detail": {
+        "view": "#project=project-a",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "project/inbox preserve all-tasks selection #inbox",
+      "ok": true,
+      "detail": {
+        "view": "#inbox",
+        "viewportWidth": 1440,
+        "documentWidth": 1440,
+        "width": 236,
+        "height": 44,
+        "left": 281,
+        "right": 517,
+        "options": [
+          {
+            "view": "all",
+            "text": "全部任务",
+            "icon": false,
+            "current": "page",
+            "chosen": true,
+            "width": 72,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "today",
+            "text": "今天",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          },
+          {
+            "view": "calendar",
+            "text": "日历",
+            "icon": true,
+            "current": null,
+            "chosen": false,
+            "width": 74,
+            "height": 36,
+            "fontSize": "12px",
+            "lineHeight": "20px",
+            "padding": "4px 12px"
+          }
+        ]
+      }
+    },
+    {
+      "name": "keyboard Enter still navigates via existing delegate",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "samples": [
+    {
+      "view": "#all",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "width": 236,
+      "height": 44,
+      "left": 281,
+      "right": 517,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#today&status=open",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "width": 236,
+      "height": 44,
+      "left": 281,
+      "right": 517,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "width": 236,
+      "height": 44,
+      "left": 281,
+      "right": 517,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#tasks&status=open",
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "width": 236,
+      "height": 44,
+      "left": 281,
+      "right": 517,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#all",
+      "viewportWidth": 768,
+      "documentWidth": 768,
+      "width": 236,
+      "height": 44,
+      "left": 236,
+      "right": 472,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#today&status=open",
+      "viewportWidth": 768,
+      "documentWidth": 768,
+      "width": 236,
+      "height": 44,
+      "left": 236,
+      "right": 472,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+      "viewportWidth": 768,
+      "documentWidth": 768,
+      "width": 236,
+      "height": 44,
+      "left": 236,
+      "right": 472,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#tasks&status=open",
+      "viewportWidth": 768,
+      "documentWidth": 768,
+      "width": 236,
+      "height": 44,
+      "left": 236,
+      "right": 472,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#all",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#today&status=open",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#tasks&status=open",
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#all",
+      "viewportWidth": 320,
+      "documentWidth": 320,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#today&status=open",
+      "viewportWidth": 320,
+      "documentWidth": 320,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#calendar&month=2026-10&date=2026-10-07&status=open",
+      "viewportWidth": 320,
+      "documentWidth": 320,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": null,
+          "chosen": false,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": "page",
+          "chosen": true,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    },
+    {
+      "view": "#tasks&status=open",
+      "viewportWidth": 320,
+      "documentWidth": 320,
+      "width": 236,
+      "height": 44,
+      "left": 18,
+      "right": 254,
+      "options": [
+        {
+          "view": "all",
+          "text": "全部任务",
+          "icon": false,
+          "current": "page",
+          "chosen": true,
+          "width": 72,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "today",
+          "text": "今天",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        },
+        {
+          "view": "calendar",
+          "text": "日历",
+          "icon": true,
+          "current": null,
+          "chosen": false,
+          "width": 74,
+          "height": 36,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "padding": "4px 12px"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    "all-1440.png",
+    "today-1440.png",
+    "calendar-1440.png",
+    "all-390.png",
+    "today-390.png",
+    "calendar-390.png"
+  ],
+  "sourceSha256": {
+    "public/components/task-range-tabs.js": "d006083355cbe68af9b7609c98d8cffab8dd00726692926a2dce6ea3d2805013",
+    "public/app.js": "605d0a11989cf5b8e9fa36bd2a07f7fa576856129fc43f7d689c18623a976488",
+    "public/calendar/page.js": "f8d98aecfec5957ab95cb8c39b0e4fb2e87dd89fecc8fe876438f9f4e1550225",
+    "core/web-assets.json": "4a9fc140f425a130f6246fa60f6ed171e6e38711b1b0deef8a5a1a03a06f0e9a",
+    "public/style.css": "df27534c878a4dcec752d4c4fd6b9083bf5bd02d12953f21ef6c2b58ece30965"
+  },
+  "passed": true,
+  "servicePort": 54838,
+  "browserPID": 69106,
+  "keyboardBefore": {
+    "hash": "#all",
+    "activeView": "today",
+    "activeTag": "BUTTON"
+  },
+  "cleanup": {
+    "serviceStopped": true,
+    "profileRemoved": true,
+    "dataRemoved": true,
+    "installedAppTouched": false,
+    "userDataTouched": false
+  }
+}

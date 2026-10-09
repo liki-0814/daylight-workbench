@@ -1,3 +1,5 @@
+import { isCivilDate } from '../core/date.js';
+
 export function localDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -24,7 +26,7 @@ export function validate(state) {
   }
   if (state.tasks.filter(t => t.status === 'active').length > 1) fail();
   for (const [day, ids] of Object.entries(state.plans)) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(day)) || new Date(day).toISOString().slice(0, 10) !== day || !Array.isArray(ids) || new Set(ids).size !== ids.length || ids.some(id => !taskIds.has(id))) fail();
+    if (!isCivilDate(day) || !Array.isArray(ids) || new Set(ids).size !== ids.length || ids.some(id => !taskIds.has(id))) fail();
   }
   return state;
 }
@@ -56,7 +58,8 @@ export function change(state, action, day = localDate()) {
     }
     case 'add':
       next.tasks.push({ id: action.id, title: action.title.trim(), projectId: action.projectId, notes: action.notes || '', status: 'todo', completedAt: null });
-      if (action.today) plan().push(action.id);
+      if (action.planDay !== undefined) (next.plans[action.planDay] ||= []).push(action.id);
+      else if (action.today) plan().push(action.id);
       break;
     case 'edit':
       Object.assign(task, { title: action.title.trim(), projectId: action.projectId, notes: action.notes });
@@ -83,7 +86,7 @@ export function change(state, action, day = localDate()) {
       break;
     case 'unplan':
       next.plans[day] = plan().filter(id => id !== task.id);
-      if (task.status === 'active') task.status = 'todo';
+      if (task.status === 'active' && !action.preserveExecution) task.status = 'todo';
       break;
     case 'move': {
       const ids = plan();

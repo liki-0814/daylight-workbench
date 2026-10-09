@@ -1,0 +1,65 @@
+{
+  "startedAt": "2026-10-07T22:09:10.728411+08:00",
+  "finishedAt": "2026-10-07T22:11:17.261476+08:00",
+  "passed": true,
+  "installed": "/Applications/Daylight.app",
+  "binarySha256": "8950c2ea44e12885b6252a832ec354ff85f5b92bd572ce2218e61ac5e68a3c3f",
+  "installedBundleMatchesBuild": true,
+  "backup": "/Users/liki/liki_dev/daylight-workbench/.local/app-backups/20261007-220910-task-view-navigation",
+  "retainedOldApp": "/Applications/.Daylight-old-20261007-220910.app",
+  "backedUpFiles": 81866,
+  "uiPreflight": {
+    "URLSafe": true,
+    "page": "tasks",
+    "count": 1,
+    "webAreaCount": 1,
+    "windowCount": 1,
+    "dialogOrSheetCount": 0,
+    "controlCount": 2,
+    "unknownControlCount": 0,
+    "verifiedLabels": true,
+    "emptySearch": true,
+    "safeToReplaceUI": true
+  },
+  "uiAtCutover": {
+    "URLSafe": true,
+    "page": "tasks",
+    "count": 1,
+    "webAreaCount": 1,
+    "windowCount": 1,
+    "dialogOrSheetCount": 0,
+    "controlCount": 2,
+    "unknownControlCount": 0,
+    "verifiedLabels": true,
+    "emptySearch": true,
+    "safeToReplaceUI": true
+  },
+  "projects": 3,
+  "tasks": 11,
+  "conversations": 2,
+  "businessSnapshotPreserved": true,
+  "focus": {
+    "version": 0,
+    "currentIsNull": true,
+    "available": true
+  },
+  "calendarAndFocusCapabilities": true,
+  "proxy": {
+    "state": "running",
+    "activeRequests": 0,
+    "port": 4319
+  },
+  "dataChanges": {
+    "changed": [
+      "grok/catalog.json"
+    ],
+    "missing": [],
+    "added": []
+  },
+  "expectedRuntimeUpdates": [
+    "grok/catalog.json"
+  ],
+  "runtimeUpdateMeaning": "Only grok/catalog.json at timestamp changed; other catalog fields are identical",
+  "oldPid": 40049,
+  "newPid": 81182
+}

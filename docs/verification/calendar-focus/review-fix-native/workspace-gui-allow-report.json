@@ -1,0 +1,26 @@
+{
+  "kind": "real isolated workspace App notification permission acceptance",
+  "appName": "Daylight Focus QA b9e83906",
+  "bundleId": "local.daylight.focus.qa.b9e83906",
+  "workspaceStage": "/Users/liki/liki_dev/daylight-workbench/dist/gui-acceptance/b9e83906",
+  "data": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-notification-qa-0se8hktf/data",
+  "originalBinarySHA256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+  "choice": "allow",
+  "noRealUserData": true,
+  "signed": "ad-hoc",
+  "steps": [],
+  "pid": 45655,
+  "port": 52210,
+  "passed": false,
+  "error": "isolated GUI startup timeout",
+  "exitCode": -15,
+  "stderr": "",
+  "cleanup": {
+    "temporaryPIDStopped": true,
+    "workspaceStageRemoved": true,
+    "dataRemoved": true,
+    "temporaryLaunchServicesRegistrationRemoved": true,
+    "formalAppActions": false
+  },
+  "originalBinarySHA256After": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15"
+}

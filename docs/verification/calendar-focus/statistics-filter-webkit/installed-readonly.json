@@ -1,0 +1,50 @@
+{
+  "pid": 36268,
+  "windowCount": 1,
+  "windowTitles": [
+    "Daylight · 任务管理"
+  ],
+  "webAreas": [
+    {
+      "title": "",
+      "URL": "http://127.0.0.1:4318/#calendar&month=2026-10&date=2026-10-07&status=open"
+    }
+  ],
+  "pageHeadings": [
+    "任务"
+  ],
+  "dialogs": [],
+  "focusedRole": "",
+  "AXTreeNodesRead": 293,
+  "controlRoleCounts": {
+    "AXTextField": 1,
+    "AXTextArea": 0,
+    "AXCheckBox": 0,
+    "AXComboBox": 1
+  },
+  "unsavedStateVerified": false,
+  "note": "Read-only exact PID AX title/URL/control labels; search content is not output, only empty boolean; authenticated focus outputs only null/status; no actions/navigation/stop/data modification.",
+  "fields": [
+    {
+      "role": "AXComboBox",
+      "subrole": "",
+      "name": "项目筛选",
+      "description": "项目筛选",
+      "placeholder": ""
+    },
+    {
+      "role": "AXTextField",
+      "subrole": "",
+      "name": "搜索日历任务",
+      "description": "搜索日历任务",
+      "placeholder": "搜索任务…",
+      "valueEmpty": true
+    }
+  ],
+  "frontmost": false,
+  "hidden": false,
+  "focusCurrentNull": true,
+  "focusCurrentStatus": null,
+  "capturedAt": "2026-10-07T13:43:22.020991+00:00",
+  "installedBinarySHA256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15"
+}

@@ -1,0 +1,7 @@
+[
+  {"name":"task completed before deadline","task":"done","completedMinutes":5,"expectedReason":"task_completed","expectedElapsedMs":300000,"expectedRounds":0},
+  {"name":"task completed after deadline","task":"done","completedMinutes":30,"expectedReason":"completed","expectedElapsedMs":1500000,"expectedRounds":1},
+  {"name":"task completed exactly at deadline","task":"done","completedMinutes":25,"expectedReason":"completed","expectedElapsedMs":1500000,"expectedRounds":1},
+  {"name":"unknown deletion drops unverified open segment","task":"deleted","expectedReason":"recovery_task_invalid","expectedElapsedMs":0,"expectedRounds":0},
+  {"name":"unknown deletion keeps closed segment","task":"deleted","paused":true,"expectedReason":"recovery_task_invalid","expectedElapsedMs":300000,"expectedRounds":0}
+]

@@ -1,0 +1,150 @@
+{
+  "pid": 40049,
+  "expectedBinarySHA256": "fac96f6e8322213ed13b635a7ce971f26afa3cbef1e3f9ee37e3214f7c02c840",
+  "kind": "real installed Daylight window screenshot and AX presentation geometry",
+  "OSNotificationPermissionRequested": false,
+  "businessMutationsRequested": false,
+  "wholeDesktopCaptured": false,
+  "actions": [
+    {
+      "label": "专注统计",
+      "AXPress": 0
+    },
+    {
+      "label": "自定义",
+      "AXPress": 0
+    }
+  ],
+  "controlGeometry": [
+    {
+      "role": "AXComboBox",
+      "label": "任务",
+      "bounds": {
+        "x": 761.0,
+        "y": 432.0,
+        "width": 220.0,
+        "height": 36.0,
+        "bottom": 468.0
+      }
+    },
+    {
+      "role": "AXComboBox",
+      "label": "项目",
+      "bounds": {
+        "x": 525.0,
+        "y": 432.0,
+        "width": 220.0,
+        "height": 36.0,
+        "bottom": 468.0
+      }
+    },
+    {
+      "role": "AXDateTimeArea",
+      "label": "结束日期",
+      "bounds": {
+        "x": 956.0,
+        "y": 350.0,
+        "width": 151.0,
+        "height": 36.0,
+        "bottom": 386.0
+      }
+    },
+    {
+      "role": "AXDateTimeArea",
+      "label": "开始日期",
+      "bounds": {
+        "x": 794.0,
+        "y": 350.0,
+        "width": 151.0,
+        "height": 36.0,
+        "bottom": 386.0
+      }
+    },
+    {
+      "role": "AXRadioGroup",
+      "label": "统计范围",
+      "bounds": {
+        "x": 525.0,
+        "y": 350.0,
+        "width": 254.0,
+        "height": 36.0,
+        "bottom": 386.0
+      }
+    },
+    {
+      "role": "AXRadioButton",
+      "label": "自定义",
+      "bounds": {
+        "x": 715.0,
+        "y": 353.0,
+        "width": 61.0,
+        "height": 30.0,
+        "bottom": 383.0
+      }
+    },
+    {
+      "role": "AXRadioButton",
+      "label": "近 30 天",
+      "bounds": {
+        "x": 643.0,
+        "y": 353.0,
+        "width": 70.0,
+        "height": 30.0,
+        "bottom": 383.0
+      }
+    },
+    {
+      "role": "AXRadioButton",
+      "label": "近 7 天",
+      "bounds": {
+        "x": 578.0,
+        "y": 353.0,
+        "width": 63.0,
+        "height": 30.0,
+        "bottom": 383.0
+      }
+    },
+    {
+      "role": "AXRadioButton",
+      "label": "今天",
+      "bounds": {
+        "x": 528.0,
+        "y": 353.0,
+        "width": 48.0,
+        "height": 30.0,
+        "bottom": 383.0
+      }
+    },
+    {
+      "role": "AXButton",
+      "label": "任务",
+      "bounds": {
+        "x": 264.0,
+        "y": 293.0,
+        "width": 197.0,
+        "height": 44.0,
+        "bottom": 337.0
+      }
+    }
+  ],
+  "windowId": 193584,
+  "screenshot": "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/statistics-filter-webkit/installed-focus-custom.png",
+  "screenshotSHA256": "38005be7f6c74003c8ba67ad691b7775ed22202249c07a053ca3bd6bb05f9551",
+  "passed": true,
+  "visibleAlignmentChecks": {
+    "rangeDatesHeight36": true,
+    "rangeDatesTopAligned": true,
+    "rangeDatesBottomAligned": true,
+    "projectTaskHeight36": true,
+    "projectTaskBottomAligned": true,
+    "nativeDateAccessibilityRolesRetained": true
+  },
+  "visualInspection": "Viewed actual window-only PNG; control labels/frames and date text are fully visible with aligned top/bottom edges; no desktop content or secret values appear.",
+  "imagePixels": {
+    "width": 2704,
+    "height": 1928
+  },
+  "captureMethod": "screencapture -x -l precise Daylight windowID; unmodified native window screenshot including window shadow",
+  "capturedAt": "2026-10-07T13:55:03.578635+00:00",
+  "leftOnPage": "focus statistics with custom range visible; date values untouched"
+}

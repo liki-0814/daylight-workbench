@@ -1,0 +1,15 @@
+{
+  "kind": "real production native Focus persistence with exact consumer class and injected delivery observer; not OS evidence",
+  "binarySHA256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+  "nativeCoreSHA256": "75375d02fec7b60826ffa40cae64408f3ca3a3cfacadc7553360613a23d215bd",
+  "testSourceSHA256": "94dc795aea6adc14bfd656186a4f2b5db101c527277b8bcd0f62c1be2814c4b8",
+  "launch": "strict-verified ad-hoc workspace App copied to a distinct inode after signing",
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"/Users/liki/liki_dev/daylight-workbench/test/native-focus-notification-test.py\", line 163, in <module>\n    subprocess.run([str(runtime_executable), str(directory), str(core)], check=True, timeout=30)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py\", line 528, in run\n    raise CalledProcessError(retcode, process.args,\nsubprocess.CalledProcessError: Command '['/Users/liki/liki_dev/daylight-workbench/dist/.native-notification-test-98t9cnww/RuntimeNotificationContract.app/Contents/MacOS/notifications', '/Users/liki/liki_dev/daylight-workbench/dist/.native-notification-test-98t9cnww', '/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/Resources/native-core.js']' died with <Signals.SIGKILL: 9>.\n",
+  "passed": false,
+  "OSAuthorizationRequested": false,
+  "OSNotificationSubmitted": false,
+  "priorFailureEvidence": "notification-consumer-prior-startup-failures.json",
+  "capturedAt": "2026-10-07T12:12:12.867696+00:00"
+}

@@ -6,6 +6,7 @@ import { createConversations } from './conversations.mjs';
 import { createRunManager } from './run-manager.mjs';
 import { createDrafts } from './drafts.mjs';
 import { createToolDispatch } from './tools/dispatch.mjs';
+import { createFocusSubmissions } from './focus-submissions.mjs';
 export { validateSettings } from './conversations.mjs';
 export { validateAction } from './drafts.mjs';
 export { referenceSnapshots } from './context.mjs';
@@ -13,16 +14,19 @@ export { referenceSnapshots } from './context.mjs';
 export async function createAIService({ dataDir, endpoint, adapters } = {}) {
   const store = new AIStore(dataDir);
   const providers = adapters || { codex: await import('./adapters/codex.mjs'), qoder: await import('./adapters/qoder.mjs') };
-  let closed = false, runtime, tool;
-  async function api(route, input) {
+  let closed = false, runtime, tool, focusSubmissions;
+  async function api(route, input, params) {
     const token = fs.readFileSync(path.join(dataDir, 'agent-token'), 'utf8').trim();
-    const res = await fetch((typeof endpoint === 'function' ? endpoint() : endpoint) + '/api/v1/' + route, { method: input ? 'POST' : 'GET', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...(input ? { body: JSON.stringify(input) } : {}), signal: AbortSignal.timeout(route.startsWith('proxy/') ? 65000 : 15000) });
-    const data = await res.json(); if (!res.ok) throw httpError(data.error || '工作台请求失败', res.status); return data;
+    const url = new URL((typeof endpoint === 'function' ? endpoint() : endpoint) + '/api/v1/' + route);
+    if (params) for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== null) url.searchParams.set(key, value === true ? '1' : String(value));
+    const res = await fetch(url, { method: input ? 'POST' : 'GET', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...(input ? { body: JSON.stringify(input) } : {}), signal: AbortSignal.timeout(route.startsWith('proxy/') ? 65000 : 15000) });
+    const data = await res.json(); if (!res.ok) throw httpError(data.error || '工作台请求失败', res.status, { ...(data.code ? { code: data.code } : {}), ...(data.version !== undefined ? { version: data.version } : {}), ...(data.details ? { details: data.details } : {}) }); return data;
   }
-  const conversations = createConversations({ store, providers, api, isRunning: id => runtime?.has(id) });
-  const drafts = createDrafts({ api, applyAI: conversations.applyAI, save: conversations.save });
+  const conversations = createConversations({ store, providers, api, isRunning: id => runtime?.has(id), isFocusApplying: c => focusSubmissions?.isApplying(c) });
+  focusSubmissions = createFocusSubmissions({ api, save: conversations.save, onResolved: (...args) => runtime?.resolveFocusSubmission(...args) });
+  const drafts = createDrafts({ api, applyAI: conversations.applyAI, save: conversations.save, focusSubmissions });
   runtime = await createRunManager({ store, providers, api, discover: conversations.discover,
-    getConversation: conversations.get, tool: (...args) => tool(...args), applyDraft: drafts.apply });
+    getConversation: conversations.get, tool: (...args) => tool(...args), applyDraft: drafts.apply, isFocusApplying: focusSubmissions.isApplying });
   tool = createToolDispatch({ api, get: conversations.get, aiState: conversations.aiState, prepareAI: conversations.prepareAI, pending: runtime.pending });
   async function handle(req, res) {
     try {
@@ -44,18 +48,19 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
         if (req.method === 'POST') { const c = await conversations.newConversation(input); conversations.save(c); return send(res, 200, { conversation: c }); }
         return send(res, 200, await conversations.list(url));
       }
-      const match = route.match(/^\/conversations\/([a-f0-9-]+)(?:\/(message|cancel|answer|model|scope))?$/);
+      const match = route.match(/^\/conversations\/([a-f0-9-]+)(?:\/(message|cancel|answer|model|scope|focus-submission))?$/);
       if (!match) throw httpError('接口不存在', 404);
       const c = conversations.get(match[1]);
       if (req.method === 'GET' && !match[2]) return send(res, 200, { conversation: await conversations.detail(c) });
       if (req.method !== 'POST') throw httpError('请求方法不支持', 405);
-      if (match[2] === 'scope') await conversations.setScope(c, input);
+      if (match[2] === 'focus-submission') { await focusSubmissions.recover(c, input); }
+      else if (match[2] === 'scope') await conversations.setScope(c, input);
       else if (match[2] === 'model') await conversations.setModel(c, input);
       else if (match[2] === 'message') await runtime.sendMessage(c, input);
       else if (match[2] === 'cancel') runtime.stop(c);
       else if (match[2] === 'answer') await runtime.answer(c, input);
       return send(res, 200, { conversation: c });
-    } catch (e) { send(res, e.status || 400, { error: e.message }); }
+    } catch (e) { send(res, e.status || 400, { error: e.message, ...(e.code ? { code: e.code } : {}), ...(e.version !== undefined ? { version: e.version } : {}), ...(e.details ? { details: e.details } : {}) }); }
   }
   return { handle, store, tool, async close() { closed = true; runtime.close(); } };
 }

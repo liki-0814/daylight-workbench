@@ -1,0 +1,187 @@
+{
+  "pid": 81182,
+  "expectedBinarySHA256": "8950c2ea44e12885b6252a832ec354ff85f5b92bd572ce2218e61ac5e68a3c3f",
+  "kind": "real installed App, precise-PID read-only task/calendar navigation and single-window captures",
+  "OSNotificationPermissionRequested": false,
+  "businessMutationsRequested": false,
+  "wholeDesktopCaptured": false,
+  "inputValuesOutput": false,
+  "actions": [
+    {
+      "label": "全部任务",
+      "AXPress": 0
+    },
+    {
+      "label": "日历",
+      "AXPress": 0
+    }
+  ],
+  "pages": [
+    {
+      "page": "tasks",
+      "windowId": 193660,
+      "rangeGroupBounds": {
+        "x": 525.0,
+        "y": 322.0,
+        "width": 236.0,
+        "height": 44.0,
+        "bottom": 366.0
+      },
+      "controls": [
+        {
+          "label": "全部任务",
+          "role": "AXButton",
+          "bounds": {
+            "x": 529.0,
+            "y": 326.0,
+            "width": 72.0,
+            "height": 36.0,
+            "bottom": 362.0
+          },
+          "iconDescription": "文字按钮，无图标",
+          "iconEvidence": "pinned shared component source plus actual window image; aria-hidden SVG is not exposed through AX"
+        },
+        {
+          "label": "今天",
+          "role": "AXButton",
+          "bounds": {
+            "x": 604.0,
+            "y": 326.0,
+            "width": 75.0,
+            "height": 36.0,
+            "bottom": 362.0
+          },
+          "iconDescription": "共享 sun SVG：圆形太阳与八向光线",
+          "iconEvidence": "pinned shared component source plus actual window image; aria-hidden SVG is not exposed through AX"
+        },
+        {
+          "label": "日历",
+          "role": "AXButton",
+          "bounds": {
+            "x": 682.0,
+            "y": 326.0,
+            "width": 75.0,
+            "height": 36.0,
+            "bottom": 362.0
+          },
+          "iconDescription": "共享 calendar SVG：带顶部装订线的日期方框",
+          "iconEvidence": "pinned shared component source plus actual window image; aria-hidden SVG is not exposed through AX"
+        }
+      ],
+      "screenshot": "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/task-view-navigation/installed-task.png",
+      "screenshotSHA256": "83fcf69cc65c5285e920c3d4e8ced09e6b0ffe0e59021da09c879eb3d3a19fa9",
+      "imageWidth": 2704,
+      "imageHeight": 1928
+    },
+    {
+      "page": "calendar",
+      "windowId": 193660,
+      "rangeGroupBounds": {
+        "x": 525.0,
+        "y": 322.0,
+        "width": 236.0,
+        "height": 44.0,
+        "bottom": 366.0
+      },
+      "controls": [
+        {
+          "label": "全部任务",
+          "role": "AXButton",
+          "bounds": {
+            "x": 529.0,
+            "y": 326.0,
+            "width": 72.0,
+            "height": 36.0,
+            "bottom": 362.0
+          },
+          "iconDescription": "文字按钮，无图标",
+          "iconEvidence": "pinned shared component source plus actual window image; aria-hidden SVG is not exposed through AX"
+        },
+        {
+          "label": "今天",
+          "role": "AXButton",
+          "bounds": {
+            "x": 604.0,
+            "y": 326.0,
+            "width": 75.0,
+            "height": 36.0,
+            "bottom": 362.0
+          },
+          "iconDescription": "共享 sun SVG：圆形太阳与八向光线",
+          "iconEvidence": "pinned shared component source plus actual window image; aria-hidden SVG is not exposed through AX"
+        },
+        {
+          "label": "日历",
+          "role": "AXButton",
+          "bounds": {
+            "x": 682.0,
+            "y": 326.0,
+            "width": 75.0,
+            "height": 36.0,
+            "bottom": 362.0
+          },
+          "iconDescription": "共享 calendar SVG：带顶部装订线的日期方框",
+          "iconEvidence": "pinned shared component source plus actual window image; aria-hidden SVG is not exposed through AX"
+        }
+      ],
+      "screenshot": "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/task-view-navigation/installed-calendar.png",
+      "screenshotSHA256": "e7599ea4dd8f80e2ca474af3424f3ddedc0a86982dfbb660d9b808583c481055",
+      "imageWidth": 2704,
+      "imageHeight": 1928
+    }
+  ],
+  "preflight": {
+    "URLSafe": true,
+    "page": "tasks",
+    "count": 1,
+    "webAreaCount": 1,
+    "windowCount": 1,
+    "dialogOrSheetCount": 0,
+    "controlCount": 2,
+    "unknownControlCount": 0,
+    "verifiedLabels": true,
+    "emptySearch": true,
+    "safeToReplaceUI": true
+  },
+  "installedPackedResourceSHA256": {
+    "public/components/task-range-tabs.js": "875de251200fa3946c769ac22718b97aaf923d6b66f7385906a88c0498c3177e",
+    "public/components/icons.js": "b91167786e2a9fd67d3b8bd68b4cc710ee5a7b62992eeeac5e05fcdc94e56b29",
+    "public/style.css": "9f9d1629c58e76eff78ddeb34c2b022c12fd24389c1906f706bd60036da06ce6",
+    "public/app.js": "f9bbe7baa6a1f4e9839cf05937c2df17a4594eb840dc41bdc9e7435b9aa115be",
+    "public/calendar/page.js": "24696db5575300bf43847186c9944d713856c1451078620aa02c072b90a9a231"
+  },
+  "resourceHashBoundary": "Installed resources match the verified minified dist; unminified source hashes are recorded separately",
+  "presentationSourceSHA256": {
+    "public/components/task-range-tabs.js": "d006083355cbe68af9b7609c98d8cffab8dd00726692926a2dce6ea3d2805013",
+    "public/components/icons.js": "d38095a2716f1b01e04bd2b2ebeb6dd8b6784c5eee5723b98a3b9695ba636ff5",
+    "public/style.css": "df27534c878a4dcec752d4c4fd6b9083bf5bd02d12953f21ef6c2b58ece30965",
+    "public/app.js": "605d0a11989cf5b8e9fa36bd2a07f7fa576856129fc43f7d689c18623a976488",
+    "public/calendar/page.js": "f8d98aecfec5957ab95cb8c39b0e4fb2e87dd89fecc8fe876438f9f4e1550225"
+  },
+  "taskVersionBefore": 22,
+  "taskVersionAfter": 22,
+  "focusVersionBefore": 0,
+  "focusVersionAfter": 0,
+  "taskStateUnchanged": true,
+  "focusStateUnchanged": true,
+  "sharedButtonGeometryMatches": true,
+  "sharedGroupGeometryMatches": true,
+  "passed": true,
+  "priorAttemptEvidence": {
+    "startupGuardRejection": "startup-guard-rejection.json",
+    "startupRejectionActionsEmpty": true,
+    "verifiedRootNavigationAndInvalidUnminifiedHashAssertion": "unminified-hash-guard-rejection.json",
+    "rootNormalizationOnlyNavigation": "任务",
+    "resourceAssertionCorrection": "Compare minified installed resources with the verified packaged dist; workspace source hashes recorded separately"
+  },
+  "visualInspection": {
+    "completed": true,
+    "onlyExactDaylightWindowVisible": true,
+    "threeRangeButtonsSameAppearanceAcrossPages": true,
+    "allTasksTextOnly": true,
+    "todaySunIconVisible": true,
+    "calendarIconVisible": true,
+    "activeSelectionCorrectOnEachPage": true,
+    "noRangeLabelClippingOrOverlap": true
+  }
+}

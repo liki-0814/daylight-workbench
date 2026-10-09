@@ -1,0 +1,39 @@
+{
+  "checks": [
+    {
+      "name": "unknown approved submission visible after restart",
+      "ok": true
+    },
+    {
+      "name": "unknown submission offers no cancel",
+      "ok": true
+    },
+    {
+      "name": "retry reuses original receipt and logs once",
+      "ok": true,
+      "detail": {
+        "status": "applied",
+        "replayed": true,
+        "operations": 1
+      }
+    },
+    {
+      "name": "acknowledge clears recovery card without a running model",
+      "ok": true
+    },
+    {
+      "name": "recovery does not apply twice",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "ai-focus-unknown.png",
+    "ai-focus-applied.png"
+  ]
+}

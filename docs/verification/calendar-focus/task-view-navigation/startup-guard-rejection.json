@@ -1,0 +1,13 @@
+{
+  "pid": 81182,
+  "expectedBinarySHA256": "8950c2ea44e12885b6252a832ec354ff85f5b92bd572ce2218e61ac5e68a3c3f",
+  "kind": "real installed App, precise-PID read-only task/calendar navigation and single-window captures",
+  "OSNotificationPermissionRequested": false,
+  "businessMutationsRequested": false,
+  "wholeDesktopCaptured": false,
+  "inputValuesOutput": false,
+  "actions": [],
+  "pages": [],
+  "passed": false,
+  "error": "Command '['python3', '/Users/liki/liki_dev/daylight-workbench/.local/verification/native-navigation-url-guard.py', '81182']' returned non-zero exit status 1."
+}

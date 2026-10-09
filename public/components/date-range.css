@@ -1,0 +1,36 @@
+.ui-date-range {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.ui-date-range-custom {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 1 312px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+  gap: var(--space-3);
+}
+
+.ui-date-range-custom .ui-date-field {
+  flex: 1 1 144px;
+}
+
+.ui-date-range-custom[hidden] {
+  display: none;
+}
+
+.ui-date-range-error {
+  width: 100%;
+  color: var(--danger);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
+  margin: 0;
+}
+
+.ui-date-range-error:empty {
+  display: none;
+}

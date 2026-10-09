@@ -1,0 +1,38 @@
+{
+  "kind": "production native Focus source and injected delivery boundary (not OS notification evidence)",
+  "binarySHA256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+  "nativeCoreSHA256": "75375d02fec7b60826ffa40cae64408f3ca3a3cfacadc7553360613a23d215bd",
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"/Users/liki/liki_dev/daylight-workbench/test/native-focus-notification-test.py\", line 142, in <module>\n    subprocess.run([str(executable), str(directory), str(core)], check=True, timeout=30)\n  File \"/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py\", line 528, in run\n    raise CalledProcessError(retcode, process.args,\nsubprocess.CalledProcessError: Command '['/Users/liki/liki_dev/daylight-workbench/dist/.native-notification-test-otfrzewj/notifications', '/Users/liki/liki_dev/daylight-workbench/dist/.native-notification-test-otfrzewj', '/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/Resources/native-core.js']' died with <Signals.SIGKILL: 9>.\n",
+  "passed": false,
+  "OSAuthorizationRequested": false,
+  "OSNotificationSubmitted": false,
+  "priorTempExecutableFailures": [
+    "OS temporary-tree harness launch SIGKILL before assertions (sandbox)",
+    "OS temporary-tree harness launch SIGKILL before assertions (escalated)"
+  ],
+  "workspaceDisposableHarness": true,
+  "priorWorkspaceBareExecutableRun": {
+    "passedOnce": true,
+    "stable": false,
+    "scope": "actual Focus.swift + consumer injected observer; no OS submission",
+    "note": "One earlier workspace executable run printed all assertions PASS; subsequent independently compiled runs were killed before any assertion output."
+  },
+  "latestAttempt": {
+    "layout": "workspace disposable private App bundle; exact extracted production consumer; Foundation/JSC only",
+    "compilePassed": true,
+    "codesignVerifyPassed": true,
+    "processExit": "SIGKILL 9 before assertion output",
+    "passed": false
+  },
+  "startupDiagnostic": {
+    "source": "targeted unified log for temporary consumer executable",
+    "lines": [
+      "AMFI: native-notification-test-0lsblgw4/NativeNotificationContract.app/Contents/MacOS/notifications is adhoc signed.",
+      "amfid: AppleMobileFileIntegrityError Code=-423: The file is adhoc signed or signed by an unknown certificate chain."
+    ],
+    "interpretation": "Observed startup diagnostics; no proven causal attribution for SIGKILL. No security policy change attempted."
+  },
+  "stablePass": false
+}

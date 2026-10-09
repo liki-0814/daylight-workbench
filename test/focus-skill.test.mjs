@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { execFile as execute } from 'node:child_process';
+import { createWorkbench } from '../server.mjs';
+import { fixtureState } from './fixtures.mjs';
+const execFile=promisify(execute);
+
+test('external focus CLI discovers capabilities, previews, applies original versions and exclusively exports', async t=>{
+  const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-focus-skill-'));
+  const state=fixtureState();state.plans['2026-10-06']=['task-1'];
+  await writeFile(path.join(dataDir,'state.json'),JSON.stringify({version:0,state}));
+  const server=await createWorkbench({dataDir});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{await server.closeProxy();await new Promise(resolve=>server.close(resolve));server.closeAllConnections();await rm(dataDir,{recursive:true,force:true});});
+  const url=`http://127.0.0.1:${server.address().port}`,token=(await readFile(path.join(dataDir,'agent-token'),'utf8')).trim();
+  const cli=async(...args)=>{const {stdout,stderr}=await execFile('python3',['skills/daylight-workbench/scripts/workbench.py','--url',url,'--data-dir',dataDir,...args]);assert.ok(!stdout.includes(token)&&!stderr.includes(token));return JSON.parse(stdout);};
+  assert.equal((await cli('calendar','--from','2026-10-06','--to','2026-10-06')).days[0].matchedCount,1);
+  const actionFile=path.join(dataDir,'action.json');
+  await writeFile(actionFile,JSON.stringify({type:'focus.start',phase:'work',taskId:'task-1'}));
+  const preview=await cli('focus-prepare','--file',actionFile);assert.equal(preview.focusVersion,0);
+  assert.equal((await cli('focus-state')).current,null);
+  const started=await cli('focus-apply','--file',actionFile,'--expected-version','0','--expected-task-version','0','--request-id','skill-focus-start');
+  const replay=await cli('focus-apply','--file',actionFile,'--expected-version','0','--expected-task-version','0','--request-id','skill-focus-start');
+  assert.equal(replay.replayed,true);assert.equal(replay.current.id,started.current.id);
+  assert.equal((await cli('state')).version,0);
+  assert.equal((await cli('task-focus','--id','task-1')).summary.includesCurrent,true);
+  await writeFile(actionFile,JSON.stringify({type:'focus.finish',sessionId:started.current.id}));
+  await cli('focus-apply','--file',actionFile,'--expected-version','1','--request-id','skill-focus-finish');
+  const sessions=await cli('focus-sessions','--task','task-1','--limit','5');assert.equal(sessions.sessions.length,1);
+  const day=(await cli('state')).localDate;
+  assert.equal((await cli('focus-stats','--from',day,'--to',day)).summary.stoppedSessions,1);
+  const output=path.join(dataDir,'focus-export.json');await cli('focus-export','--out',output);
+  const exported=JSON.parse(await readFile(output,'utf8'));assert.equal(exported.sessions.length,1);assert.ok(!Object.hasOwn(exported,'receipts'));assert.ok(!JSON.stringify(exported).includes(token));
+  await assert.rejects(cli('focus-export','--out',output));assert.equal(JSON.parse(await readFile(output,'utf8')).sessions.length,1);
+});

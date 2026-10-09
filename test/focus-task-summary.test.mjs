@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createTaskSummaryRefresh } from '../public/focus/task-summary.js';
+test('task detail refreshes every 15 seconds only for its current running work session', async () => {
+  const page = new EventTarget(); page.hidden = false; let refreshes = 0, hides = 0, serial = 0, snapshot = { version: 1, current: null };
+  const callbacks = new Set(), timers = new Map();
+  const controller = { getSnapshot: () => snapshot, subscribe(callback) { callbacks.add(callback); callback({ snapshot, tick: false }); return () => callbacks.delete(callback); } };
+  const emit = current => { snapshot = { version: snapshot.version + 1, current }; for (const callback of callbacks) callback({ snapshot, tick: false }); };
+  const lifecycle = createTaskSummaryRefresh({ taskId: 'task-a', controller, document: page, refresh: async () => { refreshes++; }, onHide: () => { hides++; }, setTimeout(callback, milliseconds) { assert.equal(milliseconds, 15000); const id = ++serial; timers.set(id, callback); return id; }, clearTimeout: id => timers.delete(id) });
+  assert.equal(refreshes, 1); assert.equal(timers.size, 0);
+  emit({ taskId: 'task-b', phase: 'work', status: 'running' }); assert.equal(timers.size, 0);
+  emit({ taskId: 'task-a', phase: 'work', status: 'running' }); assert.equal(timers.size, 1);
+  const before = refreshes, [id, callback] = [...timers][0]; timers.delete(id); await callback(); assert.equal(refreshes, before + 1); assert.equal(timers.size, 1);
+  emit({ taskId: 'task-a', phase: 'work', status: 'paused' }); assert.equal(timers.size, 0);
+  emit({ taskId: 'task-a', phase: 'shortBreak', status: 'running' }); assert.equal(timers.size, 0);
+  emit({ taskId: 'task-a', phase: 'work', status: 'running' }); assert.equal(timers.size, 1);
+  page.hidden = true; page.dispatchEvent(new Event('visibilitychange')); assert.equal(hides, 1); assert.equal(timers.size, 0);
+  const hiddenCount = refreshes; emit(null); assert.equal(refreshes, hiddenCount);
+  page.hidden = false; page.dispatchEvent(new Event('visibilitychange')); assert.equal(refreshes, hiddenCount + 1);
+  emit({ taskId: 'task-a', phase: 'work', status: 'running' }); lifecycle.dispose(); assert.equal(timers.size, 0); assert.equal(callbacks.size, 0);
+  const disposedCount = refreshes; page.dispatchEvent(new Event('visibilitychange')); assert.equal(refreshes, disposedCount);
+});

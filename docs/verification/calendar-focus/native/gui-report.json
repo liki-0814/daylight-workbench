@@ -1,0 +1,33 @@
+{
+  "temporaryBundleId": "local.daylight.focus.acceptance.daylightfocusguironje939",
+  "permission": "default",
+  "authorizationRequestError": "Notifications are not allowed for this application",
+  "verified": [
+    "real WKWebView settings bridge getStatus",
+    "trusted user click calls requestAuthorization",
+    "OS error returned to settings page"
+  ],
+  "unverified": [
+    "OS allow/deny prompt",
+    "OS actual notification delivery",
+    "real sleep/wake interaction"
+  ],
+  "screenshots": [
+    "permission-before.png",
+    "permission-error.png"
+  ],
+  "cleanup": {
+    "temporaryAppRunning": false,
+    "temporaryLaunchServicesRegistrationRemoved": true
+  },
+  "operationDeviation": {
+    "systemEventsSameNameResolvedToInstalledInstance": true,
+    "originalMainWindowPossiblyClosed": true,
+    "originalMainWindowRestoredVerifiedByScreenshot": true,
+    "originalAppTerminatedOrReplaced": false,
+    "originalDataOrPermissionsChanged": false
+  },
+  "separateFinalBuildEvidence": "closed-window-report.json",
+  "separateFinalMenuEvidence": "tray-report.json",
+  "separateTaskSubmenuEvidence": "task-submenu-report.json"
+}

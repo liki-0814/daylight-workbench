@@ -1,0 +1,40 @@
+{
+  "checks": [
+    {
+      "name": "ordinary browser hides all native notification actions",
+      "ok": true
+    },
+    {
+      "name": "1440px settings toggles are separate and right aligned",
+      "ok": true
+    },
+    {
+      "name": "settings initialization only reads simulated native status",
+      "ok": true
+    },
+    {
+      "name": "native error preserves last status with Chinese summary and collapsed original detail",
+      "ok": true
+    },
+    {
+      "name": "390px settings toggles stay aligned without page overflow",
+      "ok": true
+    },
+    {
+      "name": "explicit status refresh clears stale operation error",
+      "ok": true
+    },
+    {
+      "name": "no browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "settings-page-only-wide.png",
+    "settings-native-error-wide.png",
+    "settings-native-390.png",
+    "settings-native-error-390.png"
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "kind": "real exact-PID synthetic task submenu independence regression",
+  "binary": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/MacOS/Daylight",
+  "temporary": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-mq76iqwy",
+  "notificationsEnabled": false,
+  "signatureChanged": false,
+  "proxyAIInit": "disabled by temporary missing Node path",
+  "steps": [
+    {
+      "title": "开始任务",
+      "CGClickGeometry": {
+        "pid": 95258,
+        "title": "开始任务",
+        "x": 1008.0,
+        "y": 277.0,
+        "width": 84.0,
+        "height": 24.0,
+        "clickedX": 1050.0,
+        "clickedY": 289.0
+      },
+      "taskVersion": 1,
+      "taskStatus": "active",
+      "focusVersion": 0,
+      "current": null
+    },
+    {
+      "title": "暂停任务",
+      "CGClickGeometry": {
+        "pid": 95258,
+        "title": "暂停任务",
+        "x": 1022.0,
+        "y": 218.0,
+        "width": 84.0,
+        "height": 24.0,
+        "clickedX": 1064.0,
+        "clickedY": 230.0
+      },
+      "taskVersion": 2,
+      "taskStatus": "todo",
+      "focusVersion": 0,
+      "current": null
+    },
+    {
+      "title": "开始专注",
+      "CGClickGeometry": {
+        "pid": 95258,
+        "title": "开始专注",
+        "x": 1008.0,
+        "y": 242.0,
+        "width": 84.0,
+        "height": 24.0,
+        "clickedX": 1050.0,
+        "clickedY": 254.0
+      },
+      "taskVersion": 2,
+      "taskStatus": "todo",
+      "focusVersion": 1,
+      "phase": "work",
+      "taskId": "task-a"
+    },
+    {
+      "title": "结束本轮",
+      "activation": "CG mouse move/down/up on exact-PID observed item geometry",
+      "CGClickGeometry": {
+        "pid": 95258,
+        "title": "结束本轮",
+        "x": 766.0,
+        "y": 111.0,
+        "width": 217.0,
+        "height": 24.0,
+        "clickedX": 874.5,
+        "clickedY": 123.0
+      },
+      "taskVersion": 2,
+      "taskStatus": "todo",
+      "focusVersion": 2,
+      "current": null,
+      "lastOutcome": {
+        "acknowledged": false,
+        "elapsedMs": 2380,
+        "endedAt": 1791224029408,
+        "endReason": "stopped",
+        "id": "628e01dd-6cba-46d1-b3a0-1d50b1b3afaa",
+        "notification": {
+          "requestId": "focus-628e01dd-6cba-46d1-b3a0-1d50b1b3afaa",
+          "state": "none"
+        },
+        "observedAt": 1791224029408,
+        "phase": "work",
+        "sessionId": "628e01dd-6cba-46d1-b3a0-1d50b1b3afaa",
+        "targetMs": 1500000,
+        "taskId": "task-a",
+        "taskTitleSnapshot": "隔离任务子菜单验收",
+        "timeQuality": "wall_clock"
+      }
+    }
+  ],
+  "pid": 95258,
+  "port": 58910,
+  "closeCode": 0,
+  "menuOpenAXCodes": [
+    -25204,
+    -25204,
+    -25204,
+    -25204
+  ],
+  "observedTaskParentGeometry": [
+    {
+      "pid": 95258,
+      "title": "隔离任务子菜单验收",
+      "x": 796.0,
+      "y": 229.0,
+      "width": 217.0,
+      "height": 24.0,
+      "hoverX": 904.5,
+      "hoverY": 241.0
+    },
+    {
+      "pid": 95258,
+      "title": "▶ 隔离任务子菜单验收",
+      "x": 796.0,
+      "y": 170.0,
+      "width": 231.0,
+      "height": 24.0,
+      "hoverX": 911.5,
+      "hoverY": 182.0
+    },
+    {
+      "pid": 95258,
+      "title": "隔离任务子菜单验收",
+      "x": 796.0,
+      "y": 170.0,
+      "width": 217.0,
+      "height": 24.0,
+      "hoverX": 904.5,
+      "hoverY": 182.0
+    }
+  ],
+  "observedSubmenus": [
+    {
+      "title": "开始任务",
+      "items": [
+        "隔离验收",
+        "标记完成",
+        "开始任务",
+        "开始专注",
+        "加入今天",
+        "查看任务"
+      ]
+    },
+    {
+      "title": "暂停任务",
+      "items": [
+        "隔离验收",
+        "标记完成",
+        "暂停任务",
+        "开始专注",
+        "移出今天",
+        "查看任务"
+      ]
+    },
+    {
+      "title": "开始专注",
+      "items": [
+        "隔离验收",
+        "标记完成",
+        "开始任务",
+        "开始专注",
+        "移出今天",
+        "查看任务"
+      ]
+    }
+  ],
+  "observedMenuItemGeometry": [
+    {
+      "pid": 95258,
+      "title": "开始任务",
+      "x": 1008.0,
+      "y": 277.0,
+      "width": 84.0,
+      "height": 24.0,
+      "clickedX": 1050.0,
+      "clickedY": 289.0
+    },
+    {
+      "pid": 95258,
+      "title": "暂停任务",
+      "x": 1022.0,
+      "y": 218.0,
+      "width": 84.0,
+      "height": 24.0,
+      "clickedX": 1064.0,
+      "clickedY": 230.0
+    },
+    {
+      "pid": 95258,
+      "title": "开始专注",
+      "x": 1008.0,
+      "y": 242.0,
+      "width": 84.0,
+      "height": 24.0,
+      "clickedX": 1050.0,
+      "clickedY": 254.0
+    },
+    {
+      "pid": 95258,
+      "title": "结束本轮",
+      "x": 766.0,
+      "y": 111.0,
+      "width": 217.0,
+      "height": 24.0,
+      "clickedX": 874.5,
+      "clickedY": 123.0
+    }
+  ],
+  "screenshots": [
+    "task-submenu.png"
+  ],
+  "passed": true,
+  "stderr": "",
+  "temporaryProcessStopped": true,
+  "launchServicesRegistrationTouched": false,
+  "binarySHA256": "f60cd1d4e19f167e02c7bbb3593c9cddb627c052588457d27d8ca970c201a0c7",
+  "temporaryDirectoryRemoved": true
+}

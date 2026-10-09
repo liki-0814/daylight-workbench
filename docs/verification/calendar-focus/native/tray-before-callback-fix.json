@@ -1,0 +1,98 @@
+{
+  "kind": "real exact-PID native status menu controls",
+  "binary": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/MacOS/Daylight",
+  "temporary": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-h5p746xv",
+  "notificationsEnabled": false,
+  "signatureChanged": false,
+  "proxyAIInit": "disabled by temporary missing Node path",
+  "steps": [
+    {
+      "title": "暂停专注",
+      "activation": "CG mouse move/down/up on exact-PID observed item geometry",
+      "CGClickGeometry": {
+        "pid": 76711,
+        "title": "暂停专注",
+        "x": 761.0,
+        "y": 87.0,
+        "width": 204.0,
+        "height": 24.0,
+        "clickedX": 863.0,
+        "clickedY": 99.0
+      }
+    }
+  ],
+  "pid": 76711,
+  "port": 51086,
+  "sessionId": "20ff5daf-0056-45fc-ab44-8e3ba060772a",
+  "closeCode": 0,
+  "mainWindowCount": 0,
+  "menuOpenAXCodes": [
+    -25204
+  ],
+  "heldOpenAcrossTicker": {
+    "seconds": 2.3,
+    "before": [
+      "专注 02:59",
+      "隔离闭窗计时验收",
+      "暂停专注",
+      "结束本轮",
+      "查看专注统计",
+      "",
+      "今日任务 · 0",
+      "今天暂无安排",
+      "",
+      "其他待办 · 1",
+      "隔离闭窗计时验收",
+      "",
+      "新建任务…",
+      "快速搜索…",
+      "打开工作台",
+      "打开日历",
+      "查看专注统计",
+      "打开数据目录",
+      "",
+      "退出 Daylight"
+    ],
+    "after": [
+      "专注 02:57",
+      "隔离闭窗计时验收",
+      "暂停专注",
+      "结束本轮",
+      "查看专注统计",
+      "",
+      "今日任务 · 0",
+      "今天暂无安排",
+      "",
+      "其他待办 · 1",
+      "隔离闭窗计时验收",
+      "",
+      "新建任务…",
+      "快速搜索…",
+      "打开工作台",
+      "打开日历",
+      "查看专注统计",
+      "打开数据目录",
+      "",
+      "退出 Daylight"
+    ]
+  },
+  "screenshot": "tray-before-callback-fix.png",
+  "observedMenuItemGeometry": [
+    {
+      "pid": 76711,
+      "title": "暂停专注",
+      "x": 761.0,
+      "y": 87.0,
+      "width": 204.0,
+      "height": 24.0,
+      "clickedX": 863.0,
+      "clickedY": 99.0
+    }
+  ],
+  "passed": false,
+  "error": "focus did not reach paused",
+  "stderr": "",
+  "temporaryProcessStopped": true,
+  "launchServicesRegistrationTouched": false,
+  "binarySHA256": "a4c41340b0b889e21f7e24d5fb35083dd5153e4a96ea68f84484d31aedf4d388"
+}

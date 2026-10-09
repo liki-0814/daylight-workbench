@@ -1,0 +1,714 @@
+{
+  "generatedAt": "2026-10-07T12:07:02.248Z",
+  "environment": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "totalMemory": 25769803776,
+    "node": "v22.23.2",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+    "javaScriptCore": {
+      "source": "macOS system framework",
+      "plist": "/System/Library/Frameworks/JavaScriptCore.framework/Resources/Info.plist",
+      "version": "21624",
+      "build": "21624.2.5.11.4"
+    },
+    "nativeBinarySha256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+    "commit": "156250b70ffce8ecb1eec218055bc963e85feb29",
+    "dirty": "M README.md\n M agent-api.mjs\n M ai/conversations.mjs\n M ai/drafts.mjs\n M ai/http.mjs\n M ai/run-manager.mjs\n M ai/service.mjs\n M ai/store.mjs\n M ai/tools/definitions.mjs\n M ai/tools/dispatch.mjs\n M core/contracts.js\n M core/task-write.js\n M core/web-assets.json\n M docs/ai.md\n M docs/development.md\n M docs/native-app.md\n M docs/tasks.md\n M native/Server.swift\n M native/core-entry.js\n M native/main.swift\n M package.json\n M public/ai.js\n M public/app.js\n M public/components/action-links.js\n M public/components/icons.js\n M public/components/section.js\n M public/components/settings-page.js\n M public/components/sidebar.js\n M public/design-system.css\n M public/index.html\n M public/model.js\n M public/routes.js\n M public/style.css\n M public/task-view.js\n M scripts/build-native.py\n M server.mjs\n M skills/daylight-workbench/SKILL.md\n M skills/daylight-workbench/references/api.md\n M skills/daylight-workbench/scripts/workbench.py\n M test/sidebar.test.mjs\n?? ai/focus-submissions.mjs\n?? core/calendar-query.js\n?? core/date.js\n?? core/focus-contracts.js\n?? core/focus-model.js\n?? core/focus-statistics.js\n?? core/focus-write.js\n?? core/task-selection.js\n?? docs/focus.md\n?? docs/plans/\n?? docs/verification/\n?? focus/\n?? native/Focus.swift\n?? native/FocusNotifications.swift\n?? native/FocusTimeZone.swift\n?? native/FocusTray.swift\n?? public/calendar/\n?? public/components/bar-chart.css\n?? public/components/bar-chart.js\n?? public/components/calendar-grid.css\n?? public/components/calendar-grid.js\n?? public/components/date-field.css\n?? public/components/date-field.js\n?? public/components/date-range.css\n?? public/components/date-range.js\n?? public/components/dialog-shell.css\n?? public/components/dialog-shell.js\n?? public/components/metric-card.css\n?? public/components/metric-card.js\n?? public/components/pagination.css\n?? public/components/pagination.js\n?? public/components/progress-meter.css\n?? public/components/progress-meter.js\n?? public/components/segmented-control.css\n?? public/components/segmented-control.js\n?? public/components/task-picker.js\n?? public/components/task-row.js\n?? public/focus/\n?? public/task-client.js\n?? scripts/benchmark-focus.mjs\n?? scripts/check-focus.mjs\n?? test/action-links.test.mjs\n?? test/calendar-focus-ui.md\n?? test/calendar-routes.test.mjs\n?? test/calendar.test.mjs\n?? test/date.test.mjs\n?? test/focus-ai.test.mjs\n?? test/focus-contract-test.py\n?? test/focus-contract.json\n?? test/focus-controller.test.mjs\n?? test/focus-draft-card.test.mjs\n?? test/focus-http.test.mjs\n?? test/focus-model.test.mjs\n?? test/focus-platform.test.mjs\n?? test/focus-presentation.test.mjs\n?? test/focus-report-refresh.test.mjs\n?? test/focus-routing.test.mjs\n?? test/focus-service.test.mjs\n?? test/focus-settings.test.mjs\n?? test/focus-skill.test.mjs\n?? test/focus-statistics.test.mjs\n?? test/focus-synchronous-work.test.mjs\n?? test/focus-task-summary.test.mjs\n?? test/focus-tools.test.mjs\n?? test/native-focus-notification-test.py\n?? test/native-focus-time-zone-test.py\n?? test/task-client.test.mjs"
+  },
+  "samples": 30,
+  "warmups": 5,
+  "results": [
+    {
+      "runtime": "node",
+      "count": 10000,
+      "segments": 12000,
+      "fileBytes": 4790049,
+      "baselineColdStartMs": 216.78258400000004,
+      "coldStartMs": 214.49012500000026,
+      "baselineRss": 63537152,
+      "peakRss": 178683904,
+      "rssAfterQueries": 143409152,
+      "rssTrend": {
+        "samples": [
+          128188416,
+          128237568,
+          128237568,
+          128270336,
+          128303104,
+          128335872,
+          128368640,
+          128401408,
+          128794624,
+          128794624,
+          128794624,
+          128811008,
+          128827392,
+          128860160,
+          128892928,
+          128942080,
+          128974848,
+          129007616,
+          129040384,
+          129073152,
+          129089536,
+          129089536,
+          129089536,
+          129089536,
+          129089536,
+          129089536,
+          129089536,
+          129089536,
+          129122304,
+          129155072
+        ],
+        "firstBatchMedian": 128303104,
+        "lastBatchMedian": 129089536,
+        "growthBytes": 786432,
+        "additionalQueryCount": 300,
+        "batches": [
+          130711552,
+          132120576,
+          133513216,
+          135004160,
+          136544256,
+          137969664,
+          139329536,
+          140738560,
+          142098432,
+          143409152
+        ],
+        "tailGrowthBytes": 4128768,
+        "collectionObserved": false
+      },
+      "stateBytes": 743,
+      "metrics": {
+        "state": {
+          "count": 30,
+          "p50": 0.7950839999998607,
+          "p95": 1.0212500000002365,
+          "max": 1.3731250000000728
+        },
+        "statistics": {
+          "count": 30,
+          "p50": 3.941874999999982,
+          "p95": 7.818583000000217,
+          "max": 15.215374999999767
+        },
+        "taskSummary": {
+          "count": 30,
+          "p50": 0.8568749999999454,
+          "p95": 1.002042000000074,
+          "max": 1.0534160000001975
+        },
+        "pauseResume": {
+          "count": 30,
+          "p50": 23.848957999999584,
+          "p95": 36.696374999999534,
+          "max": 37.52024999999958
+        },
+        "finishStart": {
+          "count": 30,
+          "p50": 23.020790999999917,
+          "p95": 27.498874999999316,
+          "max": 27.70416699999987
+        },
+        "settings": {
+          "count": 30,
+          "p50": 23.580832999999984,
+          "p95": 25.307333999999173,
+          "max": 25.563333000000057
+        },
+        "taskStateUnderLoad": {
+          "count": 30,
+          "p50": 7.317833000000974,
+          "p95": 11.183874999998807,
+          "max": 13.862082999999984
+        },
+        "deadlineWriteLoad": {
+          "persistedActions": 81,
+          "actionsBeforeDeadline": 78
+        },
+        "notificationConsume": {
+          "count": 30,
+          "p50": 24.032541999999992,
+          "p95": 32.216916999999995,
+          "max": 34.71995799999999
+        }
+      },
+      "deadlineLagMs": 84,
+      "deadlineMeasurements": {
+        "idleTimerMs": 72,
+        "underReportLoadMs": 84,
+        "underPersistentActionLoadMs": 77
+      },
+      "stageTimings": {
+        "queueMs": {
+          "count": 2322,
+          "p50": 2.7314989999999852,
+          "p95": 9.90587600000002,
+          "max": 32.070959000000016
+        },
+        "encodingMs": {
+          "count": 310,
+          "p50": 9.211041000000023,
+          "p95": 12.198082999999997,
+          "max": 24.316542000000027
+        },
+        "previousMs": {
+          "count": 310,
+          "p50": 2.528334000000001,
+          "p95": 3.50245799999999,
+          "max": 22.877666999999747
+        },
+        "temporaryMs": {
+          "count": 310,
+          "p50": 6.44800000000032,
+          "p95": 8.490249999999946,
+          "max": 11.22954199999998
+        },
+        "replaceMs": {
+          "count": 310,
+          "p50": 0.25124999999934516,
+          "p95": 0.3843750000005457,
+          "max": 4.0382079999999405
+        }
+      },
+      "queueOccupancyMs": {
+        "count": 3288,
+        "p50": 2.6753330000000233,
+        "p95": 9.828582999999526,
+        "max": 32.070959000000016
+      },
+      "budget": {
+        "stateP95": true,
+        "stateBytes": true,
+        "actionP95": true,
+        "reportP95": true,
+        "taskStateUnderLoadP95": true,
+        "rssIncrease": true,
+        "rssTrend": true,
+        "queueOccupancy": true,
+        "deadlineLag": true
+      },
+      "passed": true,
+      "pendingMeasurements": []
+    },
+    {
+      "runtime": "node",
+      "count": 50000,
+      "segments": 60000,
+      "fileBytes": 23857438,
+      "baselineColdStartMs": 158.9484169999996,
+      "coldStartMs": 363.68675000000076,
+      "baselineRss": 63422464,
+      "peakRss": 386711552,
+      "rssAfterQueries": 250789888,
+      "rssTrend": {
+        "samples": [
+          214319104,
+          216268800,
+          216940544,
+          217595904,
+          218267648,
+          218939392,
+          219004928,
+          219070464,
+          219152384,
+          219234304,
+          219332608,
+          219430912,
+          219512832,
+          219627520,
+          219693056,
+          219824128,
+          219938816,
+          220004352,
+          220102656,
+          220184576,
+          220282880,
+          220381184,
+          220479488,
+          220545024,
+          220643328,
+          220741632,
+          220823552,
+          220921856,
+          221003776,
+          221085696
+        ],
+        "firstBatchMedian": 218267648,
+        "lastBatchMedian": 220643328,
+        "growthBytes": 2375680,
+        "additionalQueryCount": 300,
+        "batches": [
+          242958336,
+          263962624,
+          284999680,
+          305987584,
+          327172096,
+          348176384,
+          369197056,
+          214417408,
+          232603648,
+          250789888
+        ],
+        "tailGrowthBytes": -115572736,
+        "collectionObserved": true
+      },
+      "stateBytes": 744,
+      "metrics": {
+        "state": {
+          "count": 30,
+          "p50": 0.7384999999994761,
+          "p95": 1.1500830000004498,
+          "max": 1.4945829999996931
+        },
+        "statistics": {
+          "count": 30,
+          "p50": 10.562957999998616,
+          "p95": 18.21479199999885,
+          "max": 19.4989170000008
+        },
+        "taskSummary": {
+          "count": 30,
+          "p50": 1.3907920000019658,
+          "p95": 1.667874999999185,
+          "max": 2.3972910000011325
+        },
+        "pauseResume": {
+          "count": 30,
+          "p50": 110.77591699999903,
+          "p95": 161.5045409999948,
+          "max": 236.8978750000024
+        },
+        "finishStart": {
+          "count": 30,
+          "p50": 109.05329100000381,
+          "p95": 131.1593339999963,
+          "max": 139.90720800000418
+        },
+        "settings": {
+          "count": 30,
+          "p50": 107.87333300000319,
+          "p95": 114.80125000000407,
+          "max": 135.80462499999703
+        },
+        "taskStateUnderLoad": {
+          "count": 30,
+          "p50": 19.153666999998677,
+          "p95": 68.75420799999847,
+          "max": 77.87829200000124
+        },
+        "deadlineWriteLoad": {
+          "persistedActions": 22,
+          "actionsBeforeDeadline": 20
+        },
+        "notificationConsume": {
+          "count": 30,
+          "p50": 108.26150000000001,
+          "p95": 112.84725000000003,
+          "max": 113.54445899999999
+        }
+      },
+      "deadlineLagMs": 350,
+      "deadlineMeasurements": {
+        "idleTimerMs": 180,
+        "underReportLoadMs": 197,
+        "underPersistentActionLoadMs": 350
+      },
+      "stageTimings": {
+        "queueMs": {
+          "count": 1891,
+          "p50": 9.503708000000643,
+          "p95": 49.28358300000218,
+          "max": 114.44496000000345
+        },
+        "encodingMs": {
+          "count": 251,
+          "p50": 48.11766599999828,
+          "p95": 61.81208400000014,
+          "max": 114.16920900000059
+        },
+        "previousMs": {
+          "count": 251,
+          "p50": 10.121999999999389,
+          "p95": 15.906749999998283,
+          "max": 38.246791999998095
+        },
+        "temporaryMs": {
+          "count": 251,
+          "p50": 31.119042000000263,
+          "p95": 40.59691699999985,
+          "max": 54.20941700000003
+        },
+        "replaceMs": {
+          "count": 251,
+          "p50": 0.5531659999999761,
+          "p95": 0.7775000000001455,
+          "max": 28.79733299999998
+        }
+      },
+      "queueOccupancyMs": {
+        "count": 2671,
+        "p50": 9.435749999999643,
+        "p95": 49.35383300000012,
+        "max": 114.44496000000345
+      },
+      "budget": {
+        "stateP95": true,
+        "stateBytes": true,
+        "actionP95": true,
+        "reportP95": true,
+        "taskStateUnderLoadP95": true,
+        "rssIncrease": true,
+        "rssTrend": true,
+        "queueOccupancy": true,
+        "deadlineLag": true
+      },
+      "passed": true,
+      "pendingMeasurements": []
+    },
+    {
+      "runtime": "native",
+      "count": 10000,
+      "segments": 12000,
+      "fileBytes": 4790049,
+      "baselineColdStartMs": 55.618249999999534,
+      "coldStartMs": 109.58937500001048,
+      "baselineRss": 20496384,
+      "peakRss": 131170304,
+      "rssAfterQueries": 64192512,
+      "rssTrend": {
+        "samples": [
+          100548608,
+          101482496,
+          102416384,
+          103432192,
+          103432192,
+          103448576,
+          103448576,
+          103448576,
+          103497728,
+          103514112,
+          103530496,
+          103579648,
+          103596032,
+          103874560,
+          103890944,
+          103890944,
+          103907328,
+          103907328,
+          103907328,
+          103923712,
+          103956480,
+          103972864,
+          103972864,
+          103989248,
+          103989248,
+          104005632,
+          104054784,
+          104071168,
+          104087552,
+          104120320
+        ],
+        "firstBatchMedian": 103432192,
+        "lastBatchMedian": 103989248,
+        "growthBytes": 557056,
+        "additionalQueryCount": 300,
+        "batches": [
+          109264896,
+          109740032,
+          110116864,
+          110575616,
+          111067136,
+          111345664,
+          111656960,
+          71008256,
+          63913984,
+          64192512
+        ],
+        "tailGrowthBytes": -47153152,
+        "collectionObserved": true
+      },
+      "stateBytes": 792,
+      "metrics": {
+        "state": {
+          "count": 30,
+          "p50": 1.0139580000104615,
+          "p95": 1.3716669999994338,
+          "max": 1.4010830000042915
+        },
+        "statistics": {
+          "count": 30,
+          "p50": 17.185459000000264,
+          "p95": 17.9191659999924,
+          "max": 20.685459000000264
+        },
+        "taskSummary": {
+          "count": 30,
+          "p50": 1.3563749999884749,
+          "p95": 1.6092499999940628,
+          "max": 1.7161659999983385
+        },
+        "pauseResume": {
+          "count": 30,
+          "p50": 10.767958000011276,
+          "p95": 14.043292000002111,
+          "max": 14.45770800000173
+        },
+        "finishStart": {
+          "count": 30,
+          "p50": 10.754707999993116,
+          "p95": 11.521749999999884,
+          "max": 22.6380419999914
+        },
+        "settings": {
+          "count": 30,
+          "p50": 10.378416000006837,
+          "p95": 13.659083000005921,
+          "max": 13.895125000010012
+        },
+        "taskStateUnderLoad": {
+          "count": 30,
+          "p50": 16.45429100000183,
+          "p95": 22.4088330000086,
+          "max": 22.77216700000281
+        },
+        "deadlineWriteLoad": {
+          "persistedActions": 148,
+          "actionsBeforeDeadline": 145
+        },
+        "notificationConsume": {
+          "count": 30,
+          "p50": 9.880708297714591,
+          "p95": 12.145416578277946,
+          "max": 13.296999968588352
+        }
+      },
+      "deadlineLagMs": 197,
+      "deadlineMeasurements": {
+        "idleTimerMs": 197,
+        "underReportLoadMs": 52,
+        "underPersistentActionLoadMs": 81
+      },
+      "stageTimings": {
+        "encodingMs": {
+          "count": 377,
+          "p50": 5.242499988526106,
+          "p95": 6.313458317890763,
+          "max": 8.695999858900905
+        },
+        "previousMs": {
+          "count": 377,
+          "p50": 1.9996250048279762,
+          "p95": 2.7483750600367785,
+          "max": 26.3069998472929
+        },
+        "replaceMs": {
+          "count": 377,
+          "p50": 1.4276248402893543,
+          "p95": 2.005958231166005,
+          "max": 24.80574999935925
+        },
+        "consumeMs": {
+          "count": 35,
+          "p50": 9.895208291709423,
+          "p95": 12.145416578277946,
+          "max": 13.296999968588352
+        }
+      },
+      "queueOccupancyMs": {
+        "count": 952,
+        "p50": 14.737916644662619,
+        "p95": 16.89416659064591,
+        "max": 34.3229582067579
+      },
+      "budget": {
+        "stateP95": true,
+        "stateBytes": true,
+        "actionP95": true,
+        "reportP95": true,
+        "taskStateUnderLoadP95": true,
+        "rssIncrease": true,
+        "rssTrend": true,
+        "queueOccupancy": true,
+        "deadlineLag": true
+      },
+      "passed": true,
+      "pendingMeasurements": []
+    },
+    {
+      "runtime": "native",
+      "count": 50000,
+      "segments": 60000,
+      "fileBytes": 23857437,
+      "baselineColdStartMs": 54.901041999983136,
+      "coldStartMs": 262.2232920000097,
+      "baselineRss": 20512768,
+      "peakRss": 457965568,
+      "rssAfterQueries": 391626752,
+      "rssTrend": {
+        "samples": [
+          388055040,
+          388055040,
+          388055040,
+          388055040,
+          388055040,
+          388071424,
+          388120576,
+          388120576,
+          388153344,
+          388153344,
+          388169728,
+          388202496,
+          388218880,
+          388218880,
+          388235264,
+          388251648,
+          388251648,
+          388251648,
+          388251648,
+          388284416,
+          388317184,
+          388317184,
+          388317184,
+          388317184,
+          388317184,
+          388317184,
+          388382720,
+          388399104,
+          388415488,
+          388448256
+        ],
+        "firstBatchMedian": 388055040,
+        "lastBatchMedian": 388317184,
+        "growthBytes": 262144,
+        "additionalQueryCount": 300,
+        "batches": [
+          389234688,
+          389693440,
+          389988352,
+          390430720,
+          390791168,
+          390987776,
+          391102464,
+          391462912,
+          391561216,
+          391626752
+        ],
+        "tailGrowthBytes": 573440,
+        "collectionObserved": false
+      },
+      "stateBytes": 792,
+      "metrics": {
+        "state": {
+          "count": 30,
+          "p50": 1.0557910000206903,
+          "p95": 1.8072919999831356,
+          "max": 9.960041999991518
+        },
+        "statistics": {
+          "count": 30,
+          "p50": 52.2683750000142,
+          "p95": 54.298500000004424,
+          "max": 55.795249999995576
+        },
+        "taskSummary": {
+          "count": 30,
+          "p50": 3.0556670000078157,
+          "p95": 4.25962499997695,
+          "max": 4.4131669999915175
+        },
+        "pauseResume": {
+          "count": 30,
+          "p50": 35.89691700000549,
+          "p95": 280.240959000017,
+          "max": 287.3869169999962
+        },
+        "finishStart": {
+          "count": 30,
+          "p50": 36.00158400001237,
+          "p95": 313.67841699998826,
+          "max": 347.5505420000118
+        },
+        "settings": {
+          "count": 30,
+          "p50": 35.1574580000015,
+          "p95": 62.069458999991184,
+          "max": 164.66354099998716
+        },
+        "taskStateUnderLoad": {
+          "count": 30,
+          "p50": 44.463916000007885,
+          "p95": 53.86804200001643,
+          "max": 59.04058400000213
+        },
+        "deadlineWriteLoad": {
+          "persistedActions": 34,
+          "actionsBeforeDeadline": 33
+        },
+        "notificationConsume": {
+          "count": 30,
+          "p50": 35.979999927803874,
+          "p95": 39.16475013829768,
+          "max": 109.60591677576303
+        }
+      },
+      "deadlineLagMs": 297,
+      "deadlineMeasurements": {
+        "idleTimerMs": 297,
+        "underReportLoadMs": 165,
+        "underPersistentActionLoadMs": 104
+      },
+      "stageTimings": {
+        "encodingMs": {
+          "count": 263,
+          "p50": 23.412874899804592,
+          "p95": 25.88370838202536,
+          "max": 38.676291704177856
+        },
+        "previousMs": {
+          "count": 263,
+          "p50": 6.026583258062601,
+          "p95": 7.820416707545519,
+          "max": 293.0474583990872
+        },
+        "replaceMs": {
+          "count": 263,
+          "p50": 4.039041697978973,
+          "p95": 7.735749939456582,
+          "max": 303.3755000215024
+        },
+        "consumeMs": {
+          "count": 35,
+          "p50": 36.45083331502974,
+          "p95": 43.287291657179594,
+          "max": 109.60591677576303
+        }
+      },
+      "queueOccupancyMs": {
+        "count": 760,
+        "p50": 47.74266667664051,
+        "p95": 51.50491651147604,
+        "max": 333.91237491741776
+      },
+      "budget": {
+        "stateP95": true,
+        "stateBytes": true,
+        "actionP95": true,
+        "reportP95": true,
+        "taskStateUnderLoadP95": true,
+        "rssIncrease": true,
+        "rssTrend": true,
+        "queueOccupancy": true,
+        "deadlineLag": true
+      },
+      "passed": true,
+      "pendingMeasurements": []
+    }
+  ],
+  "passed": true
+}

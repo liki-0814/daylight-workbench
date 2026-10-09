@@ -5,15 +5,17 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { recordEvent, finishEvents } from './events.mjs';
 import { buildContext, referenceSnapshots } from './context.mjs';
 import { body, send, equal, httpError } from './http.mjs';
+import { assertFocusDraftAllowed } from './focus-submissions.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 export const isActive = c => ['running', 'waiting'].includes(c.status);
 
-export async function createRunManager({ store, providers, api, discover, getConversation, tool, applyDraft }) {
+export async function createRunManager({ store, providers, api, discover, getConversation, tool, applyDraft, isFocusApplying = () => false }) {
   const runs = new Map();
   const save = c => store.save(c);
   function pending(c, data) {
     const run = runs.get(c.id); if (!run || run.controller.signal.aborted) throw new Error('请求已取消');
     if (c.pending) throw new Error('请先等待当前问题或草稿处理完成，再提交下一个。');
+    if (data.type === 'focusChanges') assertFocusDraftAllowed(c);
     if (data.type === 'question') c.messages.push({ id: randomUUID(), role: 'assistant', text: data.question });
     c.pending = { id: randomUUID(), ...data }; c.status = 'waiting'; save(c);
     return new Promise((resolve, reject) => { run.waiter = { resolve, reject }; });
@@ -43,7 +45,7 @@ export async function createRunManager({ store, providers, api, discover, getCon
     } catch (e) { c.status = controller.signal.aborted ? 'interrupted' : 'error'; c.error = controller.signal.aborted ? '已停止生成。已应用的变更仍然保留。' : e.message; }
     finally { finishEvents(c, c.status === 'idle' ? 'unknown' : c.status === 'error' ? 'failed' : 'interrupted'); clearInterval(checkpoint); clearTimeout(deadline); run.waiter?.reject(new Error('会话已结束')); c.pending = null; c.activity = ''; runs.delete(c.id); save(c); }
   }
-  function cancel(c) { const run = runs.get(c.id); run?.controller.abort(); run?.waiter?.reject(new Error('用户已取消')); if (run) { c.status = 'interrupted'; c.pending = null; save(c); } }
+  function cancel(c, force = false) { if (!force && (isFocusApplying(c) || c.pending?.applying)) return; const run = runs.get(c.id); run?.controller.abort(); run?.waiter?.reject(new Error('用户已取消')); if (run) { c.status = 'interrupted'; c.pending = null; save(c); } }
 
   async function sendMessage(c, input) {
     if ([...runs.values()].length) throw httpError('请等待当前 AI 请求结束或先停止生成', 409);
@@ -77,12 +79,23 @@ export async function createRunManager({ store, providers, api, discover, getCon
       if (typeof input.answer !== 'string' || !input.answer.trim()) throw httpError('请输入回答');
       result = input.answer.trim(); c.messages.push({ id: randomUUID(), role: 'user', text: result });
     } else { result = await applyDraft(c, p, input); }
-    const waiter = run.waiter; run.waiter = null; c.pending = null; if (!run.controller.signal.aborted) c.status = 'running'; save(c); waiter.resolve(result);
+    const waiter = run.waiter, previousStatus = c.status;
+    c.pending = null; if (!run.controller.signal.aborted) c.status = 'running';
+    try { save(c); } catch (error) { c.pending = p; c.status = previousStatus; throw error; }
+    run.waiter = null; waiter.resolve(result);
   }
   function stop(c) {
-    if (c.pending?.applying) throw httpError('正在保存变更，请等待结果后再停止', 409);
+    if (c.pending?.applying || isFocusApplying(c)) throw httpError('正在保存变更，请等待结果后再停止', 409);
     cancel(c);
   }
-  return { has: id => runs.has(id), pending, sendMessage, answer, stop,
-    close() { for (const c of store.conversations.values()) if (isActive(c)) cancel(c); toolServer.close(); toolServer.closeAllConnections(); } };
+  function resolveFocusSubmission(c, submission, result) {
+    const run = runs.get(c.id), p = c.pending;
+    if (!run?.waiter || run.controller.signal.aborted || p?.type !== 'focusChanges' || p.id !== submission.id) return;
+    const previousStatus = c.status;
+    c.pending = null; c.status = 'running';
+    try { save(c); } catch (error) { c.pending = p; c.status = previousStatus; throw error; }
+    const waiter = run.waiter; run.waiter = null; waiter.resolve(result);
+  }
+  return { has: id => runs.has(id), pending, sendMessage, answer, stop, resolveFocusSubmission,
+    close() { for (const c of store.conversations.values()) if (isActive(c)) cancel(c, true); toolServer.close(); toolServer.closeAllConnections(); } };
 }

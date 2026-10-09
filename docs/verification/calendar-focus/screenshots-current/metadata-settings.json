@@ -1,0 +1,147 @@
+{
+  "capturedAt": "2026-10-07T12:32:15.246Z",
+  "viewport": {
+    "width": 1440,
+    "height": 1100,
+    "deviceScaleFactor": 1,
+    "mobile": false
+  },
+  "kind": "current full application settings in isolated Node + headless Chrome; native permission/delivery responses simulated",
+  "base": "http://127.0.0.1:55446",
+  "dataIsSynthetic": true,
+  "installedAppActions": false,
+  "OSPermissionRequested": false,
+  "OSNotificationSubmitted": false,
+  "sourceHashes": {
+    "public/app.js": "fce7a447cf98f4a7b40cbb185bc5a6d3d32bdf2e6f7978dba0a3062fdeb66a61",
+    "public/focus/settings.js": "06e6018e1570e885551c8efb6a890a6613beef11df337165af10908706f919a6",
+    "public/focus/platform.js": "77cfb2424ad2b0d3390f6f77aa730753632e8d304f9f2d0f7db530697e4ebdcd",
+    "public/focus/presentation.js": "b4b119dd658616f48f4bf0659edab6caa74a75601df4dbc55f31e02938d2e870",
+    "public/style.css": "df27534c878a4dcec752d4c4fd6b9083bf5bd02d12953f21ef6c2b58ece30965",
+    "public/design-system.css": "3b443b128089d1cd75f5a4e5f61e03da21dc7ddc7288a2de72e29a28389be059",
+    "public/focus/focus.css": "74ef8989250a7b2a5ed3120d26226ba22abff665d8f268e04b8f928be16b6922",
+    "public/components/settings-page.js": "5839760bb551584bbcb3f5973ce77b4564b6f42bb4723768d9327d30dbdfce59",
+    "public/components/section.js": "1553785a78b8bfd0b8d8d705b0d745b8c013754109284b15d16ff8364c1d2296",
+    "public/components/button.js": "4019404739af3645372343c0bda1df4371d6ab8c963b6e2337102322af2fe02a"
+  },
+  "screenshots": [
+    {
+      "file": "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/settings-focus.png",
+      "geometry": {
+        "panel": {
+          "x": 281,
+          "y": 248,
+          "width": 1116,
+          "height": 742,
+          "bottom": 990
+        },
+        "documentHeight": 2729,
+        "scrollY": 1629,
+        "settings": [
+          {
+            "text": "到期提醒工作或短休息结束时提供到期提示。",
+            "y": 434
+          },
+          {
+            "text": "提醒声音系统允许提醒时，播放提示音。",
+            "y": 512
+          },
+          {
+            "text": "菜单栏显示剩余时间在 macOS 菜单栏查看当前轮次的计时。",
+            "y": 591
+          }
+        ],
+        "details": [
+          {
+            "summary": "查看系统返回详情",
+            "hidden": true,
+            "open": false
+          },
+          {
+            "summary": "查看发送失败详情",
+            "hidden": true,
+            "open": false
+          }
+        ],
+        "permission": "尚未授权系统提醒"
+      },
+      "sha256": "6f98557a2d655f9e790df70b5191058d423b498be634c59b2927e1ef4f50d630"
+    },
+    {
+      "file": "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/settings-notification-error.png",
+      "geometry": {
+        "panel": {
+          "x": 281,
+          "y": 41,
+          "width": 1116,
+          "height": 854,
+          "bottom": 895
+        },
+        "documentHeight": 2936,
+        "scrollY": 1836,
+        "settings": [
+          {
+            "text": "到期提醒工作或短休息结束时提供到期提示。",
+            "y": 227
+          },
+          {
+            "text": "提醒声音系统允许提醒时，播放提示音。",
+            "y": 305
+          },
+          {
+            "text": "菜单栏显示剩余时间在 macOS 菜单栏查看当前轮次的计时。",
+            "y": 384
+          }
+        ],
+        "details": [
+          {
+            "summary": "查看系统返回详情",
+            "hidden": false,
+            "open": false
+          },
+          {
+            "summary": "查看发送失败详情",
+            "hidden": false,
+            "open": false
+          }
+        ],
+        "permission": "上次读取：系统提醒已授权 · 提示开启 · 声音关闭"
+      },
+      "sha256": "53b3987f2901a80dab7cd813267dda4c9422bf7b23b6e9351d1015fd050db161"
+    }
+  ],
+  "checks": [
+    {
+      "name": "normal settings default 25/5 and three separate toggle rows",
+      "ok": true
+    },
+    {
+      "name": "all simulated native status actions visible and ready",
+      "ok": true
+    },
+    {
+      "name": "permission last-known preserved and both original-error details collapsed",
+      "ok": true
+    },
+    {
+      "name": "error state preserves original 25/5 settings",
+      "ok": true
+    }
+  ],
+  "exceptions": [],
+  "simulation": {
+    "normal": "native focusNotifications bridge getStatus default, alerts/sound unknown; settings use real isolated Node defaults 25/5",
+    "error": "native bridge getStatus granted/alerts on/sound off; trusted authorize click returns simulated not-allowed error; browser focus-state response supplies synthetic failed delivery and platform error"
+  },
+  "processes": {
+    "nodePID": 60575,
+    "chromePID": 60576
+  },
+  "postProcessing": false,
+  "passed": true,
+  "cleanup": {
+    "chromeStopped": true,
+    "temporaryDataProfileRemoved": true,
+    "isolatedServerStopped": true
+  }
+}

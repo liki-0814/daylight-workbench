@@ -7,6 +7,8 @@ import { initialState, validate, localDate } from './public/model.js';
 import { taskQuery } from './public/task-view.js';
 import { resolveRoute, capabilities } from './core/contracts.js';
 import { prepareTaskWrite } from './core/task-write.js';
+import { calendarQuery } from './core/calendar-query.js';
+import { createFocusService } from './focus/service.mjs';
 import { defaultDataDir, migrateLegacyData } from './storage.mjs';
 
 import { createAIService } from './ai/service.mjs';
@@ -14,7 +16,7 @@ import { createProxyService } from './proxy/service.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {}, aiAdapters } = {}) {
+export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {}, aiAdapters, focusOptions = {} } = {}) {
   if (path.resolve(dataDir) === path.resolve(defaultDataDir)) await migrateLegacyData(dataDir);
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
   const dataFile = path.join(dataDir, 'state.json');
@@ -44,6 +46,7 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
   let aiPromise;
   const getAI = () => aiPromise ||= createAIService({ dataDir, adapters: aiAdapters, endpoint: () => `http://127.0.0.1:${server.address().port}` });
   let writing = false;
+  const focus = await createFocusService({ dataDir, getTaskSnapshot: () => ({ version: record.version, state: record.state }), isTaskWriting: () => writing, ...focusOptions });
   const persist = async (state, receipt) => {
     const receipts = receipt ? [...(record.receipts || []), receipt].slice(-100) : record.receipts || [];
     const next = { version: record.version + 1, state, receipts };
@@ -52,6 +55,7 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
     await rename(path.join(dataDir, 'state.tmp'), dataFile);
     record = next;
     server.emit('state-changed');
+    return focus.reconcileTasks({ version: record.version, state: record.state, committedAt: Date.now() });
   };
   const readBody = async req => {
     const chunks = [];
@@ -94,6 +98,11 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
         try { return send(200, taskQuery(record.state, record.version, Object.fromEntries(new URL(req.url, `http://${expectedHost}`).searchParams))); }
         catch (e) { return send(e.status || 400, { error: e.message }); }
       }
+      if (dispatch.handler === 'calendar') {
+        try { return send(200, { localDate: localDate(), ...calendarQuery(record.state, record.version, new URL(req.url, `http://${expectedHost}`).searchParams) }); }
+        catch (error) { return send(error.status || 400, { error: error.message, ...(error.code ? { code: error.code } : {}) }); }
+      }
+      if (dispatch.handler === 'focus') return await focus.handle(req, res);
       if (dispatch.handler === 'state') return send(200, { ...snapshot(), localDate: localDate() });
       if (dispatch.handler === 'capabilities') return send(200, capabilities());
       if (dispatch.handler === 'missing') return send(404, { error: '接口不存在' });
@@ -109,13 +118,13 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
             let previous;
             try { previous = JSON.parse(await readFile(path.join(dataDir, 'state.previous.json'), 'utf8')); } catch { previous = null; }
             decision = prepareTaskWrite(record, body, fingerprint, { previous });
-            if (decision.receipt) await persist(decision.state, decision.receipt);
+            if (decision.receipt) { const warnings = await persist(decision.state, decision.receipt); if (warnings.length) decision.value.warnings = warnings; }
             return send(decision.code, decision.value);
           } finally { writing = false; }
         }
         if (!decision.receipt) return send(decision.code, decision.value);
         writing = true;
-        try { await persist(decision.state, decision.receipt); return send(decision.code, decision.value); }
+        try { const warnings = await persist(decision.state, decision.receipt); if (warnings.length) decision.value.warnings = warnings; return send(decision.code, decision.value); }
         finally { writing = false; }
       }
       if (dispatch.handler === 'webState') return send(200, { ...snapshot(), token });
@@ -128,8 +137,8 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
         catch (error) { return send(400, { error: error.message }); }
         writing = true;
         try {
-          await persist(state);
-          send(200, snapshot());
+          const warnings = await persist(state);
+          send(200, { ...snapshot(), ...(warnings.length ? { warnings } : {}) });
         } finally { writing = false; }
         return;
       }
@@ -145,9 +154,10 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
     }
   });
   server.once('listening', () => { void proxy?.initialize(); });
-  server.once('close', () => { void proxy?.close(); void aiPromise?.then(ai => ai.close()); });
-  server.closeProxy = async () => { await proxy?.close(); await aiPromise?.then(ai => ai.close()); };
+  server.once('close', () => { void focus.close(); void proxy?.close(); void aiPromise?.then(ai => ai.close()); });
+  server.closeProxy = async () => { await focus.close(); await proxy?.close(); await aiPromise?.then(ai => ai.close()); };
   server.getSnapshot = snapshot;
+  server.getFocusService = () => focus;
   return server;
 }
 

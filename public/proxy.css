@@ -905,10 +905,35 @@
   margin: 0;
 }
 
+.custom-model-row > .proxy-model-heading {
+  padding-right: 76px;
+}
+
 .custom-model-row summary {
   position: absolute;
   right: 0;
   top: var(--space-4);
+  margin: 0;
+  line-height: var(--font-body-line);
+  white-space: nowrap;
+}
+
+.custom-effort-field {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--field-label-gap);
+}
+
+.custom-effort-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.custom-proxy-grid .custom-effort-choices .proxy-checkbox {
+  flex-direction: row;
+  width: auto;
 }
 
 .custom-model-row .custom-proxy-grid {

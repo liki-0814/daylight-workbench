@@ -45,6 +45,16 @@ Codex、Qoder 共用服务端上下文构造。项目摘要最多 20 条未完�
 
 内置 AI 先用 `daylight_get_ai` 读取目标，再通过 `daylight_propose_ai_changes` 提交 `ai.conversation.delete`（id、expectedUpdatedAt）草稿，必须经用户审阅应用，当前运行对话不可删除。外部 Skill 提供 `conversations` 与 `delete-conversation`，经 Agent Bearer 接口调用同一服务逻辑。API 和客户端参数见 [Skill API](../skills/daylight-workbench/references/api.md)。
 
+## 日历与专注工具
+
+Codex/Qoder 共用 `daylight_get_calendar`、`daylight_get_focus`、`daylight_get_focus_statistics`、`daylight_get_focus_sessions` 和 `daylight_get_task_focus_summary`，按最新 ID 与版本读取日期安排、计时经过时间和统计。任务草稿可以带 planDay、各子操作 day 和 plan.reschedule；日历显示安排与当前状态，不代表历史完成率。
+
+`daylight_propose_focus_changes` 只生成经过 prepare 的待审阅草稿，action 由服务端校验并冻结。应用前展示任务、时长、结束旧轮的影响及有效期；用户批准后才提交。工作开始/切换同时携带任务版本与专注版本，时间敏感草稿 10 分钟过期。修改设置与确认结果没有时间过期限制，仍受版本约束；AI 设置变更不会请求系统通知权限。专注写入不使用任务 undo。
+
+批准后，ai/focus-submissions.mjs 先把原 requestId、版本、action 和有效期保存到会话，再请求专注服务。响应丢失或结果保存失败时保留 submitted/unknown；进程重启清理 pending/waiter 后，恢复卡仍可用 `/api/ai/conversations/:id/focus-submission` 核对同一原请求。核对接受 id 和 retry/acknowledge，不接受修改 action，不依赖运行中的 CLI。成功只记录一次操作消息；冲突/过期进入 needs_review 并展示拒绝原因和最新快照，不能据此证明旧请求从未执行。
+
+未知提交不能直接取消、确认或生成新专注草稿，不能删除该会话；可以继续只读讨论。恢复卡与问题/权限卡独立渲染。已核对结果需明确确认后收起；正常任务和其他管理草稿沿用原行为。
+
 ## 实现职责与维护
 
 | 文件 | 职责 |
@@ -53,6 +63,7 @@ Codex、Qoder 共用服务端上下文构造。项目摘要最多 20 条未完�
 | `ai/conversations.mjs` | 默认设置、目录发现、会话创建/关联/模型/删除和管理回执 |
 | `ai/run-manager.mjs` | 生成请求、全局单运行限制、超时、取消、审批等待器和运行状态 |
 | `ai/drafts.mjs` | 任务/代理/AI 草稿的校验与应用，保护版本和原请求重试 |
+| `ai/focus-submissions.mjs` | 专注草稿批准记录、持久恢复、原请求核对及操作消息去重 |
 | `ai/tools/dispatch.mjs` | MCP 工具分发到会话、运行与草稿服务，不直接操作运行表 |
 | `ai/http.mjs` | 请求体限制、JSON 响应、工具通道凭证比较与错误类型 |
 

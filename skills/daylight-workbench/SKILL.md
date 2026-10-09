@@ -1,6 +1,6 @@
 ---
 name: daylight-workbench
-description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日期安排、状态、排序、删除、导出及撤销，以及 AI 历史对话的查询和删除。用户要求查看或修改工作台，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
+description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日历安排、专注计时与统计、导出和撤销，以及 AI 历史对话的查询和删除。用户要求查看或修改工作台，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
 ---
 
 # Daylight 工作台连接
@@ -53,9 +53,28 @@ python3 "$SKILL/scripts/workbench.py" apply --expected-version VERSION --request
 
 ## 导航与任务查询
 
-侧栏保留任务入口，全部任务与今天在任务页内切换；项目是任务页的归属筛选，未归类不再有独立入口。API 数据仍允许 projectId:null。先用 capabilities 检查 taskQuery；可用时 `tasks --scope today --status open`、`tasks --project ID --status done`、`tasks --unassigned` 调用统一只读接口。旧 state 命令及其 view 名称、导出行为继续兼容。
+侧栏保留任务入口，全部任务、今天与日历在任务页内切换；项目是任务页的归属筛选，未归类不再有独立入口。API 数据仍允许 projectId:null。先用 capabilities 检查 taskQuery；可用时 `tasks --scope today --status open`、`tasks --project ID --status done`、`tasks --unassigned` 调用统一只读接口。旧 state 命令及其 view 名称、导出行为继续兼容。
 
 项目/任务与内置 AI 会话的关联保存在 AI 存档中，不改变业务版本、写入授权或目录操作权限。外部 Skill 写入后按最新状态核对，不将内置会话关联当成执行指令。
+
+## 日历与专注
+
+先读取 capabilities 的 calendarQuery、taskPlanning 与 focus。日历查询最多 62 天，统计最多 366 天；时间指标是计时经过时间，不能表述为实际工时、效率或计划完成率。任务累计查询不受日期范围限制。ID 与版本必须来自当前服务，不能根据历史名称猜测。
+
+```sh
+python3 "$SKILL/scripts/workbench.py" calendar --from 2026-10-01 --to 2026-10-31 --status open
+python3 "$SKILL/scripts/workbench.py" focus-state
+python3 "$SKILL/scripts/workbench.py" focus-stats --from 2026-10-01 --to 2026-10-06
+python3 "$SKILL/scripts/workbench.py" focus-sessions --limit 20
+python3 "$SKILL/scripts/workbench.py" task-focus --id TASK_ID
+python3 "$SKILL/scripts/workbench.py" focus-prepare --file /absolute/path/focus-action.json
+python3 "$SKILL/scripts/workbench.py" focus-apply --file /absolute/path/focus-action.json --expected-version FOCUS_VERSION --expected-task-version TASK_VERSION --request-id UUID --expires-at EXPIRES_AT
+python3 "$SKILL/scripts/workbench.py" focus-export --out /absolute/path/focus-export.json
+```
+
+focus-prepare 只预览，不保存、不消费有效期。明确要求执行时才 focus-apply；只讨论建议不能开始、暂停、结束或修改设置。开始/切换工作前核对影响：已有计时将提前归档，开始专注不开始/完成任务。focusVersion 与 taskVersion 独立；开始/切换需 expectedTaskVersion，其余动作无需。expiresAt 取 prepare 返回值，settings/acknowledge 无该字段时省略。
+
+未知结果固定原 action 文件、request ID、版本和有效期核对；不要自动刷新版本或有效期重新执行。专注历史没有 undo、编辑或清空接口，任务 undo 不恢复计时。不能通过 API 请求系统通知授权。导出不覆盖已有文件、不包含去重回执或凭证。
 
 ## AI 历史对话
 

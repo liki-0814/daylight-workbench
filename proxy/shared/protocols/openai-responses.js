@@ -37,7 +37,7 @@ export function decodeResponsesRequest(req) {
             if (item.type === "function_call_output") {
                 messages.push({
                     role: "tool",
-                    content: item.output ?? "",
+                    content: decodeParts(item.output),
                     toolCallId: item.call_id
                 });
             } else if (item.type === "function_call") {

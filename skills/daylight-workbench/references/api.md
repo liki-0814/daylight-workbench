@@ -35,15 +35,16 @@
 | project.create | name, path?, id? | 创建项目，path 默认空，id 默认生成 |
 | project.update | id, name?, path? | 仅修改提供字段 |
 | project.delete | id | 删除项目及其全部任务（包括已完成任务）和日期引用；不删除本地目录 |
-| task.create | title, projectId?, notes?, today?, id? | 默认未归类，today 默认 false |
+| task.create | title, projectId?, notes?, today?, planDay?, id? | 默认未归类；planDay 指定加入日期，与 today:true 互斥 |
 | task.update | id, title?, projectId?, notes? | 部分更新；projectId=null 移到未归类 |
 | task.status | id, status | 显式设置状态；active 会暂停其他当前任务并加入指定日期；done 写完成时间，todo 恢复/暂停 |
 | task.delete | id | 删除任务并移除所有日期的引用 |
 | plan.add | id | 将未完成任务加入指定日期，已存在不重复 |
-| plan.remove | id | 从指定日期移出；任务保留；进行中的该任务回到 todo |
-| plan.move | id, direction | 未完成任务中移动一位，direction 为 -1 或 1 |
+| plan.remove | id, preserveExecution? | 从指定日期移出；默认 active 回到 todo；preserveExecution:true 保留执行状态 |
+| plan.move | id, direction | 未完成任务中移动一位，direction 为 -1 或 1；保留执行状态 |
 | plan.set | ids | 用有序唯一 ID 列表替换指定日期的整个计划，只接受未完成任务；可能移除旧计划项，应符合用户意图 |
-| batch | actions | 1–100 条原子操作，共用 day；任何一步失败不保存，不能嵌套 batch/undo |
+| plan.reschedule | id, fromDay, toDay | 原子移出来源、加入目标；目标去重，保留任务状态和其他日期安排 |
+| batch | actions | 1–100 条原子操作；子操作可带独立 day，缺失时继承顶层 day；任何一步失败不保存，不能嵌套 batch/undo |
 | undo | 无 | 恢复最近一次全局写入前的业务数据；版本继续增加，去重记录仍保留 |
 
 新增对象可指定客户端生成的 ID，以便在一个 batch 内创建后引用。例如：
@@ -84,6 +85,49 @@ python3 "$SKILL/scripts/workbench.py" tasks --unassigned --query '接口'
 ```
 
 旧 `state --view all|today|inbox|done` 仍兼容：all 包含所有状态，today 保留计划内已完成项及顺序，inbox 是未归类待办的旧名称。取消 UI 收件箱入口不改变 null 归属、action 或导出合同。
+
+## 日历与专注
+
+新增接口沿用 `/api/v1` Agent Bearer 和本机 Origin 规则；capabilities.calendarQuery、taskPlanning、focus 声明路径、操作与限额。未知或重复查询参数明确拒绝，日期为严格 YYYY-MM-DD，含两端。
+
+| 接口 | 请求与返回要点 |
+| --- | --- |
+| GET /api/v1/calendar | from/to 必填，最多 62 天；status=all/open/done、projectId 或 unassigned=1、query、previewLimit=0–5（默认3）；返回 version/selection/days，每天含 counts/matchedCount/preview/hasMore，preview 按计划顺序，计数先于状态筛选 |
+| GET /api/v1/focus/state | 不接受查询；返回 version/taskVersion/serverNow/settings/current/lastOutcome/runtime，不含全历史 |
+| GET /api/v1/focus/statistics | from/to 必填，最多 366 天；projectId 或 unassigned=1、taskId；返回 summary/daily/projects/timeZone/asOf/version |
+| GET /api/v1/focus/sessions | 日期范围可省略；同上筛选，可加 phase=work/shortBreak、limit=1–100（默认20）、cursor；返回总数、前后游标和会话 |
+| GET /api/v1/focus/task-summary | taskId 必填，recentLimit=0–10（默认5）；返回该 taskId 全历史工作累计和最近记录，允许已删除任务 ID |
+| GET /api/v1/focus/export | 无参数；返回独立专注业务数据，剔除内部去重回执，不返回凭证 |
+| POST /api/v1/focus/prepare | `{action}`；返回 focusVersion/taskVersion/normalizedAction/impact/preparedAt 和适用的 expiresAt；严格无持久写入 |
+| POST /api/v1/focus/actions | 下述版本保护请求；原子保存，仅修改专注数据 |
+
+工作/休息统计单位为毫秒；有效运行段按固定 IANA 统计时区拆日，工作完成轮数按结束日期计数。休息不进入工作累计；项目归属使用开始时快照，任务累计按稳定 ID。当前工作已发生的时间计入并标记 includesCurrent。会话游标绑定版本/筛选，变化后返回 CURSOR_STALE/409，需重新从第一页查询。
+
+写请求：
+
+```json
+{
+  "requestId": "unique-focus-request-id",
+  "expectedVersion": 4,
+  "expectedTaskVersion": 12,
+  "expiresAt": 1791252600000,
+  "action": {"type":"focus.start","phase":"work","taskId":"actual-task-id","durationSeconds":1500}
+}
+```
+
+示例值只表达形状；版本、ID 与 expiresAt 必须从实际读取/prepare 获取。最近 100 个成功 focus 请求持久去重，回执匹配在版本、会话与过期检查之前；同 ID 同请求可跨重启重试，同 ID 换请求返回 409。过期后重试已提交请求仍必须保留原 expiresAt。返回 `{ok,version,appliedVersion,replayed,current,lastOutcome,actionResult,runtime}`；current/lastOutcome 为当前快照，不能当作首次请求时的完整状态。
+
+| action.type | 字段 |
+| --- | --- |
+| focus.start | phase=work/shortBreak，工作必须带未完成 taskId；durationSeconds 可省略，范围 work 60–10800、shortBreak 60–3600 |
+| focus.switch | 同 start，另带当前 sessionId；提前结束旧轮并开始新轮 |
+| focus.pause / focus.resume / focus.finish | 当前 sessionId |
+| focus.settings | settings 局部字段 workSeconds/shortBreakSeconds/notificationsEnabled/soundEnabled/showTrayTimer；固定统计时区不可改 |
+| focus.acknowledge | 当前 lastOutcome 的 outcomeId |
+
+start/switch 必须带 expectedTaskVersion；所有动作带 expectedVersion。时间敏感 prepare 草稿 10 分钟过期，settings/acknowledge 不返回 expiresAt。prepare 不生成 request ID，客户端自行生成并保留。Web 使用同语义的 `/api/focus/*`（会话token）与 `/api/calendar`；Web 专注写、task-actions 和恢复 POST 同时要求正确 Origin。
+
+任务写入成功后会核对关联工作会话；专注保存失败返回任务成功并带 focusWarnings，随后重试核对。专注损坏返回 FOCUS_UNAVAILABLE/503 并保留文件，任务 API 可继续使用。通知消费仅原生内部使用，没有 Agent 消费或权限授权出口。内置 AI 的持久恢复 endpoint 仅供 Web 审阅，不属于外部 Agent API。
 
 ## AI 对话查询与删除
 

@@ -1,6 +1,7 @@
 import {reasoningEffort,outputBudget,conflictingChatBudgets,validOutputBudget,validSampling,validEffort} from '../shared/request-parameters.js';
 import { LLMError } from '../shared/llm/canonical.js';
 import { SseParser } from '../shared/llm/sse.js';
+import { readWithIdle } from '../shared/protocol.js';
 
 export const invalid = (message, param) => Object.assign(new Error(message), { status: 400, code: 'invalid_request', param });
 const allowed = {
@@ -135,15 +136,12 @@ export function parseUsage(u) {
 }
 export async function* decodeStream(response, model, signal, idleTimeoutMs = 300000, observe = () => {}) {
   const reader = response.body.getReader(), decoder = new TextDecoder(), parser = new SseParser();
-  let finished = false; const calls = new Map();
+  let finished = false, read; const calls = new Map();
   try {
     for (;;) {
       signal?.throwIfAborted();
-      let timer;
-      const chunk = await Promise.race([
-        reader.read(),
-        new Promise((_, reject) => { timer = setTimeout(() => { reject(Object.assign(new Error('Grok 流式响应空闲超时'), {code:'idle_timeout'})); void reader.cancel().catch(() => {}); }, idleTimeoutMs); }),
-      ]).finally(() => clearTimeout(timer));
+      read = readWithIdle(reader, idleTimeoutMs, 'Grok 流式响应空闲超时');
+      const chunk = await read;
       const frames = chunk.done ? [...parser.push(decoder.decode()), ...parser.flush()] : parser.push(decoder.decode(chunk.value, { stream: true }));
       if (parser.buffer.length > 4_000_000) throw new Error('oversized frame');
       for (const frame of frames) {
@@ -177,7 +175,7 @@ export async function* decodeStream(response, model, signal, idleTimeoutMs = 300
       if (finished || chunk.done) break;
     }
     if (!finished) yield { type: 'error', code: 'incomplete_stream', message: 'Grok 上游连接提前结束' };
-  } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+  } finally { read?.cancel(); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 export async function* renderNativeStream(events) {
   for await (const e of events) {

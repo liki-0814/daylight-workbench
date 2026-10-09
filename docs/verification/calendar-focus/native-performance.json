@@ -1,0 +1,348 @@
+{
+  "generatedAt": "2026-10-05T18:09:53.650Z",
+  "environment": {
+    "platform": "darwin",
+    "release": "25.5.0",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "totalMemory": 25769803776,
+    "node": "v22.23.2",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+    "nativeBinarySha256": "f60cd1d4e19f167e02c7bbb3593c9cddb627c052588457d27d8ca970c201a0c7",
+    "commit": "156250b70ffce8ecb1eec218055bc963e85feb29",
+    "dirty": "M README.md\n M agent-api.mjs\n M ai/conversations.mjs\n M ai/drafts.mjs\n M ai/http.mjs\n M ai/run-manager.mjs\n M ai/service.mjs\n M ai/store.mjs\n M ai/tools/definitions.mjs\n M ai/tools/dispatch.mjs\n M core/contracts.js\n M core/task-write.js\n M core/web-assets.json\n M docs/ai.md\n M docs/development.md\n M docs/native-app.md\n M docs/tasks.md\n M native/Server.swift\n M native/core-entry.js\n M native/main.swift\n M package.json\n M public/ai.js\n M public/app.js\n M public/components/action-links.js\n M public/components/icons.js\n M public/components/section.js\n M public/components/settings-page.js\n M public/components/sidebar.js\n M public/design-system.css\n M public/index.html\n M public/model.js\n M public/routes.js\n M public/style.css\n M public/task-view.js\n M scripts/build-native.py\n M server.mjs\n M skills/daylight-workbench/SKILL.md\n M skills/daylight-workbench/references/api.md\n M skills/daylight-workbench/scripts/workbench.py\n M test/sidebar.test.mjs\n?? ai/focus-submissions.mjs\n?? core/calendar-query.js\n?? core/date.js\n?? core/focus-contracts.js\n?? core/focus-model.js\n?? core/focus-statistics.js\n?? core/focus-write.js\n?? core/task-selection.js\n?? docs/focus.md\n?? docs/plans/\n?? docs/verification/\n?? focus/\n?? native/Focus.swift\n?? native/FocusNotifications.swift\n?? native/FocusTimeZone.swift\n?? native/FocusTray.swift\n?? public/calendar/\n?? public/components/bar-chart.css\n?? public/components/bar-chart.js\n?? public/components/calendar-grid.css\n?? public/components/calendar-grid.js\n?? public/components/date-field.css\n?? public/components/date-field.js\n?? public/components/date-range.css\n?? public/components/date-range.js\n?? public/components/dialog-shell.css\n?? public/components/dialog-shell.js\n?? public/components/metric-card.css\n?? public/components/metric-card.js\n?? public/components/pagination.css\n?? public/components/pagination.js\n?? public/components/progress-meter.css\n?? public/components/progress-meter.js\n?? public/components/segmented-control.css\n?? public/components/segmented-control.js\n?? public/components/task-picker.js\n?? public/components/task-row.js\n?? public/focus/\n?? public/task-client.js\n?? scripts/benchmark-focus.mjs\n?? scripts/check-focus.mjs\n?? test/calendar-focus-ui.md\n?? test/calendar-routes.test.mjs\n?? test/calendar.test.mjs\n?? test/date.test.mjs\n?? test/focus-ai.test.mjs\n?? test/focus-contract-test.py\n?? test/focus-contract.json\n?? test/focus-controller.test.mjs\n?? test/focus-draft-card.test.mjs\n?? test/focus-http.test.mjs\n?? test/focus-model.test.mjs\n?? test/focus-platform.test.mjs\n?? test/focus-presentation.test.mjs\n?? test/focus-report-refresh.test.mjs\n?? test/focus-routing.test.mjs\n?? test/focus-service.test.mjs\n?? test/focus-settings.test.mjs\n?? test/focus-skill.test.mjs\n?? test/focus-statistics.test.mjs\n?? test/focus-synchronous-work.test.mjs\n?? test/focus-task-summary.test.mjs\n?? test/focus-tools.test.mjs\n?? test/native-focus-time-zone-test.py\n?? test/task-client.test.mjs"
+  },
+  "samples": 30,
+  "warmups": 5,
+  "results": [
+    {
+      "runtime": "native",
+      "count": 10000,
+      "segments": 12000,
+      "fileBytes": 4790049,
+      "baselineColdStartMs": 59.89825000000019,
+      "coldStartMs": 108.83849999999984,
+      "baselineRss": 20512768,
+      "peakRss": 696451072,
+      "rssAfterQueries": 116031488,
+      "rssTrend": {
+        "samples": [
+          103415808,
+          104333312,
+          105283584,
+          106315776,
+          106315776,
+          106315776,
+          106610688,
+          106610688,
+          106643456,
+          106643456,
+          106659840,
+          106692608,
+          106708992,
+          106708992,
+          106741760,
+          106758144,
+          106758144,
+          106758144,
+          106790912,
+          106790912,
+          106807296,
+          106823680,
+          106856448,
+          106872832,
+          106905600,
+          106905600,
+          106954752,
+          106954752,
+          106971136,
+          107003904
+        ],
+        "firstBatchMedian": 106315776,
+        "lastBatchMedian": 106905600,
+        "growthBytes": 589824,
+        "additionalQueryCount": 300,
+        "batches": [
+          112132096,
+          112689152,
+          113278976,
+          113623040,
+          114081792,
+          114425856,
+          114655232,
+          115048448,
+          115736576,
+          116031488
+        ],
+        "tailGrowthBytes": 1310720,
+        "collectionObserved": false
+      },
+      "stateBytes": 792,
+      "metrics": {
+        "state": {
+          "count": 30,
+          "p50": 1.2335830000001806,
+          "p95": 1.474250000000211,
+          "max": 1.534791000000041
+        },
+        "statistics": {
+          "count": 30,
+          "p50": 17.236417000000074,
+          "p95": 18.161583000000064,
+          "max": 18.438374999999724
+        },
+        "taskSummary": {
+          "count": 30,
+          "p50": 1.3580830000000788,
+          "p95": 1.6563329999999041,
+          "max": 1.7198749999997744
+        },
+        "pauseResume": {
+          "count": 30,
+          "p50": 18.50758400000086,
+          "p95": 26.8990419999991,
+          "max": 30.27404100000058
+        },
+        "finishStart": {
+          "count": 30,
+          "p50": 15.855374999999185,
+          "p95": 22.920125000000553,
+          "max": 27.108874999999898
+        },
+        "settings": {
+          "count": 30,
+          "p50": 18.23175000000083,
+          "p95": 21.733625000000757,
+          "max": 34.60041599999931
+        },
+        "taskStateUnderLoad": {
+          "count": 30,
+          "p50": 15.85295799999949,
+          "p95": 19.66649999999936,
+          "max": 19.91779200000019
+        },
+        "notificationConsume": {
+          "count": 30,
+          "p50": 14.207375003024936,
+          "p95": 20.08387492969632,
+          "max": 21.481416653841734
+        }
+      },
+      "deadlineLagMs": 213,
+      "deadlineMeasurements": {
+        "idleTimerMs": 213,
+        "underReportLoadMs": 80
+      },
+      "stageTimings": {
+        "encodingMs": {
+          "count": 228,
+          "p50": 5.366874858736992,
+          "p95": 5.839083343744278,
+          "max": 12.550750048831105
+        },
+        "previousMs": {
+          "count": 228,
+          "p50": 3.67600005120039,
+          "p95": 7.702458184212446,
+          "max": 17.223750008270144
+        },
+        "replaceMs": {
+          "count": 228,
+          "p50": 3.631958272308111,
+          "p95": 8.3448332734406,
+          "max": 25.39833332411945
+        },
+        "consumeMs": {
+          "count": 35,
+          "p50": 14.796458184719086,
+          "p95": 20.08387492969632,
+          "max": 21.481416653841734
+        }
+      },
+      "queueOccupancyMs": {
+        "count": 808,
+        "p50": 15.09387488476932,
+        "p95": 17.807750031352043,
+        "max": 33.107291674241424
+      },
+      "budget": {
+        "stateP95": true,
+        "stateBytes": true,
+        "actionP95": true,
+        "reportP95": true,
+        "taskStateUnderLoadP95": true,
+        "rssIncrease": true,
+        "rssTrend": true,
+        "queueOccupancy": true,
+        "deadlineLag": true
+      },
+      "passed": true,
+      "pendingMeasurements": []
+    },
+    {
+      "runtime": "native",
+      "count": 50000,
+      "segments": 60000,
+      "fileBytes": 23857437,
+      "baselineColdStartMs": 55.0972920000022,
+      "coldStartMs": 262.57504100000006,
+      "baselineRss": 20463616,
+      "peakRss": 498089984,
+      "rssAfterQueries": 343228416,
+      "rssTrend": {
+        "samples": [
+          390086656,
+          390086656,
+          390381568,
+          390381568,
+          390381568,
+          390381568,
+          390381568,
+          390397952,
+          390430720,
+          390430720,
+          390447104,
+          390496256,
+          390496256,
+          390496256,
+          390512640,
+          390529024,
+          390529024,
+          390545408,
+          390545408,
+          390545408,
+          390561792,
+          390578176,
+          390578176,
+          390594560,
+          390627328,
+          390627328,
+          390676480,
+          390692864,
+          390709248,
+          390742016
+        ],
+        "firstBatchMedian": 390381568,
+        "lastBatchMedian": 390627328,
+        "growthBytes": 245760,
+        "additionalQueryCount": 300,
+        "batches": [
+          391512064,
+          391970816,
+          392331264,
+          392642560,
+          393019392,
+          393166848,
+          393281536,
+          393609216,
+          393691136,
+          343228416
+        ],
+        "tailGrowthBytes": 442368,
+        "collectionObserved": true
+      },
+      "stateBytes": 792,
+      "metrics": {
+        "state": {
+          "count": 30,
+          "p50": 0.9724170000008598,
+          "p95": 1.2226249999985157,
+          "max": 1.3651669999999285
+        },
+        "statistics": {
+          "count": 30,
+          "p50": 52.17145800000071,
+          "p95": 52.811375000001135,
+          "max": 54.041166999999405
+        },
+        "taskSummary": {
+          "count": 30,
+          "p50": 2.576541999998881,
+          "p95": 3.542875000002823,
+          "max": 4.04662499999904
+        },
+        "pauseResume": {
+          "count": 30,
+          "p50": 39.70062499999767,
+          "p95": 293.49762499999633,
+          "max": 341.9591670000009
+        },
+        "finishStart": {
+          "count": 30,
+          "p50": 37.10674999999901,
+          "p95": 267.30504199999996,
+          "max": 351.9044589999976
+        },
+        "settings": {
+          "count": 30,
+          "p50": 35.44774999999936,
+          "p95": 37.97229199999856,
+          "max": 216.23574999999983
+        },
+        "taskStateUnderLoad": {
+          "count": 30,
+          "p50": 51.03545799999847,
+          "p95": 55.327250000002095,
+          "max": 130.14079100000527
+        },
+        "notificationConsume": {
+          "count": 30,
+          "p50": 36.525166826322675,
+          "p95": 42.93624986894429,
+          "max": 43.109125224873424
+        }
+      },
+      "deadlineLagMs": 274,
+      "deadlineMeasurements": {
+        "idleTimerMs": 274,
+        "underReportLoadMs": 208
+      },
+      "stageTimings": {
+        "encodingMs": {
+          "count": 228,
+          "p50": 23.542374838143587,
+          "p95": 26.92745835520327,
+          "max": 48.8191251643002
+        },
+        "previousMs": {
+          "count": 228,
+          "p50": 6.1623333021998405,
+          "p95": 11.062250006943941,
+          "max": 318.2488332968205
+        },
+        "replaceMs": {
+          "count": 228,
+          "p50": 4.1403332725167274,
+          "p95": 9.093083208426833,
+          "max": 248.68645844981074
+        },
+        "consumeMs": {
+          "count": 35,
+          "p50": 36.81170823983848,
+          "p95": 42.93624986894429,
+          "max": 43.109125224873424
+        }
+      },
+      "queueOccupancyMs": {
+        "count": 726,
+        "p50": 48.3263332862407,
+        "p95": 51.493791630491614,
+        "max": 349.5878332760185
+      },
+      "budget": {
+        "stateP95": true,
+        "stateBytes": true,
+        "actionP95": true,
+        "reportP95": true,
+        "taskStateUnderLoadP95": true,
+        "rssIncrease": true,
+        "rssTrend": true,
+        "queueOccupancy": true,
+        "deadlineLag": true
+      },
+      "passed": true,
+      "pendingMeasurements": []
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,264 @@
+{
+  "checks": [
+    {
+      "name": "calendar horizontal fit",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "height": 1400,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "name": "today-focus horizontal fit",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "height": 1640,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "name": "focus-running horizontal fit",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "name": "focus-statistics horizontal fit",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "height": 2376,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "name": "task-focus-summary horizontal fit",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "height": 1300,
+        "deviceScaleFactor": 1
+      }
+    },
+    {
+      "name": "No browser runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/calendar.png",
+    "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/today-focus.png",
+    "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/focus-running.png",
+    "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/focus-statistics.png",
+    "/Users/liki/liki_dev/daylight-workbench/docs/verification/calendar-focus/screenshots-current/task-focus-summary.png"
+  ],
+  "source": "Current workspace source served by createWorkbench (Node), not the installed App",
+  "temporaryScope": {
+    "syntheticTasks": 8,
+    "syntheticHistoricalSessions": 8,
+    "syntheticCurrentSession": "sample-current-work",
+    "calendarMonth": "2026-10",
+    "statisticsTimeZone": "Asia/Shanghai",
+    "noUserData": true,
+    "noInstalledApp": true,
+    "noNativePermissionRequests": true
+  },
+  "fixtureGeneratedAt": "2026-10-07T12:32:11.379Z",
+  "pages": [
+    {
+      "file": "calendar.png",
+      "purpose": "October 2026 month calendar and October 6 selected-date task details",
+      "viewport": {
+        "width": 1440,
+        "height": 1400,
+        "deviceScaleFactor": 1
+      },
+      "page": "#calendar&month=2026-10&date=2026-10-06&status=all",
+      "documentHeight": 1400,
+      "scrollY": 0,
+      "horizontalOverflow": false,
+      "dialog": null,
+      "runtimeExceptions": []
+    },
+    {
+      "file": "today-focus.png",
+      "purpose": "Today task list with focus summary, inline running panel, and global widget",
+      "viewport": {
+        "width": 1440,
+        "height": 1640,
+        "deviceScaleFactor": 1
+      },
+      "page": "#today",
+      "documentHeight": 1735,
+      "scrollY": 0,
+      "horizontalOverflow": false,
+      "dialog": null,
+      "runtimeExceptions": []
+    },
+    {
+      "file": "focus-running.png",
+      "purpose": "Running focus dialog opened from global widget above Today page",
+      "viewport": {
+        "width": 1440,
+        "height": 1000,
+        "deviceScaleFactor": 1
+      },
+      "page": "#today",
+      "documentHeight": 1593,
+      "scrollY": 0,
+      "horizontalOverflow": false,
+      "dialog": {
+        "x": 430,
+        "y": 324.5,
+        "width": 580,
+        "height": 351,
+        "scrollHeight": 349,
+        "clientHeight": 349
+      },
+      "runtimeExceptions": []
+    },
+    {
+      "file": "focus-statistics.png",
+      "purpose": "Seven-day focus statistics with historical samples, current work, project distribution, and complete session table",
+      "viewport": {
+        "width": 1440,
+        "height": 2376,
+        "deviceScaleFactor": 1
+      },
+      "page": "#focus&from=2026-10-01&to=2026-10-07",
+      "documentHeight": 2376,
+      "scrollY": 0,
+      "horizontalOverflow": false,
+      "dialog": null,
+      "runtimeExceptions": []
+    },
+    {
+      "file": "task-focus-summary.png",
+      "purpose": "Saved task edit dialog with expanded cumulative focus summary and recent sessions",
+      "viewport": {
+        "width": 1440,
+        "height": 1300,
+        "deviceScaleFactor": 1
+      },
+      "page": "#calendar&month=2026-10&date=2026-10-06&status=all",
+      "documentHeight": 1347,
+      "scrollY": 0,
+      "horizontalOverflow": false,
+      "dialog": {
+        "x": 395,
+        "y": 112,
+        "width": 650,
+        "height": 1076,
+        "scrollHeight": 1074,
+        "clientHeight": 1074
+      },
+      "runtimeExceptions": []
+    }
+  ],
+  "sourceSha256": {
+    "core/web-assets.json": "c19c7136a59562177f0aaa3bf8658b1fc92b94f6f3019df5139fd3cea5e53a7c",
+    "public/proxy/api.js": "6d2a486d82115914958918596c1f4bc8f28d75bd6e6208dc31457fa1876ea9e0",
+    "public/proxy/state.js": "fd82960e67c45e31fcc5f34db5c0cbd2fa688aa963736e70798dfe5b428c6559",
+    "public/proxy/service-panel.js": "382b7d3e85f16f46a4429be87207761469993a696623c1940ef6a1a5a2306c66",
+    "public/proxy/source-page.js": "932d418a0b52cf400f251ac7659463cdccfca913dc7fb1cf56689cb876c4409f",
+    "public/proxy/model-list.js": "12293c1ea1788e8ee8fde6e7810f814b6494c098a65090b02fe2b062ffab04b3",
+    "public/proxy/model-options.js": "c5524dbb7dbd50887e17da4585f0c77548fb11ad892f9a5eb0db6bebcd9c398a",
+    "public/proxy/quota-panel.js": "51855fdddf635b9a42b1fddc8a7ec213be335b90089448cbd85075fd4145fb55",
+    "public/proxy/custom-sources.js": "2871c8bef220be5058d618170797f1e4c53369894fe78359917f3be8813a0330",
+    "public/components/button.js": "4019404739af3645372343c0bda1df4371d6ab8c963b6e2337102322af2fe02a",
+    "public/components/button.css": "22cb6e322b07be67972ec082ae73ef051617efffed07fa105c39a423e575e53f",
+    "public/components/section.js": "1553785a78b8bfd0b8d8d705b0d745b8c013754109284b15d16ff8364c1d2296",
+    "public/components/action-links.js": "f60ba8228fb0837be95bd1712195c34faa4f4ab4d4775f0f2893c51b70e212dd",
+    "public/model-routes.js": "eb6e9a257fd32a8ef76e7b53f87528b102213d8b64f14d18b07414b80befca2d",
+    "public/components/proxy-drawer.js": "f0e5a19fee166b58da1c4ff57179cdd9c517e844d2a95ad07a13d95b7ff81af8",
+    "public/components/task-notes.js": "b6d615a548cf4a11155aec26805d36e867dd1a8b0c0322d4c4141aadeb480412",
+    "public/ai.js": "661e2e0c9be49ea5bb9ec8f800d8087188e81f01cbedecc7f3cd700bbf94f0b1",
+    "public/components/ai-message.js": "67d68148be1fecc9db01a893de3ab4499d22b52ceb36e4df3cc7d327a2a1e336",
+    "public/components/marked.js": "528a1b88bef88fc27277e06036ce7f4afb6a220b18110ba57c09e292b24a7ce0",
+    "public/components/purify.js": "c44274a7959cfdd4da871fa78a5d5fbbef55db68d118c5c0833bc4b5cf9633ad",
+    "public/ai.css": "5e71e7ba3c75a36162fc3c5e20da387b1c97b96cdf1d89f80d5bad14610bb581",
+    "public/ai-settings.js": "1315ebe374ecac6ab0d9f531e3d8339a5caea4e64cf3ed88459bb06732782abf",
+    "public/quick.html": "1020772792ebf0d7e21effae05e147fc46d2c4470d9ff008bb3ddd7334a7983e",
+    "public/quick.js": "2ca1cfc119b7d8f3f1293c4684e7d0eaef2262d91a0421fd46840613ed559e88",
+    "public/quick.css": "400a65a85c5c610ee46a099539ce1cbc81e77035d2f2a4a7da3f8b5e8e4f0d81",
+    "public/quick-search.js": "bfaec474efec0cc994bab925b95a00c3dc07f4211c82fa8c17850744e01448ce",
+    "public/index.html": "04924c79a0c978961d930dac6cd62c3ca0733d9f0c7f066c8360be39c459398c",
+    "public/proxy.js": "a85ed7aa48a4021562066ceb6290a16c0b733c7bdd32b444de752a9a3c1ccb48",
+    "public/proxy.css": "9d523792e15f4e7546ecc4eec12b24c2af86d58ede466d1076f79e26ae1b75a2",
+    "public/app.js": "fce7a447cf98f4a7b40cbb185bc5a6d3d32bdf2e6f7978dba0a3062fdeb66a61",
+    "public/model.js": "e4b150db91d97d22595ac92e11353944c3e4e708d4475f0110be473a5317e701",
+    "public/design-system.css": "3b443b128089d1cd75f5a4e5f61e03da21dc7ddc7288a2de72e29a28389be059",
+    "public/style.css": "df27534c878a4dcec752d4c4fd6b9083bf5bd02d12953f21ef6c2b58ece30965",
+    "public/favicon.svg": "d77baeffaff41e6c3eb53465c00c7b59b0fd15f04416adfcefcbdef09110d157",
+    "public/components/settings-page.js": "5839760bb551584bbcb3f5973ce77b4564b6f42bb4723768d9327d30dbdfce59",
+    "public/components/sidebar.js": "b30b1e52b29b8b7e92d08f4c1712759dcb2f8379948d4ce84862c17d13bb18fa",
+    "public/components/icons.js": "d38095a2716f1b01e04bd2b2ebeb6dd8b6784c5eee5723b98a3b9695ba636ff5",
+    "public/components/select.js": "e56ee15f17e0a344a62a5ef0d3663cd8808d128190c06ec6330fb1e8fa05b507",
+    "public/components/focus.js": "00c366e481209840578709c74d8d537bcebc1f0d6d15252ac74e2287b68c286a",
+    "public/components/select.css": "56651f649b3f77e64242a58718ecc1ad80edc28f03c0a1640835a70ec96f85d7",
+    "public/task-view.js": "f5090e8ece129ca0ae764c4db8f13dccde5db858cd98ce54ad0b90104339342f",
+    "public/routes.js": "91310b334261490d081972b3f97d7934532b0807c36eebce75ae87f9f27f43ac",
+    "public/cli-config.js": "2f737e3234598f3ee0692e61d2c4f8b4852b6e60bc59d298346dfacb259b7f39",
+    "public/cli-config.css": "dd5b5698c8752ad40e3551a14511e7c967ee65167bcd58e358760b94652c78c7",
+    "core/date.js": "d900507058d67c95959967779d17d1f818a1e84f00dcdb20595eb1b9fa2323de",
+    "core/task-selection.js": "374f4c10e1efd6017565e22c0ba14d93245c6de3b0ad150e2a87cbf761fcde71",
+    "core/calendar-query.js": "96a9b8a5cfba83c8cb49c7fc11d15d2fb659009682d499c0e0f52a4cc232fe44",
+    "public/calendar/calendar.css": "cb97d35e44c609a19b29e1440d3fc5ab99776e222039c264e725d49881ca6c48",
+    "public/calendar/page.js": "f2054eeec15421b14eaa2161b7db24f10fd9bc31282587553e0d86552d394b37",
+    "public/components/calendar-grid.css": "da0e228a899373a55c3a7a81dfc15c8fe03a40e90b07e392c3df7852c9d3f7f7",
+    "public/components/calendar-grid.js": "664c728b88e4c5aa62ec48906bd4709696521e68b5147ec8976c7ea90934a710",
+    "public/components/date-field.css": "c7b12af966af009d35720ba1f20cc56be60b8a31b358eff52385592b5ec81647",
+    "public/components/date-field.js": "99eb295b74988715e907e936175542461a716acecfb5a85a410b3d16a7b841ff",
+    "public/components/dialog-shell.css": "40032e756f08cbdc11f20b6737d14ef2a79c1b9404bc1a30e4916a68aa03ef9e",
+    "public/components/dialog-shell.js": "8f79f2d5a752342242d53e55c98b1f61f95d36300be1f75634ac7f3a18985ada",
+    "public/components/segmented-control.css": "ac1ac3ef36a63fe2684e09e92fd9a9a7c4ee9f7fa1b679b3bf9a830411d7ad69",
+    "public/components/segmented-control.js": "a635e060868c3cf6e9e2f6b1d178afb0dc71066e07395b9f1aeb23df29c13ecd",
+    "public/components/task-picker.js": "33f5004d99fc96f6840f7facdbbe31eca60f2de5fc6b25449da1a92b04ec5a2e",
+    "public/components/task-row.js": "67b6fb7d76c2d742b866b901d19dc67c38512adf73ea05a482e9b720aa3cc7e6",
+    "public/task-client.js": "407d256af3e02e0a84f719310e71753d0bf8789dc6e951a299c2e97b8df765c2",
+    "public/components/bar-chart.css": "bc707752010736ed2243e5a197f5a196249bacafe6c5438e24dc46b4043e5bcd",
+    "public/components/bar-chart.js": "1a4a91a9e6e86d27b556d6c2a852bcf516a675cc835f9ea8a9cc4d1905342d2b",
+    "public/components/date-range.css": "4830e7f3ea1f54156829d11fedf6ab852ab0b68cbbec4b6c23185ef84c65d3c9",
+    "public/components/date-range.js": "910765ddeb546ab7bd46c5700ee75bbff4bb6ab95c9bd0e3a1fbddbed135afa2",
+    "public/components/metric-card.css": "adabc6132f09114364bc8180fad8408b19d15742789b213efeb1d207b2e1619d",
+    "public/components/metric-card.js": "fc614005eb1f309220d5bd84030ed5b8cd767ae51c0ab3fac4aaa59d7afb78a4",
+    "public/components/pagination.css": "47578e65d47d1f91e97d0f280881dea9fc4757a0703bdf1cd673d3de0688d9ad",
+    "public/components/pagination.js": "55d1cbd4679a905f66fdd0a42a428a60227539600eb84ee6de3bc389945d000e",
+    "public/components/progress-meter.css": "e29f71fd06f1386541a2c9801e15b165fcaa3a7c2080775de86ac288bd7f1e00",
+    "public/components/progress-meter.js": "d65667794a719cc37c4fd2109afd3dee0894736d16dfb73cc9aa9f14221cf591",
+    "public/focus/client.js": "38a98c799c1cfce47f25f7410af6f1fea3e7529bb9579ac6950a1b702345084d",
+    "public/focus/controller.js": "e60977c59b4fe5bfd1ec4295a6bb801ea2595087ab02ed90dee93b655cc63249",
+    "public/focus/draft-card.js": "b33ced5a44567cad5b9f8012e68c6c4021c2870ca58bb6402149ae3eb6812a2b",
+    "public/focus/focus.css": "74ef8989250a7b2a5ed3120d26226ba22abff665d8f268e04b8f928be16b6922",
+    "public/focus/panel.js": "b5f54147477d33e7eec9ccbd619ad93109a9a7aeedab5af052f2a8fa7a678d31",
+    "public/focus/platform.js": "77cfb2424ad2b0d3390f6f77aa730753632e8d304f9f2d0f7db530697e4ebdcd",
+    "public/focus/presentation.js": "b4b119dd658616f48f4bf0659edab6caa74a75601df4dbc55f31e02938d2e870",
+    "public/focus/report-refresh.js": "c858df541b6050ce9f663781f0da6a4fc96e8d013a230c30e1b12df1b089dd24",
+    "public/focus/settings.js": "06e6018e1570e885551c8efb6a890a6613beef11df337165af10908706f919a6",
+    "public/focus/statistics-page.js": "71ff89c9b0e4b7a2ba4e5630a725ad936bf9f5ff93405ec3c02e4345a5125248",
+    "public/focus/task-summary.js": "1d46dce44c7f2776e7396e672b21d156b600876dd8e4924ae6a1d523405c7733",
+    "public/focus/today-summary.js": "fc6620dbaab00803a6edf27ce6fb43f25c89a0beb937c36900f598ef222858ff",
+    "public/focus/widget.js": "fa3d40bebf30c07d79273aca35de9fbdfbeeaebbf0790e4d70ef435debf03070"
+  },
+  "generatedAt": "2026-10-07T12:34:04.233Z",
+  "cleanup": {
+    "temporaryServiceStopped": true,
+    "temporaryDataDirectoryRemoved": true,
+    "isolatedChromeClosedByDriverFinally": true,
+    "isolatedChromeProfilesRemovedByDriverFinally": true
+  },
+  "screenshotSha256": {
+    "calendar.png": "14f9642d6b07069a8d428f15853882cc99d42f92dd06f3df8b06dd87b67ff6ea",
+    "today-focus.png": "04576ee947593b05d7fe01b05ede22e3392eafecdac55acb64c9939b5e702d99",
+    "focus-running.png": "2aa1613f48981accc9a40a0554e9aab740f26df9935d9cab9b5a79c3968070d9",
+    "focus-statistics.png": "da3038d803791d74a21c3944a7aadb2f25645686a904c412e243733a15e0982f",
+    "task-focus-summary.png": "dd948394058f1fab6ee9e8db4d767c250dc9765f991ef7043917eb6f7fda8ed2"
+  }
+}

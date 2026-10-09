@@ -21,6 +21,11 @@ export function sectionHeading({ title, description, actions = '', level = 2, ti
   return `<div class="ui-section-heading ${escape(className)}"><div><h${level}>${escape(title)}${titleAddon}</h${level}>${description ? `<p class="ui-section-description">${escape(description)}</p>` : ''}</div>${actions}</div>`;
 }
 
+/** A native checkbox with its label and help text aligned in one settings row. */
+export function settingToggleRow({ name, label, description }) {
+  return `<label class="ui-setting-row"><span><span class="ui-setting-title">${escape(label)}</span>${description ? `<span class="ui-setting-description">${escape(description)}</span>` : ''}</span><input type="checkbox" ${attributes({ name })}></label>`;
+}
+
 /** Collapsible sections always keep title, description and actions in the shared heading.
  * Pass trusted template HTML as content/actions; text values are escaped here. */
 export function disclosureSection({ id, title, description = '', actions = '', content = '', className = '' }) {

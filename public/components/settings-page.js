@@ -1,7 +1,7 @@
 export const settingsPage = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 设置</span></header>
     <div class="workspace settings-workspace">
-      <section class="page-heading"><div><h1>设置</h1><p>AI 对话、快捷键与快速搜索</p></div></section>
+      <section class="page-heading"><div><h1>设置</h1><p>专注计时、AI 对话、快捷键与快速搜索</p></div></section>
       <div class="ui-panel-grid settings-grid">
         <div class="ui-panel-stack">
           <section class="settings-panel" aria-labelledby="shortcuts-heading">

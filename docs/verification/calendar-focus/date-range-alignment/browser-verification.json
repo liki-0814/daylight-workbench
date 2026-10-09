@@ -1,0 +1,2105 @@
+{
+  "generatedAt": "2026-10-07T13:42:55.076Z",
+  "source": "Current workspace served by actual Node workbench; synthetic data, disposable Chrome profile",
+  "checks": [
+    {
+      "name": "custom range fits 1440px",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "pageWidth": 1440,
+        "track": {
+          "x": 281,
+          "y": 245,
+          "width": 254.4375,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 535.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 551.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 713.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 863.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 281,
+          "y": 327,
+          "width": 220,
+          "height": 36,
+          "top": 327,
+          "bottom": 363,
+          "right": 501,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 551.4375,
+          "y": 217,
+          "width": 150,
+          "height": 64,
+          "top": 217,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "all filter controls share 36px height at 1440",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "pageWidth": 1440,
+        "track": {
+          "x": 281,
+          "y": 245,
+          "width": 254.4375,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 535.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 551.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 713.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 863.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 281,
+          "y": 327,
+          "width": 220,
+          "height": 36,
+          "top": 327,
+          "bottom": 363,
+          "right": 501,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 551.4375,
+          "y": 217,
+          "width": 150,
+          "height": 64,
+          "top": 217,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "range controls stay inside 1440px",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "pageWidth": 1440,
+        "track": {
+          "x": 281,
+          "y": 245,
+          "width": 254.4375,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 535.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 551.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 713.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 863.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 281,
+          "y": 327,
+          "width": 220,
+          "height": 36,
+          "top": 327,
+          "bottom": 363,
+          "right": 501,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 551.4375,
+          "y": 217,
+          "width": 150,
+          "height": 64,
+          "top": 217,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "empty validation row occupies no space at 1440",
+      "ok": true,
+      "detail": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "name": "desktop range controls align at bottom",
+      "ok": true,
+      "detail": {
+        "width": 1440,
+        "pageWidth": 1440,
+        "track": {
+          "x": 281,
+          "y": 245,
+          "width": 254.4375,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 535.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 551.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 713.4375,
+          "y": 245,
+          "width": 150,
+          "height": 36,
+          "top": 245,
+          "bottom": 281,
+          "right": 863.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 281,
+          "y": 327,
+          "width": 220,
+          "height": 36,
+          "top": 327,
+          "bottom": 363,
+          "right": 501,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 551.4375,
+          "y": 217,
+          "width": 150,
+          "height": 64,
+          "top": 217,
+          "bottom": 281,
+          "right": 701.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "custom range fits 1000px",
+      "ok": true,
+      "detail": {
+        "width": 1000,
+        "pageWidth": 1000,
+        "track": {
+          "x": 236,
+          "y": 236,
+          "width": 254.4375,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 490.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 506.4375,
+          "y": 236,
+          "width": 150,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 656.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 668.4375,
+          "y": 236,
+          "width": 150,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 818.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 236,
+          "y": 318,
+          "width": 220,
+          "height": 36,
+          "top": 318,
+          "bottom": 354,
+          "right": 456,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 506.4375,
+          "y": 208,
+          "width": 150,
+          "height": 64,
+          "top": 208,
+          "bottom": 272,
+          "right": 656.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "all filter controls share 36px height at 1000",
+      "ok": true,
+      "detail": {
+        "width": 1000,
+        "pageWidth": 1000,
+        "track": {
+          "x": 236,
+          "y": 236,
+          "width": 254.4375,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 490.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 506.4375,
+          "y": 236,
+          "width": 150,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 656.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 668.4375,
+          "y": 236,
+          "width": 150,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 818.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 236,
+          "y": 318,
+          "width": 220,
+          "height": 36,
+          "top": 318,
+          "bottom": 354,
+          "right": 456,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 506.4375,
+          "y": 208,
+          "width": 150,
+          "height": 64,
+          "top": 208,
+          "bottom": 272,
+          "right": 656.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "range controls stay inside 1000px",
+      "ok": true,
+      "detail": {
+        "width": 1000,
+        "pageWidth": 1000,
+        "track": {
+          "x": 236,
+          "y": 236,
+          "width": 254.4375,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 490.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 506.4375,
+          "y": 236,
+          "width": 150,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 656.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 668.4375,
+          "y": 236,
+          "width": 150,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 818.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 236,
+          "y": 318,
+          "width": 220,
+          "height": 36,
+          "top": 318,
+          "bottom": 354,
+          "right": 456,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 506.4375,
+          "y": 208,
+          "width": 150,
+          "height": 64,
+          "top": 208,
+          "bottom": 272,
+          "right": 656.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "empty validation row occupies no space at 1000",
+      "ok": true,
+      "detail": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "name": "custom range fits 768px",
+      "ok": true,
+      "detail": {
+        "width": 768,
+        "pageWidth": 768,
+        "track": {
+          "x": 236,
+          "y": 236,
+          "width": 254.4375,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 490.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 236,
+          "y": 316,
+          "width": 150,
+          "height": 36,
+          "top": 316,
+          "bottom": 352,
+          "right": 386,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 398,
+          "y": 316,
+          "width": 150,
+          "height": 36,
+          "top": 316,
+          "bottom": 352,
+          "right": 548,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 236,
+          "y": 398,
+          "width": 220,
+          "height": 36,
+          "top": 398,
+          "bottom": 434,
+          "right": 456,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 236,
+          "y": 288,
+          "width": 150,
+          "height": 64,
+          "top": 288,
+          "bottom": 352,
+          "right": 386,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "all filter controls share 36px height at 768",
+      "ok": true,
+      "detail": {
+        "width": 768,
+        "pageWidth": 768,
+        "track": {
+          "x": 236,
+          "y": 236,
+          "width": 254.4375,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 490.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 236,
+          "y": 316,
+          "width": 150,
+          "height": 36,
+          "top": 316,
+          "bottom": 352,
+          "right": 386,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 398,
+          "y": 316,
+          "width": 150,
+          "height": 36,
+          "top": 316,
+          "bottom": 352,
+          "right": 548,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 236,
+          "y": 398,
+          "width": 220,
+          "height": 36,
+          "top": 398,
+          "bottom": 434,
+          "right": 456,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 236,
+          "y": 288,
+          "width": 150,
+          "height": 64,
+          "top": 288,
+          "bottom": 352,
+          "right": 386,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "range controls stay inside 768px",
+      "ok": true,
+      "detail": {
+        "width": 768,
+        "pageWidth": 768,
+        "track": {
+          "x": 236,
+          "y": 236,
+          "width": 254.4375,
+          "height": 36,
+          "top": 236,
+          "bottom": 272,
+          "right": 490.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 236,
+          "y": 316,
+          "width": 150,
+          "height": 36,
+          "top": 316,
+          "bottom": 352,
+          "right": 386,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 398,
+          "y": 316,
+          "width": 150,
+          "height": 36,
+          "top": 316,
+          "bottom": 352,
+          "right": 548,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 236,
+          "y": 398,
+          "width": 220,
+          "height": 36,
+          "top": 398,
+          "bottom": 434,
+          "right": 456,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 236,
+          "y": 288,
+          "width": 150,
+          "height": 64,
+          "top": 288,
+          "bottom": 352,
+          "right": 386,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "empty validation row occupies no space at 768",
+      "ok": true,
+      "detail": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "name": "custom range fits 390px",
+      "ok": true,
+      "detail": {
+        "width": 390,
+        "pageWidth": 390,
+        "track": {
+          "x": 18,
+          "y": 363,
+          "width": 254.4375,
+          "height": 36,
+          "top": 363,
+          "bottom": 399,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 180,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 330,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 525,
+          "width": 354,
+          "height": 36,
+          "top": 525,
+          "bottom": 561,
+          "right": 372,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 415,
+          "width": 150,
+          "height": 64,
+          "top": 415,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "all filter controls share 36px height at 390",
+      "ok": true,
+      "detail": {
+        "width": 390,
+        "pageWidth": 390,
+        "track": {
+          "x": 18,
+          "y": 363,
+          "width": 254.4375,
+          "height": 36,
+          "top": 363,
+          "bottom": 399,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 180,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 330,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 525,
+          "width": 354,
+          "height": 36,
+          "top": 525,
+          "bottom": 561,
+          "right": 372,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 415,
+          "width": 150,
+          "height": 64,
+          "top": 415,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "range controls stay inside 390px",
+      "ok": true,
+      "detail": {
+        "width": 390,
+        "pageWidth": 390,
+        "track": {
+          "x": 18,
+          "y": 363,
+          "width": 254.4375,
+          "height": 36,
+          "top": 363,
+          "bottom": 399,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 180,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 330,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 525,
+          "width": 354,
+          "height": 36,
+          "top": 525,
+          "bottom": 561,
+          "right": 372,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 415,
+          "width": 150,
+          "height": 64,
+          "top": 415,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "empty validation row occupies no space at 390",
+      "ok": true,
+      "detail": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "name": "custom range fits 320px",
+      "ok": true,
+      "detail": {
+        "width": 320,
+        "pageWidth": 320,
+        "track": {
+          "x": 18,
+          "y": 403,
+          "width": 254.4375,
+          "height": 36,
+          "top": 403,
+          "bottom": 439,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 483,
+          "width": 284,
+          "height": 36,
+          "top": 483,
+          "bottom": 519,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 18,
+          "y": 559,
+          "width": 284,
+          "height": 36,
+          "top": 559,
+          "bottom": 595,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 641,
+          "width": 284,
+          "height": 36,
+          "top": 641,
+          "bottom": 677,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 455,
+          "width": 284,
+          "height": 64,
+          "top": 455,
+          "bottom": 519,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "all filter controls share 36px height at 320",
+      "ok": true,
+      "detail": {
+        "width": 320,
+        "pageWidth": 320,
+        "track": {
+          "x": 18,
+          "y": 403,
+          "width": 254.4375,
+          "height": 36,
+          "top": 403,
+          "bottom": 439,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 483,
+          "width": 284,
+          "height": 36,
+          "top": 483,
+          "bottom": 519,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 18,
+          "y": 559,
+          "width": 284,
+          "height": 36,
+          "top": 559,
+          "bottom": 595,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 641,
+          "width": 284,
+          "height": 36,
+          "top": 641,
+          "bottom": 677,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 455,
+          "width": 284,
+          "height": 64,
+          "top": 455,
+          "bottom": 519,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "range controls stay inside 320px",
+      "ok": true,
+      "detail": {
+        "width": 320,
+        "pageWidth": 320,
+        "track": {
+          "x": 18,
+          "y": 403,
+          "width": 254.4375,
+          "height": 36,
+          "top": 403,
+          "bottom": 439,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 483,
+          "width": 284,
+          "height": 36,
+          "top": 483,
+          "bottom": 519,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 18,
+          "y": 559,
+          "width": 284,
+          "height": 36,
+          "top": 559,
+          "bottom": 595,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 641,
+          "width": 284,
+          "height": 36,
+          "top": 641,
+          "bottom": 677,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 455,
+          "width": 284,
+          "height": 64,
+          "top": 455,
+          "bottom": 519,
+          "right": 302,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "right": 0,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "empty validation row occupies no space at 320",
+      "ok": true,
+      "detail": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "name": "preset today keeps accessible group and layout",
+      "ok": true,
+      "detail": {
+        "selected": "today",
+        "datesHidden": true,
+        "groupCount": 1,
+        "overflow": false
+      }
+    },
+    {
+      "name": "preset 7 keeps accessible group and layout",
+      "ok": true,
+      "detail": {
+        "selected": "7",
+        "datesHidden": true,
+        "groupCount": 1,
+        "overflow": false
+      }
+    },
+    {
+      "name": "preset 30 keeps accessible group and layout",
+      "ok": true,
+      "detail": {
+        "selected": "30",
+        "datesHidden": true,
+        "groupCount": 1,
+        "overflow": false
+      }
+    },
+    {
+      "name": "preset custom keeps accessible group and layout",
+      "ok": true,
+      "detail": {
+        "selected": "custom",
+        "datesHidden": false,
+        "groupCount": 1,
+        "overflow": false
+      }
+    },
+    {
+      "name": "custom reveals editable dates",
+      "ok": true,
+      "detail": {
+        "selected": "custom",
+        "datesHidden": false,
+        "groupCount": 1,
+        "overflow": false
+      }
+    },
+    {
+      "name": "invalid date range displays error",
+      "ok": true
+    },
+    {
+      "name": "visible validation wraps without overflow",
+      "ok": true,
+      "detail": {
+        "width": 390,
+        "pageWidth": 390,
+        "track": {
+          "x": 18,
+          "y": 363,
+          "width": 254.4375,
+          "height": 36,
+          "top": 363,
+          "bottom": 399,
+          "right": 272.4375,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "3px"
+        },
+        "from": {
+          "x": 18,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "to": {
+          "x": 180,
+          "y": 443,
+          "width": 150,
+          "height": 36,
+          "top": 443,
+          "bottom": 479,
+          "right": 330,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(40, 51, 45)",
+          "labelGap": "normal"
+        },
+        "project": {
+          "x": 18,
+          "y": 561,
+          "width": 354,
+          "height": 36,
+          "top": 561,
+          "bottom": 597,
+          "right": 372,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(55, 76, 46)",
+          "labelGap": "10px"
+        },
+        "label": {
+          "x": 18,
+          "y": 415,
+          "width": 150,
+          "height": 64,
+          "top": 415,
+          "bottom": 479,
+          "right": 168,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(118, 128, 120)",
+          "labelGap": "8px"
+        },
+        "error": {
+          "x": 18,
+          "y": 495,
+          "width": 354,
+          "height": 20,
+          "top": 495,
+          "bottom": 515,
+          "right": 372,
+          "fontSize": "12px",
+          "lineHeight": "20px",
+          "color": "rgb(160, 68, 54)",
+          "labelGap": "normal"
+        }
+      }
+    },
+    {
+      "name": "long selected project/task and break label wrap without overflow",
+      "ok": true
+    },
+    {
+      "name": "narrow dropdown remains inside viewport",
+      "ok": true,
+      "detail": {
+        "left": 18,
+        "right": 372,
+        "height": 240,
+        "open": "true"
+      }
+    },
+    {
+      "name": "calendar status uses same size and alignment",
+      "ok": true,
+      "detail": {
+        "select": {
+          "height": 36,
+          "bottom": 345,
+          "top": 309
+        },
+        "segments": {
+          "height": 36,
+          "bottom": 345,
+          "top": 309
+        },
+        "label": "任务状态"
+      }
+    },
+    {
+      "name": "calendar narrow filters fit",
+      "ok": true
+    },
+    {
+      "name": "reschedule keeps normal 44px native date field",
+      "ok": true,
+      "detail": {
+        "height": 44,
+        "value": "2026-10-07",
+        "type": "date"
+      }
+    },
+    {
+      "name": "reschedule narrow dialog fits",
+      "ok": true
+    },
+    {
+      "name": "no runtime exceptions",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "statistics-1440.png",
+    "statistics-390.png",
+    "statistics-error-390.png",
+    "statistics-long-filter-390.png",
+    "calendar-1440.png",
+    "calendar-390.png",
+    "reschedule-1440.png",
+    "reschedule-390.png"
+  ],
+  "geometry": [
+    {
+      "width": 1440,
+      "pageWidth": 1440,
+      "track": {
+        "x": 281,
+        "y": 245,
+        "width": 254.4375,
+        "height": 36,
+        "top": 245,
+        "bottom": 281,
+        "right": 535.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "3px"
+      },
+      "from": {
+        "x": 551.4375,
+        "y": 245,
+        "width": 150,
+        "height": 36,
+        "top": 245,
+        "bottom": 281,
+        "right": 701.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "to": {
+        "x": 713.4375,
+        "y": 245,
+        "width": 150,
+        "height": 36,
+        "top": 245,
+        "bottom": 281,
+        "right": 863.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "project": {
+        "x": 281,
+        "y": 327,
+        "width": 220,
+        "height": 36,
+        "top": 327,
+        "bottom": 363,
+        "right": 501,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(55, 76, 46)",
+        "labelGap": "10px"
+      },
+      "label": {
+        "x": 551.4375,
+        "y": 217,
+        "width": 150,
+        "height": 64,
+        "top": 217,
+        "bottom": 281,
+        "right": 701.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(118, 128, 120)",
+        "labelGap": "8px"
+      },
+      "error": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "width": 1000,
+      "pageWidth": 1000,
+      "track": {
+        "x": 236,
+        "y": 236,
+        "width": 254.4375,
+        "height": 36,
+        "top": 236,
+        "bottom": 272,
+        "right": 490.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "3px"
+      },
+      "from": {
+        "x": 506.4375,
+        "y": 236,
+        "width": 150,
+        "height": 36,
+        "top": 236,
+        "bottom": 272,
+        "right": 656.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "to": {
+        "x": 668.4375,
+        "y": 236,
+        "width": 150,
+        "height": 36,
+        "top": 236,
+        "bottom": 272,
+        "right": 818.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "project": {
+        "x": 236,
+        "y": 318,
+        "width": 220,
+        "height": 36,
+        "top": 318,
+        "bottom": 354,
+        "right": 456,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(55, 76, 46)",
+        "labelGap": "10px"
+      },
+      "label": {
+        "x": 506.4375,
+        "y": 208,
+        "width": 150,
+        "height": 64,
+        "top": 208,
+        "bottom": 272,
+        "right": 656.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(118, 128, 120)",
+        "labelGap": "8px"
+      },
+      "error": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "width": 768,
+      "pageWidth": 768,
+      "track": {
+        "x": 236,
+        "y": 236,
+        "width": 254.4375,
+        "height": 36,
+        "top": 236,
+        "bottom": 272,
+        "right": 490.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "3px"
+      },
+      "from": {
+        "x": 236,
+        "y": 316,
+        "width": 150,
+        "height": 36,
+        "top": 316,
+        "bottom": 352,
+        "right": 386,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "to": {
+        "x": 398,
+        "y": 316,
+        "width": 150,
+        "height": 36,
+        "top": 316,
+        "bottom": 352,
+        "right": 548,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "project": {
+        "x": 236,
+        "y": 398,
+        "width": 220,
+        "height": 36,
+        "top": 398,
+        "bottom": 434,
+        "right": 456,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(55, 76, 46)",
+        "labelGap": "10px"
+      },
+      "label": {
+        "x": 236,
+        "y": 288,
+        "width": 150,
+        "height": 64,
+        "top": 288,
+        "bottom": 352,
+        "right": 386,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(118, 128, 120)",
+        "labelGap": "8px"
+      },
+      "error": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "width": 390,
+      "pageWidth": 390,
+      "track": {
+        "x": 18,
+        "y": 363,
+        "width": 254.4375,
+        "height": 36,
+        "top": 363,
+        "bottom": 399,
+        "right": 272.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "3px"
+      },
+      "from": {
+        "x": 18,
+        "y": 443,
+        "width": 150,
+        "height": 36,
+        "top": 443,
+        "bottom": 479,
+        "right": 168,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "to": {
+        "x": 180,
+        "y": 443,
+        "width": 150,
+        "height": 36,
+        "top": 443,
+        "bottom": 479,
+        "right": 330,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "project": {
+        "x": 18,
+        "y": 525,
+        "width": 354,
+        "height": 36,
+        "top": 525,
+        "bottom": 561,
+        "right": 372,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(55, 76, 46)",
+        "labelGap": "10px"
+      },
+      "label": {
+        "x": 18,
+        "y": 415,
+        "width": 150,
+        "height": 64,
+        "top": 415,
+        "bottom": 479,
+        "right": 168,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(118, 128, 120)",
+        "labelGap": "8px"
+      },
+      "error": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    },
+    {
+      "width": 320,
+      "pageWidth": 320,
+      "track": {
+        "x": 18,
+        "y": 403,
+        "width": 254.4375,
+        "height": 36,
+        "top": 403,
+        "bottom": 439,
+        "right": 272.4375,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "3px"
+      },
+      "from": {
+        "x": 18,
+        "y": 483,
+        "width": 284,
+        "height": 36,
+        "top": 483,
+        "bottom": 519,
+        "right": 302,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "to": {
+        "x": 18,
+        "y": 559,
+        "width": 284,
+        "height": 36,
+        "top": 559,
+        "bottom": 595,
+        "right": 302,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(40, 51, 45)",
+        "labelGap": "normal"
+      },
+      "project": {
+        "x": 18,
+        "y": 641,
+        "width": 284,
+        "height": 36,
+        "top": 641,
+        "bottom": 677,
+        "right": 302,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(55, 76, 46)",
+        "labelGap": "10px"
+      },
+      "label": {
+        "x": 18,
+        "y": 455,
+        "width": 284,
+        "height": 64,
+        "top": 455,
+        "bottom": 519,
+        "right": 302,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(118, 128, 120)",
+        "labelGap": "8px"
+      },
+      "error": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "bottom": 0,
+        "right": 0,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "color": "rgb(160, 68, 54)",
+        "labelGap": "normal"
+      }
+    }
+  ],
+  "sourceSha256": {
+    "public/components/date-field.js": "8670f8157ee2cf9a343b109be9c0b40481cf416ea75eccd026a2e6aa45489744",
+    "public/components/date-field.css": "6adbdfda416eb966785d10b758904a46d4062e0d69e67ded2ec502eb6c5c2074",
+    "public/components/date-range.js": "b52c82ab0abb2868bbf514c9fd14fe9e5dffad0625e8c250c020d5f083ef4939",
+    "public/components/date-range.css": "e821a7667fcad9e534f3fdd87a50cbdf0cfc8907bb02c93815e737d1d4f9ab38",
+    "public/components/segmented-control.js": "1cafbd5903e8835b77ec2f9497321b510986b919d9343a0813cef93e5e289773",
+    "public/components/segmented-control.css": "243f9b5184c5576262b21bcf62081e8a16673fcabcd2d482eb5027f79979f51a",
+    "public/calendar/page.js": "625bb1a6361c512d3d1427711f8c77c584c732ec5f15ee80e8af3d2098fdc94b",
+    "public/calendar/calendar.css": "47fe966e799e3b04f1b45f30ecf0d46648c30656617a16059a388085455ec949",
+    "public/focus/focus.css": "88328c4c96844fc2f59796141ddc40caf3bcfd9a68bf445f619bcd46b2a8102b",
+    "public/design-system.css": "3b443b128089d1cd75f5a4e5f61e03da21dc7ddc7288a2de72e29a28389be059"
+  },
+  "cleanup": {
+    "temporaryServiceStopped": true,
+    "temporaryProfileRemoved": true,
+    "temporaryDataRemoved": true,
+    "installedAppTouched": false,
+    "userDataTouched": false
+  },
+  "passed": true,
+  "servicePort": 61310,
+  "browserPID": 20564
+}

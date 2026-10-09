@@ -1,0 +1,184 @@
+{
+  "kind": "real exact-PID native status menu controls",
+  "binary": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/MacOS/Daylight",
+  "temporary": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-uviv3l2m",
+  "notificationsEnabled": false,
+  "signatureChanged": false,
+  "proxyAIInit": "disabled by temporary missing Node path",
+  "steps": [
+    {
+      "title": "暂停专注",
+      "activation": "CG mouse move/down/up on exact-PID observed item geometry",
+      "CGClickGeometry": {
+        "pid": 81677,
+        "title": "暂停专注",
+        "x": 761.0,
+        "y": 87.0,
+        "width": 204.0,
+        "height": 24.0,
+        "clickedX": 863.0,
+        "clickedY": 99.0
+      },
+      "action": "pause",
+      "version": 3,
+      "status": "paused",
+      "remainingMs": 174708
+    },
+    {
+      "title": "继续专注",
+      "activation": "CG mouse move/down/up on exact-PID observed item geometry",
+      "CGClickGeometry": {
+        "pid": 81677,
+        "title": "继续专注",
+        "x": 749.0,
+        "y": 87.0,
+        "width": 204.0,
+        "height": 24.0,
+        "clickedX": 851.0,
+        "clickedY": 99.0
+      },
+      "action": "resume",
+      "version": 4,
+      "status": "running",
+      "remainingMs": 174693
+    },
+    {
+      "title": "结束本轮",
+      "activation": "CG mouse move/down/up on exact-PID observed item geometry",
+      "CGClickGeometry": {
+        "pid": 81677,
+        "title": "结束本轮",
+        "x": 762.0,
+        "y": 111.0,
+        "width": 204.0,
+        "height": 24.0,
+        "clickedX": 864.0,
+        "clickedY": 123.0
+      },
+      "action": "finish",
+      "version": 5,
+      "current": null,
+      "lastOutcome": {
+        "acknowledged": false,
+        "elapsedMs": 7650,
+        "endedAt": 1791223649125,
+        "endReason": "stopped",
+        "id": "28178ad8-7837-4ed9-83e0-5171578e7793",
+        "notification": {
+          "requestId": "focus-28178ad8-7837-4ed9-83e0-5171578e7793",
+          "state": "none"
+        },
+        "observedAt": 1791223649125,
+        "phase": "work",
+        "sessionId": "28178ad8-7837-4ed9-83e0-5171578e7793",
+        "targetMs": 180000,
+        "taskId": "task-a",
+        "taskTitleSnapshot": "隔离闭窗计时验收",
+        "timeQuality": "wall_clock"
+      }
+    }
+  ],
+  "pid": 81677,
+  "port": 52473,
+  "sessionId": "28178ad8-7837-4ed9-83e0-5171578e7793",
+  "closeCode": 0,
+  "mainWindowCount": 0,
+  "menuOpenAXCodes": [
+    -25204,
+    -25204,
+    -25204
+  ],
+  "externalFocusVersionChange": {
+    "from": 1,
+    "to": 2,
+    "sessionId": "28178ad8-7837-4ed9-83e0-5171578e7793",
+    "taskVersion": 0
+  },
+  "heldOpenAcrossTicker": {
+    "seconds": 2.3,
+    "before": [
+      "专注 02:59",
+      "隔离闭窗计时验收",
+      "暂停专注",
+      "结束本轮",
+      "查看专注统计",
+      "",
+      "今日任务 · 0",
+      "今天暂无安排",
+      "",
+      "其他待办 · 1",
+      "隔离闭窗计时验收",
+      "",
+      "新建任务…",
+      "快速搜索…",
+      "打开工作台",
+      "打开日历",
+      "查看专注统计",
+      "打开数据目录",
+      "",
+      "退出 Daylight"
+    ],
+    "after": [
+      "专注 02:57",
+      "隔离闭窗计时验收",
+      "暂停专注",
+      "结束本轮",
+      "查看专注统计",
+      "",
+      "今日任务 · 0",
+      "今天暂无安排",
+      "",
+      "其他待办 · 1",
+      "隔离闭窗计时验收",
+      "",
+      "新建任务…",
+      "快速搜索…",
+      "打开工作台",
+      "打开日历",
+      "查看专注统计",
+      "打开数据目录",
+      "",
+      "退出 Daylight"
+    ]
+  },
+  "screenshot": "tray-running.png",
+  "observedMenuItemGeometry": [
+    {
+      "pid": 81677,
+      "title": "暂停专注",
+      "x": 761.0,
+      "y": 87.0,
+      "width": 204.0,
+      "height": 24.0,
+      "clickedX": 863.0,
+      "clickedY": 99.0
+    },
+    {
+      "pid": 81677,
+      "title": "继续专注",
+      "x": 749.0,
+      "y": 87.0,
+      "width": 204.0,
+      "height": 24.0,
+      "clickedX": 851.0,
+      "clickedY": 99.0
+    },
+    {
+      "pid": 81677,
+      "title": "结束本轮",
+      "x": 762.0,
+      "y": 111.0,
+      "width": 204.0,
+      "height": 24.0,
+      "clickedX": 864.0,
+      "clickedY": 123.0
+    }
+  ],
+  "taskVersionAfter": 0,
+  "taskStatusAfter": "todo",
+  "passed": true,
+  "stderr": "",
+  "temporaryProcessStopped": true,
+  "launchServicesRegistrationTouched": false,
+  "binarySHA256": "f60cd1d4e19f167e02c7bbb3593c9cddb627c052588457d27d8ca970c201a0c7"
+}

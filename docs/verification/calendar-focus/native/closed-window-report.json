@@ -1,0 +1,91 @@
+{
+  "kind": "real isolated native GUI closed-main-window timer acceptance",
+  "temporary": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-gzjw8w0f",
+  "app": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app",
+  "temporaryCopy": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-gzjw8w0f/Daylight Focus Window Acceptance.app",
+  "bundleId": "local.daylight.workbench",
+  "signatureChanged": false,
+  "directWorkspaceBinary": true,
+  "proxyAIInit": "disabled by temporary missing Node path",
+  "notificationsEnabled": false,
+  "samples": [
+    {
+      "observedAt": 1791222907659,
+      "status": "running"
+    },
+    {
+      "observedAt": 1791222917713,
+      "status": "running"
+    },
+    {
+      "observedAt": 1791222927784,
+      "status": "running"
+    },
+    {
+      "observedAt": 1791222937846,
+      "status": "running"
+    },
+    {
+      "observedAt": 1791222947921,
+      "status": "running"
+    },
+    {
+      "observedAt": 1791222957989,
+      "status": "running"
+    }
+  ],
+  "pid": 59958,
+  "port": 62272,
+  "startupSucceeded": true,
+  "trustedAX": true,
+  "windowsBefore": 1,
+  "sessionId": "28a22e46-47bf-42fe-b7c7-7edbddc7bc0d",
+  "deadlineAt": 1791222964410,
+  "screenshotBeforeClose": "before-close.png",
+  "closeActionCode": 0,
+  "windowsAfter": 0,
+  "snapshotAfterClose": {
+    "status": "running",
+    "remainingMs": 56754,
+    "notificationsEnabled": false
+  },
+  "savedOutcome": {
+    "id": "28a22e46-47bf-42fe-b7c7-7edbddc7bc0d",
+    "sessionId": "28a22e46-47bf-42fe-b7c7-7edbddc7bc0d",
+    "phase": "work",
+    "taskId": "task-a",
+    "taskTitleSnapshot": "隔离闭窗计时验收",
+    "targetMs": 60000,
+    "elapsedMs": 60000,
+    "endedAt": 1791222964410,
+    "observedAt": 1791222964414,
+    "endReason": "completed",
+    "timeQuality": "wall_clock",
+    "acknowledged": false,
+    "notification": {
+      "requestId": "focus-28a22e46-47bf-42fe-b7c7-7edbddc7bc0d",
+      "state": "none"
+    }
+  },
+  "archiveObservedAt": 1791222965031,
+  "archiveLagMs": 621,
+  "passed": true,
+  "stderr": "",
+  "temporaryProcessStopped": true,
+  "launchServicesRegistrationTouched": false,
+  "childReturnCode": -15,
+  "binarySHA256": "a4c41340b0b889e21f7e24d5fb35083dd5153e4a96ea68f84484d31aedf4d388",
+  "taskVersionAfter": 0,
+  "storedArchiveMatchesOutcome": true,
+  "temporaryAppAndDataRemoved": true,
+  "removedTemporaryDirectories": [
+    "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-yh6a0_8l",
+    "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-vq8ni0o9",
+    "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-s_zm1y44",
+    "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-gzjw8w0f",
+    "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-gui-ronje939",
+    "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-focus-window-fxy10x0x"
+  ],
+  "temporaryProcessStillExists": false,
+  "binarySha256": "a4c41340b0b889e21f7e24d5fb35083dd5153e4a96ea68f84484d31aedf4d388"
+}

@@ -51,7 +51,7 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
     const completion = Promise.withResolvers();
     active.add(controller); finishing.add(completion.promise);
     const disconnected = () => { if (!res.writableEnded) controller.abort(); };
-    res.on('close', disconnected);
+    req.on('error', disconnected); res.on('error', disconnected); res.on('close', disconnected);
     try {
       if (route === '/models' && req.method === 'GET') return send(res, 200, renderModelList(await router.listModels()));
       const adapter = adapters[route];
@@ -126,8 +126,10 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       if (trace) trace.fail(error, controller.signal.aborted ? 'cancelled' : deadline.signal.aborted || error.name === 'TimeoutError' || error.name === 'AbortError' ? 'timeout' : 'failed');
       code = controller.signal.aborted ? 499 : error.status || (error.code ? errorStatus(error.code) : 502);
       const message = error.status ? error.message : controller.signal.aborted ? '请求已取消' : '代理请求失败，请检查账号与网络后重试';
-      if (!res.headersSent) send(res, code, { error: { message, type: 'proxy_error' } });
-      else { res.write(`event: error\ndata: ${JSON.stringify({ error: { message, type: 'proxy_error' } })}\n\n`); res.end(); }
+      try {
+        if (!res.headersSent) send(res, code, { error: { message, type: 'proxy_error' } });
+        else if (!res.destroyed) { res.write(`event: error\ndata: ${JSON.stringify({ error: { message, type: 'proxy_error' } })}\n\n`); res.end(); }
+      } catch { /* the client already closed the socket */ }
     } finally {
       clearTimeout(deadlineTimer);
       active.delete(controller); res.off('close', disconnected);

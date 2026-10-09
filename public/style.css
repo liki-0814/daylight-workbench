@@ -56,7 +56,7 @@ a {
 }
 
 .sidebar {
-  width: 238px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
   padding: var(--space-7) var(--space-5) 22px;
   background: #eff1eb;
@@ -226,7 +226,7 @@ a {
 }
 
 main {
-  margin-left: 238px;
+  margin-left: var(--sidebar-width);
   min-width: 0;
   flex: 1;
 }
@@ -1099,13 +1099,14 @@ dialog::backdrop {
 }
 
 @media(max-width:1150px) {
+  :root { --sidebar-width: 210px; }
   .sidebar {
-    width: 210px;
+    width: var(--sidebar-width);
     padding-left: 15px;
     padding-right: 15px;
   }
   main {
-    margin-left: 210px;
+    margin-left: var(--sidebar-width);
   }
   .workspace {
     padding: 30px var(--page-inline);
@@ -1977,7 +1978,7 @@ dialog::backdrop {
 @media(max-width:650px) {
   .sidebar>nav.page-navigation:first-of-type {
     display: grid;
-    grid-template-columns: repeat(5,minmax(0,1fr));
+    grid-template-columns: repeat(6,minmax(0,1fr));
     gap: var(--space-1);
     margin-top: 18px;
   }

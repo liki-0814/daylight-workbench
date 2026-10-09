@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-10-07T21:53:28.452262+08:00",
+  "passed": true,
+  "installed": "/Applications/Daylight.app",
+  "binarySha256": "fac96f6e8322213ed13b635a7ce971f26afa3cbef1e3f9ee37e3214f7c02c840",
+  "testedBundleMatch": true,
+  "backup": "/Users/liki/liki_dev/daylight-workbench/.local/app-backups/20261007-215101-date-range-alignment",
+  "newPid": 40049,
+  "retained": {
+    "projects": 3,
+    "tasks": 11,
+    "conversations": 2,
+    "taskVersion": 22,
+    "conversationStatuses": [
+      "idle",
+      "idle"
+    ],
+    "proxyState": "running",
+    "proxyPort": 4319,
+    "proxyActiveRequests": 0
+  },
+  "backedUpFiles": 81866,
+  "missingFiles": 0,
+  "addedFiles": [],
+  "expectedRuntimeUpdates": [
+    "grok/catalog.json"
+  ],
+  "runtimeUpdateScope": "grok/catalog.json: only at timestamp changed; other fields equal",
+  "uiPreflight": {
+    "windows": 1,
+    "readonlyCalendarControls": 2,
+    "unknownInputs": 0,
+    "sheets": 0,
+    "dialogs": 0,
+    "nonemptySearch": 0,
+    "nativeCalendarURL": true
+  },
+  "chromeVisualChecks": 35,
+  "existingNodeTests": {
+    "passed": 292,
+    "failed": 0,
+    "skipped": 0
+  },
+  "webkitEvidence": "../statistics-filter-webkit/geometry.json",
+  "buildEvidence": "build-verification.json"
+}

@@ -1,0 +1,9 @@
+{
+  "kind": "actual Node/native strict Focus HTTP contract",
+  "binarySHA256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+  "exitCode": 0,
+  "stdout": "PASS: Node/native focus recovery arbitration, pause/resume/finish, restart receipts, save faults, task warnings, corruption isolation and clock freeze\n",
+  "stderr": "",
+  "passed": true,
+  "noGUIOrRealUserData": true
+}

@@ -2,6 +2,7 @@
 """Local Daylight API client; credentials never enter stdout or CLI arguments."""
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -20,6 +21,40 @@ def main():
     parser.add_argument('--data-dir')
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('capabilities')
+    calendar = commands.add_parser('calendar', help='最多62天的日期安排与当前状态')
+    calendar.add_argument('--from', dest='from_day', required=True)
+    calendar.add_argument('--to', dest='to_day', required=True)
+    calendar.add_argument('--status', choices=['all', 'open', 'done'], default='all')
+    calendar.add_argument('--query')
+    commands.add_parser('focus-state')
+    stats = commands.add_parser('focus-stats', help='专注计时汇总，最多366天')
+    stats.add_argument('--from', dest='from_day', required=True)
+    stats.add_argument('--to', dest='to_day', required=True)
+    sessions = commands.add_parser('focus-sessions')
+    sessions.add_argument('--from', dest='from_day')
+    sessions.add_argument('--to', dest='to_day')
+    sessions.add_argument('--phase', choices=['work', 'shortBreak'])
+    sessions.add_argument('--limit', type=int, default=20)
+    sessions.add_argument('--cursor')
+    for command in [calendar, stats, sessions]:
+        projects = command.add_mutually_exclusive_group()
+        projects.add_argument('--project')
+        projects.add_argument('--unassigned', action='store_true')
+    for command in [stats, sessions]:
+        command.add_argument('--task')
+    task_focus = commands.add_parser('task-focus', help='任务全历史计时累计')
+    task_focus.add_argument('--id', required=True)
+    task_focus.add_argument('--recent-limit', type=int, default=5)
+    focus_prepare = commands.add_parser('focus-prepare', help='只预览专注动作，不写入')
+    focus_prepare.add_argument('--file', required=True)
+    focus_apply = commands.add_parser('focus-apply', help='执行用户明确授权的专注动作')
+    focus_apply.add_argument('--file', required=True)
+    focus_apply.add_argument('--expected-version', type=int, required=True)
+    focus_apply.add_argument('--expected-task-version', type=int)
+    focus_apply.add_argument('--request-id', required=True)
+    focus_apply.add_argument('--expires-at', type=int)
+    focus_export = commands.add_parser('focus-export')
+    focus_export.add_argument('--out', required=True)
     state = commands.add_parser('state')
     state.add_argument('--query')
     state.add_argument('--project')
@@ -57,6 +92,8 @@ def main():
         raise ValueError('地址必须包含端口')
     token_file = Path(args.data_dir or config['data_dir']).expanduser() / 'agent-token'
     token = token_file.read_text().strip()
+    if not re.fullmatch(r'[a-f0-9]{64}', token):
+        raise ValueError('本机凭证格式异常，请检查服务数据目录')
     route = '/api/v1/capabilities' if args.command == 'capabilities' else '/api/v1/state'
     if args.command == 'tasks':
         params = {'scope': args.scope, 'status': args.status}
@@ -67,6 +104,31 @@ def main():
             params['unassigned'] = '1'
         route = '/api/v1/tasks?' + urllib.parse.urlencode(params)
     payload = None
+    focus_commands = ['focus-state', 'focus-stats', 'focus-sessions', 'task-focus', 'focus-prepare', 'focus-apply', 'focus-export']
+    if args.command == 'calendar' or args.command in focus_commands:
+        route = '/api/v1/calendar' if args.command == 'calendar' else '/api/v1/focus/' + {
+            'focus-state': 'state', 'focus-stats': 'statistics', 'focus-sessions': 'sessions',
+            'task-focus': 'task-summary', 'focus-prepare': 'prepare', 'focus-apply': 'actions', 'focus-export': 'export'}[args.command]
+        params = {}
+        for field, key in [('from_day', 'from'), ('to_day', 'to'), ('project', 'projectId'), ('query', 'query'), ('status', 'status'), ('task', 'taskId'), ('phase', 'phase'), ('limit', 'limit'), ('cursor', 'cursor')]:
+            value = getattr(args, field, None)
+            if value is not None:
+                params[key] = value
+        if getattr(args, 'unassigned', False):
+            params['unassigned'] = '1'
+        if args.command == 'task-focus':
+            params = {'taskId': args.id, 'recentLimit': args.recent_limit}
+        if params:
+            route += '?' + urllib.parse.urlencode(params)
+        if args.command in ['focus-prepare', 'focus-apply']:
+            action = json.load(sys.stdin) if args.file == '-' else json.loads(Path(args.file).expanduser().read_text())
+            payload = {'action': action}
+            if args.command == 'focus-apply':
+                payload.update({'requestId': args.request_id, 'expectedVersion': args.expected_version})
+                if args.expected_task_version is not None:
+                    payload['expectedTaskVersion'] = args.expected_task_version
+                if args.expires_at is not None:
+                    payload['expiresAt'] = args.expires_at
     if args.command == 'conversations':
         route = '/api/v1/ai/state'
     if args.command == 'delete-conversation':
@@ -84,6 +146,12 @@ def main():
                                      headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     try:
+        if args.command == 'calendar' or args.command in focus_commands:
+            check = urllib.request.Request(url.rstrip('/') + '/api/v1/capabilities', headers={'Authorization': 'Bearer ' + token})
+            with opener.open(check, timeout=15) as response:
+                caps = json.load(response)
+            if not caps.get('calendarQuery' if args.command == 'calendar' else 'focus'):
+                raise ValueError('服务尚不支持此功能，请升级服务；不得直接编辑数据文件')
         with opener.open(request, timeout=15) as response:
             result = json.load(response)
     except urllib.error.HTTPError as error:
@@ -112,10 +180,10 @@ def main():
             tasks = [t for t in tasks if args.query.casefold() in (t['title'] + ' ' + t['notes'] + ' ' + projects.get(t['projectId'], {}).get('name', '')).casefold()]
         # Retain the complete authoritative state; filtering is a read-only view.
         result['matchingTasks'] = tasks
-    if args.command == 'export':
+    if args.command in ['export', 'focus-export']:
         output = Path(args.out).expanduser()
         with output.open('x', encoding='utf8') as stream:
-            json.dump(result['state'], stream, ensure_ascii=False, indent=2)
+            json.dump(result['state'] if args.command == 'export' else result, stream, ensure_ascii=False, indent=2)
         print(json.dumps({'exported': str(output.resolve()), 'version': result['version']}, ensure_ascii=False))
     else:
         print(json.dumps(result, ensure_ascii=False, indent=2))

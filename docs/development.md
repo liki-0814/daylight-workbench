@@ -48,13 +48,39 @@ API 只管理工作台数据，不执行关联目录中的代码或部署。不�
 
 ## 统一任务视图
 
-`public/task-view.js` 统一日期范围、项目、关键词、状态及计数；网页与 Node 直接复用，原生服务加载同一文件到 JavaScriptCore。`public/routes.js` 集中处理新旧 Hash。新增公开接口是 `/api/v1/tasks`，旧业务 schema、actions 和 CLI state 语义不变。AI 关联位于 `ai/context.mjs` 和会话存档，不写入业务 state；导航条件也不写入业务 state。
+`core/task-selection.js` 统一范围、项目、关键词、状态及计数，`public/task-view.js` 保留兼容导出；网页与 Node 直接复用，原生加载同一规则到 JavaScriptCore。`public/routes.js` 集中处理新旧 Hash。公开接口包括 `/api/v1/tasks` 和 `/api/v1/calendar`，旧业务 schema、actions 和 CLI state 语义不变。AI 关联位于 `ai/context.mjs` 和会话存档，不写入业务 state；导航条件也不写入业务 state。
 
 视图规则、旧链接与删除恢复见 [任务与导航](tasks.md)，会话关联与草稿契约见 [AI 说明](ai.md)。
 
 验证包括 `test/task-view.test.mjs`、Agent API/Skill 集成测试、AI 关联与草稿测试和 `test/native-test.py` 的原生查询契约。使用 WORKBENCH_DATA_DIR 临时目录测试，避免真实任务或会话数据。独立安装的 Skill 需另外更新，改仓库并不等于已安装 Skill 已更新。
 
 Pi 个性化配置：POST /api/cli/pi/configuration 接收 api、expectedVersion、modelOverrides，使用版本保护持久保存，不直接写 Pi 文件。每模型支持 contextWindow、maxTokens、reasoning、input 和 thinkingLevelMap；缺失映射使用目录/Pi 默认，null 表示不支持。GET state 返回 configuration（有效值）及 overrides（用户覆盖）；prepare/apply 可接受覆盖，自动同步复用持久覆盖。
+
+## 日历与专注维护
+
+`public/task-client.js` 管理旧整体 PUT 的快照撤销与新 action 的服务端撤销，任何成功写入只保留对应的最近撤销来源。结果未知的 action 固定原请求重试；旧 PUT 通过读回确认，不能自动重放旧快照。`plan.reschedule` 原子完成移出/加入，各 action 可带独立 day，日历 remove 显式设置 preserveExecution，move 原本即保留执行状态。
+
+专注使用独立 focus.json 与版本，不进入任务撤销。`core/focus-*` 是纯业务模块，运行时提供时钟、任务快照、时区日期窗口、原子保存和串行调度。Node 在 focus/ 组装；Swift 在自己的 queue 中持有 JavaScriptCore 权威对象，不把全历史逐秒来回转成 Foundation。损坏 focus 文件仅降级专注模块。产品语义与文件职责见 [日历与专注](focus.md)。
+
+前端由唯一 focus/controller.js 持有轮询和显示时钟，各挂载组件订阅状态并提供 dispose；报表刷新与倒计时分别调度，settings 保留未保存输入。新增公共 UI 模块继续在 core/web-assets.json 登记；纯后端 core 模块不需要公开为静态资源。
+
+专注审阅内容来自 `prepareFocusAction` 的可信 `impact.current`/`impact.target`，包括标题/项目快照、阶段、目标、累计及剩余时长。`focusSubmission` 单独冻结 impact 用于重启恢复卡，批准的 request body 不变；恢复只能提交原请求。普通计划操作消息保留 envelope day，`actionLinks(action, day)` 优先使用批量子 action 的有效日期；旧消息缺日期时不猜测今天。
+
+`public/focus/presentation.js` 统一全局条和面板的冻结恢复条件及通知投递反馈；tick 在原节点更新继续按钮，设置页将投递错误与权限状态、dirty 输入分别维护。合法日期范围是 0001-01-01 至 9999-12-31，月历范围外补位为不可操作空格，查询只使用有效日期。
+
+构建后运行 `npm run test:focus-contracts` 对照 Node/实际原生 HTTP；`npm run test:native-focus-time-zone` 用真实 Foundation 校验 DST、半小时偏移和消失日期。Node focus 保存错误统一为 503/FOCUS_SAVE_FAILED；写入失败保留原权威和回执，故障解除后用原 body 重试。
+
+原生通知消费专项入口：
+
+```sh
+npm run test:native-focus-notifications
+```
+
+该脚本需要已构建的 `dist/native/Daylight.app/Contents/Resources/native-core.js`，在可清理的工作区临时目录用系统 Swift 解释器（macOS 13 目标）执行生产 Focus 存储及从生产文件精确抽取的 `FocusNotificationConsumer`。它使用真实临时 focus.json，注入 delivery 观察先持久 attempted 再投递、保存失败不投递以及重启/旧 DTO 不重发；不调用 OS 通知中心，也不请求权限。2026-10-07 此执行路径在两个独立临时目录全部断言通过。先前自签名辅助程序启动 SIGKILL 的失败证据保留，最终通过不反推旧平台失败的根因；实际 allow/deny/display/click/sleep 另留 GUI 证据。
+
+`npm run benchmark:focus` 使用 1 万/5 万条合成历史、实际进程/HTTP/文件保存，报告状态大小、P95、同步占用、RSS、落盘到期延迟及通知消费成本。本轮增加 idle/报表/持续持久写入压力，409 只刷新版本，独立磁盘观察归档结果；RSS 采样覆盖重启与独立 consumer 子进程。它不代替真实 GUI 权限与系统通知展示验收，也不改用户数据。
+
+2026-10-07 回归记录：最终 `npm run check` 与 Node 292/292 无跳过，实际 Swift 任务、24 项任务合同、专注/时区/native AI/proxy/CLI conversations 回归通过，Codex/Qoder 的本地 HTTP/mock 模型持久恢复矩阵通过。最终 binary SHA256 为 `2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15`。独立 Chrome 19 条断言分为 6 真实、12 模拟和 1 异常守卫；新版性能 review-fix-performance.json 四组合全部预算通过，[App 安装读回](verification/calendar-focus/review-fix-install.json) 通过。81,865 个原有文件无丢失，业务/配置保留，缓存仅 /at 更新，初始化 focus.json。详细分层状态和 10-06 历史见[验证记录](verification/calendar-focus.md)，不得把历史预算或模拟通知视为本轮总验收通过。
 
 ## 中转代码结构
 

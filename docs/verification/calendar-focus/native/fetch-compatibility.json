@@ -1,0 +1,936 @@
+{
+  "directory": "/var/folders/kd/8bq6gw054t36mf_s4zpwk30r0000gp/T/daylight-native-fetch-check-GoFmlz",
+  "node": "v22.23.2",
+  "platform": "darwin",
+  "release": "25.5.0",
+  "arch": "arm64",
+  "binary": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/MacOS/Daylight",
+  "binarySha256": "f60cd1d4e19f167e02c7bbb3593c9cddb627c052588457d27d8ca970c201a0c7",
+  "tasks": 1000,
+  "history": 50000,
+  "samplesPerRoute": 50,
+  "startedAt": "2026-10-05T18:08:31.759Z",
+  "fetchClient": "global fetch with response.json(), matching ai/service GET headers and timeout",
+  "from": "2025-10-06",
+  "to": "2026-10-06",
+  "end": {
+    "code": 0,
+    "signal": null
+  },
+  "complete": true,
+  "passed": true,
+  "rows": [
+    {
+      "kind": "state",
+      "sample": 1,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 42.187667
+    },
+    {
+      "kind": "state",
+      "sample": 2,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 5.766041999999999
+    },
+    {
+      "kind": "state",
+      "sample": 3,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 5.228415999999996
+    },
+    {
+      "kind": "state",
+      "sample": 4,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.886499999999998
+    },
+    {
+      "kind": "state",
+      "sample": 5,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 5.231999999999999
+    },
+    {
+      "kind": "state",
+      "sample": 6,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.976667000000006
+    },
+    {
+      "kind": "state",
+      "sample": 7,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.605165999999997
+    },
+    {
+      "kind": "state",
+      "sample": 8,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.951667000000015
+    },
+    {
+      "kind": "state",
+      "sample": 9,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 5.80016599999999
+    },
+    {
+      "kind": "state",
+      "sample": 10,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.6139169999999865
+    },
+    {
+      "kind": "state",
+      "sample": 11,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.340582999999981
+    },
+    {
+      "kind": "state",
+      "sample": 12,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.141291999999993
+    },
+    {
+      "kind": "state",
+      "sample": 13,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.058583999999996
+    },
+    {
+      "kind": "state",
+      "sample": 14,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.1672089999999855
+    },
+    {
+      "kind": "state",
+      "sample": 15,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.660541999999992
+    },
+    {
+      "kind": "state",
+      "sample": 16,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.389749999999992
+    },
+    {
+      "kind": "state",
+      "sample": 17,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.144042000000013
+    },
+    {
+      "kind": "state",
+      "sample": 18,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.9055409999999995
+    },
+    {
+      "kind": "state",
+      "sample": 19,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.9047499999999786
+    },
+    {
+      "kind": "state",
+      "sample": 20,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.905040999999983
+    },
+    {
+      "kind": "state",
+      "sample": 21,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.257916999999992
+    },
+    {
+      "kind": "state",
+      "sample": 22,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.020999999999987
+    },
+    {
+      "kind": "state",
+      "sample": 23,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.070541999999989
+    },
+    {
+      "kind": "state",
+      "sample": 24,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.997292000000016
+    },
+    {
+      "kind": "state",
+      "sample": 25,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.763582999999983
+    },
+    {
+      "kind": "state",
+      "sample": 26,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.7800829999999905
+    },
+    {
+      "kind": "state",
+      "sample": 27,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.6810420000000192
+    },
+    {
+      "kind": "state",
+      "sample": 28,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.994374999999991
+    },
+    {
+      "kind": "state",
+      "sample": 29,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.174499999999995
+    },
+    {
+      "kind": "state",
+      "sample": 30,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.8328750000000014
+    },
+    {
+      "kind": "state",
+      "sample": 31,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.063665999999984
+    },
+    {
+      "kind": "state",
+      "sample": 32,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.999750000000006
+    },
+    {
+      "kind": "state",
+      "sample": 33,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.8413329999999917
+    },
+    {
+      "kind": "state",
+      "sample": 34,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.748540999999989
+    },
+    {
+      "kind": "state",
+      "sample": 35,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.709042000000011
+    },
+    {
+      "kind": "state",
+      "sample": 36,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.7065000000000055
+    },
+    {
+      "kind": "state",
+      "sample": 37,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.885959000000014
+    },
+    {
+      "kind": "state",
+      "sample": 38,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.6912499999999966
+    },
+    {
+      "kind": "state",
+      "sample": 39,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.838792000000012
+    },
+    {
+      "kind": "state",
+      "sample": 40,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.6858340000000283
+    },
+    {
+      "kind": "state",
+      "sample": 41,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.099166999999966
+    },
+    {
+      "kind": "state",
+      "sample": 42,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.910833000000025
+    },
+    {
+      "kind": "state",
+      "sample": 43,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.894416999999976
+    },
+    {
+      "kind": "state",
+      "sample": 44,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 4.0149169999999685
+    },
+    {
+      "kind": "state",
+      "sample": 45,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.718208999999945
+    },
+    {
+      "kind": "state",
+      "sample": 46,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.801540999999986
+    },
+    {
+      "kind": "state",
+      "sample": 47,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.7615000000000123
+    },
+    {
+      "kind": "state",
+      "sample": 48,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.9642920000000004
+    },
+    {
+      "kind": "state",
+      "sample": 49,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.8393329999999537
+    },
+    {
+      "kind": "state",
+      "sample": 50,
+      "status": 200,
+      "contentLength": 111053,
+      "jsonBytes": 111053,
+      "version": 0,
+      "ms": 3.7945829999999887
+    },
+    {
+      "kind": "statistics",
+      "sample": 1,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 54.491709000000014
+    },
+    {
+      "kind": "statistics",
+      "sample": 2,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.262084000000016
+    },
+    {
+      "kind": "statistics",
+      "sample": 3,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.07179199999996
+    },
+    {
+      "kind": "statistics",
+      "sample": 4,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.643332999999984
+    },
+    {
+      "kind": "statistics",
+      "sample": 5,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.568625
+    },
+    {
+      "kind": "statistics",
+      "sample": 6,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.41095800000005
+    },
+    {
+      "kind": "statistics",
+      "sample": 7,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.260832999999934
+    },
+    {
+      "kind": "statistics",
+      "sample": 8,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.70058299999994
+    },
+    {
+      "kind": "statistics",
+      "sample": 9,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.85783300000003
+    },
+    {
+      "kind": "statistics",
+      "sample": 10,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.753625000000056
+    },
+    {
+      "kind": "statistics",
+      "sample": 11,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.971542
+    },
+    {
+      "kind": "statistics",
+      "sample": 12,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 53.354124999999954
+    },
+    {
+      "kind": "statistics",
+      "sample": 13,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.32633299999998
+    },
+    {
+      "kind": "statistics",
+      "sample": 14,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.12370800000008
+    },
+    {
+      "kind": "statistics",
+      "sample": 15,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.75704099999996
+    },
+    {
+      "kind": "statistics",
+      "sample": 16,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.76083300000005
+    },
+    {
+      "kind": "statistics",
+      "sample": 17,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 49.64929200000006
+    },
+    {
+      "kind": "statistics",
+      "sample": 18,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.58066599999984
+    },
+    {
+      "kind": "statistics",
+      "sample": 19,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.14262500000018
+    },
+    {
+      "kind": "statistics",
+      "sample": 20,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.52079099999992
+    },
+    {
+      "kind": "statistics",
+      "sample": 21,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.86366599999997
+    },
+    {
+      "kind": "statistics",
+      "sample": 22,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 49.73916699999995
+    },
+    {
+      "kind": "statistics",
+      "sample": 23,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.24258400000008
+    },
+    {
+      "kind": "statistics",
+      "sample": 24,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 49.96049999999991
+    },
+    {
+      "kind": "statistics",
+      "sample": 25,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.05191599999989
+    },
+    {
+      "kind": "statistics",
+      "sample": 26,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.82558300000005
+    },
+    {
+      "kind": "statistics",
+      "sample": 27,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 55.86141599999996
+    },
+    {
+      "kind": "statistics",
+      "sample": 28,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 89.03825000000006
+    },
+    {
+      "kind": "statistics",
+      "sample": 29,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 91.04158400000006
+    },
+    {
+      "kind": "statistics",
+      "sample": 30,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 61.091500000000224
+    },
+    {
+      "kind": "statistics",
+      "sample": 31,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.51324999999997
+    },
+    {
+      "kind": "statistics",
+      "sample": 32,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.19704100000013
+    },
+    {
+      "kind": "statistics",
+      "sample": 33,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.14774999999986
+    },
+    {
+      "kind": "statistics",
+      "sample": 34,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.564167
+    },
+    {
+      "kind": "statistics",
+      "sample": 35,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.39141699999982
+    },
+    {
+      "kind": "statistics",
+      "sample": 36,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.453583999999864
+    },
+    {
+      "kind": "statistics",
+      "sample": 37,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 53.04516700000022
+    },
+    {
+      "kind": "statistics",
+      "sample": 38,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.22179099999994
+    },
+    {
+      "kind": "statistics",
+      "sample": 39,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 52.298833000000286
+    },
+    {
+      "kind": "statistics",
+      "sample": 40,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.53774999999996
+    },
+    {
+      "kind": "statistics",
+      "sample": 41,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.78837499999963
+    },
+    {
+      "kind": "statistics",
+      "sample": 42,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.932332999999744
+    },
+    {
+      "kind": "statistics",
+      "sample": 43,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.25208299999986
+    },
+    {
+      "kind": "statistics",
+      "sample": 44,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.94787499999984
+    },
+    {
+      "kind": "statistics",
+      "sample": 45,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.30387500000006
+    },
+    {
+      "kind": "statistics",
+      "sample": 46,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.816167000000405
+    },
+    {
+      "kind": "statistics",
+      "sample": 47,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 49.28437500000018
+    },
+    {
+      "kind": "statistics",
+      "sample": 48,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.680875000000015
+    },
+    {
+      "kind": "statistics",
+      "sample": 49,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 50.997665999999754
+    },
+    {
+      "kind": "statistics",
+      "sample": 50,
+      "status": 200,
+      "contentLength": 65856,
+      "jsonBytes": 65855,
+      "version": 0,
+      "ms": 51.25091599999996
+    }
+  ],
+  "latestProgress": {
+    "type": "progress",
+    "kind": "statistics",
+    "sample": 50,
+    "stage": "response-json",
+    "status": 200,
+    "contentLength": 65856
+  },
+  "failures": [],
+  "focusFileUnchanged": true,
+  "nativeErrors": "",
+  "clientErrors": ""
+}

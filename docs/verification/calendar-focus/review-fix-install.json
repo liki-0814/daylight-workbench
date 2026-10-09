@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "finishedAt": "2026-10-07T20:21:36.431769+08:00",
+  "installed": "/Applications/Daylight.app",
+  "version": "0.4.0",
+  "binarySha256": "2f4bac81c44f40920d6e6ac968e2c05820c60986ef18fa677d9fdcffecad8f15",
+  "signatureVerified": true,
+  "bundleMatchesTestedBuild": true,
+  "oldPid": 17040,
+  "newPid": 36268,
+  "backup": "/Users/liki/liki_dev/daylight-workbench/.local/app-backups/20261007-201715-calendar-focus",
+  "retainedOldApp": "/Applications/.Daylight-old-20261007-201715.app",
+  "data": {
+    "existingFilesChecked": 81865,
+    "missingFiles": 0,
+    "businessAndConfigFilesChanged": 0,
+    "businessAndConfigFilesRechecked": 14,
+    "expectedRuntimeCacheUpdates": {
+      "grok/catalog.json": "only /at; all model/cache payload fields unchanged"
+    },
+    "initializedFiles": [
+      "focus.json"
+    ]
+  },
+  "preserved": {
+    "taskVersion": 22,
+    "projects": 3,
+    "tasks": 11,
+    "conversations": 2,
+    "conversationStatuses": [
+      "idle",
+      "idle"
+    ],
+    "proxyState": "running",
+    "proxyActiveRequests": 0,
+    "proxyPort": 4319,
+    "proxyAutoStart": true
+  },
+  "focus": {
+    "version": 0,
+    "currentIsNull": true,
+    "available": true
+  },
+  "GUI": {
+    "pid": 36268,
+    "windows": 1,
+    "renderedLabels": [
+      "Daylight",
+      "日历",
+      "专注统计",
+      "设置"
+    ]
+  },
+  "initialStrictHashCheck": "Flagged the cache timestamp; completion required semantic readback. Automatic rollback deferred; no user data restored/overwritten.",
+  "notificationAndWakeCoverage": "Actual authorization/display/click and sleep/wake remain unverified; no permission request or notification submitted during installation."
+}
