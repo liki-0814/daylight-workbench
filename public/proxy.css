@@ -101,7 +101,7 @@
   min-width: 0;
 }
 
-.proxy-account [data-local-id="account-name"] {
+.proxy-account [data-account] {
   overflow-wrap: anywhere;
 }
 
@@ -700,18 +700,6 @@
   .agy-meter-heading strong {
     margin-left: auto;
   }
-}
-
-/* Keep account rows equal whether the action is visible or hidden. */
-.proxy-account-actions > .text-button {
-  position: relative;
-  padding-block: 0;
-}
-
-.proxy-account-actions > .text-button::before {
-  content: "";
-  position: absolute;
-  inset: -8px 0;
 }
 
 .grok-quota-meter {
@@ -1447,10 +1435,6 @@
   justify-content: flex-end;
   gap: 18px;
   flex-shrink: 0;
-}
-
-.proxy-account-actions .text-button {
-  white-space: nowrap;
 }
 
 @media(max-width:650px) {

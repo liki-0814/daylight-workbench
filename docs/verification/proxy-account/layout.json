@@ -1,0 +1,227 @@
+[
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-text ",
+        "height": 36,
+        "label": "网页登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Qoder",
+    "width": 1360,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "AGY",
+    "width": 1360,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Grok",
+    "width": 1360,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Codex",
+    "width": 1360,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      },
+      {
+        "className": "ui-button ui-button-text ",
+        "height": 36,
+        "label": "网页登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Kimi",
+    "width": 1360,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-text ",
+        "height": 36,
+        "label": "网页登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Qoder",
+    "width": 800,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "AGY",
+    "width": 800,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Grok",
+    "width": 800,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Codex",
+    "width": 800,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      },
+      {
+        "className": "ui-button ui-button-text ",
+        "height": 36,
+        "label": "网页登录"
+      }
+    ],
+    "height": 73,
+    "overflow": false,
+    "providerName": "Kimi",
+    "width": 800,
+    "y": 547
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-text ",
+        "height": 36,
+        "label": "网页登录"
+      }
+    ],
+    "height": 82,
+    "overflow": false,
+    "providerName": "Qoder",
+    "width": 390,
+    "y": 538
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 82,
+    "overflow": false,
+    "providerName": "AGY",
+    "width": 390,
+    "y": 538
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 82,
+    "overflow": false,
+    "providerName": "Grok",
+    "width": 390,
+    "y": 538
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      }
+    ],
+    "height": 82,
+    "overflow": false,
+    "providerName": "Codex",
+    "width": 390,
+    "y": 538
+  },
+  {
+    "actions": [
+      {
+        "className": "ui-button ui-button-secondary ui-refresh-button",
+        "height": 36,
+        "label": "刷新登录"
+      },
+      {
+        "className": "ui-button ui-button-text ",
+        "height": 36,
+        "label": "网页登录"
+      }
+    ],
+    "height": 82,
+    "overflow": false,
+    "providerName": "Kimi",
+    "width": 390,
+    "y": 538
+  }
+]

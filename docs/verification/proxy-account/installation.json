@@ -1,0 +1,31 @@
+{
+  "verifiedAt": "2026-10-09T17:20:43.682085+08:00",
+  "projects": 3,
+  "tasks": 12,
+  "conversations": 2,
+  "businessStatePreserved": true,
+  "conversationIdsPreserved": true,
+  "focusVersion": 0,
+  "managedFilesChecked": 43,
+  "missingFiles": 0,
+  "byteChanges": [
+    {
+      "file": "cli/pi-latest.json",
+      "reason": "JSON serialization only; values unchanged"
+    },
+    {
+      "file": "cli/pi-sync.json",
+      "reason": "Automatic sync timestamp advanced"
+    },
+    {
+      "file": "grok/catalog.json",
+      "reason": "JSON serialization only; values unchanged"
+    }
+  ],
+  "piSyncErrorEmpty": true,
+  "installedMatchesBuild": true,
+  "signatureValid": true,
+  "proxyState": "running",
+  "proxyPort": 4319,
+  "activeRequests": 0
+}
