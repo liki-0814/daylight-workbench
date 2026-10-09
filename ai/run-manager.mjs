@@ -3,19 +3,21 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { recordEvent, finishEvents } from './events.mjs';
-import { buildContext, referenceSnapshots } from './context.mjs';
+import { buildContext, referenceSnapshots, extensionReferenceSnapshots } from './context.mjs';
 import { body, send, equal, httpError } from './http.mjs';
 import { assertFocusDraftAllowed } from './focus-submissions.mjs';
+import { assertExtensionDraftAllowed } from './extensions-submissions.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 export const isActive = c => ['running', 'waiting'].includes(c.status);
 
-export async function createRunManager({ store, providers, api, discover, getConversation, tool, applyDraft, isFocusApplying = () => false }) {
+export async function createRunManager({ store, providers, api, discover, getConversation, tool, applyDraft, isFocusApplying = () => false, isExtensionApplying = () => false }) {
   const runs = new Map();
   const save = c => store.save(c);
   function pending(c, data) {
     const run = runs.get(c.id); if (!run || run.controller.signal.aborted) throw new Error('请求已取消');
     if (c.pending) throw new Error('请先等待当前问题或草稿处理完成，再提交下一个。');
     if (data.type === 'focusChanges') assertFocusDraftAllowed(c);
+    if (data.type === 'extensionChanges') assertExtensionDraftAllowed(c);
     if (data.type === 'question') c.messages.push({ id: randomUUID(), role: 'assistant', text: data.question });
     c.pending = { id: randomUUID(), ...data }; c.status = 'waiting'; save(c);
     return new Promise((resolve, reject) => { run.waiter = { resolve, reject }; });
@@ -45,7 +47,7 @@ export async function createRunManager({ store, providers, api, discover, getCon
     } catch (e) { c.status = controller.signal.aborted ? 'interrupted' : 'error'; c.error = controller.signal.aborted ? '已停止生成。已应用的变更仍然保留。' : e.message; }
     finally { finishEvents(c, c.status === 'idle' ? 'unknown' : c.status === 'error' ? 'failed' : 'interrupted'); clearInterval(checkpoint); clearTimeout(deadline); run.waiter?.reject(new Error('会话已结束')); c.pending = null; c.activity = ''; runs.delete(c.id); save(c); }
   }
-  function cancel(c, force = false) { if (!force && (isFocusApplying(c) || c.pending?.applying)) return; const run = runs.get(c.id); run?.controller.abort(); run?.waiter?.reject(new Error('用户已取消')); if (run) { c.status = 'interrupted'; c.pending = null; save(c); } }
+  function cancel(c, force = false) { if (!force && (isExtensionApplying(c) || isFocusApplying(c) || c.pending?.applying)) return; const run = runs.get(c.id); run?.controller.abort(); run?.waiter?.reject(new Error('用户已取消')); if (run) { c.status = 'interrupted'; c.pending = null; save(c); } }
 
   async function sendMessage(c, input) {
     if ([...runs.values()].length) throw httpError('请等待当前 AI 请求结束或先停止生成', 409);
@@ -55,6 +57,8 @@ export async function createRunManager({ store, providers, api, discover, getCon
     const references = referenceSnapshots(input.references, c.id, store.conversations);
     const scopeVersion = c.scopeVersion || 0;
     const context = buildContext(c, input, await api('state'));
+    const extensionReferences = await extensionReferenceSnapshots(input.extensionReferences, api);
+    if (extensionReferences.length) context.extensionReferences = extensionReferences;
     if (input.skills !== undefined && (!Array.isArray(input.skills) || input.skills.length > 5 || input.skills.some(p => typeof p !== 'string'))) throw httpError('最多引用 5 个技能');
     const available = input.skills?.length ? (await discover(c.backend, c.config)).skills || [] : [];
     const skills = [...new Set(input.skills || [])].map(p => {
@@ -85,17 +89,23 @@ export async function createRunManager({ store, providers, api, discover, getCon
     run.waiter = null; waiter.resolve(result);
   }
   function stop(c) {
-    if (c.pending?.applying || isFocusApplying(c)) throw httpError('正在保存变更，请等待结果后再停止', 409);
+    if (c.pending?.applying || isFocusApplying(c) || isExtensionApplying(c)) throw httpError('正在保存变更，请等待结果后再停止', 409);
     cancel(c);
   }
   function resolveFocusSubmission(c, submission, result) {
+    resolveSubmission(c, submission, result, 'focusChanges');
+  }
+  function resolveExtensionSubmission(c, submission, result) {
+    resolveSubmission(c, submission, result, 'extensionChanges');
+  }
+  function resolveSubmission(c, submission, result, type) {
     const run = runs.get(c.id), p = c.pending;
-    if (!run?.waiter || run.controller.signal.aborted || p?.type !== 'focusChanges' || p.id !== submission.id) return;
+    if (!run?.waiter || run.controller.signal.aborted || p?.type !== type || p.id !== submission.id) return;
     const previousStatus = c.status;
     c.pending = null; c.status = 'running';
     try { save(c); } catch (error) { c.pending = p; c.status = previousStatus; throw error; }
     const waiter = run.waiter; run.waiter = null; waiter.resolve(result);
   }
-  return { has: id => runs.has(id), pending, sendMessage, answer, stop, resolveFocusSubmission,
+  return { has: id => runs.has(id), pending, sendMessage, answer, stop, resolveFocusSubmission, resolveExtensionSubmission,
     close() { for (const c of store.conversations.values()) if (isActive(c)) cancel(c, true); toolServer.close(); toolServer.closeAllConnections(); } };
 }

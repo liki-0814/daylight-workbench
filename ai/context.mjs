@@ -1,6 +1,18 @@
 import { httpError } from './http.mjs';
 import { selectTasks } from '../public/task-view.js';
 
+export async function extensionReferenceSnapshots(input, api) {
+  if (input === undefined) return [];
+  if (!Array.isArray(input) || input.length > 5 || input.some(ref => !ref || Object.keys(ref).some(key => !['id', 'kind', 'version'].includes(key)) || typeof ref.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(ref.id) || !['skill', 'mcp', 'client'].includes(ref.kind) || ref.version !== undefined && typeof ref.version !== 'string')) throw httpError('扩展引用无效，最多引用 5 个真实对象');
+  const snapshots = [];
+  for (const ref of input) {
+    const value = await api('extensions/objects/' + ref.id);
+    if (value.kind !== ref.kind) throw httpError('扩展引用类型已变化，请重新选择');
+    snapshots.push({ id: value.id, kind: value.kind, name: value.name, version: value.version, changed: !!ref.version && ref.version !== value.version, description: value.description, bindings: value.bindings, dependencies: value.dependencies, ...(value.content !== undefined ? { file: value.file, content: value.content?.slice(0, 20000), truncated: (value.content?.length || 0) > 20000 } : {}), ...(value.kind === 'mcp' ? { transport: value.transport, command: value.command, args: value.args, url: value.url, envRefs: value.envRefs, headerRefs: value.headerRefs } : {}), ...(value.kind === 'client' ? { skillMode: value.skillMode, mcpMode: value.mcpMode, note: value.note } : {}) });
+  }
+  return snapshots;
+}
+
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
 export function normalizeScope(input = { kind: 'workspace' }, state, requireExists = true) {
   if (!input || !['workspace', 'project', 'task'].includes(input.kind)) fail('会话关联类型无效');

@@ -141,3 +141,16 @@ start/switch 必须带 expectedTaskVersion；所有动作带 expectedVersion。�
 ```
 
 返回 `{ok:true,status:"applied",action}`；最近 100 个管理回执跨重启保存，同 requestId/同 action 可重试，同 ID 换 action 返回 409。expectedVersion 检查 AI 设置与会话元数据；expectedUpdatedAt 保护目标内容。运行中、等待确认或目标已变化返回 409，不存在返回 404。删除该对话的 Daylight 存档及列表条目，不删除 CLI 自身历史、工作目录、项目任务或其他对话保存的引用快照。不可撤销，业务 `undo` 不恢复 AI 对话。界面使用同语义的 `/api/ai/state` 与 `/api/ai/actions`，使用本机会话鉴权。
+
+
+## 本地扩展接口
+
+前缀 /api/v1/extensions，Bearer 沿用本机 Agent 凭证。GET /state、/objects/:id?file=SKILL.md、/diagnostics、/operations/:requestId；POST /refresh、/prepare、/actions；GET/DELETE /probes/:id。所有未知接口先鉴权再拒绝。静态查询不启动 MCP。来源缺失时只展示空清单，不创建目录。
+
+prepare 请求 {"action":...}，返回 normalizedAction、expectedVersion（字符串）、planId、files（真实前后内容/链接）、conflicts、impact。actions 请求 {"requestId":"UUID","expectedVersion":"...","planId":"...","action":规范化动作}；必须使用同一份审阅结果。文件、来源或接入目标变化时 409，保留输入并重新预览。相同 ID 不同内容拒绝，相同原请求成功回执可跨重启重放。
+
+动作：skill.create(directory,content完整SKILL.md)、skill.update(id,file?,content)、skill.archive(id)、mcp.save(server)、mcp.archive(id)、mcp.generate(clientId)、mcp.probe(id)、binding.connect/adopt/disconnect(id,clientId)、operation.restore(operationId)。Skill ID 从清单读取，MCP ID 与名称分别存储。archive 可用 operation.restore 恢复，恢复遇到后续文件变化不覆盖。receipt 状态 applying/applied/rolled_back/recovery_required 明确区分；外部漂移须核对文件后重试原请求。
+
+server 字段 id/name/transport/enabled；stdio 使用 command/args/cwd/envRefs，HTTP 使用 url/headerRefs。凭据引用格式 {"请求头或变量名称":"环境变量名称"}，不接受 env/headers 明文。stdio 不经 shell 执行。mcp.probe 须明确授权，仅 initialize 和 tools/list；实际命令/端点在预览中呈现，不能作为静态诊断的隐式动作。
+
+Codex/Pi 共享 Skill 原生读取模式无需新链接。Qoder 按 Skill 链接，旧正确链接要明确 adopt 后才能 disconnect；同名实体和不同目标不覆盖。MCP 生成只在 ~/.agents/mcp/generated，下游全局混合配置不修改；需用户在客户端接入，Pi MCP 当前不支持自动接入。Qoder 含凭据引用的生成形式未验证时拒绝。

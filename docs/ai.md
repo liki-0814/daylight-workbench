@@ -70,3 +70,6 @@ Codex/Qoder 共用 `daylight_get_calendar`、`daylight_get_focus`、`daylight_ge
 会话管理通过只读运行查询判断目标是否可修改；运行表和审批等待器只由 run-manager 修改。草稿应用期间标记 applying，停止请求被拒绝；写结果未知时保留 submitted、原 action 和 requestId，重新应用只能重试原请求。HTTP 层不直接修改这些状态。存储、上下文、事件和 Codex/Qoder adapters 继续使用原模块。
 
 新增会话管理操作放在 conversations；新增生成、取消或审批行为放在 run-manager；新增业务草稿放在 drafts 并接入 tools/dispatch。`test/ai-lifecycle.test.mjs` 覆盖两个后端的等待/取消/关闭及未知写结果重试；现有 AI API、草稿与删除测试继续核验公开行为。
+
+
+扩展查询和管理通过四个 daylight 扩展工具进入共用服务，管理目录不替换当前 Skill picker 或运行工作目录。extensionReferences 是独立的真实对象快照，不扩大 workspace/project/task scope。extensionChanges 使用与页面共用的差异审阅；extensionSubmission 在批准发送前保存完整原请求，重启或丢失响应后可通过 extension-submission 核对。未知提交未核对时不能删除该对话。公共 MCP 不自动装载到模型会话。详见[扩展管理](extensions.md)。

@@ -21,6 +21,20 @@ def main():
     parser.add_argument('--data-dir')
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('capabilities')
+    commands.add_parser('extensions-state', help='只读 ~/.agents 扩展来源与接入事实')
+    commands.add_parser('extensions-diagnostics', help='静态检查，不启动 MCP')
+    extension_detail = commands.add_parser('extension-detail')
+    extension_detail.add_argument('--id', required=True)
+    extension_detail.add_argument('--file')
+    extension_operation = commands.add_parser('extension-operation', help='读取原请求的持久回执')
+    extension_operation.add_argument('--id', required=True)
+    extension_prepare = commands.add_parser('extensions-prepare', help='预览差异，不写入或启动 MCP')
+    extension_prepare.add_argument('--file', required=True)
+    extension_apply = commands.add_parser('extensions-apply', help='执行用户已经审阅的扩展动作')
+    extension_apply.add_argument('--file', required=True)
+    extension_apply.add_argument('--expected-version', required=True)
+    extension_apply.add_argument('--plan-id', required=True)
+    extension_apply.add_argument('--request-id', required=True)
     calendar = commands.add_parser('calendar', help='最多62天的日期安排与当前状态')
     calendar.add_argument('--from', dest='from_day', required=True)
     calendar.add_argument('--to', dest='to_day', required=True)
@@ -105,6 +119,20 @@ def main():
         route = '/api/v1/tasks?' + urllib.parse.urlencode(params)
     payload = None
     focus_commands = ['focus-state', 'focus-stats', 'focus-sessions', 'task-focus', 'focus-prepare', 'focus-apply', 'focus-export']
+    extension_commands = ['extensions-state', 'extensions-diagnostics', 'extension-detail', 'extension-operation', 'extensions-prepare', 'extensions-apply']
+    if args.command in extension_commands:
+        route = '/api/v1/extensions/' + {'extensions-state': 'state', 'extensions-diagnostics': 'diagnostics', 'extension-detail': 'objects', 'extension-operation': 'operations', 'extensions-prepare': 'prepare', 'extensions-apply': 'actions'}[args.command]
+        if args.command in ['extension-detail', 'extension-operation']:
+            if not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', args.id):
+                raise ValueError('扩展或操作 ID 无效')
+            route += '/' + args.id
+        if args.command == 'extension-detail' and args.file:
+            route += '?' + urllib.parse.urlencode({'file': args.file})
+        if args.command in ['extensions-prepare', 'extensions-apply']:
+            action = json.load(sys.stdin) if args.file == '-' else json.loads(Path(args.file).expanduser().read_text())
+            payload = {'action': action}
+            if args.command == 'extensions-apply':
+                payload.update({'requestId': args.request_id, 'expectedVersion': args.expected_version, 'planId': args.plan_id})
     if args.command == 'calendar' or args.command in focus_commands:
         route = '/api/v1/calendar' if args.command == 'calendar' else '/api/v1/focus/' + {
             'focus-state': 'state', 'focus-stats': 'statistics', 'focus-sessions': 'sessions',
@@ -146,11 +174,11 @@ def main():
                                      headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     try:
-        if args.command == 'calendar' or args.command in focus_commands:
+        if args.command == 'calendar' or args.command in focus_commands or args.command in extension_commands:
             check = urllib.request.Request(url.rstrip('/') + '/api/v1/capabilities', headers={'Authorization': 'Bearer ' + token})
             with opener.open(check, timeout=15) as response:
                 caps = json.load(response)
-            if not caps.get('calendarQuery' if args.command == 'calendar' else 'focus'):
+            if not caps.get('extensions' if args.command in extension_commands else 'calendarQuery' if args.command == 'calendar' else 'focus'):
                 raise ValueError('服务尚不支持此功能，请升级服务；不得直接编辑数据文件')
         with opener.open(request, timeout=15) as response:
             result = json.load(response)

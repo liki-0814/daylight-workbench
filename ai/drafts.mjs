@@ -3,10 +3,11 @@ import { applyAction } from '../agent-api.mjs';
 import { httpError } from './http.mjs';
 import { isCivilDate } from '../core/date.js';
 
-export function createDrafts({ api, applyAI, save, focusSubmissions }) {
+export function createDrafts({ api, applyAI, save, focusSubmissions, extensionSubmissions }) {
   async function apply(c, p, input) {
     let result;
     if (p.type === 'focusChanges') return focusSubmissions.apply(c, p, input);
+    if (p.type === 'extensionChanges') return extensionSubmissions.apply(c, p, input);
     if(p.type === 'aiChanges' && input.approve === true) {
       if(input.action&&JSON.stringify(input.action)!==JSON.stringify(p.action))throw httpError('AI 草稿发生变化，请重新生成',409);
       p.applying=true;

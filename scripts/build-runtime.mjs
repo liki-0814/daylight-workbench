@@ -12,10 +12,13 @@ const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const builtins = new Set(builtinModules.map(name => name.replace(/^node:/, '')));
 
 export async function buildRuntime(resources, root = project) {
-  const output = path.join(resources, 'ai/adapters/qoder.mjs');
+  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs'];
+  const results = [], artifacts = [];
+  for (const entry of entries) {
+  const output = path.join(resources, entry);
   const result = await build({
     absWorkingDir: root,
-    entryPoints: ['ai/adapters/qoder.mjs'],
+    entryPoints: [entry],
     outfile: output,
     bundle: true,
     platform: 'node',
@@ -38,10 +41,15 @@ export async function buildRuntime(resources, root = project) {
     }
   }
 
+  results.push(result);
+  const code = await readFile(output);
+  artifacts.push({entry, bytes:code.length, sha256:createHash('sha256').update(code).digest('hex')});
+  }
+
   // Preserve complete licenses for every npm package used by this build, not just
   // comments surviving tree shaking. The metafile also supplies an auditable graph.
   const packages = new Map();
-  for (const input of Object.keys(result.metafile.inputs)) {
+  for (const input of new Set(results.flatMap(result=>Object.keys(result.metafile.inputs)))) {
     if (!input.includes('node_modules/')) continue;
     let directory = path.dirname(path.resolve(root, input));
     while (directory !== path.dirname(directory)) {
@@ -64,14 +72,14 @@ export async function buildRuntime(resources, root = project) {
       }
     }
   }
-  const code = await readFile(output);
   const report = {
     schemaVersion: 1,
     entry: 'ai/adapters/qoder.mjs',
-    bytes: code.length,
-    sha256: createHash('sha256').update(code).digest('hex'),
+    bytes: artifacts[0].bytes,
+    sha256: artifacts[0].sha256,
+    entries: artifacts,
     packages: [...packages.values()].sort((a, b) => a.name.localeCompare(b.name)),
-    inputs: Object.keys(result.metafile.inputs).sort(),
+    inputs: [...new Set(results.flatMap(result=>Object.keys(result.metafile.inputs)))].sort(),
   };
   await writeFile(path.join(resources, 'runtime-build.json'), JSON.stringify(report, null, 2));
   return report;

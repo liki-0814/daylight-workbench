@@ -16,7 +16,7 @@ import { createProxyService } from './proxy/service.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {}, aiAdapters, focusOptions = {} } = {}) {
+export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {}, aiAdapters, focusOptions = {}, extensionsOptions = {} } = {}) {
   if (path.resolve(dataDir) === path.resolve(defaultDataDir)) await migrateLegacyData(dataDir);
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
   const dataFile = path.join(dataDir, 'state.json');
@@ -45,6 +45,8 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
   try { proxy = await createProxyService({ dataDir, includeAgy: true, includeGrok: true, includeGateway: true, ...proxyOptions }); } catch (error) { proxyError = error.message; }
   let aiPromise;
   const getAI = () => aiPromise ||= createAIService({ dataDir, adapters: aiAdapters, endpoint: () => `http://127.0.0.1:${server.address().port}` });
+  let extensionsPromise;
+  const getExtensions = () => extensionsPromise ||= import('./extensions/service.mjs').then(({ createExtensionsService }) => createExtensionsService({ ...extensionsOptions, onChanged: event => server.emit('extensions-changed', event) }));
   let writing = false;
   const focus = await createFocusService({ dataDir, getTaskSnapshot: () => ({ version: record.version, state: record.state }), isTaskWriting: () => writing, ...focusOptions });
   const persist = async (state, receipt) => {
@@ -90,7 +92,7 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
       }
       if (dispatch.handler === 'ai' || dispatch.handler === 'proxy') {
         req.url = req.url.replace(route, dispatch.target);
-        if (dispatch.handler === 'ai') return await (await getAI()).handle(req, res);
+        if (dispatch.handler === 'ai') return await (await (dispatch.service === 'extensions' ? getExtensions() : getAI())).handle(req, res);
         if (!proxy) return send(503, { error: proxyError });
         return await proxy.handle(req, res);
       }
@@ -154,15 +156,16 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
     }
   });
   server.once('listening', () => { void proxy?.initialize(); });
-  server.once('close', () => { void focus.close(); void proxy?.close(); void aiPromise?.then(ai => ai.close()); });
-  server.closeProxy = async () => { await focus.close(); await proxy?.close(); await aiPromise?.then(ai => ai.close()); };
+  server.once('close', () => { void focus.close(); void proxy?.close(); void aiPromise?.then(ai => ai.close()); void extensionsPromise?.then(service => service.close()); });
+  server.closeProxy = async () => { await focus.close(); await proxy?.close(); await aiPromise?.then(ai => ai.close()); await extensionsPromise?.then(service => service.close()); };
   server.getSnapshot = snapshot;
   server.getFocusService = () => focus;
+  server.getExtensionsService = getExtensions;
   return server;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const server = await createWorkbench({ dataDir: process.env.WORKBENCH_DATA_DIR });
+  const server = await createWorkbench({ dataDir: process.env.WORKBENCH_DATA_DIR, extensionsOptions: { agentsRoot: process.env.WORKBENCH_AGENTS_ROOT, ...(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS ? { clientRoots: JSON.parse(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS) } : {}) } });
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await server.closeProxy(); server.close(); server.closeAllConnections(); });
   server.listen(Number(process.env.PORT || 4318), '127.0.0.1', () => {
     console.log(`Daylight 工作台已启动：http://127.0.0.1:${server.address().port}`);

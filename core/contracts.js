@@ -2,6 +2,7 @@ import assets from './web-assets.json' with { type: 'json' };
 import { operations } from '../agent-api.mjs';
 import { taskQueryCapability } from '../public/task-view.js';
 import { focusCapability, calendarCapability, taskPlanningCapability } from './focus-contracts.js';
+import { extensionMethod, extensionsCapability } from './extensions-contracts.js';
 
 export const webAssets = assets;
 const proxyPrefixes = ['/api/cli/', '/api/proxy/', '/api/qoder/', '/api/agy/', '/api/grok/', '/api/kimi-proxy/', '/api/codex-proxy/', '/api/custom-proxy/', '/api/proxy-tools/'];
@@ -16,6 +17,11 @@ const focusMethods = { state: 'GET', prepare: 'POST', actions: 'POST', statistic
 
 // The transports enforce auth before dispatch, including unknown Agent routes.
 export function resolveRoute(path, method) {
+  if (path.startsWith('/api/extensions/') || path.startsWith('/api/v1/extensions/')) {
+    const agent = path.startsWith('/api/v1/'), target = path.replace('/api/v1/extensions/', '/api/extensions/');
+    return { auth: agent ? 'agent' : method === 'GET' ? 'web' : 'webOrigin', handler: extensionMethod(target.slice('/api/extensions'.length), method) ? 'ai' : 'missing', service: 'extensions', target };
+  }
+  if (/^\/api\/ai\/conversations\/[a-f0-9-]+\/extension-submission$/.test(path)) return { auth: 'webOrigin', handler: method === 'POST' ? 'ai' : 'missing', target: path };
   if (/^\/api\/ai\/conversations\/[a-f0-9-]+\/focus-submission$/.test(path)) return { auth: 'webOrigin', handler: method === 'POST' ? 'ai' : 'missing', target: path };
   if (path.startsWith('/api/ai/')) return { auth: 'web', handler: 'ai', target: path };
   if (proxyPrefixes.some(prefix => path.startsWith(prefix))) return { auth: 'web', handler: 'proxy', target: path };
@@ -36,7 +42,7 @@ export function resolveRoute(path, method) {
 
 export function capabilities() {
   return { apiVersion: 1, operations, taskQuery: taskQueryCapability,
-    calendarQuery: calendarCapability, taskPlanning: taskPlanningCapability, focus: focusCapability,
+    calendarQuery: calendarCapability, taskPlanning: taskPlanningCapability, focus: focusCapability, extensions: extensionsCapability,
     aiConversations: { reads: 'GET /api/v1/ai/state', writes: 'POST /api/v1/ai/actions', operations: ['ai.conversation.delete'] },
     retention: 'last 100 successful request IDs', writes: 'POST /api/v1/actions {requestId, expectedVersion, day?, action}', reads: 'GET /api/v1/state' };
 }

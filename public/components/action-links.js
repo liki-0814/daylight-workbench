@@ -1,9 +1,10 @@
-import { calendarRoute, focusRoute } from '../routes.js';
+import { calendarRoute, focusRoute, extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc } from './button.js';
 export function actionLinks(action, day) {
   const links = new Map();
   for (const a of action.type === 'batch' ? action.actions : [action]) {
-    if (/^(source|model|route|auth|service)\./.test(a.type)) links.set('proxy', '<a class="text-button" href="#proxy">查看代理</a>');
+    if (/^(skill|mcp|binding|operation)\./.test(a.type)) links.set('extensions', `<a class="text-button" href="${esc(extensionsRoute({ tab: a.type.startsWith('mcp.') ? 'mcp' : 'skills', id: a.id || a.server?.id, ...(a.clientId ? { client: a.clientId } : {}), ...(a.operationId ? { operation: a.operationId } : {}) }))}">查看扩展</a>`);
+    else if (/^(source|model|route|auth|service)\./.test(a.type)) links.set('proxy', '<a class="text-button" href="#proxy">查看代理</a>');
     else if (a.type.startsWith('pi.')) links.set('cli', '<a class="text-button" href="#cli">查看 CLI 配置</a>');
     else if (a.type.startsWith('ai.')) links.set('ai', '<a class="text-button" href="#settings">查看 AI 设置</a>');
     else if (a.type.startsWith('focus.')) { links.set('focus', `<a class="text-button" href="${focusRoute({ taskId: a.taskId })}">查看专注统计</a>`); if (a.taskId) links.set('t:' + a.taskId, `<a class="text-button" href="#task=${encodeURIComponent(a.taskId)}">查看任务</a>`); }

@@ -9,6 +9,7 @@
 - **项目与任务**：项目分组与筛选、未归类任务、待办/已完成、每日安排、关键词搜索和最近一次操作撤销。
 - **日历与专注**：按日期安排与改期、工作/短休息计时、暂停恢复、任务累计和按日/项目专注统计。
 - **macOS 桌面**：菜单栏任务入口、窗口关闭后驻留，以及 `⌥Space` 快速搜索。
+- **扩展管理**：维护 ~/.agents 下的 Skills、MCP 与 Codex/Qoder/Pi 接入，支持 AI 管理草稿、归档与回执恢复。
 - **AI 对话**：连接本机 Codex 或 Qoder CLI，支持流式回答、历史会话、项目/任务关联与引用、可编辑变更草稿。
 - **模型中转**：Qoder、AGY、Grok、Codex、Kimi 与自定义上游共用接入地址、API Key 和服务开关，以及模型/额度组件。
 - **请求诊断**：统一查看来源状态、请求结果、阶段耗时、模型映射及上游实际返回的用量。
@@ -56,7 +57,7 @@ open dist/native/Daylight.app
 npm run dist:mac
 ```
 
-产物位于 `dist/`。原生外壳使用 AppKit、WKWebView 和 JavaScriptCore；任务、日历与专注管理无需 Node.js，AI 与反向代理需要本机 Node.js。Node、Codex 和 Qoder CLI 均不内置。
+产物位于 `dist/`。原生外壳使用 AppKit、WKWebView 和 JavaScriptCore；任务、日历与专注管理无需 Node.js，AI、扩展管理与反向代理需要本机 Node.js。Node、Codex 和 Qoder CLI 均不内置。
 
 当前使用本地 ad-hoc 签名，尚未配置 Apple Developer ID 签名和公证。桌面应用与网页服务默认共用 4318 端口，请分别启动。详见 [macOS 应用说明](docs/native-app.md)。
 
@@ -113,6 +114,7 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | `native/` | macOS 外壳、菜单栏与本地服务 |
 | `core/` | 共享日期、任务/专注规则、查询、写入契约和资源清单 |
 | `focus/` | Node 专注存储、串行服务、调度与时区适配 |
+| `extensions/` | 本地主来源、客户端接入与可恢复扩展操作 |
 | `ai/` | AI 会话、CLI 适配和业务工具 |
 | `proxy/` | 统一中转服务入口，`shared/` 放公共协议、路由、存储和请求记录 |
 | `proxy/{qoder,agy,grok,codex,kimi,custom}/` | 各来源的认证和推理适配 |
@@ -125,6 +127,7 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | --- | --- |
 | [任务与导航](docs/tasks.md) | 任务视图、日期与状态口径、新旧链接、删除恢复 |
 | [日历与专注](docs/focus.md) | 计时行为、统计口径、恢复、提醒和模块边界 |
+| [扩展管理](docs/extensions.md) | 唯一主来源、软件接入、AI 联动、MCP 检测与恢复 |
 | [AI 对话](docs/ai.md) | CLI 运行时、会话关联、草稿与管理工具 |
 | [反向代理](docs/reverse-proxy.md) | 来源接入、参数限制、模型路由与 Pi |
 | [中转架构](docs/proxy-architecture.md) | 后端/前端文件职责、公共契约、502 问题记录与验证边界 |

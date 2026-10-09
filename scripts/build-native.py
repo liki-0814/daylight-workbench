@@ -34,6 +34,7 @@ shutil.copytree(root / 'proxy', resources / 'proxy', dirs_exist_ok=True)
 shutil.copytree(root / 'cli', resources / 'cli', dirs_exist_ok=True)
 subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(root / 'native/Credentials.swift'), '-o', str(resources / 'DaylightCredentials')], check=True)
 shutil.copytree(root / 'ai', resources / 'ai', dirs_exist_ok=True)
+shutil.copytree(root / 'extensions', resources / 'extensions', dirs_exist_ok=True)
 # Compile the adapter dependency graph instead of copying npm's installation tree.
 subprocess.run(['node', str(root / 'scripts/build-runtime.mjs'), str(resources)], check=True)
 subprocess.run(['node', str(root / 'scripts/trim-runtime.mjs'), str(resources), str(final_app.parent / 'runtime-files.json')], check=True)

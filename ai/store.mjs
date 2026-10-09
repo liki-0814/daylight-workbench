@@ -18,6 +18,11 @@ export class AIStore {
         if (c.pending?.type === 'focusChanges') c.pending = null;
       }
       this.conversations.set(c.id, c);
+      if (c.extensionSubmission) {
+        if (c.extensionSubmission.status === 'submitted') c.extensionSubmission.status = 'unknown';
+        delete c.extensionSubmission.applying;
+        if (c.pending?.type === 'extensionChanges') c.pending = null;
+      }
     }
   }
   read(file, fallback) {

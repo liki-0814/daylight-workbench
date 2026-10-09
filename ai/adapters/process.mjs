@@ -1,13 +1,12 @@
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { executableCandidates } from '../../core/local-executables.mjs';
 export const exec = promisify(execFile);
 export function executable(backend, custom = '') {
   const name = backend === 'codex' ? 'codex' : 'qodercli';
-  const candidates = custom ? [custom] : [...(process.env.PATH || '').split(path.delimiter).map(p => path.join(p, name)), ...['.npm-global/bin', '.local/bin', '.volta/bin'].map(p => path.join(os.homedir(), p, name)), `/opt/homebrew/bin/${name}`, `/usr/local/bin/${name}`];
-  for (const p of candidates) { if (!path.isAbsolute(p)) continue; try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {} }
+  for (const p of executableCandidates(name, { custom })) { try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {} }
   throw new Error(`未找到 ${name}，请在设置中指定本机 CLI 的绝对路径。`);
 }
 export function childEnv() {

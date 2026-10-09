@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-09T06:15:33.909909+00:00",
+  "baselineCommit": "8275db8",
+  "branch": "codex/extensions-management",
+  "sourceCheck": "passed",
+  "nodeTests": {
+    "tests": 319,
+    "pass": 319,
+    "fail": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "passed": 13,
+    "errors": 0,
+    "evidence": "browser/report.json"
+  },
+  "nativeContracts": [
+    {
+      "name": "contracts",
+      "status": "passed",
+      "recordedAt": "2026-10-09T06:14:15.713552+00:00",
+      "output": "npm notice run daylight-workbench@0.4.0 test:extensions-contracts\nnpm notice run python3 test/extensions-contract-test.py\nPASS: extension auth, lazy helper, packaged assets, Skill links/archive/restore, MCP generation and real probe node\nPASS: extension auth, lazy helper, packaged assets, Skill links/archive/restore, MCP generation and real probe /Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/MacOS/Daylight\nPASS: identical Node/native extension contract"
+    },
+    {
+      "name": "native-tasks",
+      "status": "passed",
+      "recordedAt": "2026-10-09T04:54:07.367270+00:00",
+      "output": "PASS: native CRUD, batch atomicity, auth, web writes, restart, cross-runtime receipts, external skill, corruption protection"
+    },
+    {
+      "name": "task-contracts",
+      "status": "passed",
+      "recordedAt": "2026-10-09T05:20:51.399002+00:00",
+      "output": "Node/native contract passed: 24 cases, restarts, legacy receipts, persisted state and all shared assets"
+    },
+    {
+      "name": "focus-contracts",
+      "status": "passed",
+      "recordedAt": "2026-10-09T05:20:52.771815+00:00",
+      "output": "PASS: Node/native focus recovery arbitration, pause/resume/finish, restart receipts, save faults, task warnings, corruption isolation and clock freeze"
+    },
+    {
+      "name": "native-ai",
+      "status": "passed",
+      "recordedAt": "2026-10-09T06:01:19.705377+00:00",
+      "output": "PASS: native codex discovery (8 models)\nPASS: native qoder discovery (17 models)\nPASS: AI auth and independent task data"
+    },
+    {
+      "name": "native-conversations",
+      "status": "passed",
+      "recordedAt": "2026-10-09T05:14:18.179134+00:00",
+      "output": "PASS: native AI routing, Bearer/Origin auth, Skill deletion, unchanged tasks, restart replay"
+    },
+    {
+      "name": "native-cli",
+      "status": "passed",
+      "recordedAt": "2026-10-09T05:14:51.469674+00:00",
+      "output": "Native CLI PASS: authentication, packaged assets, full catalog sync, all APIs, explicit default, idempotency, automatic switch/restart, exact restore"
+    },
+    {
+      "name": "native-proxy-recheck",
+      "status": "passed",
+      "recordedAt": "2026-10-09T05:17:00.255121+00:00",
+      "output": "Native proxy PASS: Node discovery, lifecycle, auth, streaming, auto-start, parent cleanup, missing-Node recovery, task isolation"
+    }
+  ],
+  "nativeProxyEarlierFailure": {
+    "status": "failed",
+    "reason": "native helper not ready during concurrent verification; standalone full recheck passed; root cause not confirmed"
+  },
+  "build": {
+    "status": "passed",
+    "app": "dist/native/Daylight.app",
+    "installed": false,
+    "binarySha256": "8e698192ecc422bf79f56db39abf4767b474a9654dffedb59452743d6754c319",
+    "artifactTreeSha256": "1f1083ce5ae32e561362b707bbaa3061298bb47be45481381d64a9b53e2eb901",
+    "artifactFileCount": 212,
+    "bundles": [
+      {
+        "entry": "ai/adapters/qoder.mjs",
+        "bytes": 355273,
+        "sha256": "2695d7bcd5a951b6afc3fe5170968e72c4a19a8cbec445c1997850ec9e3d460a"
+      },
+      {
+        "entry": "extensions/skill-files.mjs",
+        "bytes": 118786,
+        "sha256": "55ef840fa91790fd1a7b1a1ff897ac5fa2946e741d7bf13a25de4d373f784806"
+      },
+      {
+        "entry": "extensions/mcp-probes.mjs",
+        "bytes": 286265,
+        "sha256": "49d64905439524cb3ebc31a993bf914b85f71540920ebf24421c8b4d197bd1db"
+      }
+    ],
+    "packages": [
+      {
+        "name": "@modelcontextprotocol/sdk",
+        "version": "1.32.1",
+        "license": "MIT"
+      },
+      {
+        "name": "@qoder-ai/qoder-agent-sdk",
+        "version": "1.0.39",
+        "license": "SEE LICENSE IN LICENSE"
+      },
+      {
+        "name": "ajv",
+        "version": "8.20.0",
+        "license": "MIT"
+      },
+      {
+        "name": "ajv-formats",
+        "version": "3.0.1",
+        "license": "MIT"
+      },
+      {
+        "name": "content-type",
+        "version": "1.0.5",
+        "license": "MIT"
+      },
+      {
+        "name": "cross-spawn",
+        "version": "7.0.6",
+        "license": "MIT"
+      },
+      {
+        "name": "eventsource-parser",
+        "version": "3.1.1",
+        "license": "MIT"
+      },
+      {
+        "name": "fast-deep-equal",
+        "version": "3.1.3",
+        "license": "MIT"
+      },
+      {
+        "name": "fast-uri",
+        "version": "3.1.8",
+        "license": "BSD-3-Clause"
+      },
+      {
+        "name": "isexe",
+        "version": "2.0.0",
+        "license": "ISC"
+      },
+      {
+        "name": "json-schema-traverse",
+        "version": "1.0.0",
+        "license": "MIT"
+      },
+      {
+        "name": "path-key",
+        "version": "3.1.1",
+        "license": "MIT"
+      },
+      {
+        "name": "pkce-challenge",
+        "version": "5.0.1",
+        "license": "MIT"
+      },
+      {
+        "name": "shebang-command",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "name": "shebang-regex",
+        "version": "3.0.0",
+        "license": "MIT"
+      },
+      {
+        "name": "which",
+        "version": "2.0.2",
+        "license": "ISC"
+      },
+      {
+        "name": "yaml",
+        "version": "2.9.1",
+        "license": "ISC"
+      },
+      {
+        "name": "zod",
+        "version": "3.25.76",
+        "license": "MIT"
+      },
+      {
+        "name": "zod-to-json-schema",
+        "version": "3.25.2",
+        "license": "ISC"
+      }
+    ],
+    "runtimeGraph": {
+      "reachableFiles": 181,
+      "removedFiles": 8
+    }
+  },
+  "installedClientsEvidence": "clients.json",
+  "performanceEvidence": "performance.json",
+  "boundaries": [
+    "Temporary injected source/client/data roots; no writes to real ~/.agents or client global configuration",
+    "No remote push or installed App replacement",
+    "Qoder actual isolated Skill discovery not verified",
+    "MCP client discovery/business authorization not tested; generated configuration needs manual integration",
+    "Browser uses Chrome, fixture model adapter and CSS zoom; WKWebView GUI and human acceptance not performed"
+  ]
+}

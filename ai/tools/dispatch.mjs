@@ -5,10 +5,27 @@ import { httpError } from '../http.mjs';
 import { validateAction, normalizeAction, impact } from '../drafts.mjs';
 import { definitions } from './definitions.mjs';
 import { assertFocusDraftAllowed } from '../focus-submissions.mjs';
+import { assertExtensionDraftAllowed } from '../extensions-submissions.mjs';
 
 export function createToolDispatch({ api, get, aiState, prepareAI, pending }) {
   async function tool(c, name, args = {}) {
     if (!definitions.some(t => t.name === name)) throw httpError('未知工作台工具');
+    if (['daylight_get_extensions', 'daylight_diagnose_extensions'].includes(name)) {
+      if (!args || Object.keys(args).length) throw httpError('扩展清单查询不接受参数');
+      return api(name === 'daylight_get_extensions' ? 'extensions/state' : 'extensions/diagnostics');
+    }
+    if (name === 'daylight_get_extension') {
+      if (!args || Object.keys(args).some(key => !['id', 'file'].includes(key)) || typeof args.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(args.id) || args.file !== undefined && typeof args.file !== 'string') throw httpError('需要真实扩展 ID 和可选文件路径');
+      return api('extensions/objects/' + args.id, undefined, args.file ? { file: args.file } : undefined);
+    }
+    if (name === 'daylight_propose_extension_changes') {
+      if (!args || Object.keys(args).some(key => !['summary', 'action'].includes(key)) || typeof args.summary !== 'string' || !args.summary.trim()) throw httpError('需要扩展变更说明与明确动作');
+      assertExtensionDraftAllowed(c);
+      const plan = await api('extensions/prepare', { action: args.action });
+      assertExtensionDraftAllowed(c);
+      if (plan.conflicts?.length) return { ok: false, status: 'conflict', ...plan };
+      return pending(c, { type: 'extensionChanges', summary: args.summary, action: plan.normalizedAction, plan, requestId: randomUUID(), impact: plan.impact });
+    }
     const reads = {daylight_get_calendar:'calendar',daylight_get_focus:'focus/state',daylight_get_focus_statistics:'focus/statistics',daylight_get_focus_sessions:'focus/sessions',daylight_get_task_focus_summary:'focus/task-summary'};
     if (reads[name]) {
       const definition=definitions.find(t=>t.name===name),allowed=Object.keys(definition.inputSchema.properties);

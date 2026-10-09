@@ -9,6 +9,7 @@ import { taskRangeTabs } from './components/task-range-tabs.js';
 import { settingsPage } from './components/settings-page.js';
 import { createProxyPage } from './proxy.js';
 import { createCLIPage } from './cli-config.js';
+import { createExtensionsPage } from './extensions/page.js';
 import { createAIPage } from './ai.js';
 import { mountAISettings } from './ai-settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
@@ -37,12 +38,12 @@ let aiPage, calendarPage, focusController, focusClient, focusWidget, todayPanel,
 let focusSelection = {};
 let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { busy = value; render(); dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
-let cliPage;
+let cliPage, extensionsPage;
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, lastTaskView = 'all', sidebarMarkup = '';
-const pageViews = ['proxy', 'settings', 'ai', 'cli', 'focus'];
+const pageViews = ['proxy', 'settings', 'ai', 'cli', 'focus', 'extensions'];
 const isPage = value => pageViews.includes(value);
 const sectionFor = value => isPage(value) ? value : 'task';
-const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0 };
+const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
 
 function writeTaskURL(replace = false) {
   if (!isPage(view)) history[replace ? 'replaceState' : 'pushState'](null, '', '/' + (view === 'calendar' ? calendarRoute(calendar) : taskRoute(view, tab, query)));
@@ -230,6 +231,13 @@ function render() {
   focusSettings?.setVisible(view === 'settings');
   todaySummary?.setVisible(view === 'today' && !query);
   cliPage?.setVisible(view === 'cli');
+  extensionsPage?.setVisible(view === 'extensions');
+  if (view === 'extensions') {
+    proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
+    if (!extensionsPage) { extensionsPage = createExtensionsPage({ getToken: () => token, onDiscuss(options) { navigate('ai'); void aiPage.openExtension(options); } }); app.append(extensionsPage.element); }
+    extensionsPage.updateRoute(parseRoute(location.hash, state)); extensionsPage.setVisible(true);
+    document.title = 'Daylight · 扩展管理'; return;
+  }
   if (view === 'cli') {
     proxyPage?.setVisible(false);
     aiPage?.setVisible(false);
@@ -242,7 +250,7 @@ function render() {
   if (view === 'ai') {
     proxyPage?.setVisible(false);
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!aiPage) { aiPage = createAIPage({ getToken: () => token, onChanged: change => change?.kind === 'focus' ? focusController?.refresh() : refreshExternal() }); app.append(aiPage.element); }
+    if (!aiPage) { aiPage = createAIPage({ getToken: () => token, onChanged: change => change?.kind === 'extensions' ? extensionsPage?.controller.refresh(true) : change?.kind === 'focus' ? focusController?.refresh() : refreshExternal() }); app.append(aiPage.element); }
     aiPage.setVisible(true); document.title = 'Daylight · AI 对话'; return;
   }
   aiPage?.setVisible(false);

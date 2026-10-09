@@ -1,0 +1,27 @@
+{
+  "checks": [
+    "source listing",
+    "search and keyboard tabs",
+    "empty search has one recoverable empty state",
+    "Qoder preview/cancel/apply and native zero links",
+    "software and problem filters use actual binding state",
+    "dirty edit survives navigation and Escape restores focus",
+    "AI reference review/reject/apply and real source readback",
+    "AI unknown response recovers original ID once",
+    "explicit MCP handshake and tools/list only",
+    "AI-confirmed MCP detection updates its source detail until completion",
+    "generated MCP with truthful manual integration",
+    "source archive and reviewed operation restore",
+    "responsive widths and 200 percent CSS zoom"
+  ],
+  "errors": [],
+  "testedAt": "2026-10-09T05:53:50.384Z",
+  "fixture": true,
+  "viewportWidths": [
+    1360,
+    1024,
+    800,
+    390
+  ],
+  "zoom": "CSS zoom=2; not a human usability study"
+}

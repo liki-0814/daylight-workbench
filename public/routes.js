@@ -6,6 +6,7 @@ export const viewProjectId = view => view.startsWith('project:') ? view.slice(8)
 
 export function parseRoute(hash, state) {
   const p = new URLSearchParams(hash.replace(/^#/, ''));
+  if (p.has('extensions')) return { page: 'extensions', tab: ['skills', 'mcp', 'clients'].includes(p.get('tab')) ? p.get('tab') : 'skills', id: p.get('id'), client: p.get('client'), query: p.get('q') || '', problems: p.get('problems') === '1', operation: p.get('operation') };
   if (p.has('calendar')) {
     const today = localDate(), validDay = isCivilDate(p.get('date')), validMonth = isCivilMonth(p.get('month'));
     const selectedDay = validDay ? p.get('date') : validMonth ? p.get('month') + (p.get('month') === today.slice(0, 7) ? today.slice(7) : '-01') : today;
@@ -40,6 +41,12 @@ export function conversationRoute(scope) {
   const p = new URLSearchParams({ ai: '', scope: scope.kind });
   if (scope.id) p.set('scopeId', scope.id);
   return '#' + p.toString().replace(/^ai=&/, 'ai&');
+}
+
+export function extensionsRoute({ tab = 'skills', id, client, query, problems, operation } = {}) {
+  const params = new URLSearchParams({ extensions: '', tab });
+  for (const [key, value] of Object.entries({ id, client, q: query, problems: problems ? '1' : null, operation })) if (value) params.set(key, value);
+  return '#' + params.toString().replace(/^extensions=&/, 'extensions&');
 }
 
 export function calendarRoute({ month, selectedDay, status = 'open', projectId, unassigned, query = '' }) {

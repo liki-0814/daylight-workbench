@@ -67,7 +67,7 @@ export async function trimRuntime(resources) {
       else if(!keep.has(file)) {removed.push(path.relative(resources,file));await rm(file);}
     }
   }
-  for(const folder of ['public','proxy','ai','cli','core']) await visit(path.join(resources,folder));
+  for(const folder of ['public','proxy','ai','cli','core','extensions']) await visit(path.join(resources,folder));
   const minified = await minimizeWeb(publicDir, web);
   return {entries:htmlEntries.map(file=>'public/'+file).concat(nodeEntries,nativeAssets),files:[...keep].map(file=>path.relative(resources,file)).sort(),removed:removed.sort(),minified};
 }

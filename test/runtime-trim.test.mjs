@@ -13,7 +13,7 @@ test('packaging removes unreachable files while retaining both windows, native A
   const root = fileURLToPath(new URL('..', import.meta.url));
   const resources = await mkdtemp(path.join(os.tmpdir(), 'daylight-trim-'));
   t.after(() => rm(resources, { recursive: true, force: true }));
-  for (const folder of ['public', 'proxy', 'ai', 'cli', 'licenses', 'core']) {
+  for (const folder of ['public', 'proxy', 'ai', 'cli', 'licenses', 'core', 'extensions']) {
     await cp(path.join(root, folder), path.join(resources, folder), { recursive: true });
   }
   await cp(path.join(root, 'agent-api.mjs'), path.join(resources, 'agent-api.mjs'));
@@ -29,7 +29,7 @@ test('packaging removes unreachable files while retaining both windows, native A
   assert.ok(report.removed.includes('ai/unused.mjs'));
   assert.ok(report.removed.includes('proxy/test-cache/unused.json'));
   assert.ok(report.removed.includes('ai/adapters/qoder-events.mjs'), 'SDK adapter dependencies are already compiled into the runtime bundle');
-  for (const file of ['native-core.js', 'public/index.html', 'public/quick.html', 'public/components/button.css', 'public/components/section.js', 'public/components/purify.js', 'ai/mcp-server.mjs', 'proxy/sidecar.mjs', 'ai/sidecar.mjs', 'agent-api.mjs', 'tray-model.mjs', bundle.entry]) {
+  for (const file of ['native-core.js', 'public/index.html', 'public/quick.html', 'public/components/button.css', 'public/components/section.js', 'public/components/purify.js', 'public/extensions/page.js', 'public/extensions/extensions.css', 'extensions/service.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'ai/mcp-server.mjs', 'proxy/sidecar.mjs', 'ai/sidecar.mjs', 'agent-api.mjs', 'tray-model.mjs', bundle.entry]) {
     assert.ok(report.files.includes(file), 'Missing runtime entry/dependency: ' + file);
     await access(path.join(resources, file));
   }

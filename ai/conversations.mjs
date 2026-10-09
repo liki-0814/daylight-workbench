@@ -4,8 +4,9 @@ import { normalizeScope, scopeInfo, relatedReasons } from './context.mjs';
 import { isActive } from './run-manager.mjs';
 import { httpError } from './http.mjs';
 import { hasUnresolvedFocusSubmission } from './focus-submissions.mjs';
+import { hasUnresolvedExtensionSubmission } from './extensions-submissions.mjs';
 
-export function createConversations({ store, providers, api, isRunning, isFocusApplying = () => false }) {
+export function createConversations({ store, providers, api, isRunning, isFocusApplying = () => false, isExtensionApplying = () => false }) {
   const catalogs = store.read('catalogs.json', {}), discoveries = new Map();
   async function discover(backend, config, force = false) {
     const key = JSON.stringify([backend, config.path || '']);
@@ -51,6 +52,7 @@ export function createConversations({ store, providers, api, isRunning, isFocusA
       const target=get(a.id);
       if(isActive(target)||isRunning(target.id))throw httpError('请先结束目标对话的生成或待确认内容',409);
       if(a.type==='ai.conversation.delete') {
+        if (hasUnresolvedExtensionSubmission(target) || isExtensionApplying(target)) throw httpError('扩展提交尚待核对，不能删除对话', 409, { code: 'EXTENSION_SUBMISSION_UNRESOLVED' });
         if (hasUnresolvedFocusSubmission(target) || isFocusApplying(target)) throw httpError('专注提交尚待核对，不能删除对话', 409, { code: 'FOCUS_SUBMISSION_UNRESOLVED' });
         if(typeof a.expectedUpdatedAt!=='string'||a.expectedUpdatedAt!==target.updatedAt)throw httpError('对话内容已变化，请重新读取并确认删除',409);
       }
@@ -72,6 +74,7 @@ export function createConversations({ store, providers, api, isRunning, isFocusA
       const target=get(action.id);
       if(isActive(target)||isRunning(target.id))throw httpError('目标会话正在运行',409);
       if(action.type==='ai.conversation.delete') {
+        if (hasUnresolvedExtensionSubmission(target) || isExtensionApplying(target)) throw httpError('扩展提交尚待核对，不能删除对话', 409, { code: 'EXTENSION_SUBMISSION_UNRESOLVED' });
         if (hasUnresolvedFocusSubmission(target) || isFocusApplying(target)) throw httpError('专注提交尚待核对，不能删除对话', 409, { code: 'FOCUS_SUBMISSION_UNRESOLVED' });
         if(target.updatedAt!==action.expectedUpdatedAt)throw httpError('对话内容已变化，请重新读取并确认删除',409);
         store.remove(target.id);

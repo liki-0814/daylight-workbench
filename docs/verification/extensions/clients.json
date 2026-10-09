@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "client": "codex",
+      "version": "codex-cli 0.161.0",
+      "status": "passed",
+      "mechanism": "native ~/.agents/skills; no added link"
+    },
+    {
+      "client": "pi",
+      "version": "1.1.0",
+      "status": "passed",
+      "mechanism": "native ~/.agents/skills; no added link"
+    },
+    {
+      "client": "qoder",
+      "version": "1.1.64",
+      "status": "not_verified",
+      "phase": "startup",
+      "errorType": "Error",
+      "reason": "Transport closed"
+    }
+  ],
+  "testedAt": "2026-10-09T05:17:34.809Z",
+  "scope": "Installed CLI discovery; isolated HOME/config/project; no inference, no real source/config writes; MCP client discovery not tested"
+}

@@ -27,7 +27,7 @@ export function createCLIPage({ getToken }) {
   root.innerHTML = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> CLI 配置</span><span class="cli-preview-tag">Pi</span></header>
     <div class="workspace cli-workspace">
-      <section class="page-heading cli-heading"><div><h1>CLI 配置</h1><p>把 Daylight 的模型接入 Pi</p></div>${refreshButton({ariaLabel:'重新读取代理目录与 Pi 配置',attrs:{'data-refresh':true,title:'重新读取代理目录与 Pi 配置'}})}</section>
+      <section class="page-heading cli-heading"><div><h1>CLI 配置</h1><p>把 Daylight 的模型接入 Pi · <a href="#extensions&tab=clients&client=pi">查看扩展接入</a></p></div>${refreshButton({ariaLabel:'重新读取代理目录与 Pi 配置',attrs:{'data-refresh':true,title:'重新读取代理目录与 Pi 配置'}})}</section>
       <section class="cli-client" aria-label="Pi 接入信息">
         <div class="cli-client-identity"><span class="cli-pi-mark" aria-hidden="true">π</span><div><h2>Pi <span class="cli-version" data-pi-version>正在检测</span></h2><span class="cli-subtext" data-pi-path>~/.pi/agent/models.json</span></div></div>
         <div class="cli-client-default"><span class="cli-caption">默认模型</span><strong data-current-default>正在读取</strong></div>

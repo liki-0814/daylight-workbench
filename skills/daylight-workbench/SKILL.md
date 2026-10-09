@@ -1,6 +1,6 @@
 ---
 name: daylight-workbench
-description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日历安排、专注计时与统计、导出和撤销，以及 AI 历史对话的查询和删除。用户要求查看或修改工作台，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
+description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日历安排、专注计时与统计、导出和撤销、AI 历史对话，以及 ~/.agents 下的 Skill/MCP 与本机软件接入。用户要求查看或修改工作台、管理本地扩展，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
 ---
 
 # Daylight 工作台连接
@@ -86,3 +86,22 @@ python3 "$SKILL/scripts/workbench.py" delete-conversation --id ID --updated-at U
 ```
 
 VERSION 和 UPDATED_AT 必须来自刚读取的目标。成功后再次读取列表，确认该 ID 已消失。结果未知时只用原参数和原 request ID 重试，409 后重新读取并核对；不能自动使用新版本继续删除。内置 AI 使用 `daylight_get_ai` 和 `daylight_propose_ai_changes` 生成待审阅删除草稿，不能代替用户应用，也不能删除正在执行该草稿的自身对话。详见 [API 参考](references/api.md)。
+
+
+## 本地扩展管理
+
+扩展管理只读取和管理 ~/.agents 的主来源。Skill 来源为 ~/.agents/skills，MCP 主配置为 ~/.agents/mcp/servers.json。首版只登记 Codex/Qoder/Pi；原生读取共享 Skills 的软件不新建链接，不覆盖或导入其他软件的独立配置。公共 MCP 不自动装载到 Daylight 对话。
+
+先 extensions-state 或 extension-detail，静态诊断用 extensions-diagnostics。修改、归档、接入、接管或实际 MCP 检测先用 extensions-prepare 生成真实差异与影响。内置 AI 使用审阅卡；外部 Skill 应呈现计划供用户理解，并依据当前明确授权执行。已有授权不用重复确认，尚在讨论不能应用。
+
+extensions-apply 必须携带 prepare 返回的 expectedVersion、planId 和规范化 action，并固定 requestId。结果未知时 extension-operation 查询回执或原参数重试，不换 ID。服务状态与客户端运行发现分开报告；生成不代表接入，握手不代表业务权限。凭据只能使用环境变量引用，不在聊天里填写或读取明文。
+
+```sh
+python3 "$SKILL/scripts/workbench.py" extensions-state
+python3 "$SKILL/scripts/workbench.py" extension-detail --id REAL_ID
+python3 "$SKILL/scripts/workbench.py" extensions-prepare --file /absolute/path/extension-action.json
+python3 "$SKILL/scripts/workbench.py" extensions-apply --expected-version VERSION --plan-id PLAN_ID --request-id REQUEST_ID --file /absolute/path/normalized-action.json
+python3 "$SKILL/scripts/workbench.py" extension-operation --id REQUEST_ID
+```
+
+扩展恢复使用 operation.restore，不使用任务 undo；具体动作与接入限制见接口说明。仓库 Skill 变更不会自动更新独立安装。

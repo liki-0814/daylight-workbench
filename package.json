@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/task-view.js && node --check public/routes.js && node --check public/quick.js && node --check public/quick-search.js && node --check public/components/select.js && node --check public/components/settings-page.js && node --check storage.mjs && node --check native/tray-model.mjs && node scripts/check-proxy.mjs && node scripts/check-ai.mjs && node scripts/check-focus.mjs",
+    "check": "node --check server.mjs && node --check agent-api.mjs && node --check public/app.js && node --check public/model.js && node --check public/task-view.js && node --check public/routes.js && node --check public/quick.js && node --check public/quick-search.js && node --check public/components/select.js && node --check public/components/settings-page.js && node --check storage.mjs && node --check native/tray-model.mjs && node scripts/check-proxy.mjs && node scripts/check-ai.mjs && node scripts/check-focus.mjs && node scripts/check-extensions.mjs",
     "test": "node --test",
     "desktop": "npm run pack:mac && open dist/native/Daylight.app",
     "pack:mac": "python3 scripts/build-native.py",
@@ -19,7 +19,8 @@
     "test:focus-contracts": "python3 test/focus-contract-test.py",
     "test:native-focus-notifications": "python3 test/native-focus-notification-test.py",
     "benchmark:focus": "node scripts/benchmark-focus.mjs --records 10000,50000 --runtimes node,native",
-    "test:native-focus-time-zone": "python3 test/native-focus-time-zone-test.py"
+    "test:native-focus-time-zone": "python3 test/native-focus-time-zone-test.py",
+    "test:extensions-contracts": "python3 test/extensions-contract-test.py"
   },
   "description": "本地项目与任务工作台，支持 AI 对话与统一模型中转",
   "license": "MIT",
@@ -33,7 +34,9 @@
   },
   "author": "Daylight",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@qoder-ai/qoder-agent-sdk": "1.0.39",
+    "yaml": "2.9.1",
     "zod": "3.25.76"
   },
   "devDependencies": {

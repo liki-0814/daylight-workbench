@@ -1,0 +1,13 @@
+{
+  "skills": 1000,
+  "mcp": 100,
+  "coldMs": 450.94379200000003,
+  "cachedP95Ms": 9.993208000000095,
+  "taskBaselineP95Ms": 1.8064999999999714,
+  "taskScanningP95Ms": 1.1611250000000837,
+  "taskP95ChangePercent": -35.72515914751718,
+  "focusVersion": 1,
+  "focusSessionRetained": true,
+  "measuredAt": "2026-10-09T06:01:17.177Z",
+  "scope": "Node HTTP, synthetic sources, no MCP execution; native helper startup and browser interaction latency not timed"
+}

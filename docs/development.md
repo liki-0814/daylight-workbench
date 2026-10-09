@@ -110,3 +110,10 @@ npm run test:native-focus-notifications
 `public/components/section.js` 提供 `sectionHeading`、`disclosureSection` 和 `refreshButton`。折叠标题、说明与刷新在同一操作行，正文共用起点和留白；`mountDisclosures` 保留折叠行为，`setRefreshState` 统一加载状态并保持刷新按钮宽度稳定。来源账号、模型与额度页面共用这套模板。
 
 字段标签旁有操作时，使用 `design-system.css` 的 `ui-field-label` 与 `ui-field-label-action`。动作容器使用标签行高，内部按钮保留公共点击尺寸，不把标签行撑高；相邻普通字段与下拉框保持同一控件起点。自定义来源的 API Key / 添加 Key 使用该布局，避免每个页面另设偏移量。
+
+
+## 扩展模块
+
+新增入口与领域代码见[本地扩展管理](extensions.md)。core/extensions-contracts.js 是纯契约；extensions/ 负责来源、适配和回执；public/extensions/ 负责页面、客户端、控制器及共用审阅；ai/extensions-submissions.mjs 只管理审批与提交恢复。Swift 复用通用 helper 转发。不要把源内容放入任务 state、Pi 模型配置或 AI provider。
+
+新增文件系统测试必须同时注入 agentsRoot、clientRoots，原生测试用 WORKBENCH_AGENTS_ROOT、WORKBENCH_EXTENSION_CLIENT_ROOTS。只隔离 WORKBENCH_DATA_DIR 不足以隔离扩展写入。运行 npm run test:extensions-contracts 前先 pack:mac。浏览器与规模验收脚本仅运行在独立 fixture，见验收报告。
