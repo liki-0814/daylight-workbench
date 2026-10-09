@@ -1,0 +1,8 @@
+{
+  "testedAt": "2026-10-09T06:48:36.315Z",
+  "entry": "npm run dev:debug",
+  "web": "passed",
+  "debugger": "passed: Node inspector target advertised on 127.0.0.1:9229",
+  "buildRequired": false,
+  "scope": "Actual npm watcher/debugger entry; isolated business/source/client/Pi directories; no inference or source edits"
+}

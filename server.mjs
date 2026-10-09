@@ -1,4 +1,6 @@
 import http from 'node:http';
+import net from 'node:net';
+import { execFile } from 'node:child_process';
 import { readFile, writeFile, mkdir, rename, copyFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -165,9 +167,39 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const server = await createWorkbench({ dataDir: process.env.WORKBENCH_DATA_DIR, extensionsOptions: { agentsRoot: process.env.WORKBENCH_AGENTS_ROOT, ...(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS ? { clientRoots: JSON.parse(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS) } : {}) } });
-  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await server.closeProxy(); server.close(); server.closeAllConnections(); });
-  server.listen(Number(process.env.PORT || 4318), '127.0.0.1', () => {
-    console.log(`Daylight 工作台已启动：http://127.0.0.1:${server.address().port}`);
-  });
+  const value = process.env.PORT || '4318', port = Number(value);
+  let server, stopping;
+  const stop = () => stopping ||= (async () => {
+    try { await server?.closeProxy(); }
+    finally { if (server?.listening) await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }); }
+  })();
+  try {
+    if (!/^\d+$/.test(value) || !Number.isInteger(port) || port < 0 || port > 65535) throw new Error('PORT 必须是 0–65535 的整数；通常使用 4318。');
+    // Check before loading shared data: a running desktop/web instance must
+    // not trigger recovery or configuration initialization in a second process.
+    const probe = net.createServer();
+    await new Promise((resolve, reject) => {
+      probe.once('error', reject);
+      probe.listen(port, '127.0.0.1', () => probe.close(resolve));
+    });
+    server = await createWorkbench({ dataDir: process.env.WORKBENCH_DATA_DIR, extensionsOptions: { agentsRoot: process.env.WORKBENCH_AGENTS_ROOT, ...(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS ? { clientRoots: JSON.parse(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS) } : {}) } });
+    for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void stop().catch(error => { console.error('Daylight 停止失败：' + error.message); process.exitCode = 1; }); });
+    await new Promise((resolve, reject) => {
+      const failed = error => reject(error);
+      server.once('error', failed);
+      server.listen(port, '127.0.0.1', () => { server.removeListener('error', failed); resolve(); });
+    });
+    const url = `http://127.0.0.1:${server.address().port}`;
+    console.log(`Daylight Web 已启动：${url}`);
+    console.log(`数据目录：${path.resolve(process.env.WORKBENCH_DATA_DIR || defaultDataDir)}`);
+    console.log('可在设置中连接本机 Codex / Qoder；扩展管理与 CLI 配置直接使用本地服务。按 Ctrl+C 停止。');
+    if (process.argv.includes('--open') && !process.argv.includes('--no-open')) {
+      const command = process.platform === 'darwin' ? ['open'] : process.platform === 'win32' ? ['rundll32', 'url.dll,FileProtocolHandler'] : ['xdg-open'];
+      execFile(command[0], [...command.slice(1), url], error => { if (error) console.error(`无法自动打开浏览器，请手动访问 ${url}`); });
+    }
+  } catch (error) {
+    await stop();
+    console.error(error.code === 'EADDRINUSE' ? `端口 ${port} 已被占用。请退出正在运行的 Daylight 后重试；同时运行测试实例时，请设置独立的 PORT 和 WORKBENCH_DATA_DIR。` : 'Daylight Web 启动失败：' + error.message);
+    process.exitCode = 1;
+  }
 }

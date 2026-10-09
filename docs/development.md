@@ -1,5 +1,9 @@
 # 开发说明
 
+Web 调试直接使用 `PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/web-dev" npm run dev`，不依赖 App 或 dist；前端修改刷新生效，后端由 Node watch 重启。`npm run dev:debug` 增加仅本机的 9229 断点入口。普通启动用 `npm run web` 自动打开浏览器。入口均复用 server.mjs 和本机 CLI 适配器，默认数据、CLI 登录和扩展主来源保持现有规则；隔离业务目录不自动隔离扩展写入。
+
+`npm run test:web-cli` 使用隔离业务/扩展/客户端目录，通过真正 `npm run web -- --no-open` 启动并检测本机 Codex/Qoder 模型，不执行推理，隔离 Daylight 管理写入；CLI 自身的认证和缓存遵循其原生规则。需本机已安装并登录 CLI，不属于离线 Node 单元测试。启动、端口冲突、浏览器时机和停止/重启覆盖在 test/web.test.mjs。
+
 ## 数据存储
 
 默认写入 `~/Library/Application Support/Daylight/state.json`。网页开发服务和桌面应用使用相同目录。首次启动时，从旧工程 `~/liki_dev/daylight-workbench/.local/` 复制已有数据及 skill 凭证；保留旧文件，不覆盖已有新目录数据。它是本地文件，不依赖浏览器缓存；关闭网页或重启服务后保留。没有已有数据时，初始化为空项目、空任务和空日程；安装包不包含个人项目或任务。

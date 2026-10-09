@@ -1,0 +1,22 @@
+{
+  "testedAt": "2026-10-09T06:45:31.328571+00:00",
+  "entry": "npm run web -- --no-open",
+  "buildRequired": false,
+  "results": [
+    {
+      "backend": "codex",
+      "status": "passed",
+      "models": 8,
+      "skills": 30
+    },
+    {
+      "backend": "qoder",
+      "status": "passed",
+      "models": 17,
+      "skills": 19
+    }
+  ],
+  "inference": false,
+  "isolatedWrites": true,
+  "extensionSource": "passed: fixture read; AIStore remains lazy"
+}

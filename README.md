@@ -22,23 +22,31 @@
 git clone https://github.com/liki-0814/daylight-workbench.git
 cd daylight-workbench
 npm ci --ignore-scripts
-npm start
+npm run web
 ```
 
-打开 <http://127.0.0.1:4318>。首次启动是空工作台，项目与任务由你创建。
+服务就绪后自动打开浏览器，地址为 <http://127.0.0.1:4318>。无需构建 App；首次启动是空工作台，项目与任务由你创建。终端保持运行，按 `Ctrl+C` 停止服务；关闭浏览器标签不会停止服务。
 
 安装依赖时跳过 SDK 的下载脚本；AI 使用已经安装并登录的本机 CLI。只使用任务管理时无需配置模型账号。
 
-开发时自动重启服务：
+进入「设置 → AI 对话」，选择 Codex 或 Qoder，点击「刷新模型与技能」并保存模型，即可在浏览器中与本机 CLI 对话。「扩展管理」维护 `~/.agents`；「CLI 配置」继续提供 Pi 与模型中转的联动。AI 认证复用本机 CLI 登录，无需复制账号凭据。
+
+只启动服务、稍后手动打开页面可用 `npm start`，或 `npm run web -- --no-open`。网页与桌面版共用默认数据目录和端口，切换模式先退出正在运行的实例；端口冲突时不会自动换端口启动第二份服务。菜单栏、全局快捷键和 macOS 系统提醒由原生 App 提供。
+
+调试时使用独立端口和业务数据目录，后端文件改动会自动重启：
 
 ```sh
-npm run dev
+PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/web-dev" npm run dev
 ```
 
-可使用独立端口与数据目录启动测试实例：
+打开 <http://127.0.0.1:4328>，用浏览器开发者工具检查页面、请求和 Console。前端 JS/CSS 直接从源码提供，修改后刷新页面即可，无需打包。CLI 认证仍复用本机登录。
+
+需要 Node 断点时，同样设置端口和数据目录运行 `npm run dev:debug`，通过 `chrome://inspect` 或编辑器连接本机 9229 端口。扩展管理仍默认读取真实 `~/.agents`；使用合成 Skill/MCP 调试写入时，按[扩展管理说明](docs/extensions.md)同时覆盖来源和客户端目录。
+
+可使用独立端口与数据目录启动普通测试实例：
 
 ```sh
-PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/dev" npm start
+PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/dev" npm run web
 ```
 
 ## macOS 应用

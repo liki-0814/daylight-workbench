@@ -34,3 +34,16 @@ Codex 可生成独立 TOML，Qoder 可生成不含凭据引用的 JSON；Qoder �
 写入前后材料保存在 `~/.agents/daylight/operations/<requestId>.json`，权限为 0600。跨进程排他锁、源版本、相关文件前后摘要与计划摘要共同约束提交；对象键排序确保 Swift/Node JSON 转发不改变身份。多文件步骤有回执和恢复材料，不能视为全局原子事务。中断操作只恢复仍符合本次前后摘要的文件；外部漂移时进入 `recovery_required` 并停止后续写入。核对对应文件和回执，手动保留或恢复到已知状态后，重试原请求可继续核对，不能盲目覆盖新内容。
 
 API 的网页入口为 `/api/extensions`，Agent 入口为 `/api/v1/extensions`。网页变更校验 Token 和 Origin，Agent 校验 Bearer；不接受任意外部路径。公开接口及命令见[仓库 Skill API](../skills/daylight-workbench/references/api.md)。测试与人工验收证据见[验收报告](verification/extensions.md)。
+
+调试页面、AI 和模型发现可直接运行 `npm run dev`，无需打包。业务数据隔离不会自动隔离扩展主来源或 Pi 配置；需要用合成内容演练链接、编辑和归档时，显式覆盖所有写入目录：
+
+```sh
+PORT=4328 \
+WORKBENCH_DATA_DIR="$PWD/.local/web-dev" \
+WORKBENCH_AGENTS_ROOT="$PWD/.local/web-dev/agents" \
+WORKBENCH_EXTENSION_CLIENT_ROOTS="{\"codex\":\"$PWD/.local/web-dev/codex\",\"qoder\":\"$PWD/.local/web-dev/qoder\",\"pi\":\"$PWD/.local/web-dev/pi\"}" \
+PI_CODING_AGENT_DIR="$PWD/.local/web-dev/pi" \
+npm run dev
+```
+
+这些变量隔离 Daylight 管理写入，CLI 的认证和原生 Skill 发现继续遵循本机 CLI 自己的目录规则。不要将测试来源中的链接状态作为真实 CLI 已加载的证明。
