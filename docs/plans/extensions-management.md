@@ -1,5 +1,7 @@
 # Daylight 本地扩展管理技术方案
 
+> 2026-10-09 后续用户调整：只识别 ~/.agents/skills 一级子目录；Codex/Pi 的链接分别按 ~/.codex/skills、~/.pi/agent/skills 管理；接入软件页可添加其他本地 CLI，登记在 ~/.agents/daylight/clients.json，页面、AI 与外部 Agent 共用预览/回执/恢复。原设计中的原生共享来源零链接策略和递归来源发现已由此替换。当前实现和验收以 docs/extensions.md、docs/verification/extensions.md 为准。
+
 - 状态：已按用户实施指令落地；验收结果见[扩展管理验收报告](../verification/extensions.md)。
 - 日期：2026-10-09。
 - 实施基线：8275db8，先提交原暂存代码，再创建 codex/extensions-management 分支。设计最初基于 156250b 及当时工作区，以下代码位置是设计阶段定位。

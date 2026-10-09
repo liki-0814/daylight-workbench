@@ -31,7 +31,7 @@ try {
   await screenshot('read-failure'); await page.unroute('**/api/extensions/state', unavailable); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await ready();
   assert.equal(await page.locator('[data-error]').textContent(), ''); checks.push('three categories share a recoverable read failure without a false loading message');
   await page.goto(url + '/#extensions'); await ready(); await screenshot('skills-1360');
-  assert.equal(await page.locator('.extension-row').count(), 2); checks.push('source listing');
+  assert.equal(await page.locator('.extension-row').count(), 2); assert.equal(await page.locator('[data-extension-id]').filter({ hasText: 'ad-online-dev' }).count(), 0); checks.push('only first-level sources are listed; internal vendor Skills are excluded');
   const layouts = [];
   for (const [width, height] of [[1360, 900], [1024, 768], [800, 600], [390, 844]]) {
     await page.setViewportSize({ width, height }); let reference;
@@ -48,9 +48,8 @@ try {
   await fs.writeFile(path.join(output, 'layout.json'), JSON.stringify(layouts, null, 2));
   await page.setViewportSize({ width: 1360, height: 900 }); await page.getByRole('radio', { name: 'Skills', exact: true }).click();
   assert.equal(await page.locator('.extensions-page select').count(), 0); checks.push('three categories share identical layout anchors at four widths');
-  assert.equal(await binding('review-code', 'Codex', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Codex', '.extension-list').isDisabled(), true);
-  assert.equal(await binding('review-code', 'Pi', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Pi', '.extension-list').isDisabled(), true);
-  checks.push('native shared-source checkboxes are truthful read-only controls');
+  for (const software of ['Codex', 'Pi']) { assert.equal(await binding('review-code', software, '.extension-list').isChecked(), false); assert.equal(await binding('review-code', software, '.extension-list').isDisabled(), false); }
+  checks.push('Codex and Pi use actionable link checkboxes');
   const before = await fs.readFile(source, 'utf8');
   await page.getByRole('searchbox', { name: '搜索扩展' }).fill('review'); assert.equal(await page.locator('.extension-row').count(), 1);
   await page.getByRole('radio', { name: 'Skills', exact: true }).focus(); await page.keyboard.press('ArrowRight');
@@ -69,7 +68,7 @@ try {
   await binding('review-code', 'Qoder').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
   assert.equal(await fs.realpath(path.join(fixture, 'qoder/skills/review-code')), path.join(fixture, 'agents/skills/review-code'));
   assert.equal(await binding('review-code', 'Qoder', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
-  await assert.rejects(fs.stat(path.join(fixture, 'codex')), { code: 'ENOENT' }); await assert.rejects(fs.stat(path.join(fixture, 'pi')), { code: 'ENOENT' }); checks.push('Qoder preview/cancel/apply and native zero links');
+  await assert.rejects(fs.stat(path.join(fixture, 'codex')), { code: 'ENOENT' }); await assert.rejects(fs.stat(path.join(fixture, 'pi')), { code: 'ENOENT' }); checks.push('Qoder preview/cancel/apply leaves other clients untouched');
   await binding('review-code', 'Qoder').click(); await dialog().getByRole('button', { name: '取消', exact: true }).click(); await closed(); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
   await binding('review-code', 'Qoder').click(); await assertText(dialog(), '主 Skill 和其他软件保持原样'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
   const qoderLink = path.join(fixture, 'qoder/skills/review-code'), relativeTarget = path.relative(path.dirname(qoderLink), path.dirname(source));
@@ -82,9 +81,32 @@ try {
   assert.equal(await fs.readlink(qoderLink), relativeTarget); checks.push('checkbox removal cancels safely, preserves source and restores an existing relative link');
   await page.getByRole('button', { name: '返回清单', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
   const codexLink = path.join(fixture, 'codex/skills/review-code'); await fs.mkdir(path.dirname(codexLink), { recursive: true }); await fs.symlink(path.dirname(source), codexLink);
-  await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await page.getByRole('button', { name: '移除旧链接', exact: true }).click(); await assertText(dialog(), '移除旧链接后仍可原生读取共享来源');
-  await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); await assert.rejects(fs.lstat(codexLink), { code: 'ENOENT' }); assert.equal(await binding('review-code', 'Codex').isChecked(), true); assert.equal(await fs.readFile(source, 'utf8'), before);
-  checks.push('legacy Codex link removal still explains shared-source availability');
+  await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await waitBinding('review-code', 'Codex', true); await binding('review-code', 'Codex').click(); await assertText(dialog(), '明确确认处理已有正确链接');
+  await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); await assert.rejects(fs.lstat(codexLink), { code: 'ENOENT' }); assert.equal(await binding('review-code', 'Codex').isChecked(), false); assert.equal(await fs.readFile(source, 'utf8'), before);
+  for (const [software, directory] of [['Codex', 'codex/skills'], ['Pi', 'pi/agent/skills']]) { await binding('review-code', software).click(); await assertText(dialog(), directory + '/review-code'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(await fs.realpath(path.join(fixture, directory, 'review-code')), path.dirname(source)); }
+  checks.push('Codex/Pi connect in their own directories and existing Codex links can be removed');
+  await page.getByRole('radio', { name: '接入软件', exact: true }).click();
+  assert.equal((await page.locator('.extensions-page').textContent()).includes('加载结果未核对'), false);
+  const registrationFile = path.join(fixture, 'agents/daylight/clients.json');
+  await page.getByRole('button', { name: '添加 CLI', exact: true }).click();
+  await dialog().getByLabel('软件名称', { exact: true }).fill('本地调试 CLI'); await dialog().getByLabel('CLI 命令', { exact: true }).fill(process.execPath); await dialog().getByLabel('软件主目录', { exact: true }).fill(path.join(fixture, '.custom'));
+  await dialog().getByRole('button', { name: '预览登记', exact: true }).click(); await dialog().getByRole('button', { name: '确认保存登记', exact: true }).waitFor(); await assert.rejects(fs.stat(registrationFile), { code: 'ENOENT' });
+  await page.keyboard.press('Escape'); await closed();
+  await page.getByRole('button', { name: '添加 CLI', exact: true }).click(); assert.equal(await dialog().getByLabel('软件名称', { exact: true }).inputValue(), '本地调试 CLI');
+  await dialog().getByRole('button', { name: '预览登记', exact: true }).click(); await dialog().getByRole('button', { name: '确认保存登记', exact: true }).click(); await closed();
+  const custom = JSON.parse(await fs.readFile(registrationFile, 'utf8')).clients[0]; assert.equal(custom.name, '本地调试 CLI'); await assert.rejects(fs.stat(custom.root), { code: 'ENOENT' });
+  await page.reload(); await page.getByRole('button', { name: '编辑 CLI', exact: true }).waitFor(); await assertText(page.locator('.extension-detail'), '可执行文件：');
+  await page.getByRole('button', { name: '返回清单', exact: true }).click(); await choose('按软件筛选', '本地调试 CLI'); assert.equal(await page.locator('.extension-row').count(), 1); await choose('按软件筛选', '全部软件');
+  checks.push('Add CLI preview/cancel retains draft; approval persists and adds the shared software filter');
+  await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
+  await binding('review-code', '本地调试 CLI').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(await fs.realpath(path.join(custom.root, 'skills/review-code')), path.dirname(source));
+  await page.getByRole('radio', { name: '接入软件', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: custom.name }).click(); await page.getByRole('button', { name: '移除登记', exact: true }).click();
+  await assertText(dialog(), '请先解除已管理'); assert.equal(await dialog().getByRole('button', { name: '应用变更', exact: true }).isDisabled(), true); await page.keyboard.press('Escape'); await closed();
+  await binding('review-code', '本地调试 CLI').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await page.getByRole('button', { name: '移除登记', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(JSON.parse(await fs.readFile(registrationFile, 'utf8')).clients.length, 0);
+  await page.getByRole('link', { name: '查看回执', exact: true }).click(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(JSON.parse(await fs.readFile(registrationFile, 'utf8')).clients[0].id, custom.id);
+  checks.push('custom CLI Skill links, guarded unregister, source preservation and registration restore');
+  await page.getByRole('button', { name: '返回清单', exact: true }).click(); await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
   await choose('查看 Skill 文件', 'README.md'); await assertText(page.locator('.extension-source-content'), '浏览器验收用说明文件');
   assert.equal(await page.getByRole('combobox', { name: '查看 Skill 文件' }).evaluate(el => document.activeElement === el), true); await choose('查看 Skill 文件', 'SKILL.md');
   checks.push('shared file picker loads the selected source and restores keyboard focus');

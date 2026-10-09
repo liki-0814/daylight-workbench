@@ -90,7 +90,7 @@ VERSION 和 UPDATED_AT 必须来自刚读取的目标。成功后再次读取列
 
 ## 本地扩展管理
 
-扩展管理只读取和管理 ~/.agents 的主来源。Skill 来源为 ~/.agents/skills，MCP 主配置为 ~/.agents/mcp/servers.json。首版只登记 Codex/Qoder/Pi；原生读取共享 Skills 的软件不新建链接，不覆盖或导入其他软件的独立配置。公共 MCP 不自动装载到 Daylight 对话。
+扩展管理只读取和管理 ~/.agents 的主来源。Skill 来源为 ~/.agents/skills，MCP 主配置为 ~/.agents/mcp/servers.json。只发现 Skills 一级子目录；内置 Codex/Qoder/Pi，并可通过 client.save 登记其他本地 CLI；所有登记软件按单项 Skill 管理自身目录下的链接，不覆盖或导入其他软件的独立配置。公共 MCP 不自动装载到 Daylight 对话。
 
 先 extensions-state 或 extension-detail，静态诊断用 extensions-diagnostics。修改、归档、接入、接管或实际 MCP 检测先用 extensions-prepare 生成真实差异与影响。内置 AI 使用审阅卡；外部 Skill 应呈现计划供用户理解，并依据当前明确授权执行。已有授权不用重复确认，尚在讨论不能应用。
 

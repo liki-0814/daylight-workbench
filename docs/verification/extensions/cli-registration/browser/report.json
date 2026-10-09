@@ -1,0 +1,38 @@
+{
+  "checks": [
+    "three categories share a consistent loading state",
+    "three categories share a recoverable read failure without a false loading message",
+    "only first-level sources are listed; internal vendor Skills are excluded",
+    "three categories share identical layout anchors at four widths",
+    "Codex and Pi use actionable link checkboxes",
+    "search and keyboard tabs",
+    "empty search has one recoverable empty state",
+    "Qoder preview/cancel/apply leaves other clients untouched",
+    "checkbox removal cancels safely, preserves source and restores an existing relative link",
+    "Codex/Pi connect in their own directories and existing Codex links can be removed",
+    "Add CLI preview/cancel retains draft; approval persists and adds the shared software filter",
+    "custom CLI Skill links, guarded unregister, source preservation and registration restore",
+    "shared file picker loads the selected source and restores keyboard focus",
+    "shared software and problem filters persist without opening an unrelated detail",
+    "dirty edit survives navigation and Escape restores focus",
+    "AI reference review/reject/apply and real source readback",
+    "AI unknown response recovers original ID once",
+    "shared transport selector supports keyboard and retained editor drafts",
+    "explicit MCP handshake and tools/list only",
+    "AI-confirmed MCP detection updates its source detail until completion",
+    "Codex primary directory and shared Skills source are shown separately",
+    "generated MCP with truthful manual integration",
+    "source archive and reviewed operation restore",
+    "responsive widths and 200 percent CSS zoom"
+  ],
+  "errors": [],
+  "testedAt": "2026-10-09T08:40:33.587Z",
+  "fixture": true,
+  "viewportWidths": [
+    1360,
+    1024,
+    800,
+    390
+  ],
+  "zoom": "CSS zoom=2; not a human usability study"
+}

@@ -7,7 +7,7 @@ import { error, hash, stat, within, safePath, snapshot, fileSnapshot, readText }
 import { metadata, skillId, skillFile } from './skill-files.mjs';
 import { normalizeServer, renderMcpConfig } from './mcp-config.mjs';
 import { createProbes } from './mcp-probes.mjs';
-import { clientRegistry } from './clients.mjs';
+import { readClientRegistry, clientsFile, normalizeClient, normalizeClientConfig, validateClientRegistry } from './clients.mjs';
 import { createCatalog } from './catalog.mjs';
 import { createTransactions } from './transactions.mjs';
 
@@ -16,31 +16,35 @@ const fields = {
   'skill.create': ['type', 'directory', 'content'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'],
   'mcp.save': ['type', 'server'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'],
   'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
+  'client.save': ['type', 'client'], 'client.remove': ['type', 'clientId'],
 };
 export async function createExtensionsService({ agentsRoot = path.join(os.homedir(), '.agents'), clientRoots, environment = process.env, cacheMs, probeTimeoutMs, fault, onChanged = () => {} } = {}) {
   // Canonicalize existing ancestors (macOS /var -> /private/var) without creating roots.
   let ancestor = path.resolve(agentsRoot); const missing = [];
   while (!(await stat(ancestor))) { missing.unshift(path.basename(ancestor)); ancestor = path.dirname(ancestor); }
-  const root = path.join(await fs.realpath(ancestor), ...missing), clients = clientRegistry({ clientRoots, environment });
-  const catalog = createCatalog({ root, clients, environment, cacheMs });
+  const root = path.join(await fs.realpath(ancestor), ...missing);
+  const registryOptions = { clientRoots, environment }, loadClients = () => readClientRegistry(root, registryOptions);
+  const catalog = createCatalog({ root, loadClients, environment, cacheMs });
   const probes = createProbes({ environment, timeoutMs: probeTimeoutMs });
   const assertTarget = async target => {
     if (within(root, target)) { await safePath(root, path.dirname(target)); return; }
-    const client = clients.find(item => path.dirname(target) === item.skillsRoot);
+    const registration = await loadClients();
+    if (!registration.valid) throw error(registration.message, 409);
+    const client = registration.clients.find(item => path.dirname(target) === item.skillsRoot);
     if (!client || !/^[a-zA-Z0-9_.-]{1,100}$/.test(path.basename(target))) throw error('外部路径不是受支持的 Skill 链接位置', 403, 'EXTENSIONS_PATH');
     await safePath(client.root, client.skillsRoot);
   };
   const transactions = createTransactions({ root, assertTarget, fault });
   const probeReport = server => { const value = probes.latest(server.id); return value ? { ...value, stale: value.configRevision !== server.revision } : null; };
-  const publicState = value => { const { manifest, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, lastProbe: probeReport(server) })) }; };
+  const publicState = value => { const { manifest, registry, clientConfig, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, lastProbe: probeReport(server) })) }; };
   const getSkill = (state, id) => { const skill = state.skills.find(item => item.id === id); if (!skill) throw error('Skill 已归档、移动或不存在，请返回清单重新选择', 404, 'EXTENSIONS_OBJECT_MISSING'); return skill; };
   const getServer = (state, id) => { const server = state.servers.find(item => item.id === id); if (!server) throw error('MCP 服务已归档或不存在', 404, 'EXTENSIONS_OBJECT_MISSING'); const { kind, revision, dependencies, ...config } = server; return config; };
-  const getClient = id => { const client = clients.find(item => item.id === id); if (!client) throw error('不支持该软件'); return client; };
+  const getClient = (state, id) => { if (!state.clientsValid) throw error(state.diagnostics.find(issue => issue.code === 'CLIENTS_FORMAT')?.message || 'CLI 登记文件无效', 409); const client = state.registry.find(item => item.id === id); if (!client) throw error('软件未登记或已移除', 404, 'EXTENSIONS_OBJECT_MISSING'); return client; };
   const generatedPath = client => path.join(root, 'mcp', 'generated', client.id, 'servers.' + (client.format === 'toml' ? 'toml' : 'json'));
   async function detail(id, file) {
     const state = await catalog.state();
-    if (clients.some(client => client.id === id)) {
-      const client = getClient(id), generated = client.mcpMode === 'unsupported' ? null : await readText(await safePath(root, generatedPath(client)), 2_000_000);
+    if (state.registry.some(client => client.id === id)) {
+      const client = state.registry.find(client => client.id === id), generated = client.mcpMode === 'unsupported' ? null : await readText(await safePath(root, generatedPath(client)), 2_000_000);
       let current = false; try { current = generated === renderMcpConfig(client, state.servers.map(({ kind, revision, dependencies, ...config }) => config)); } catch {}
       return { kind: 'client', ...state.clients.find(item => item.id === id), version: state.version, skills: state.skills.map(skill => ({ id: skill.id, name: skill.name, binding: skill.bindings.find(binding => binding.clientId === id) })), generated: generated === null ? null : { path: generatedPath(client), content: generated, current }, integration: '生成文件不等于已接入。请在客户端核对同名服务后，仅接入对应 MCP 配置；Daylight 不修改全局配置。' };
     }
@@ -79,7 +83,6 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       const actual = await snapshot(target), matches = actual.kind === 'link' && await fs.realpath(target).catch(() => null) === source;
       const owned = manifest.bindings.find(item => item.skillId === skill.id && item.clientId === client.id && item.target === target && item.source === source);
       if (type === 'binding.connect') {
-        if (client.skillMode === 'nativeRoot') { impact.push(client.name + ' 支持原生读取共享来源，无需新建链接；已有链接保留。'); return; }
         if (!skill.valid) throw error('请先修复 Skill 元数据再接入');
         if (actual.kind !== 'missing') { if (matches) impact.push('已有正确链接；如需管理解除操作，请明确接管。'); else conflicts.push(client.name + ' 的同名位置存在其他内容：' + target); return; }
         await add(target, { kind: 'link', target: source });
@@ -94,7 +97,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (owned) { manifest.bindings = manifest.bindings.filter(item => item !== owned); manifestChanged = true; }
         impact.push('仅移除 ' + target + ' 的链接，主 Skill 和其他软件保持原样。' + (!owned ? '本次明确确认处理已有正确链接，修改前链接已记录供恢复。' : ''));
       }
-      impact.push(client.name + '：' + client.refresh + (client.skillMode === 'nativeRoot' && type === 'binding.disconnect' ? ' 移除旧链接后仍可原生读取共享来源。' : ''));
+      impact.push(client.name + '：' + client.refresh);
     };
     if (action.type === 'skill.create') {
       if (typeof action.directory !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(action.directory)) throw error('新 Skill 目录需要小写字母、数字或短横线');
@@ -102,7 +105,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       const directory = path.join(root, 'skills', action.directory); await safePath(root, directory);
       if (await stat(directory)) conflicts.push('主目录已存在同名内容，不能覆盖');
       await add(path.join(directory, 'SKILL.md'), fileSnapshot(action.content)); changedIds.push(skillId(action.directory));
-      impact.push('保存到主目录；Codex/Pi 的原生读取版本无需链接，Qoder 可另行接入。');
+      impact.push('保存到主来源；在软件的勾选框确认后建立对应 Skill 链接。');
     } else if (action.type.startsWith('skill.')) {
       const skill = getSkill(state, action.id); changedIds.push(skill.id);
       await safePath(root, path.join(root, 'skills', skill.relativePath));
@@ -118,16 +121,52 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         const affected = state.skills.filter(item => within(source, path.join(root, 'skills', item.relativePath)));
         for (const item of affected) {
           changedIds.push(item.id);
-          for (const owned of manifest?.bindings.filter(binding => binding.skillId === item.id) || []) await binding(item, getClient(owned.clientId), 'binding.disconnect');
-          impact.push('归档 ' + item.name + '；原生读取软件不再发现它，未接管的已有链接保留且可能失效。');
+          for (const owned of manifest?.bindings.filter(binding => binding.skillId === item.id) || []) await binding(item, getClient(state, owned.clientId), 'binding.disconnect');
+          impact.push('归档 ' + item.name + '；移除由 Daylight 管理的链接，未接管的已有链接保留且可能失效。');
         }
         await add(archive, await snapshot(source)); await add(source, { kind: 'missing' });
       }
     } else if (action.type.startsWith('binding.')) {
-      const skill = getSkill(state, action.id); changedIds.push(skill.id); await binding(skill, getClient(action.clientId), action.type);
+      const skill = getSkill(state, action.id); changedIds.push(skill.id); await binding(skill, getClient(state, action.clientId), action.type);
+    } else if (action.type.startsWith('client.')) {
+      if (!state.clientsValid) throw error('请先修复 CLI 登记文件；原文件不会被覆盖', 409);
+      const profiles = structuredClone(state.clientConfig.clients);
+      if (action.type === 'client.save') {
+        action.client = normalizeClient(action.client);
+        const index = profiles.findIndex(client => client.id === action.client.id), existing = index === -1 ? null : getClient(state, action.client.id);
+        if (state.servers.some(server => server.id === action.client.id)) throw error('CLI ID 与现有 MCP 服务冲突');
+        if (index === -1) profiles.push(action.client); else profiles[index] = action.client;
+        const config = normalizeClientConfig({ schemaVersion: 1, clients: profiles });
+        const next = (await validateClientRegistry(root, config, registryOptions)).find(client => client.id === action.client.id);
+        if (existing && existing.skillsRoot !== next.skillsRoot) {
+          if (!manifest) throw error('请先修复接入记录，再修改 CLI 目录', 409);
+          if (manifest.bindings.some(binding => binding.clientId === existing.id)) conflicts.push('请先解除该软件已管理的 Skill 链接，再修改接入目录');
+        }
+        await add(clientsFile(root), fileSnapshot(json(config))); changedIds.push(action.client.id);
+        impact.push((existing ? '更新 ' : '登记 ') + action.client.name + '；后续可在 Skills 中勾选接入。登记不会安装或执行 CLI。');
+      } else {
+        const client = getClient(state, action.clientId);
+        if (!client.custom) throw error('内置软件不能移除登记');
+        if (!manifest) throw error('请先修复接入记录，再移除 CLI 登记', 409);
+        const bindings = manifest.bindings.filter(binding => binding.clientId === client.id);
+        for (const binding of bindings) if (await stat(binding.target)) conflicts.push('请先解除已管理的 Skill 链接：' + binding.target);
+        if (!conflicts.length && bindings.length) { manifest.bindings = manifest.bindings.filter(binding => binding.clientId !== client.id); manifestChanged = true; }
+        await add(clientsFile(root), fileSnapshot(json({ schemaVersion: 1, clients: profiles.filter(profile => profile.id !== client.id) }))); changedIds.push(client.id);
+        impact.push('仅移除 ' + client.name + ' 的登记；CLI 程序、主来源、软件目录和未接管的链接保留。');
+      }
     } else if (action.type === 'operation.restore') {
       const record = await transactions.read(action.operationId);
       if (!record || record.status !== 'applied' || !record.steps.length) throw error('只能恢复已成功写入的操作');
+      const registrationStep = record.steps.find(step => step.path === clientsFile(root));
+      if (registrationStep) {
+        if (!state.clientsValid || !manifest) throw error('请先修复 CLI 登记和接入记录，再恢复登记', 409);
+        const restored = normalizeClientConfig(registrationStep.before.kind === 'missing' ? { schemaVersion: 1, clients: [] } : JSON.parse(Buffer.from(registrationStep.before.data, 'base64').toString('utf8')));
+        const nextClients = await validateClientRegistry(root, restored, registryOptions);
+        for (const client of state.registry.filter(client => client.custom)) {
+          if (nextClients.find(next => next.id === client.id)?.skillsRoot === client.skillsRoot) continue;
+          for (const binding of manifest.bindings.filter(binding => binding.clientId === client.id)) if (await stat(binding.target)) conflicts.push('请先解除该软件已管理的 Skill 链接，再恢复登记：' + binding.target);
+        }
+      }
       for (const original of [...record.steps].reverse()) {
         await assertTarget(original.path);
         if (hash(await snapshot(original.path)) !== hash(original.after)) conflicts.push('文件在操作后已被修改，不能覆盖恢复：' + original.path);
@@ -151,7 +190,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         changedIds.push(server.id); impact.push('归档 MCP 主配置，已经运行的外部客户端不会立即断连。');
         for (const skill of state.skills.filter(item => item.dependencies?.includes(server.id))) impact.push('已声明依赖的 Skill：' + skill.name + '（不会删除）。');
       } else if (action.type === 'mcp.generate') {
-        const client = getClient(action.clientId); await add(generatedPath(client), fileSnapshot(renderMcpConfig(client, servers)));
+        const client = getClient(state, action.clientId); await add(generatedPath(client), fileSnapshot(renderMcpConfig(client, servers)));
         impact.push('为 ' + client.name + ' 生成独立适配文件；需在客户端接入，不修改全局配置。');
       } else {
         const server = getServer(state, action.id); if (!server.enabled) throw error('服务已在主配置中禁用，请先编辑配置');

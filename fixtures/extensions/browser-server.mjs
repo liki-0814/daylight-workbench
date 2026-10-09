@@ -15,6 +15,8 @@ for (const [name, description] of [['review-code', '审查代码改动，检查�
   if (name === 'review-code') await fs.writeFile(path.join(skill, 'README.md'), '浏览器验收用说明文件。');
 }
 await fs.mkdir(path.join(agentsRoot, 'mcp'), { recursive: true });
+const nestedSkill = path.join(agentsRoot, 'skills/review-code/modules/huichuan-code/vendor/ad-online-dev');
+await fs.mkdir(nestedSkill, { recursive: true }); await fs.writeFile(path.join(nestedSkill, 'SKILL.md'), '---\nname: ad-online-dev\ndescription: 内部模块，不应单独识别\n---\n');
 await fs.writeFile(path.join(agentsRoot, 'mcp', 'servers.json'), JSON.stringify({ schemaVersion: 1, servers: [{ id: 'fixture-mcp', name: '本地 MCP 测试服务', transport: 'stdio', command: process.execPath, args: [path.resolve('fixtures/extensions/mcp-server.mjs'), path.join(directory, 'mcp-requests'), 'delayed'], envRefs: {} }] }));
 await fs.writeFile(path.join(directory, 'state.json'), JSON.stringify({ version: 0, state: fixtureState() }));
 await fs.mkdir(path.join(directory, 'ai'), { recursive: true });

@@ -1,0 +1,506 @@
+[
+  {
+    "width": 1360,
+    "tab": "Skills",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 281,
+        "y": 213,
+        "width": 1036,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 281,
+        "y": 270,
+        "width": 598,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 891,
+        "y": 272,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 1087,
+        "y": 279,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 1177,
+        "y": 269,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 281,
+        "y": 331,
+        "width": 1036,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 1360,
+    "tab": "MCP 服务",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 281,
+        "y": 213,
+        "width": 1036,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 281,
+        "y": 270,
+        "width": 598,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 891,
+        "y": 272,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 1087,
+        "y": 279,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 1177,
+        "y": 269,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 281,
+        "y": 331,
+        "width": 1036,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 1360,
+    "tab": "接入软件",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 281,
+        "y": 213,
+        "width": 1036,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 281,
+        "y": 270,
+        "width": 598,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 891,
+        "y": 272,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 1087,
+        "y": 279,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 1177,
+        "y": 269,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 281,
+        "y": 331,
+        "width": 1036,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 1024,
+    "tab": "Skills",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 236,
+        "y": 204,
+        "width": 762,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 236,
+        "y": 261,
+        "width": 324,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 572,
+        "y": 263,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 768,
+        "y": 270,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 858,
+        "y": 260,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 236,
+        "y": 322,
+        "width": 762,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 1024,
+    "tab": "MCP 服务",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 236,
+        "y": 204,
+        "width": 762,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 236,
+        "y": 261,
+        "width": 324,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 572,
+        "y": 263,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 768,
+        "y": 270,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 858,
+        "y": 260,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 236,
+        "y": 322,
+        "width": 762,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 1024,
+    "tab": "接入软件",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 236,
+        "y": 204,
+        "width": 762,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 236,
+        "y": 261,
+        "width": 324,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 572,
+        "y": 263,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 768,
+        "y": 270,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 858,
+        "y": 260,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 236,
+        "y": 322,
+        "width": 762,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 800,
+    "tab": "Skills",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 236,
+        "y": 204,
+        "width": 538,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 236,
+        "y": 260,
+        "width": 252,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 500,
+        "y": 262,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 696,
+        "y": 269,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 236,
+        "y": 312,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 236,
+        "y": 374,
+        "width": 538,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 800,
+    "tab": "MCP 服务",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 236,
+        "y": 204,
+        "width": 538,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 236,
+        "y": 260,
+        "width": 252,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 500,
+        "y": 262,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 696,
+        "y": 269,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 236,
+        "y": 312,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 236,
+        "y": 374,
+        "width": 538,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 800,
+    "tab": "接入软件",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 236,
+        "y": 204,
+        "width": 538,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 236,
+        "y": 260,
+        "width": 252,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 500,
+        "y": 262,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 696,
+        "y": 269,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 236,
+        "y": 312,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 236,
+        "y": 374,
+        "width": 538,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 390,
+    "tab": "Skills",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 18,
+        "y": 391,
+        "width": 354,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 18,
+        "y": 447,
+        "width": 354,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 18,
+        "y": 499,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 214,
+        "y": 506,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 18,
+        "y": 547,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 18,
+        "y": 609,
+        "width": 354,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 390,
+    "tab": "MCP 服务",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 18,
+        "y": 391,
+        "width": 354,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 18,
+        "y": 447,
+        "width": 354,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 18,
+        "y": 499,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 214,
+        "y": 506,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 18,
+        "y": 547,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 18,
+        "y": 609,
+        "width": 354,
+        "height": 50
+      }
+    }
+  },
+  {
+    "width": 390,
+    "tab": "接入软件",
+    "anchors": {
+      ".extension-tabs": {
+        "x": 18,
+        "y": 391,
+        "width": 354,
+        "height": 36
+      },
+      ".extension-search": {
+        "x": 18,
+        "y": 447,
+        "width": 354,
+        "height": 40
+      },
+      ".extension-software-filter": {
+        "x": 18,
+        "y": 499,
+        "width": 184,
+        "height": 36
+      },
+      ".extension-problem-filter": {
+        "x": 214,
+        "y": 506,
+        "width": 78,
+        "height": 22
+      },
+      ".extension-category-action": {
+        "x": 18,
+        "y": 547,
+        "width": 140,
+        "height": 42
+      },
+      ".extension-list-heading": {
+        "x": 18,
+        "y": 609,
+        "width": 354,
+        "height": 50
+      }
+    }
+  }
+]

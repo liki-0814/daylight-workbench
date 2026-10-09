@@ -27,7 +27,8 @@ async function fixture(t) {
     try {
       await client.connect(transport);
       const name = text.startsWith('read') ? 'daylight_get_extensions' : 'daylight_propose_extension_changes';
-      const result = await client.callTool({ name, arguments: name === 'daylight_get_extensions' ? {} : { summary: '新建共享 Skill', action: { type: 'skill.create', directory: 'ai-managed', content } } }, undefined, { timeout: 15000 });
+      const action = text.startsWith('client') ? { type: 'client.save', client: { id: 'client_ai', name: 'AI 登记 CLI', command: 'localcli', root: path.join(directory, '.custom'), skillsDirectory: 'skills', mcpFormat: 'none' } } : { type: 'skill.create', directory: 'ai-managed', content };
+      const result = await client.callTool({ name, arguments: name === 'daylight_get_extensions' ? {} : { summary: text.startsWith('client') ? '登记本地 CLI' : '新建共享 Skill', action } }, undefined, { timeout: 15000 });
       emit({ type: 'delta', text: result.content[0].text });
     } finally { await client.close(); }
   } };
@@ -79,6 +80,21 @@ test('approval persistence failure sends no action; unknown results cannot be ac
   const submissions = createExtensionSubmissions({ api: async () => { calls++; }, save: () => { throw new Error('disk'); } });
   return assert.rejects(submissions.apply(c, p, { approve: true }), /批准记录未保存/).then(() => { assert.equal(calls, 0); c.extensionSubmission = { status: 'unknown' }; assert.throws(() => assertExtensionDraftAllowed(c), /尚待核对/); });
 });
+test('AI CLI registration requires review, rejection leaves no files, and approval becomes available to all callers', async t => {
+  const f = await fixture(t);
+  await f.api('/api/ai/settings', { backend: 'codex', codex: { model: 'fixture', effort: '' }, qoder: { model: 'fixture', effort: '' } });
+  const c = (await f.api('/api/ai/conversations', {})).value.conversation;
+  await f.api(`/api/ai/conversations/${c.id}/message`, { text: 'client register' }); const waiting = await f.wait(c.id, value => value.pending?.type === 'extensionChanges');
+  assert.equal(waiting.pending.action.type, 'client.save'); await assert.rejects(fs.stat(f.options.agentsRoot), { code: 'ENOENT' });
+  await f.api(`/api/ai/conversations/${c.id}/answer`, { id: waiting.pending.id, approve: false }); await f.wait(c.id, value => value.status === 'idle');
+  await assert.rejects(fs.stat(f.options.agentsRoot), { code: 'ENOENT' });
+  await f.api(`/api/ai/conversations/${c.id}/message`, { text: 'client register again' }); const approved = await f.wait(c.id, value => value.pending?.type === 'extensionChanges');
+  assert.equal((await f.api(`/api/ai/conversations/${c.id}/answer`, { id: approved.pending.id, approve: true })).status, 200);
+  const final = await f.wait(c.id, value => value.status === 'idle'); assert.equal(final.extensionSubmission.status, 'applied');
+  assert.equal((await f.api('/api/extensions/state')).value.clients.find(client => client.id === 'client_ai').name, 'AI 登记 CLI');
+  assert.equal((await f.api('/api/v1/extensions/objects/client_ai', undefined, 'agent')).value.kind, 'client');
+  await assert.rejects(fs.stat(path.join(f.directory, '.custom')), { code: 'ENOENT' }); assert.equal((await f.api('/api/state')).value.version, 0);
+});
 test('the shipped Skill CLI previews, writes and reads the same extension operation through the public Agent API', async t => {
   const f = await fixture(t), executable = fileURLToPath(new URL('../skills/daylight-workbench/scripts/workbench.py', import.meta.url));
   const cli = async (...args) => JSON.parse((await promisify(execFile)('python3', [executable, '--url', f.url(), '--data-dir', f.directory, ...args])).stdout);
@@ -90,4 +106,10 @@ test('the shipped Skill CLI previews, writes and reads the same extension operat
   const skill = (await cli('extensions-state')).skills[0]; assert.equal((await cli('extension-detail', '--id', skill.id)).content, content);
   assert.equal((await cli('extension-operation', '--id', result.operationId)).status, 'applied');
   assert.ok(Array.isArray((await cli('extensions-diagnostics')).diagnostics)); assert.equal((await f.api('/api/state')).value.version, 0);
+  await fs.writeFile(actionFile, JSON.stringify({ type: 'client.save', client: { id: 'client_external', name: '外部登记 CLI', command: 'localcli', root: path.join(f.directory, '.external') } }));
+  const registration = await cli('extensions-prepare', '--file', actionFile);
+  await assert.rejects(fs.stat(path.join(f.options.agentsRoot, 'daylight/clients.json')), { code: 'ENOENT' });
+  await cli('extensions-apply', '--file', actionFile, '--expected-version', registration.expectedVersion, '--plan-id', registration.planId, '--request-id', 'external-client-registration');
+  assert.equal((await cli('extension-detail', '--id', 'client_external')).skills[0].binding.state, 'not_connected');
+  await assert.rejects(fs.stat(path.join(f.directory, '.external')), { code: 'ENOENT' });
 });

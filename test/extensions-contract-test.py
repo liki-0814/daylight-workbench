@@ -72,7 +72,21 @@ def run(command):
             assert request('/api/v1/extensions/objects/' + skill_id)[1]['content'] == content
             assert not pathlib.Path(clients['codex']).exists() and not pathlib.Path(clients['pi']).exists()
             apply({'type': 'binding.connect', 'id': skill_id, 'clientId': 'codex'})
-            assert not pathlib.Path(clients['codex']).exists()
+            assert (pathlib.Path(clients['codex']) / 'skills/contract-skill').resolve() == agents / 'skills/contract-skill'
+            apply({'type': 'binding.connect', 'id': skill_id, 'clientId': 'pi'})
+            assert (pathlib.Path(clients['pi']) / 'agent/skills/contract-skill').resolve() == agents / 'skills/contract-skill'
+            custom = {'id': 'client_contract', 'name': '本地 CLI', 'command': shutil.which('node'), 'root': str(directory / '.custom'), 'skillsDirectory': 'skills', 'mcpFormat': 'json'}
+            registered, _ = apply({'type': 'client.save', 'client': custom})
+            assert request('/api/v1/extensions/objects/' + custom['id'])[1]['installed']
+            apply({'type': 'binding.connect', 'id': skill_id, 'clientId': custom['id']})
+            assert (directory / '.custom/skills/contract-skill').resolve() == agents / 'skills/contract-skill'
+            assert request('/api/v1/extensions/prepare', {'action': {'type': 'client.remove', 'clientId': custom['id']}})[1]['conflicts']
+            assert request('/api/v1/extensions/prepare', {'action': {'type': 'operation.restore', 'operationId': registered['operationId']}})[1]['conflicts']
+            apply({'type': 'binding.disconnect', 'id': skill_id, 'clientId': custom['id']})
+            removed_client, _ = apply({'type': 'client.remove', 'clientId': custom['id']})
+            assert request('/api/v1/extensions/objects/' + custom['id'])[0] == 404
+            apply({'type': 'operation.restore', 'operationId': removed_client['operationId']})
+            assert request('/api/v1/extensions/objects/' + custom['id'])[1]['custom']
             apply({'type': 'binding.connect', 'id': skill_id, 'clientId': 'qoder'})
             link = pathlib.Path(clients['qoder']) / 'skills/contract-skill'
             assert link.is_symlink() and link.resolve() == agents / 'skills/contract-skill'

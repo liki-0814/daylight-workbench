@@ -2,7 +2,7 @@
 
 日期：2026-10-09。实施基线：`8275db8`（先提交原暂存代码）；实施分支：`codex/extensions-management`。本轮不推送远端，不替换已安装 App，不更新独立安装的 Daylight Skill。
 
-前半部分保留初次实施的 319 项回归和 13 组浏览器结果。Web 启动功能和随后界面反馈修复的最新验收见末尾：328 项回归、22 组浏览器流程。
+前半部分保留初次实施的 319 项回归和 13 组浏览器结果。Web 启动功能和随后界面反馈修复的最新验收见末尾：333 项回归、24 组浏览器流程。
 
 新增主导航「扩展管理」，管理范围为 `~/.agents/skills` 和 `~/.agents/mcp/servers.json`。Codex、当前支持共享目录的 Pi 不新增链接；Qoder 按 Skill 建立必要链接。Daylight AI 通过同一服务查询、提出草稿、审阅应用、核对原请求和返回对象详情。公共 MCP 不自动进入 AI 推理运行时。Cursor 不在首版登记范围。
 
@@ -107,3 +107,18 @@ Qoder 的列表、Skill 详情和软件详情复用同一勾选控件，操作�
 主要界面已观察：[勾选详情](extensions/review-fix/browser/skill-detail.png)、[Codex 主目录与共享来源](extensions/review-fix/browser/client-manual.png)、[窄屏详情](extensions/review-fix/browser/detail-390.png)。所有下拉框复用 `selectField` / `workbench-select`，三个分类共用布局和分类配置。项目根 `AGENTS.md` 写入通用组件优先及关联页面共同验收两条长期约定。
 
 本次构建只用于验收，没有替换运行中的安装版 App。浏览器自动化属于交互和布局验收，不宣称完成人类可用性研究；初次记录的 Qoder 实际发现、客户端 MCP 接入和 WKWebView 图形交互边界继续保留。
+
+## CLI 登记、软件目录与一级 Skill 清单修正
+
+日期：2026-10-09。本段是当前行为，前面保留的原生共享目录只读复选框、递归扫描和零链接结果属于之前的实现。
+
+- Codex 按 `~/.codex/skills`、Pi 按 `~/.pi/agent/skills` 管理单项链接，复选框可接入或移除；不显示“加载结果未核对”。
+- Skill 清单只识别 `~/.agents/skills` 的一级子目录，不独立登记 `modules/vendor` 内部模块。真实 4328 服务只读验收为 16 项，没有扫描诊断。
+- 接入软件页新增“添加 CLI”，复用编辑器、对话框、选择器、变更预览、回执和恢复；登记位于 `~/.agents/daylight/clients.json`，进入公共软件筛选及全部 Skill 接入控件。支持编辑、移除，自定义 MCP 格式明确选择已有 Codex TOML 或 Qoder JSON 适配；登记不安装或执行程序。
+- 已管理链接未解除时，移除、改接入目录或恢复会移除登记的操作会停止；已有未接管链接、主来源及程序文件保留。格式错误登记不覆盖，其他业务及主 Skill 管理仍可使用。
+
+`npm run check`、333/333 Node 回归、Node/实际打包 App 同一扩展合同、原生已有 CRUD/鉴权/原子批量/重启/回执/外部 Skill/损坏保护回归通过，包含 CLI 登记/链接/移除/恢复、MCP 和原有功能路径。AI 新增 CLI 已通过真正私有 MCP 子进程与审阅批准/拒绝测试；外部仓库 Skill Python CLI 也实际调用同一公开 API，任务与专注版本不变。
+
+[24 组浏览器结果](extensions/cli-registration/browser/report.json)覆盖预览取消与草稿保留、重载后登记持久化、软件筛选、新软件 Skill 链接、阻止未解除链接的移除、登记恢复、一级来源识别，以及先前 AI/文件编辑/MCP/键盘/共享布局/四种宽度/两倍 CSS 缩放流程，0 个页面异常。AI 使用隔离 adapter，不代表真实模型账号推理或客户端运行发现已验收。
+
+[当前 Web 只读验收](extensions/cli-registration/live.json)与[真实软件页面](extensions/cli-registration/live-clients.png)核对添加入口、16 个一级 Skill 和可操作的 Codex/Pi 勾选，没有向个人扩展目录提交测试操作。构建和合同日志见[本轮原始结果](extensions/cli-registration/runtime.json)。

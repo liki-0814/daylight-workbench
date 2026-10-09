@@ -1,5 +1,5 @@
 // Shared with JavaScriptCore. Keep this module free of filesystem and SDK imports.
-export const extensionActions = ['skill.create', 'skill.update', 'skill.archive', 'mcp.save', 'mcp.archive', 'mcp.generate', 'mcp.probe', 'binding.connect', 'binding.adopt', 'binding.disconnect', 'operation.restore'];
+export const extensionActions = ['skill.create', 'skill.update', 'skill.archive', 'mcp.save', 'mcp.archive', 'mcp.generate', 'mcp.probe', 'binding.connect', 'binding.adopt', 'binding.disconnect', 'client.save', 'client.remove', 'operation.restore'];
 // Swift JSONSerialization and JS may order keys differently. Identity is semantic.
 export function canonicalJSON(value, space) {
   const sorted = input => Array.isArray(input) ? input.map(sorted) : input && typeof input === 'object' ? Object.fromEntries(Object.keys(input).sort().map(key => [key, sorted(input[key])])) : input;
@@ -17,5 +17,5 @@ export const extensionsCapability = {
   reads: 'GET /api/v1/extensions/state', prepare: 'POST /api/v1/extensions/prepare',
   writes: 'POST /api/v1/extensions/actions {requestId, expectedVersion, planId, action}',
   recovery: 'GET /api/v1/extensions/operations/:requestId', operations: extensionActions,
-  clients: ['codex', 'qoder', 'pi'], approval: 'AI proposals require user review; queries never start MCP',
+  clients: ['codex', 'qoder', 'pi'], clientRegistration: '~/.agents/daylight/clients.json', approval: 'AI proposals require user review; queries never start MCP',
 };

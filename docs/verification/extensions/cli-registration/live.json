@@ -1,0 +1,9 @@
+{
+  "url": "http://127.0.0.1:4328/",
+  "readOnly": true,
+  "hasAddCli": true,
+  "unverifiedLabels": false,
+  "rows": 16,
+  "nestedRows": 0,
+  "disabledCodexPi": 0
+}

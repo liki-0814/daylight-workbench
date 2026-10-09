@@ -13,7 +13,7 @@ export function normalizeServer(input) {
   const fields = ['id', 'name', 'transport', 'enabled', 'command', 'args', 'cwd', 'url', 'envRefs', 'headerRefs'];
   if (!plain(input) || Object.keys(input).some(key => !fields.includes(key)) || typeof input.id !== 'string' || !idPattern.test(input.id) || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 200 || !['stdio', 'http'].includes(input.transport) || input.enabled !== undefined && typeof input.enabled !== 'boolean') throw error('MCP 服务字段无效');
   const server = { id: input.id, name: input.name.trim(), transport: input.transport, enabled: input.enabled !== false };
-  if (input.id.startsWith('skill_') || ['codex', 'qoder', 'pi'].includes(input.id)) throw error('MCP ID 与保留对象名称冲突');
+  if (input.id.startsWith('skill_') || input.id.startsWith('client_') || ['codex', 'qoder', 'pi'].includes(input.id)) throw error('MCP ID 与保留对象名称冲突');
   if (input.transport === 'stdio') {
     if (typeof input.command !== 'string' || !input.command || input.command.length > 2000 || /[\r\n\0]/.test(input.command)) throw error('stdio 需要有效的可执行命令，不接受 shell 脚本');
     const args = input.args ?? [];
@@ -36,16 +36,16 @@ export function normalizeServers(input) {
   return servers;
 }
 export function renderMcpConfig(client, servers) {
-  if (client.mcpMode === 'unsupported') throw error(client.note);
+  if (client.mcpMode === 'unsupported') throw error('该 CLI 尚未选择支持的 MCP 配置格式');
   const enabled = servers.filter(server => server.enabled);
-  if (client.id === 'codex') {
+  if (client.format === 'toml') {
     const quote = value => JSON.stringify(value);
     return enabled.map(server => {
       const lines = ['[mcp_servers.' + quote(server.id) + ']'];
       if (server.transport === 'stdio') {
         lines.push('command = ' + quote(server.command), 'args = ' + JSON.stringify(server.args));
         if (server.cwd) lines.push('cwd = ' + quote(server.cwd));
-        if (Object.entries(server.envRefs).some(([key, ref]) => key !== ref)) throw error('Codex stdio 生成配置要求环境变量名称与引用名称一致');
+        if (Object.entries(server.envRefs).some(([key, ref]) => key !== ref)) throw error('TOML stdio 生成配置要求环境变量名称与引用名称一致');
         if (Object.keys(server.envRefs).length) lines.push('env_vars = ' + JSON.stringify(Object.keys(server.envRefs)));
       } else {
         lines.push('url = ' + quote(server.url));
@@ -55,6 +55,6 @@ export function renderMcpConfig(client, servers) {
     }).join('\n\n') + '\n';
   }
   // Do not emit literal ${VAR} placeholders without verified client interpolation.
-  if (enabled.some(server => Object.keys(server.envRefs || server.headerRefs || {}).length)) throw error('Qoder 的凭据引用形式未验证；请在客户端配置环境变量，不生成明文凭据');
+  if (enabled.some(server => Object.keys(server.envRefs || server.headerRefs || {}).length)) throw error('JSON 适配的凭据引用形式未验证；请在客户端配置环境变量，不生成明文凭据');
   return JSON.stringify({ mcpServers: Object.fromEntries(enabled.map(server => [server.id, server.transport === 'stdio' ? { command: server.command, args: server.args, ...(server.cwd ? { cwd: server.cwd } : {}) } : { type: 'http', url: server.url }])) }, null, 2) + '\n';
 }

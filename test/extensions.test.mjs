@@ -35,11 +35,20 @@ test('listing missing canonical root and prepare are read only; standard YAML an
   assert.throws(() => metadata('---\nname: broken\nname: duplicate\ndescription: test\n---\n'), /格式/);
 });
 
-test('Qoder connects only individual links; native clients zero writes; unowned matching links require explicit adoption', async t => {
+test('all built-in clients manage individual links in their own directories; unowned links require explicit adoption', async t => {
   const f = await fixture(t); await f.apply({ type: 'skill.create', directory: 'example', content: content() });
   const skill = (await f.service.state(true)).skills[0];
-  const native = await f.service.prepare({ type: 'binding.connect', id: skill.id, clientId: 'codex' }); assert.equal(native.files.length, 0);
-  await f.apply(native.normalizedAction); await assert.rejects(fs.stat(f.clientRoots.codex), { code: 'ENOENT' });
+  for (const [clientId, directory] of [['codex', 'skills'], ['pi', 'agent/skills']]) {
+    const target = path.join(f.clientRoots[clientId], directory, 'example');
+    const plan = await f.service.prepare({ type: 'binding.connect', id: skill.id, clientId });
+    assert.equal(plan.files.find(file => file.path === target).linkTarget, path.join(f.agentsRoot, 'skills/example'));
+    await assert.rejects(fs.stat(f.clientRoots[clientId]), { code: 'ENOENT' });
+    await f.apply(plan.normalizedAction); assert.equal(await fs.realpath(target), path.join(f.agentsRoot, 'skills/example'));
+    assert.equal((await f.service.state(true)).skills[0].bindings.find(binding => binding.clientId === clientId).state, 'managed');
+    const disconnected = await f.apply({ type: 'binding.disconnect', id: skill.id, clientId });
+    await assert.rejects(fs.lstat(target), { code: 'ENOENT' });
+    await f.apply({ type: 'operation.restore', operationId: disconnected.operationId }); assert.ok((await fs.lstat(target)).isSymbolicLink());
+  }
   await fs.mkdir(path.join(f.clientRoots.qoder, 'skills'), { recursive: true });
   await fs.writeFile(path.join(f.clientRoots.qoder, 'skills', 'mine.txt'), 'preserve');
   const target = path.join(f.clientRoots.qoder, 'skills', 'example');
@@ -152,12 +161,80 @@ test('Codex reports its primary directory separately from shared Skills and resp
   const standard = registry({}); assert.equal(standard.root, path.join(f.temp, '.codex')); assert.match(standard.note, /主目录 ~\/.codex/);
   const custom = registry({ environment: { CODEX_HOME: path.join(f.temp, 'custom-codex') } });
   assert.equal(custom.root, path.join(f.temp, 'custom-codex')); assert.equal(custom.skillsRoot, path.join(custom.root, 'skills'));
-  assert.match(custom.note, /custom-codex/); assert.equal(custom.skillMode, 'nativeRoot');
+  assert.match(custom.note, /custom-codex/); assert.equal(custom.skillMode, 'symlink');
   assert.equal(registry({ environment: { CODEX_HOME: custom.root }, clientRoots: f.clientRoots }).root, f.clientRoots.codex);
   const state = await f.service.state(true), detail = await f.service.detail('codex');
   assert.equal(state.clients.find(client => client.id === 'codex').root, f.clientRoots.codex);
   assert.equal(detail.root, f.clientRoots.codex); assert.equal(state.root, f.agentsRoot);
   await assert.rejects(fs.stat(f.clientRoots.codex), { code: 'ENOENT' });
+  const pi = options => clientRegistry({ home: f.temp, environment: { PATH: '', ...options?.environment }, ...options }).find(client => client.id === 'pi');
+  assert.equal(pi().root, path.join(f.temp, '.pi')); assert.equal(pi().skillsRoot, path.join(f.temp, '.pi/agent/skills'));
+  const override = path.join(f.temp, 'custom-pi-agent');
+  assert.equal(pi({ environment: { PI_CODING_AGENT_DIR: override } }).skillsRoot, path.join(override, 'skills'));
+});
+
+test('CLI registration is read-only until applied, persists on restart and joins Skill bindings and MCP generation', async t => {
+  const f = await fixture(t), binary = path.join(f.temp, 'custom-command'), marker = path.join(f.temp, 'must-not-execute');
+  await fs.writeFile(binary, '#!/bin/sh\ntouch "' + marker + '"\n', { mode: 0o700 });
+  const client = { id: 'client_local', name: '本地 CLI', command: binary, root: path.join(f.temp, '.custom'), skillsDirectory: 'agent/skills', mcpFormat: 'toml' }, action = { type: 'client.save', client };
+  const plan = await f.service.prepare(action); assert.equal(plan.conflicts.length, 0);
+  await assert.rejects(fs.stat(f.agentsRoot), { code: 'ENOENT' }); await assert.rejects(fs.stat(client.root), { code: 'ENOENT' });
+  const registered = await f.apply(action); assert.deepEqual(registered.changedIds, [client.id]);
+  assert.equal((await fs.stat(path.join(f.agentsRoot, 'daylight/clients.json'))).mode & 0o777, 0o600);
+  const second = await createExtensionsService({ agentsRoot: f.agentsRoot, clientRoots: f.clientRoots, environment: { PATH: '' } }); t.after(() => second.close());
+  const installed = (await second.state(true)).clients.find(item => item.id === client.id); assert.equal(installed.custom, true); assert.equal(installed.installed, true); assert.equal(installed.skillsRoot, path.join(client.root, client.skillsDirectory));
+  assert.equal((await second.detail(client.id)).kind, 'client');
+  await f.apply({ type: 'skill.create', directory: 'example', content: content() }); const skill = (await second.state(true)).skills[0];
+  assert.equal(skill.bindings.find(binding => binding.clientId === client.id).state, 'not_connected');
+  await f.apply({ type: 'binding.connect', id: skill.id, clientId: client.id }); const link = path.join(client.root, client.skillsDirectory, 'example');
+  assert.equal(await fs.realpath(link), path.join(f.agentsRoot, 'skills/example'));
+  await f.apply({ type: 'mcp.save', server: { id: 'local', name: 'local', transport: 'stdio', command: 'node', args: ['server.mjs'] } });
+  await f.apply({ type: 'mcp.generate', clientId: client.id }); assert.match((await f.service.detail(client.id)).generated.content, /\[mcp_servers\."local"\]/);
+  await assert.rejects(fs.stat(path.join(client.root, 'config.toml')), { code: 'ENOENT' }); await assert.rejects(fs.stat(marker), { code: 'ENOENT' });
+  await f.apply({ type: 'client.save', client: { ...client, name: '已改名' } }); assert.equal((await f.service.detail(client.id)).name, '已改名');
+  assert.ok((await f.service.prepare({ type: 'client.save', client: { ...client, root: path.join(f.temp, '.other') } })).conflicts.length);
+  assert.ok((await f.service.prepare({ type: 'client.remove', clientId: client.id })).conflicts.length);
+  assert.ok((await f.service.prepare({ type: 'operation.restore', operationId: registered.operationId })).conflicts.length, 'restoring registration cannot orphan a later managed link');
+  await f.apply({ type: 'binding.disconnect', id: skill.id, clientId: client.id });
+  const removed = await f.apply({ type: 'client.remove', clientId: client.id }); assert.ok(!(await second.state(true)).clients.some(item => item.id === client.id));
+  assert.equal(await fs.readFile(path.join(f.agentsRoot, 'skills/example/SKILL.md'), 'utf8'), content()); assert.ok((await fs.stat(binary)).isFile());
+  await f.apply({ type: 'operation.restore', operationId: removed.operationId }); assert.equal((await f.service.detail(client.id)).name, '已改名');
+});
+
+test('CLI registration refuses duplicate destinations, master aliases, traversal and shell arguments without writes', async t => {
+  const f = await fixture(t), client = { id: 'client_local', name: '本地 CLI', command: 'localcli', root: path.join(f.temp, '.custom'), skillsDirectory: 'skills', mcpFormat: 'none' };
+  for (const [changed, message] of [
+    [{ name: 'codex' }, /重复/], [{ root: f.clientRoots.codex }, /重复/], [{ root: f.agentsRoot }, /主来源/],
+    [{ skillsDirectory: '../skills' }, /相对目录/], [{ root: '/' }, /根目录/], [{ command: 'localcli --flag' }, /命令/], [{ id: 'codex' }, /ID/], [{ arbitrary: true }, /登记/], [{ mcpFormat: 'yaml' }, /格式/],
+  ]) await assert.rejects(f.service.prepare({ type: 'client.save', client: { ...client, ...changed } }), message);
+  await fs.mkdir(f.agentsRoot); const alias = path.join(f.temp, 'source-alias'); await fs.symlink(f.agentsRoot, alias);
+  await assert.rejects(f.service.prepare({ type: 'client.save', client: { ...client, root: alias } }), /主来源/);
+  await fs.mkdir(f.clientRoots.codex); const duplicate = path.join(f.temp, 'codex-alias'); await fs.symlink(f.clientRoots.codex, duplicate);
+  await assert.rejects(f.service.prepare({ type: 'client.save', client: { ...client, root: duplicate } }), /重复/);
+  await assert.rejects(f.service.prepare({ type: 'client.remove', clientId: 'codex' }), /内置/);
+  await assert.rejects(fs.stat(path.join(f.agentsRoot, 'daylight')), { code: 'ENOENT' });
+});
+
+test('invalid CLI files are preserved and block registration/link writes while other sources remain manageable', async t => {
+  const f = await fixture(t), file = path.join(f.agentsRoot, 'daylight/clients.json'); await fs.mkdir(path.dirname(file), { recursive: true }); await fs.writeFile(file, 'invalid-preserved');
+  const state = await f.service.state(true); assert.equal(state.clientsValid, false); assert.ok(state.diagnostics.some(issue => issue.code === 'CLIENTS_FORMAT')); assert.equal(state.clients.length, 3);
+  await f.apply({ type: 'skill.create', directory: 'example', content: content() }); const skill = (await f.service.state(true)).skills[0];
+  await assert.rejects(f.service.prepare({ type: 'binding.connect', id: skill.id, clientId: 'codex' }), /登记配置/);
+  await assert.rejects(f.service.prepare({ type: 'client.save', client: {} }), /修复 CLI/); assert.equal(await fs.readFile(file, 'utf8'), 'invalid-preserved');
+  await assert.rejects(fs.stat(f.clientRoots.codex), { code: 'ENOENT' }); assert.equal((await f.service.detail(skill.id)).content, content());
+});
+
+test('CLI unregister preserves existing unowned links and safely removes missing owned records', async t => {
+  const f = await fixture(t), client = { id: 'client_local', name: '本地 CLI', command: 'localcli', root: path.join(f.temp, '.custom') };
+  const registered = await f.apply({ type: 'client.save', client });
+  await f.apply({ type: 'skill.create', directory: 'example', content: content() }); const skill = (await f.service.state(true)).skills[0], link = path.join(client.root, 'skills/example');
+  await f.apply({ type: 'binding.connect', id: skill.id, clientId: client.id }); await fs.unlink(link);
+  const removed = await f.apply({ type: 'client.remove', clientId: client.id }); assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.agentsRoot, 'daylight/bindings.json'), 'utf8')).bindings, []);
+  await f.apply({ type: 'operation.restore', operationId: removed.operationId });
+  await f.apply({ type: 'client.remove', clientId: client.id }); await f.apply({ type: 'client.save', client });
+  await fs.symlink(path.join(f.agentsRoot, 'skills/example'), link);
+  await f.apply({ type: 'client.remove', clientId: client.id }); assert.ok((await fs.lstat(link)).isSymbolicLink());
+  assert.equal((await f.service.operation(registered.operationId)).status, 'applied');
 });
 
 test('reviewed removal of an existing correct link preserves the source and can restore the exact link', async t => {
@@ -192,20 +269,25 @@ test('explicit existing-link removal still blocks other targets, entities and ex
   await f.apply({ type: 'binding.adopt', id: skill.id, clientId: 'qoder' }); await f.apply(action); await assert.rejects(fs.lstat(link), { code: 'ENOENT' });
 });
 
-test('nested bundled Skill sources beyond seven levels scan without false limits', async t => {
-  const f = await fixture(t), directory = path.join(f.agentsRoot, 'skills/development/modules/vendor/data/project/one/two/three/four');
-  await fs.mkdir(directory, { recursive: true }); await fs.writeFile(path.join(directory, 'SKILL.md'), content('nested'));
-  const state = await f.service.state(true); assert.equal(state.skills.length, 1); assert.equal(state.skills[0].name, 'nested');
+test('only first-level Skills are discovered; internal modules and vendor Skills stay inside their parent', async t => {
+  const f = await fixture(t), directory = path.join(f.agentsRoot, 'skills/development/modules/huichuan-code/vendor/ad-online-dev');
+  await fs.mkdir(directory, { recursive: true }); await fs.writeFile(path.join(directory, 'SKILL.md'), content('ad-online-dev'));
+  await fs.writeFile(path.join(f.agentsRoot, 'skills/development/SKILL.md'), content('development'));
+  await fs.writeFile(path.join(f.agentsRoot, 'skills/SKILL.md'), content('not-a-child'));
+  const state = await f.service.state(true); assert.equal(state.skills.length, 1); assert.equal(state.skills[0].name, 'development'); assert.equal(state.skills[0].relativePath, 'development');
   assert.equal(state.diagnostics.filter(issue => issue.code === 'SCAN_LIMIT').length, 0);
+  await f.apply({ type: 'binding.connect', id: state.skills[0].id, clientId: 'codex' });
+  assert.equal(await fs.realpath(path.join(f.clientRoots.codex, 'skills/development')), path.join(f.agentsRoot, 'skills/development'));
+  await assert.rejects(fs.stat(path.join(f.clientRoots.codex, 'skills/ad-online-dev')), { code: 'ENOENT' });
 });
 
-test('depth limits retain one actionable diagnostic and continue scanning other branches', async t => {
+test('deep internal directories and invalid nested metadata do not create independent Skills or scan warnings', async t => {
   const f = await fixture(t);
   for (const branch of ['a', 'b']) await fs.mkdir(path.join(f.agentsRoot, 'skills', branch, ...Array.from({ length: 33 }, (_, i) => 'd' + i)), { recursive: true });
+  await fs.writeFile(path.join(f.agentsRoot, 'skills/a/d0/SKILL.md'), 'invalid nested metadata');
   const directory = path.join(f.agentsRoot, 'skills/z-valid'); await fs.mkdir(directory); await fs.writeFile(path.join(directory, 'SKILL.md'), content());
   const state = await f.service.state(true), issues = state.diagnostics.filter(issue => issue.code === 'SCAN_LIMIT');
-  assert.equal(state.skills.length, 1); assert.equal(issues.length, 1); assert.equal(issues[0].reason, 'depth');
-  assert.equal(issues[0].limit, 32); assert.equal(issues[0].skippedBranches, 2); assert.match(issues[0].path, /^skills\/a\//); assert.match(issues[0].message, /其他来源继续扫描/);
+  assert.equal(state.skills.length, 1); assert.equal(issues.length, 0); assert.equal(state.diagnostics.length, 0);
 });
 
 test('directory count remains bounded with one diagnostic for unscanned sources', async t => {
