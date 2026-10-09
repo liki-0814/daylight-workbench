@@ -1,0 +1,36 @@
+{
+  "checks": [
+    "three categories share a consistent loading state",
+    "three categories share a recoverable read failure without a false loading message",
+    "source listing",
+    "three categories share identical layout anchors at four widths",
+    "native shared-source checkboxes are truthful read-only controls",
+    "search and keyboard tabs",
+    "empty search has one recoverable empty state",
+    "Qoder preview/cancel/apply and native zero links",
+    "checkbox removal cancels safely, preserves source and restores an existing relative link",
+    "legacy Codex link removal still explains shared-source availability",
+    "shared file picker loads the selected source and restores keyboard focus",
+    "shared software and problem filters persist without opening an unrelated detail",
+    "dirty edit survives navigation and Escape restores focus",
+    "AI reference review/reject/apply and real source readback",
+    "AI unknown response recovers original ID once",
+    "shared transport selector supports keyboard and retained editor drafts",
+    "explicit MCP handshake and tools/list only",
+    "AI-confirmed MCP detection updates its source detail until completion",
+    "Codex primary directory and shared Skills source are shown separately",
+    "generated MCP with truthful manual integration",
+    "source archive and reviewed operation restore",
+    "responsive widths and 200 percent CSS zoom"
+  ],
+  "errors": [],
+  "testedAt": "2026-10-09T07:35:21.181Z",
+  "fixture": true,
+  "viewportWidths": [
+    1360,
+    1024,
+    800,
+    390
+  ],
+  "zoom": "CSS zoom=2; not a human usability study"
+}

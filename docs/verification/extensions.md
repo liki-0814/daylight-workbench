@@ -2,6 +2,8 @@
 
 日期：2026-10-09。实施基线：`8275db8`（先提交原暂存代码）；实施分支：`codex/extensions-management`。本轮不推送远端，不替换已安装 App，不更新独立安装的 Daylight Skill。
 
+前半部分保留初次实施的 319 项回归和 13 组浏览器结果。Web 启动功能和随后界面反馈修复的最新验收见末尾：328 项回归、22 组浏览器流程。
+
 新增主导航「扩展管理」，管理范围为 `~/.agents/skills` 和 `~/.agents/mcp/servers.json`。Codex、当前支持共享目录的 Pi 不新增链接；Qoder 按 Skill 建立必要链接。Daylight AI 通过同一服务查询、提出草稿、审阅应用、核对原请求和返回对象详情。公共 MCP 不自动进入 AI 推理运行时。Cursor 不在首版登记范围。
 
 [构建和回归原始摘要](extensions/runtime.json)记录最终包摘要、依赖版本、319 项测试结果及 Node/App 合同和原生旧功能的实际输出。浏览器、性能和软件发现分别保留独立证据，避免将部分通过表述为完整端到端通过。
@@ -82,3 +84,26 @@ node scripts/verify-extension-clients.mjs
 ```
 
 浏览器先启动 `fixtures/extensions/browser-server.mjs` 并传入 `daylight-extensions-browser-` 前缀的临时目录，再运行 `scripts/verify-extensions-browser.mjs`。Playwright/Chrome 由验收环境提供，可用 DAYLIGHT_PLAYWRIGHT_MODULE 和 DAYLIGHT_CHROME_EXECUTABLE 指定，不加入产品运行依赖。软件发现脚本任一项未验证即退出 1，不能把已知 Qoder 限制当作通过。
+
+## 界面反馈修复验收
+
+日期：2026-10-09。改动基于 `74948f1`；[本次运行摘要](extensions/review-fix/runtime.json)与[浏览器报告](extensions/review-fix/browser/report.json)独立保存，不覆盖初次实施证据。
+
+软件主目录、软件自身 Skills 目录与 Daylight 管理的共享来源分别呈现。Codex 主目录默认 `~/.codex`，遵循 `CODEX_HOME`；这与原生支持 `~/.agents/skills` 是两个概念。[官方配置目录说明](https://developers.openai.com/codex/config-advanced/)、[官方 Skills 来源说明](https://developers.openai.com/codex/skills/)。
+
+Qoder 的列表、Skill 详情和软件详情复用同一勾选控件，操作先展示真实链接差异。取消不写入并返回焦点，应用后更新清单与详情。明确审阅移除已有正确链接无需先改接入归属，仍拒绝同名实体、不同目标及管理链接漂移；真实相对链接按原文本恢复。原生共享读取显示为只读勾选，旧链接可单独移除，界面及预览说明共享来源仍可读取。
+
+原来的 7 层限制误报正常 bundled Skill 嵌套，现为 32 层；5000 个目录边界继续生效。测试覆盖正常深层来源、真正深度超限的多分支去重、总目录上限和其他分支继续扫描。当前用户 4328 服务只读核对为 17 个 Skill、0 条静态诊断、0 个原生 select；业务数据版本仍为 0，继续使用独立 Web 调试数据。
+
+| 验证层 | 本次结果 |
+| --- | --- |
+| 源代码与完整 Node 回归 | `npm run check`；328/328，无失败、跳过 |
+| Node / 打包 App 同一合同 | 主目录字段、原生零新链接、已有正确链接明确移除与精确恢复、归档恢复、MCP 生成与真实协议检测通过 |
+| 原生旧功能 | `test/native-test.py`：CRUD、批量原子性、鉴权、网页写入、重启、跨运行时回执、外部 Skill、损坏保护通过 |
+| 浏览器真实页面 | 22 组流程、0 个页面异常；AI 使用隔离 adapter，MCP 使用本地 fixture，不代表真实账号推理或业务权限通过 |
+| 三分类布局 | [公共位置数据](extensions/review-fix/browser/layout.json)：1360、1024、800、390 四种宽度下，分类栏、搜索、软件筛选、问题筛选、操作按钮和清单标题的公共位置一致 |
+| 键盘和草稿 | Space 勾选、Escape 取消与焦点恢复、文件选择、连接方式切换、保留编辑草稿、跨分类保留筛选通过；三个分类的加载、空清单、读取失败及刷新恢复通过 |
+
+主要界面已观察：[勾选详情](extensions/review-fix/browser/skill-detail.png)、[Codex 主目录与共享来源](extensions/review-fix/browser/client-manual.png)、[窄屏详情](extensions/review-fix/browser/detail-390.png)。所有下拉框复用 `selectField` / `workbench-select`，三个分类共用布局和分类配置。项目根 `AGENTS.md` 写入通用组件优先及关联页面共同验收两条长期约定。
+
+本次构建只用于验收，没有替换运行中的安装版 App。浏览器自动化属于交互和布局验收，不宣称完成人类可用性研究；初次记录的 Qoder 实际发现、客户端 MCP 接入和 WKWebView 图形交互边界继续保留。

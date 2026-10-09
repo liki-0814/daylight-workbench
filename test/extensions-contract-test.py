@@ -61,6 +61,7 @@ def run(command):
             assert request('/api/extensions/state', {}, auth='web')[0] == 404
             code, state = request('/api/v1/extensions/state'); assert code == 200, state
             assert state['skills'] == [] and not agents.exists() and not (data / 'ai').exists()
+            assert next(client for client in state['clients'] if client['id'] == 'codex')['root'] == clients['codex']
             assert request('/api/v1/capabilities')[1]['extensions']['clients'] == ['codex', 'qoder', 'pi']
             for asset in ['page.js', 'client.js', 'controller.js', 'review.js', 'extensions.css']:
                 assert request('/extensions/' + asset, auth='none')[0] == 200
@@ -75,6 +76,15 @@ def run(command):
             apply({'type': 'binding.connect', 'id': skill_id, 'clientId': 'qoder'})
             link = pathlib.Path(clients['qoder']) / 'skills/contract-skill'
             assert link.is_symlink() and link.resolve() == agents / 'skills/contract-skill'
+            apply({'type': 'binding.disconnect', 'id': skill_id, 'clientId': 'qoder'})
+            relative = os.path.relpath(agents / 'skills/contract-skill', link.parent)
+            link.symlink_to(relative)
+            assert request('/api/v1/extensions/prepare', {'action': {'type': 'binding.disconnect', 'id': skill_id, 'clientId': 'qoder'}})[1]['conflicts']
+            removed, _ = apply({'type': 'binding.disconnect', 'id': skill_id, 'clientId': 'qoder', 'includeExisting': True})
+            assert not link.is_symlink() and (agents / 'skills/contract-skill/SKILL.md').read_text() == content
+            apply({'type': 'operation.restore', 'operationId': removed['operationId']})
+            assert os.readlink(link) == relative
+            apply({'type': 'binding.adopt', 'id': skill_id, 'clientId': 'qoder'})
             archived, _ = apply({'type': 'skill.archive', 'id': skill_id})
             assert not link.is_symlink() and request('/api/v1/extensions/state')[1]['skills'] == []
             apply({'type': 'operation.restore', 'operationId': archived['operationId']})
@@ -95,7 +105,7 @@ def run(command):
             assert request('/api/state', auth='none')[1]['version'] == 0
             assert request('/api/v1/focus/state')[1]['version'] == 0
             assert not (data / 'ai').exists(), 'extension browse/probe initialized AIStore'
-            print('PASS: extension auth, lazy helper, packaged assets, Skill links/archive/restore, MCP generation and real probe', command[0])
+            print('PASS: extension auth, lazy helper, packaged assets, primary directories, Skill links/existing-link removal/restore, MCP generation and real probe', command[0])
             return {'clients': [client['id'] for client in state['clients']], 'skillId': skill_id, 'probeTools': probe['toolCount']}
         finally:
             process.terminate(); process.wait(timeout=10); process.stderr.close()

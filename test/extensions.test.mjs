@@ -145,3 +145,72 @@ test('minimal desktop PATH still discovers an installed CLI without executing it
   const detected = await qoder.detect(); assert.equal(detected.installed, true); assert.equal(detected.executable, binary); assert.equal(detected.runtimeVerified, false);
   await assert.rejects(fs.stat(marker), { code: 'ENOENT' });
 });
+
+test('Codex reports its primary directory separately from shared Skills and respects CODEX_HOME', async t => {
+  const f = await fixture(t);
+  const registry = options => clientRegistry({ home: f.temp, environment: { PATH: '', ...options.environment }, ...options }).find(client => client.id === 'codex');
+  const standard = registry({}); assert.equal(standard.root, path.join(f.temp, '.codex')); assert.match(standard.note, /主目录 ~\/.codex/);
+  const custom = registry({ environment: { CODEX_HOME: path.join(f.temp, 'custom-codex') } });
+  assert.equal(custom.root, path.join(f.temp, 'custom-codex')); assert.equal(custom.skillsRoot, path.join(custom.root, 'skills'));
+  assert.match(custom.note, /custom-codex/); assert.equal(custom.skillMode, 'nativeRoot');
+  assert.equal(registry({ environment: { CODEX_HOME: custom.root }, clientRoots: f.clientRoots }).root, f.clientRoots.codex);
+  const state = await f.service.state(true), detail = await f.service.detail('codex');
+  assert.equal(state.clients.find(client => client.id === 'codex').root, f.clientRoots.codex);
+  assert.equal(detail.root, f.clientRoots.codex); assert.equal(state.root, f.agentsRoot);
+  await assert.rejects(fs.stat(f.clientRoots.codex), { code: 'ENOENT' });
+});
+
+test('reviewed removal of an existing correct link preserves the source and can restore the exact link', async t => {
+  const f = await fixture(t); await f.apply({ type: 'skill.create', directory: 'example', content: content() });
+  const skill = (await f.service.state(true)).skills[0], source = path.join(f.agentsRoot, 'skills/example'), link = path.join(f.clientRoots.qoder, 'skills/example');
+  await fs.mkdir(path.dirname(link), { recursive: true });
+  for (const target of [source, path.relative(path.dirname(link), source)]) {
+    await fs.symlink(target, link);
+    assert.ok((await f.service.prepare({ type: 'binding.disconnect', id: skill.id, clientId: 'qoder' })).conflicts.length);
+    const action = { type: 'binding.disconnect', id: skill.id, clientId: 'qoder', includeExisting: true }, plan = await f.service.prepare(action);
+    assert.equal(plan.conflicts.length, 0); assert.equal(await fs.readlink(link), target, 'preview does not remove the link');
+    assert.match(plan.impact.join('\n'), /主 Skill 和其他软件保持原样/);
+    const receipt = await f.apply(action); await assert.rejects(fs.lstat(link), { code: 'ENOENT' });
+    assert.equal(await fs.readFile(path.join(source, 'SKILL.md'), 'utf8'), content());
+    await f.apply({ type: 'operation.restore', operationId: receipt.operationId }); assert.equal(await fs.readlink(link), target);
+    await fs.unlink(link);
+  }
+  await assert.rejects(f.service.prepare({ type: 'binding.disconnect', id: skill.id, clientId: 'qoder', includeExisting: 'true' }), /布尔值/);
+});
+
+test('explicit existing-link removal still blocks other targets, entities and externally changed owned links', async t => {
+  const f = await fixture(t); await f.apply({ type: 'skill.create', directory: 'example', content: content() });
+  const skill = (await f.service.state(true)).skills[0], source = path.join(f.agentsRoot, 'skills/example'), link = path.join(f.clientRoots.qoder, 'skills/example');
+  const action = { type: 'binding.disconnect', id: skill.id, clientId: 'qoder', includeExisting: true };
+  await fs.mkdir(path.dirname(link), { recursive: true });
+  await fs.symlink(f.temp, link); assert.ok((await f.service.prepare(action)).conflicts.length); assert.equal(await fs.readlink(link), f.temp); await fs.unlink(link);
+  await fs.mkdir(link); assert.ok((await f.service.prepare(action)).conflicts.length); assert.ok((await fs.stat(link)).isDirectory()); await fs.rmdir(link);
+  await f.apply({ type: 'binding.connect', id: skill.id, clientId: 'qoder' });
+  await fs.unlink(link); const relative = path.relative(path.dirname(link), source); await fs.symlink(relative, link);
+  assert.ok((await f.service.prepare(action)).conflicts.length, 'includeExisting cannot bypass a changed owned link');
+  assert.equal(await fs.readlink(link), relative);
+  await f.apply({ type: 'binding.adopt', id: skill.id, clientId: 'qoder' }); await f.apply(action); await assert.rejects(fs.lstat(link), { code: 'ENOENT' });
+});
+
+test('nested bundled Skill sources beyond seven levels scan without false limits', async t => {
+  const f = await fixture(t), directory = path.join(f.agentsRoot, 'skills/development/modules/vendor/data/project/one/two/three/four');
+  await fs.mkdir(directory, { recursive: true }); await fs.writeFile(path.join(directory, 'SKILL.md'), content('nested'));
+  const state = await f.service.state(true); assert.equal(state.skills.length, 1); assert.equal(state.skills[0].name, 'nested');
+  assert.equal(state.diagnostics.filter(issue => issue.code === 'SCAN_LIMIT').length, 0);
+});
+
+test('depth limits retain one actionable diagnostic and continue scanning other branches', async t => {
+  const f = await fixture(t);
+  for (const branch of ['a', 'b']) await fs.mkdir(path.join(f.agentsRoot, 'skills', branch, ...Array.from({ length: 33 }, (_, i) => 'd' + i)), { recursive: true });
+  const directory = path.join(f.agentsRoot, 'skills/z-valid'); await fs.mkdir(directory); await fs.writeFile(path.join(directory, 'SKILL.md'), content());
+  const state = await f.service.state(true), issues = state.diagnostics.filter(issue => issue.code === 'SCAN_LIMIT');
+  assert.equal(state.skills.length, 1); assert.equal(issues.length, 1); assert.equal(issues[0].reason, 'depth');
+  assert.equal(issues[0].limit, 32); assert.equal(issues[0].skippedBranches, 2); assert.match(issues[0].path, /^skills\/a\//); assert.match(issues[0].message, /其他来源继续扫描/);
+});
+
+test('directory count remains bounded with one diagnostic for unscanned sources', async t => {
+  const f = await fixture(t), base = path.join(f.agentsRoot, 'skills'); await fs.mkdir(base, { recursive: true });
+  for (let i = 0; i < 5001; i++) await fs.mkdir(path.join(base, 'd' + String(i).padStart(4, '0')));
+  const issues = (await f.service.state(true)).diagnostics.filter(issue => issue.code === 'SCAN_LIMIT');
+  assert.equal(issues.length, 1); assert.equal(issues[0].reason, 'directories'); assert.equal(issues[0].limit, 5000); assert.ok(issues[0].path.startsWith('skills/'));
+});

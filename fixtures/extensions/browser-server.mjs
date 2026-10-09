@@ -12,6 +12,7 @@ const agentsRoot = path.join(directory, 'agents'), clientRoots = Object.fromEntr
 for (const [name, description] of [['review-code', '审查代码改动，检查架构边界、真实测试和回归影响。'], ['long-path-example', '用于验证较长的中文用途说明、软件接入状态与窄窗口显示。']]) {
   const skill = path.join(agentsRoot, 'skills', name); await fs.mkdir(skill, { recursive: true });
   await fs.writeFile(path.join(skill, 'SKILL.md'), '---\nname: ' + name + '\ndescription: ' + description + '\n---\n\n检查来源，理解用途，再预览变更。\n');
+  if (name === 'review-code') await fs.writeFile(path.join(skill, 'README.md'), '浏览器验收用说明文件。');
 }
 await fs.mkdir(path.join(agentsRoot, 'mcp'), { recursive: true });
 await fs.writeFile(path.join(agentsRoot, 'mcp', 'servers.json'), JSON.stringify({ schemaVersion: 1, servers: [{ id: 'fixture-mcp', name: '本地 MCP 测试服务', transport: 'stdio', command: process.execPath, args: [path.resolve('fixtures/extensions/mcp-server.mjs'), path.join(directory, 'mcp-requests'), 'delayed'], envRefs: {} }] }));

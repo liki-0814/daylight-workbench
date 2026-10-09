@@ -14,27 +14,85 @@ page.on('pageerror', error => errors.push(error.message));
 const ready = async () => page.locator('.extension-row').first().waitFor();
 const dialog = () => page.locator('dialog[open]');
 const source = path.join(fixture, 'agents/skills/review-code/SKILL.md');
-const assertText = async (locator, text) => { await locator.waitFor(); assert.ok((await locator.textContent()).includes(text)); };
+const assertText = async (locator, text) => { await locator.filter({ hasText: text }).waitFor(); assert.ok((await locator.textContent()).includes(text)); };
+const choose = async (name, label) => { await page.getByRole('combobox', { name, exact: true }).click(); await page.getByRole('option', { name: label, exact: true }).click(); };
+const binding = (name, software, area = '.extension-detail') => page.locator(area).getByRole('checkbox', { name: name + ' · ' + software, exact: true });
+const waitBinding = (name, software, checked, area = '.extension-detail') => page.waitForFunction(({ label, checked, area }) => [...document.querySelectorAll(area + ' [data-binding-toggle]')].some(input => input.getAttribute('aria-label') === label && input.checked === checked && !input.disabled), { label: name + ' · ' + software, checked, area });
+const closed = async () => page.waitForFunction(() => !document.querySelector('dialog[open]'));
 try {
+  let release, started;
+  const gate = new Promise(resolve => release = resolve), requested = new Promise(resolve => started = resolve);
+  const unavailable = async route => { started(); await gate; await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: '验收来源读取失败' }) }); };
+  await page.route('**/api/extensions/state', unavailable); await page.goto(url + '/#extensions'); await requested;
+  for (const tab of ['Skills', 'MCP 服务', '接入软件']) { await page.getByRole('radio', { name: tab, exact: true }).click(); await assertText(page.locator('.extension-empty'), '正在读取扩展来源'); }
+  checks.push('three categories share a consistent loading state');
+  release(); await assertText(page.locator('[data-error]'), '验收来源读取失败');
+  for (const tab of ['Skills', 'MCP 服务', '接入软件']) { await page.getByRole('radio', { name: tab, exact: true }).click(); await assertText(page.locator('.extension-empty'), '扩展来源读取失败'); }
+  await screenshot('read-failure'); await page.unroute('**/api/extensions/state', unavailable); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await ready();
+  assert.equal(await page.locator('[data-error]').textContent(), ''); checks.push('three categories share a recoverable read failure without a false loading message');
   await page.goto(url + '/#extensions'); await ready(); await screenshot('skills-1360');
   assert.equal(await page.locator('.extension-row').count(), 2); checks.push('source listing');
+  const layouts = [];
+  for (const [width, height] of [[1360, 900], [1024, 768], [800, 600], [390, 844]]) {
+    await page.setViewportSize({ width, height }); let reference;
+    for (const [tab, title] of [['Skills', '主目录 Skills'], ['MCP 服务', 'MCP 主配置'], ['接入软件', '软件接入方式']]) {
+      await page.getByRole('radio', { name: tab, exact: true }).click(); await page.getByRole('heading', { name: title, exact: true }).waitFor();
+      const anchors = await page.evaluate(() => Object.fromEntries(['.extension-tabs', '.extension-search', '.extension-software-filter', '.extension-problem-filter', '.extension-category-action', '.extension-list-heading'].map(selector => {
+        const { x, y, width, height } = document.querySelector(selector).getBoundingClientRect(); return [selector, { x, y, width, height }];
+      })));
+      reference ||= anchors; assert.deepEqual(anchors, reference, width + 'px ' + tab + ' moved shared layout anchors');
+      layouts.push({ width, tab, anchors }); await screenshot('layout-' + width + '-' + (tab === 'Skills' ? 'skills' : tab === 'MCP 服务' ? 'mcp' : 'clients'));
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    }
+  }
+  await fs.writeFile(path.join(output, 'layout.json'), JSON.stringify(layouts, null, 2));
+  await page.setViewportSize({ width: 1360, height: 900 }); await page.getByRole('radio', { name: 'Skills', exact: true }).click();
+  assert.equal(await page.locator('.extensions-page select').count(), 0); checks.push('three categories share identical layout anchors at four widths');
+  assert.equal(await binding('review-code', 'Codex', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Codex', '.extension-list').isDisabled(), true);
+  assert.equal(await binding('review-code', 'Pi', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Pi', '.extension-list').isDisabled(), true);
+  checks.push('native shared-source checkboxes are truthful read-only controls');
   const before = await fs.readFile(source, 'utf8');
   await page.getByRole('searchbox', { name: '搜索扩展' }).fill('review'); assert.equal(await page.locator('.extension-row').count(), 1);
   await page.getByRole('radio', { name: 'Skills', exact: true }).focus(); await page.keyboard.press('ArrowRight');
   assert.equal(await page.getByRole('radio', { name: 'MCP 服务', exact: true }).getAttribute('aria-checked'), 'true');
   assert.equal(await page.getByRole('radio', { name: 'MCP 服务', exact: true }).evaluate(el => document.activeElement === el), true);
   await page.keyboard.press('Home'); await page.getByRole('searchbox', { name: '搜索扩展' }).fill(''); checks.push('search and keyboard tabs');
-  await page.getByRole('searchbox', { name: '搜索扩展' }).fill('no-matching-fixture'); assert.equal(await page.locator('.extension-row').count(), 0); assert.equal(await page.locator('.extension-empty').count(), 1);
+  await page.getByRole('searchbox', { name: '搜索扩展' }).fill('no-matching-fixture');
+  for (const tab of ['MCP 服务', '接入软件', 'Skills']) { await page.getByRole('radio', { name: tab, exact: true }).click(); assert.equal(await page.locator('.extension-row').count(), 0); assert.equal(await page.locator('.extension-empty').count(), 1); }
   await page.getByRole('searchbox', { name: '搜索扩展' }).fill(''); checks.push('empty search has one recoverable empty state');
-  await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
-  await page.getByRole('button', { name: '预览接入', exact: true }).click(); await assertText(dialog(), 'qoder/skills/review-code'); await dialog().getByRole('button', { name: '取消', exact: true }).click();
+  await binding('review-code', 'Qoder', '.extension-list').focus(); await page.keyboard.press('Space'); await assertText(dialog(), 'qoder/skills/review-code'); await page.keyboard.press('Escape'); await closed();
+  assert.equal(await binding('review-code', 'Qoder', '.extension-list').isChecked(), false);
+  await page.waitForFunction(() => document.activeElement.matches('.extension-list [data-binding-toggle][data-client=qoder]'));
+  assert.equal(await binding('review-code', 'Qoder', '.extension-list').evaluate(el => document.activeElement === el), true);
   await assert.rejects(fs.lstat(path.join(fixture, 'qoder/skills/review-code')), { code: 'ENOENT' });
-  await page.getByRole('button', { name: '预览接入', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+  await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
+  await binding('review-code', 'Qoder').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
   assert.equal(await fs.realpath(path.join(fixture, 'qoder/skills/review-code')), path.join(fixture, 'agents/skills/review-code'));
+  assert.equal(await binding('review-code', 'Qoder', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
   await assert.rejects(fs.stat(path.join(fixture, 'codex')), { code: 'ENOENT' }); await assert.rejects(fs.stat(path.join(fixture, 'pi')), { code: 'ENOENT' }); checks.push('Qoder preview/cancel/apply and native zero links');
-  await page.getByRole('combobox', { name: '按软件筛选' }).selectOption('qoder'); assert.equal(await page.locator('.extension-row').count(), 1);
+  await binding('review-code', 'Qoder').click(); await dialog().getByRole('button', { name: '取消', exact: true }).click(); await closed(); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
+  await binding('review-code', 'Qoder').click(); await assertText(dialog(), '主 Skill 和其他软件保持原样'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  const qoderLink = path.join(fixture, 'qoder/skills/review-code'), relativeTarget = path.relative(path.dirname(qoderLink), path.dirname(source));
+  await assert.rejects(fs.lstat(qoderLink), { code: 'ENOENT' }); assert.equal(await fs.readFile(source, 'utf8'), before);
+  await fs.symlink(relativeTarget, qoderLink); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click();
+  await waitBinding('review-code', 'Qoder', true); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
+  await binding('review-code', 'Qoder').click(); await assertText(dialog(), '明确确认处理已有正确链接'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await assert.rejects(fs.lstat(qoderLink), { code: 'ENOENT' }); assert.equal(await fs.readFile(source, 'utf8'), before);
+  await page.getByRole('link', { name: '查看回执', exact: true }).click(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  assert.equal(await fs.readlink(qoderLink), relativeTarget); checks.push('checkbox removal cancels safely, preserves source and restores an existing relative link');
+  await page.getByRole('button', { name: '返回清单', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
+  const codexLink = path.join(fixture, 'codex/skills/review-code'); await fs.mkdir(path.dirname(codexLink), { recursive: true }); await fs.symlink(path.dirname(source), codexLink);
+  await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await page.getByRole('button', { name: '移除旧链接', exact: true }).click(); await assertText(dialog(), '移除旧链接后仍可原生读取共享来源');
+  await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); await assert.rejects(fs.lstat(codexLink), { code: 'ENOENT' }); assert.equal(await binding('review-code', 'Codex').isChecked(), true); assert.equal(await fs.readFile(source, 'utf8'), before);
+  checks.push('legacy Codex link removal still explains shared-source availability');
+  await choose('查看 Skill 文件', 'README.md'); await assertText(page.locator('.extension-source-content'), '浏览器验收用说明文件');
+  assert.equal(await page.getByRole('combobox', { name: '查看 Skill 文件' }).evaluate(el => document.activeElement === el), true); await choose('查看 Skill 文件', 'SKILL.md');
+  checks.push('shared file picker loads the selected source and restores keyboard focus');
+  await choose('按软件筛选', 'Qoder'); assert.equal(await page.locator('.extension-row').count(), 1);
   await page.locator('[data-problems]').check(); assert.equal(await page.locator('.extension-row').count(), 0); await page.locator('[data-problems]').uncheck();
-  await page.getByRole('combobox', { name: '按软件筛选' }).selectOption(''); checks.push('software and problem filters use actual binding state');
+  await page.getByRole('radio', { name: '接入软件', exact: true }).click(); assert.equal(await page.locator('.extension-row').count(), 1); assert.equal(await page.locator('.extension-detail').isVisible(), false);
+  assert.equal(await page.getByRole('combobox', { name: '按软件筛选' }).textContent().then(text => text.trim()), 'Qoder');
+  await choose('按软件筛选', '全部软件'); await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click(); checks.push('shared software and problem filters persist without opening an unrelated detail');
   await page.getByRole('button', { name: '编辑文件', exact: true }).click(); const edited = before + '\n保留草稿验证\n'; await dialog().locator('[name=content]').fill(edited); await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('button', { name: '编辑文件', exact: true }).evaluate(el => document.activeElement === el), true);
   await page.locator('.page-navigation [data-view=cli]').click(); await page.locator('.page-navigation [data-view=extensions]').click(); await ready(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click(); await page.getByRole('button', { name: '编辑文件', exact: true }).click();
@@ -49,7 +107,12 @@ try {
   await page.getByRole('heading', { name: '正在核对扩展提交结果', exact: true }).waitFor(); await screenshot('ai-unknown'); await page.getByRole('button', { name: '核对原请求', exact: true }).click(); await page.getByRole('heading', { name: '扩展变更已保存', exact: true }).waitFor();
   assert.equal((await fs.readFile(source, 'utf8')).split('响应丢失演练').length - 1, 1); checks.push('AI unknown response recovers original ID once');
   await page.getByRole('link', { name: '返回扩展管理', exact: true }).click(); await page.getByRole('button', { name: '编辑文件', exact: true }).waitFor();
-  await page.getByRole('radio', { name: 'MCP 服务', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: '本地 MCP' }).click(); await page.getByRole('button', { name: '测试连接', exact: true }).click(); await dialog().getByRole('button', { name: '确认并检测', exact: true }).click();
+  await page.getByRole('radio', { name: 'MCP 服务', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: '本地 MCP' }).click();
+  await page.getByRole('button', { name: '编辑配置', exact: true }).click(); await page.getByRole('combobox', { name: '连接方式' }).focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+  assert.equal(await dialog().locator('[data-http-fields]').isVisible(), true); await page.keyboard.press('Escape'); await closed();
+  await page.getByRole('button', { name: '编辑配置', exact: true }).click(); assert.equal(await dialog().locator('[name=transport]').inputValue(), 'http'); await choose('连接方式', '本地命令（stdio）'); await dialog().getByRole('button', { name: '取消', exact: true }).click(); await closed();
+  checks.push('shared transport selector supports keyboard and retained editor drafts');
+  await page.getByRole('button', { name: '测试连接', exact: true }).click(); await dialog().getByRole('button', { name: '确认并检测', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[data-probe-result]')?.textContent.includes('工具数：2')); assert.equal(await fs.readFile(path.join(fixture, 'mcp-requests'), 'utf8'), 'tools/list\ntools/list\n'); await screenshot('mcp-probe'); checks.push('explicit MCP handshake and tools/list only');
   const slowReference = async route => { if (route.request().method() === 'GET') await new Promise(resolve => setTimeout(resolve, 350)); await route.continue(); };
   await page.route('**/api/ai/conversations/*', slowReference);
@@ -62,7 +125,9 @@ try {
   await page.getByRole('link', { name: '返回扩展管理', exact: true }).click(); await page.waitForFunction(() => document.querySelector('[data-probe-result]')?.textContent.includes('正在握手'));
   await page.waitForFunction(() => document.querySelector('[data-probe-result]')?.textContent.includes('工具数：2'));
   assert.equal(await fs.readFile(path.join(fixture, 'mcp-requests'), 'utf8'), 'tools/list\ntools/list\ntools/list\ntools/list\n'); checks.push('AI-confirmed MCP detection updates its source detail until completion');
-  await page.getByRole('radio', { name: '接入软件', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'Codex' }).click(); await page.getByRole('button', { name: '预览生成 MCP 配置', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+  await page.getByRole('radio', { name: '接入软件', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'Codex' }).click();
+  await assertText(page.locator('.extension-detail'), '软件主目录'); await assertText(page.locator('.extension-detail'), path.join(fixture, 'codex')); await assertText(page.locator('.extension-detail'), 'Daylight 管理的共享来源'); checks.push('Codex primary directory and shared Skills source are shown separately');
+  await page.getByRole('button', { name: '预览生成 MCP 配置', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'));
   assert.match(await fs.readFile(path.join(fixture, 'agents/mcp/generated/codex/servers.toml'), 'utf8'), /fixture-mcp/); await assert.rejects(fs.stat(path.join(fixture, 'codex/config.toml')), { code: 'ENOENT' }); await screenshot('client-manual'); checks.push('generated MCP with truthful manual integration');
   await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'long-path-example' }).click();
   const archivedSource = path.join(fixture, 'agents/skills/long-path-example/SKILL.md'), retained = await fs.readFile(archivedSource, 'utf8');

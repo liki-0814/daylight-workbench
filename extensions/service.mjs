@@ -15,7 +15,7 @@ const json = value => canonicalJSON(value, 2) + '\n';
 const fields = {
   'skill.create': ['type', 'directory', 'content'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'],
   'mcp.save': ['type', 'server'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'],
-  'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId'], 'operation.restore': ['type', 'operationId'],
+  'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
 };
 export async function createExtensionsService({ agentsRoot = path.join(os.homedir(), '.agents'), clientRoots, environment = process.env, cacheMs, probeTimeoutMs, fault, onChanged = () => {} } = {}) {
   // Canonicalize existing ancestors (macOS /var -> /private/var) without creating roots.
@@ -65,6 +65,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   async function prepare(input) {
     if (!input || !extensionActions.includes(input.type) || Object.keys(input).some(key => !fields[input.type].includes(key))) throw error('扩展动作或字段无效');
     const action = structuredClone(input), state = await catalog.state(true), steps = [], conflicts = [], impact = [], changedIds = [];
+    if (action.type === 'binding.disconnect' && action.includeExisting !== undefined && typeof action.includeExisting !== 'boolean') throw error('includeExisting 需要明确的布尔值');
     const add = async (target, after) => {
       await assertTarget(target); const before = await snapshot(target);
       if (before.kind === 'file' && after.kind === 'file') after.mode = before.mode;
@@ -78,7 +79,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       const actual = await snapshot(target), matches = actual.kind === 'link' && await fs.realpath(target).catch(() => null) === source;
       const owned = manifest.bindings.find(item => item.skillId === skill.id && item.clientId === client.id && item.target === target && item.source === source);
       if (type === 'binding.connect') {
-        if (client.skillMode === 'nativeRoot') { impact.push(client.name + ' 原生读取主目录，无需新建链接；已有链接保留。'); return; }
+        if (client.skillMode === 'nativeRoot') { impact.push(client.name + ' 支持原生读取共享来源，无需新建链接；已有链接保留。'); return; }
         if (!skill.valid) throw error('请先修复 Skill 元数据再接入');
         if (actual.kind !== 'missing') { if (matches) impact.push('已有正确链接；如需管理解除操作，请明确接管。'); else conflicts.push(client.name + ' 的同名位置存在其他内容：' + target); return; }
         await add(target, { kind: 'link', target: source });
@@ -87,11 +88,13 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (!matches) { conflicts.push('只能接管已经指向主来源的正确链接'); return; }
         if (!owned || owned.linkTarget !== actual.target) { manifest.bindings = manifest.bindings.filter(item => item !== owned); manifest.bindings.push({ skillId: skill.id, clientId: client.id, source, target, linkTarget: actual.target }); manifestChanged = true; }
       } else {
-        if (!owned) { conflicts.push('该链接不属于 Daylight；请先预览接管，不能直接解除'); return; }
-        if (!matches || owned.linkTarget !== actual.target) { conflicts.push('链接目标已被外部修改，已停止解除'); return; }
-        await add(target, { kind: 'missing' }); manifest.bindings = manifest.bindings.filter(item => item !== owned); manifestChanged = true;
+        if (!owned && !action.includeExisting) { conflicts.push('该链接不属于 Daylight；请先预览接管，或明确确认移除已有正确链接'); return; }
+        if (!matches || owned && owned.linkTarget !== actual.target) { conflicts.push('链接目标已被外部修改或不指向主来源，已停止解除'); return; }
+        await add(target, { kind: 'missing' });
+        if (owned) { manifest.bindings = manifest.bindings.filter(item => item !== owned); manifestChanged = true; }
+        impact.push('仅移除 ' + target + ' 的链接，主 Skill 和其他软件保持原样。' + (!owned ? '本次明确确认处理已有正确链接，修改前链接已记录供恢复。' : ''));
       }
-      impact.push(client.name + '：' + client.refresh + (client.skillMode === 'nativeRoot' && type === 'binding.disconnect' ? ' 解除旧链接后仍可原生读取主目录。' : ''));
+      impact.push(client.name + '：' + client.refresh + (client.skillMode === 'nativeRoot' && type === 'binding.disconnect' ? ' 移除旧链接后仍可原生读取共享来源。' : ''));
     };
     if (action.type === 'skill.create') {
       if (typeof action.directory !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(action.directory)) throw error('新 Skill 目录需要小写字母、数字或短横线');

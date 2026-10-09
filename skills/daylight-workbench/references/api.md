@@ -153,4 +153,6 @@ prepare 请求 {"action":...}，返回 normalizedAction、expectedVersion（字�
 
 server 字段 id/name/transport/enabled；stdio 使用 command/args/cwd/envRefs，HTTP 使用 url/headerRefs。凭据引用格式 {"请求头或变量名称":"环境变量名称"}，不接受 env/headers 明文。stdio 不经 shell 执行。mcp.probe 须明确授权，仅 initialize 和 tools/list；实际命令/端点在预览中呈现，不能作为静态诊断的隐式动作。
 
-Codex/Pi 共享 Skill 原生读取模式无需新链接。Qoder 按 Skill 链接，旧正确链接要明确 adopt 后才能 disconnect；同名实体和不同目标不覆盖。MCP 生成只在 ~/.agents/mcp/generated，下游全局混合配置不修改；需用户在客户端接入，Pi MCP 当前不支持自动接入。Qoder 含凭据引用的生成形式未验证时拒绝。
+软件详情的 root 为软件主目录，skillsRoot 为该软件自身的 Skills 目录；state.root/skills 为 Daylight 管理来源。Codex 主目录默认 ~/.codex，可由 CODEX_HOME 指定；Codex/Pi 共享 Skill 原生读取模式无需新链接。
+
+Qoder 按 Skill 链接。旧正确链接默认须明确 adopt 后才能 disconnect；用户明确要求仅移除该链接时，可在审阅动作 binding.disconnect 中传 includeExisting:true（必须为布尔值），预览会说明目标及保留主来源，修改前链接记入回执供恢复。该参数不能绕过同名实体、不同目标或已被外部改动的管理链接保护。移除 Codex/Pi 旧链接不等于停用共享 Skill。MCP 生成只在 ~/.agents/mcp/generated，下游全局混合配置不修改；需用户在客户端接入，Pi MCP 当前不支持自动接入。Qoder 含凭据引用的生成形式未验证时拒绝。

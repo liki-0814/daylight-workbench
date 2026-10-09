@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-09T07:37:52.557538+00:00",
+  "baselineCommit": "74948f1",
+  "branch": "codex/extensions-management",
+  "sourceCheck": "passed",
+  "nodeTests": {
+    "tests": 328,
+    "pass": 328,
+    "fail": 0,
+    "skipped": 0
+  },
+  "nodeSummary": "  ...\n1..328\n# tests 328\n# suites 0\n# pass 328\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 6272.559667",
+  "browser": {
+    "passed": 22,
+    "errors": 0,
+    "evidence": "browser/report.json",
+    "isolatedSources": true,
+    "model": "acceptance adapter; no paid model inference",
+    "mcp": "local protocol fixture"
+  },
+  "nativeContracts": {
+    "status": "passed",
+    "output": "npm notice run daylight-workbench@0.4.0 test:extensions-contracts\nnpm notice run python3 test/extensions-contract-test.py\nPASS: extension auth, lazy helper, packaged assets, primary directories, Skill links/existing-link removal/restore, MCP generation and real probe node\nPASS: extension auth, lazy helper, packaged assets, primary directories, Skill links/existing-link removal/restore, MCP generation and real probe /Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app/Contents/MacOS/Daylight\nPASS: identical Node/native extension contract"
+  },
+  "nativeRegression": {
+    "status": "passed",
+    "output": "npm notice run daylight-workbench@0.4.0 test:native\nnpm notice run python3 test/native-test.py\nPASS: native CRUD, batch atomicity, auth, web writes, restart, cross-runtime receipts, external skill, corruption protection"
+  },
+  "build": {
+    "status": "passed",
+    "installed": false,
+    "output": "npm notice run daylight-workbench@0.4.0 pack:mac\nnpm notice run python3 scripts/build-native.py\nRuntime bundle: 355916 bytes, 19 npm packages compiled; no node_modules shipped\nRuntime graph: 181 reachable files; removed 8 unused files\n/Users/liki/liki_dev/daylight-workbench/dist/native/.daylight-build-dxn3m62u/Daylight.app: replacing existing signature\n/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app",
+    "binarySha256": "7f2fae558a67a3982d02a6050856f81469e187a97f24f83d178098cf6568cbf8",
+    "verifiedResources": {
+      "extensions/service.mjs": {
+        "sha256": "3dedbe0c1a0c326ce106b7be0bf33c5bf512c96f970bdc7cc299c9fe554d1421",
+        "matches": "source bytes"
+      },
+      "extensions/catalog.mjs": {
+        "sha256": "28167d1b1057d66c6ec0ea0d5892fd4335822c0b7f2b02a2003ad706cee418a1",
+        "matches": "source bytes"
+      },
+      "extensions/clients.mjs": {
+        "sha256": "baa1c749beddba34e6cc4be22859efa9160734fcc3db53bce6755e1087332562",
+        "matches": "source bytes"
+      },
+      "public/extensions/page.js": {
+        "sha256": "b6cff6e94208ed8f07ccc2be53eee33f513c74361fb81ce597aec68d75fbb891",
+        "matches": "same Safari 16 minification as build"
+      },
+      "public/extensions/extensions.css": {
+        "sha256": "4e326806cac0bdc95a272f59e0072ce69c3a98eea6287e2564d2b0f8eb572995",
+        "matches": "same Safari 16 minification as build"
+      },
+      "public/components/select.js": {
+        "sha256": "4cbb66a29468b67ed9ac2cad3d623cf7522ae58b243388b3d1f3e5a962ee43ef",
+        "matches": "same Safari 16 minification as build"
+      }
+    }
+  },
+  "liveWeb": {
+    "url": "http://127.0.0.1:4328/",
+    "readOnly": true,
+    "businessVersion": 0,
+    "skills": 17,
+    "staticDiagnostics": 0,
+    "nativeSelects": 0,
+    "primaryAndSharedDirectoriesSeparated": true,
+    "errors": [],
+    "personalContentsRecorded": false
+  },
+  "officialDirectoryReferences": [
+    "https://developers.openai.com/codex/config-advanced/",
+    "https://developers.openai.com/codex/skills/"
+  ]
+}

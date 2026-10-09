@@ -8,13 +8,23 @@ export function createCatalog({ root, clients, environment = process.env, cacheM
   let cache, scannedAt = 0, scanning, generation = 0;
   async function scan() {
     const skills = [], diagnostics = [], signatures = [], seen = new Set();
-    let count = 0;
+    const limits = new Map(), maxDepth = 32, maxDirectories = 5000;
+    let count = 0, exhausted = false;
+    function scanLimit(reason, directory, limit) {
+      let issue = limits.get(reason);
+      if (!issue) {
+        issue = { code: 'SCAN_LIMIT', reason, limit, path: path.relative(root, directory), skippedBranches: 0, message: reason === 'depth' ? `部分目录嵌套超过 ${limit} 层，已跳过；其他来源继续扫描。` : `已扫描 ${limit} 个目录，剩余目录未读取。` };
+        limits.set(reason, issue); diagnostics.push(issue);
+      }
+      issue.skippedBranches++;
+    }
     async function visit(directory, depth) {
-      if (depth > 7 || ++count > 5000) { diagnostics.push({ code: 'SCAN_LIMIT', message: '目录扫描达到上限，请减少嵌套或拆分来源' }); return; }
+      if (depth > maxDepth) { scanLimit('depth', directory, maxDepth); return; }
+      if (count >= maxDirectories) { scanLimit('directories', directory, maxDirectories); exhausted = true; return; }
       const info = await stat(directory); if (!info) return;
       const real = await fs.realpath(directory);
       if (!within(root, real)) { diagnostics.push({ code: 'EXTERNAL_SOURCE', message: '主目录内有指向范围外的链接，未读取', path: path.relative(root, directory) }); return; }
-      if (seen.has(real)) return; seen.add(real);
+      if (seen.has(real)) return; seen.add(real); count++;
       let entries;
       try { entries = await fs.readdir(real, { withFileTypes: true }); } catch { diagnostics.push({ code: 'SOURCE_UNREADABLE', message: '目录不可读取', path: path.relative(root, directory) }); return; }
       const skillPath = path.join(real, 'SKILL.md'), relativePath = path.relative(path.join(root, 'skills'), real);
@@ -34,6 +44,7 @@ export function createCatalog({ root, clients, environment = process.env, cacheM
         }
       }
       for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+        if (exhausted) break;
         if (entry.name.startsWith('.') || ['node_modules', 'archive', 'backups', 'scripts', 'assets', 'references', 'resources'].includes(entry.name)) continue;
         if (entry.isDirectory() || entry.isSymbolicLink() && (await fs.stat(path.join(real, entry.name)).catch(() => null))?.isDirectory()) await visit(path.join(real, entry.name), depth + 1);
       }
@@ -47,7 +58,7 @@ export function createCatalog({ root, clients, environment = process.env, cacheM
     } catch { mcpValid = false; diagnostics.push({ code: 'MCP_FORMAT', message: 'MCP 主配置无效；请修复 servers.json，原文件不会被覆盖' }); }
     try { await safePath(root, path.join(root, 'daylight', 'bindings.json')); manifest = await readJSON(path.join(root, 'daylight', 'bindings.json'), manifest); if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.bindings)) throw error('接入记录格式错误'); }
     catch { diagnostics.push({ code: 'BINDINGS_FORMAT', message: '接入记录格式错误，接入写入已暂停' }); manifest = null; }
-    const clientStates = await Promise.all(clients.map(async client => ({ id: client.id, name: client.name, skillMode: client.skillMode, mcpMode: client.mcpMode, note: client.note, refresh: client.refresh, skillsRoot: client.skillsRoot, ...await client.detect() })));
+    const clientStates = await Promise.all(clients.map(async client => ({ id: client.id, name: client.name, root: client.root, skillMode: client.skillMode, mcpMode: client.mcpMode, note: client.note, refresh: client.refresh, skillsRoot: client.skillsRoot, ...await client.detect() })));
     for (const skill of skills) {
       skill.bindings = [];
       for (const client of clients) {
