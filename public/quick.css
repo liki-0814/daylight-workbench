@@ -50,6 +50,8 @@ html:not(.embedded) .quick-shell {
   -webkit-user-select: text;
   user-select: text;
 }
+/* The palette uses its caret for input focus; the shared form ring is redundant here. */
+.quick-shell .quick-input:focus-visible { outline: none; }
 .quick-input::placeholder { color: var(--secondary); opacity: 1; }
 .quick-input::selection { background: #cbdffe; color: #192332; }
 .quick-close {
