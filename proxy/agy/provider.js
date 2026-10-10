@@ -26,7 +26,11 @@ export class AgyProvider {
   get cache(){return this.catalogCache.value;}
   async call(method, body, signal) {
     const token = await this.auth.token();
-    const response = await this.fetchImpl(`https://daily-cloudcode-pa.googleapis.com/v1internal:${method}`, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'antigravity' }, body: JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(300000)]) : AbortSignal.timeout(45000) });
+    // Catalog metadata and CLI generation use different services. The hub client
+    // version selects the generation routing contract, including public preset IDs.
+    const generating = method.startsWith('streamGenerateContent');
+    const host = generating ? 'daily-cloudcode-pa.googleapis.com' : 'cloudcode-pa.googleapis.com';
+    const response = await this.fetchImpl(`https://${host}/v1internal:${method}`, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'antigravity/hub/2.8.0' }, body: JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(300000)]) : AbortSignal.timeout(45000) });
     if (!response.ok) { await response.body?.cancel(); throw Object.assign(new Error(`AGY 上游请求失败（${response.status}）`), { code: String(response.status) }); }
     return response;
   }
@@ -38,7 +42,7 @@ export class AgyProvider {
       if (!project) throw new Error('AGY 账号尚未完成开通，请先在 agy 中完成登录');
       const catalog = await (await this.call('fetchAvailableModels', { project })).json();
       // The CLI expands tiered models and applies local model aliases. Its live catalog
-      // is authoritative for public IDs; the upstream catalog supplies capabilities.
+      // supplies generation IDs; production supplies the capability metadata.
       const discovered = await this.auth.models();
       const models=parseModels(discovered,catalog);
       await this.auth.token();if(this.auth.identity!==identity)throw Object.assign(new Error('AGY 账号已切换，请重新请求'),{status:401});

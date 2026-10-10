@@ -2,7 +2,7 @@ import {validOutputBudget,validSampling} from '../shared/request-parameters.js';
 const invalid = message => Object.assign(new Error(message), { status: 400, code: 'invalid_request' });
 export function reasoningEfforts(model) {
   if (model.effortRoutes) return model.reasoningEfforts;
-  return model.isReasoning && (model.id.startsWith('claude-') || model.upstreamId?.endsWith('-tiered')) ? ['low', 'medium', 'high'] : [];
+  return model.isReasoning && (model.id.startsWith('claude-') || (model.catalogId || model.upstreamId)?.endsWith('-tiered')) ? ['low', 'medium', 'high'] : [];
 }
 export function generationConfig(request, model = {}) {
   const o = request.options || {};
@@ -40,9 +40,9 @@ export function generationConfig(request, model = {}) {
   } else {
     if (t?.budget_tokens !== undefined) throw invalid('adaptive 不接受 budget_tokens');
     if (t && !reasoningEfforts(model).length) throw invalid('该模型暂不支持 adaptive thinking');
-    const level = effort || model.defaultEffort || (model.upstreamId?.endsWith('-tiered') ? model.defaultEffort || model.id.split('-').at(-1) : t || model.id?.startsWith('claude-') && model.isReasoning ? 'high' : undefined);
+    const level = effort || model.defaultEffort || ((model.catalogId || model.upstreamId)?.endsWith('-tiered') ? model.defaultEffort || model.id.split('-').at(-1) : t || model.id?.startsWith('claude-') && model.isReasoning ? 'high' : undefined);
     const route = model.effortRoutes?.[level];
-    if (route && !route.upstreamId.endsWith('-tiered')) {
+    if (route && route.thinkingBudget !== -1 && !(route.catalogId || route.upstreamId).endsWith('-tiered')) {
       if (route.thinkingBudget !== undefined) {
         if (o.maxTokens === undefined && route.thinkingBudget >= c.maxOutputTokens) c.maxOutputTokens = Math.min(model.maxOutputTokens || Infinity, route.thinkingBudget + 8192);
         if (route.thinkingBudget >= c.maxOutputTokens) throw invalid('max_tokens 必须大于该档位的思考预算');

@@ -47,7 +47,8 @@ test('one gateway/key serves Qoder and AGY; all protocols stream and aggregate; 
   const agy = new AgyProvider({dataDir:dir,auth:{token:async()=> 'secret',models:async()=>[{id:'agy-model',displayName:'AGY model'}]},fetchImpl:async(url,opts)=>{
     if(url.endsWith('loadCodeAssist')) return json({cloudaicompanionProject:'project'});
     if(url.endsWith('fetchAvailableModels')) return json({models:{'agy-model':{displayName:'AGY model',quotaInfo:{remainingFraction:0.8}}}});
-    requests.push(JSON.parse(opts.body));
+    assert.ok(url.startsWith('https://daily-cloudcode-pa.googleapis.com/'));assert.equal(opts.headers['User-Agent'],'antigravity/hub/2.8.0');
+  requests.push(JSON.parse(opts.body));
     const wire = [ {response:{candidates:[{content:{parts:[{text:'杭州'}]}}]}}, {response:{candidates:[{content:{parts:[{functionCall:{name:'weather',args:{city:'杭州'},id:'tool1'},thoughtSignature:'signed'}]},finishReason:'STOP'}],usageMetadata:{promptTokenCount:10,candidatesTokenCount:2,thoughtsTokenCount:3,totalTokenCount:15}}} ].map(d=>`data: ${JSON.stringify(d)}\n\n`).join('');
     const bytes=Buffer.from(wire); let pos=0; return new Response(new ReadableStream({pull(c){if(pos>=bytes.length)return c.close();c.enqueue(bytes.subarray(pos,pos+=5));}}));
   }});
@@ -95,9 +96,9 @@ test('quota uses upstream pool windows; missing values are never rendered as ful
 
 test('public AGY catalog follows live CLI IDs rather than the older upstream recommended group', async () => {
  let discoveries=0;
- const p=new AgyProvider({dataDir:'/tmp/agy-catalog-test',auth:{token:async()=> 'secret',models:async()=>{discoveries++;return [{id:'gemini-3.8-flash-low',displayName:'Gemini 3.8 Flash (Low)'},{id:'gemini-3.1-pro-high',displayName:'Gemini 3.1 Pro (High)'}];}},fetchImpl:async url=>json(url.endsWith('loadCodeAssist')?{cloudaicompanionProject:'p'}:{models:{'gemini-3.8-flash-tiered':{supportsThinking:true},'gemini-pro-agent':{displayName:'old pro'}},agentModelSorts:[{groups:[{modelIds:['gemini-pro-agent']}]}]})});
+ const p=new AgyProvider({dataDir:'/tmp/agy-catalog-test',auth:{token:async()=> 'secret',models:async()=>{discoveries++;return [{id:'gemini-3.8-flash-low',displayName:'Gemini 3.8 Flash (Low)'},{id:'gemini-3.1-pro-high',displayName:'Gemini 3.1 Pro (High)'}];}},fetchImpl:async url=>json(url.endsWith('loadCodeAssist')?{cloudaicompanionProject:'p'}:{models:{'gemini-3.8-flash-tiered':{supportsThinking:true},'gemini-pro-agent':{displayName:'Gemini 3.1 Pro (High)'}},agentModelSorts:[{groups:[{modelIds:['gemini-pro-agent']}]}]})});
  const catalog=await p.catalog();assert.deepEqual(catalog.models.map(m=>m.id),['gemini-3.8-flash-low','gemini-3.1-pro-high']);
- assert.equal(catalog.models[0].upstreamId,'gemini-3.8-flash-tiered');assert.equal(catalog.models[1].upstreamId,'gemini-pro-agent');
+ assert.equal(catalog.models[0].upstreamId,'gemini-3.8-flash-low');assert.equal(catalog.models[0].catalogId,'gemini-3.8-flash-tiered');assert.equal(catalog.models[1].upstreamId,'gemini-pro-agent');assert.equal(catalog.models[1].catalogId,'gemini-pro-agent');
  await p.catalog();assert.equal(discoveries,1);await p.catalog(true);assert.equal(discoveries,2);
 });
 
@@ -170,12 +171,13 @@ test('AGY streaming usage merges partial upstream counters before adding thinkin
  assert.equal(usage.outputTokens,15);assert.equal(usage.inputTokens,100);assert.equal(usage.cacheReadTokens,90);
 });
 
-test('Gemini 3.8 exposes one model and routes protocol effort or saved default to the live tiered backend', async t => {
+test('Gemini 3.8 exposes one model and routes protocol effort or saved default to the CLI public generation presets', async t => {
  const dir=await mkdtemp(path.join(os.tmpdir(),'agy-unified-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const requests=[];
  const p=new AgyProvider({dataDir:dir,auth:{token:async()=> 'secret',models:async()=>['low','medium','high'].map(level=>({id:`gemini-3.8-flash-${level}`,displayName:`Gemini 3.8 Flash (${level})`}))},fetchImpl:async(url,opts)=>{
   if(url.endsWith('loadCodeAssist')) return json({cloudaicompanionProject:'p'});
   if(url.endsWith('fetchAvailableModels')) return json({models:{'gemini-3.8-flash-tiered':{supportsThinking:true,supportsImages:true,maxTokens:1048576,maxOutputTokens:65536}}});
+  assert.ok(url.startsWith('https://daily-cloudcode-pa.googleapis.com/'));assert.equal(opts.headers['User-Agent'],'antigravity/hub/2.8.0');
   requests.push(JSON.parse(opts.body));
   return new Response('data: {"response":{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}}\n\n');
  }});
@@ -186,7 +188,7 @@ test('Gemini 3.8 exposes one model and routes protocol effort or saved default t
  const router=new ModelRouter({agy:p});
  for (const level of ['low','medium','high']) for(const request of [decodeChatRequest({model:models[0].id,messages:[{role:'user',content:'hi'}],reasoning_effort:level}),decodeResponsesRequest({model:models[0].id,input:'hi',reasoning:{effort:level}}),decodeMessagesRequest({model:models[0].id,messages:[{role:'user',content:'hi'}],output_config:{effort:level}})]) {
   const r=await renderChatResponse(router.stream(request),request.model);
-  assert.equal(r.model,'gemini-3.8-flash');assert.equal(requests.at(-1).model,'gemini-3.8-flash-tiered');assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,level.toUpperCase());
+  assert.equal(r.model,'gemini-3.8-flash');assert.equal(requests.at(-1).model,`gemini-3.8-flash-${level}`);assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,level.toUpperCase());
  }
  const request=decodeChatRequest({model:models[0].id,messages:[{role:'user',content:'hi'}]});
  await Array.fromAsync(router.stream(request));assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,'MEDIUM');
@@ -198,14 +200,28 @@ test('Gemini 3.8 exposes one model and routes protocol effort or saved default t
  assert.equal((await Array.fromAsync(router.stream(request)))[0].code,'model_not_found');
 });
 
+test('AGY preserves discovered models when capability metadata is missing', async t => {
+ const dir=await mkdtemp(path.join(os.tmpdir(),'agy-missing-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const ids=['gemini-3.8-flash-high','gemini-3.8-flash-medium','gemini-3.8-flash-low','gemini-3.7-flash-high','gemini-3.7-flash-medium','gemini-3.7-flash-low','plain-model'];
+ const p=new AgyProvider({dataDir:dir,auth:{token:async()=> 'secret',models:async()=>ids.map(id=>({id,displayName:id}))},fetchImpl:async url=>{
+  assert.ok(url.startsWith('https://cloudcode-pa.googleapis.com/'));
+  return json(url.endsWith('loadCodeAssist')?{cloudaicompanionProject:'p'}:{models:{'gemini-3.8-flash-tiered':{supportsThinking:true,maxTokens:1048576,maxOutputTokens:65536},'plain-model':{supportsThinking:false}}});
+ }});
+ const models=await p.listModels();assert.deepEqual(models.map(m=>m.id),['gemini-3.8-flash',...ids.slice(3)]);
+ assert.deepEqual(models[0].reasoningEfforts,['low','medium','high']);assert.equal(models[0].contextWindow,1048576);
+ const missing=models.find(m=>m.id==='gemini-3.7-flash-high');assert.equal(missing.isReasoning,undefined);assert.equal(missing.isVL,undefined);
+ assert.equal(models.at(-1).isReasoning,false);
+ await p.setModel({id:missing.id,field:'enabled',value:false});assert.equal((await p.listModels()).find(m=>m.id===missing.id).enabled,false);
+});
+
 test('Gemini families merge dynamically, including future versions and Pro with distinct upstream routes', async t => {
  const dir=await mkdtemp(path.join(os.tmpdir(),'agy-families-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const ids=['gemini-3.7-flash-low','gemini-3.7-flash-medium','gemini-3.7-flash-high','gemini-3.6-flash-low','gemini-3.6-flash-medium','gemini-3.6-flash-high','gemini-3.1-pro-low','gemini-3.1-pro-high','gemini-9.9-flash-low','gemini-9.9-flash-high'];
- const upstream={'gemini-3.7-flash-tiered':{supportsThinking:true},'gemini-3.6-flash-tiered':{supportsThinking:true},'gemini-9.9-flash-tiered':{supportsThinking:true},'gemini-3.1-pro-low':{supportsThinking:true,thinkingBudget:1001},'gemini-pro-agent':{supportsThinking:true,thinkingBudget:10001}};
+ const upstream={'gemini-3.7-flash-tiered':{supportsThinking:true},'gemini-3.6-flash-tiered':{supportsThinking:true},'gemini-9.9-flash-tiered':{supportsThinking:true},'gemini-3.1-pro-low':{supportsThinking:true,thinkingBudget:1001},'gemini-pro-agent':{displayName:'gemini-3.1-pro-high',supportsThinking:true,thinkingBudget:10001}};
  const sent=[];
  const p=new AgyProvider({dataDir:dir,auth:{token:async()=> 'secret',models:async()=>ids.map(id=>({id,displayName:id}))},fetchImpl:async(url,opts)=>{
   if(url.endsWith('loadCodeAssist')) return json({cloudaicompanionProject:'p'});
-  if(url.endsWith('fetchAvailableModels')) return json({models:upstream});
+  if(url.endsWith('fetchAvailableModels')) return json({models:upstream,agentModelSorts:[{groups:[{modelIds:['gemini-pro-agent']}]}]});
   sent.push(JSON.parse(opts.body));return new Response('data: {"response":{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}}\n\n');
  }});
  const models=await p.listModels();assert.deepEqual(models.map(m=>m.id),['gemini-3.7-flash','gemini-3.6-flash','gemini-3.1-pro','gemini-9.9-flash']);
@@ -215,11 +231,27 @@ test('Gemini families merge dynamically, including future versions and Pro with 
   if(model.id==='gemini-3.1-pro') {
    assert.equal(sent.at(-1).model,effort==='low'?'gemini-3.1-pro-low':'gemini-pro-agent');
    assert.equal(sent.at(-1).request.generationConfig.thinkingConfig.thinkingBudget,effort==='low'?1001:10001);
-  } else assert.equal(sent.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,effort.toUpperCase());
+  } else {assert.equal(sent.at(-1).model,`${model.id}-${effort}`);assert.equal(sent.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,effort.toUpperCase());}
  }
  await Array.fromAsync(p.stream({model:'gemini-3.1-pro',messages:[{role:'user',content:'hi'}],options:{}}));
  assert.equal(sent.at(-1).model,'gemini-pro-agent');assert.ok(sent.at(-1).request.generationConfig.maxOutputTokens>10001);
  const n=sent.length;
  const errors=await Array.fromAsync(p.stream({model:'gemini-3.1-pro',messages:[{role:'user',content:'hi'}],options:{reasoningEffort:'medium'}}));
  assert.equal(errors[0].code,'invalid_request');assert.equal(sent.length,n);
+});
+
+
+test('AGY uses catalog preferred aliases and one preset parser for every family', async () => {
+ const {parseModels}=await import('../proxy/agy/models.js');
+ const discovered=[{id:'future-vendor-7-low',displayName:'Future (Low)'},{id:'future-vendor-7-high',displayName:'Future (High)'},{id:'plain',displayName:'Plain'}];
+ const catalog={models:{'backend-low':{displayName:'Future (Low)',supportsThinking:true,supportsImages:true,maxOutputTokens:2048,thinkingBudget:1024},'backend-high':{displayName:'Future (High)',supportsThinking:true,supportsImages:false,maxOutputTokens:8192,thinkingBudget:4096},plain:{supportsThinking:false}},agentModelSorts:[{groups:[{modelIds:['backend-low','backend-high','plain']}]}]};
+ const models=parseModels(discovered,catalog);
+ assert.deepEqual(models.map(m=>m.id),['future-vendor-7','plain']);
+ assert.deepEqual(models[0].reasoningEfforts,['low','high']);
+ assert.equal(models[0].effortRoutes.low.upstreamId,'backend-low');
+ assert.equal(models[0].effortRoutes.high.upstreamId,'backend-high');
+ assert.equal(models[1].isReasoning,false);assert.equal(models[0].maxOutputTokens,2048);assert.equal(models[0].isVL,false);
+ // Ambiguous labels are not sufficient evidence to change a generation route.
+ catalog.models.duplicate={displayName:'Future (High)',supportsThinking:true};catalog.agentModelSorts[0].groups[0].modelIds.push('duplicate');
+ assert.equal(parseModels(discovered,catalog).find(m=>m.id==='future-vendor-7-high').upstreamId,'future-vendor-7-high');
 });
