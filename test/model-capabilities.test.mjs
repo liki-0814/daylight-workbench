@@ -9,6 +9,7 @@ import {validateModelSetting} from '../proxy/shared/contracts.js';
 import {updateModelSetting} from '../proxy/shared/model-settings.js';
 import {ModelRouter} from '../proxy/shared/router.js';
 import {createManagement} from '../proxy/management.js';
+import {createProxyState} from '../public/proxy/state.js';
 import {modelConfig} from '../cli/pi-config.js';
 
 test('missing upstream capability fields stay unknown across providers and Pi',()=>{
@@ -34,6 +35,17 @@ test('AI validation, HTTP management and persistence agree on clearing and inval
  const saved=[];const management=createManagement({registry:{providers:{p:{setModel:async input=>{const settings=updateModelSetting({},model,input,{fields:['maxTokens'],invalid:message=>new Error(message)});saved.push(settings);return[model];}}}},router:{refreshSource:async()=>[model],setCatalog(){}}});
  validateModelSetting(model,{field:'maxTokens',value:null});await management.call('/api/proxy/sources/p/models/setting',{id:'m',field:'maxTokens',value:null});assert.deepEqual(saved,[{maxTokens:{}}]);
  for(const value of [0,101,1.5]){assert.throws(()=>validateModelSetting(model,{field:'maxTokens',value}));await assert.rejects(management.call('/api/proxy/sources/p/models/setting',{id:'m',field:'maxTokens',value}));assert.throws(()=>updateModelSetting({},model,{field:'maxTokens',value},{fields:['maxTokens'],invalid:message=>new Error(message)}));}
+});
+test('saved custom sources are returned without waiting for any model discovery',async()=>{
+ let discoveryCalls=0;
+ const management=createManagement({registry:{providers:{},custom:{list:async()=>[{id:'saved'}]}},router:{listModels:()=>{discoveryCalls++;return new Promise(()=>{});},conflicts:[]}});
+ const result=await management.call('/api/proxy/custom/sources');assert.deepEqual(result.sources,[{id:'saved'}]);assert.equal(discoveryCalls,0);
+});
+test('custom configuration reads reuse shared in-flight resources',async()=>{
+ let calls=0,resolve;
+ const store=createProxyState({custom:async()=>{calls++;return new Promise(r=>resolve=r);}});
+ const a=store.resource('custom','sources',{refresh:true}),b=store.resource('custom','sources',{refresh:true});resolve({sources:[{id:'saved'}]});
+ assert.deepEqual(await a,await b);assert.equal(calls,1);store.dispose();
 });
 test('Pi output-budget compatibility comes from capabilities, not source names',()=>{
  assert.equal(modelConfig({id:'x',source:'future',requestOutputBudget:false}).compat.supportsMaxOutputTokens,false);

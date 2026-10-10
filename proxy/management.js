@@ -88,7 +88,7 @@ export function createManagement({registry,router,sourceState,records,status,sou
  }
  async function customOperation(operation,input){
   if(!custom)fail('自定义上游未启用',404);
-  if(operation==='sources'){await router.listModels().catch(()=>{});return{sources:await custom.list(),conflicts:router.conflicts};}
+  if(operation==='sources')return{sources:await custom.list(),conflicts:router.conflicts};
   if(operation==='key')return{apiKey:await custom.readKey(input.id,input.keyId)};
   if(operation==='save'){const source=await custom.save(input);sourceState.invalidate('custom:'+source.id);await syncSources();return{source};}
   if(operation==='delete'){await custom.remove(input.id);await router.forgetSource('custom:'+input.id);sourceState.invalidate('custom:'+input.id);await syncSources();return{ok:true};}

@@ -23,7 +23,7 @@ export function createProxyState(api){
   if(row.pending)return row.pending;if(!refresh&&row.value!==undefined&&Date.now()-row.at<ttl)return row.value;
   const epoch=row.epoch,controller=new AbortController();row.controller=controller;
   const task=(async()=>{
-   const result=await api.source(id,kind+(refresh&&kind==='models'?'?refresh=1':''),undefined,{signal:controller.signal});
+   const result=id==='custom'?await api.custom(kind,undefined,{signal:controller.signal}):await api.source(id,kind+(refresh&&kind==='models'?'?refresh=1':''),undefined,{signal:controller.signal});
    if(disposed||epoch!==row.epoch)return undefined;row.value=kind==='models'?result.models:result;row.at=Date.now();return row.value;
   })();row.pending=task;
   try{return await task;}finally{if(row.pending===task){row.pending=null;row.controller=null;}}
