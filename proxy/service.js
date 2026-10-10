@@ -88,6 +88,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
       id: m.id, name: m.displayName || m.id, source: m.provider,
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
       pi:registry.snapshot(m.provider)?.capabilities?.pi,
+      requestOutputBudget:registry.snapshot(m.provider)?.capabilities?.piOutputBudget??registry.snapshot(m.provider)?.capabilities?.requestOutputBudget,
       ...(providers[m.provider]?.source?.protocol ? {nativeProtocol:providers[m.provider].source.protocol} : {}),
       ...((m.contextWindow || m.contextWindows?.find(w=>w.isDefault)?.length) ? {contextWindow:m.contextWindow || m.contextWindows.find(w=>w.isDefault).length} : {}), ...(m.maxOutputTokens ? {maxOutputTokens:m.maxOutputTokens} : {}),
       ...(m.reasoningEfforts?.length ? {reasoningEfforts:m.reasoningEfforts} : {}), ...(m.thinkingLevelMap ? {thinkingLevelMap:m.thinkingLevelMap} : {}),

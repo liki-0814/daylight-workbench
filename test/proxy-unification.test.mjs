@@ -50,7 +50,7 @@ test('six production providers expose snapshots and execute without exposing cre
  for(const provider of all){const snapshot=provider.snapshot();assert.equal(typeof snapshot.id,'string');assert.ok(Array.isArray(snapshot.authentication.operations));assert.ok(Array.isArray(snapshot.nativeProtocols));assert.equal(typeof provider.execute,'function');assert.equal(typeof provider.close,'function');assert.doesNotMatch(JSON.stringify(snapshot),/never-expose/);}
 });
 test('unified management and legacy aliases share actions, shapes and non-inference catalog checks',async t=>{
- const dir=await temporary(t);let models=[{id:'demo',enabled:true,contextWindows:[],reasoningEfforts:[]}],settings=0,executions=0;
+ const dir=await temporary(t);let models=[{id:'demo',enabled:true,contextWindows:[],reasoningEfforts:[],settingFields:['enabled']}],settings=0,executions=0;
  const provider={cache:{at:Date.now()},listModels:async()=>models,setModel:async input=>{settings++;models=models.map(m=>({...m,enabled:input.value}));return models;},stream:async function*(){executions++;yield{type:'finish',reason:'stop'};}};
  const service=await createProxyService({dataDir:dir,provider,piOptions:{piDir:path.join(dir,'pi')}});t.after(()=>service.close());
  async function api(url,body){const req=Readable.from(body===undefined?[]:[Buffer.from(JSON.stringify(body))]);req.url=url;req.method=body===undefined?'GET':'POST';let code,value;await service.handle(req,{destroyed:false,writeHead(n){code=n;},end(text){value=JSON.parse(text);}});return{code,value};}

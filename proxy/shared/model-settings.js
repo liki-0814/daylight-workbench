@@ -1,12 +1,12 @@
+import {positiveCapacity as positive,capacityLimit} from '../../core/model-capabilities.js';
+import {validateModelSetting} from './contracts.js';
 import {readJson,writeJson,serial} from './store.js';
-import {validOutputBudget,validEffort} from './request-parameters.js';
 
-const positive=value=>Number.isSafeInteger(value)&&value>0?value:undefined;
 export function applyCapacitySettings(models,settings={}){
  return models.map(model=>{
   const windows=model.contextWindows||[];
-  const contextLimit=positive(model.contextLimit)??positive(Math.max(0,...windows.map(w=>w.length)))??positive(model.contextWindow)??positive(model.maxInputTokens);
-  const outputLimit=positive(model.outputLimit)??positive(model.maxOutputTokens);
+  const contextLimit=capacityLimit(model,'contextWindow');
+  const outputLimit=capacityLimit(model,'maxOutputTokens');
   const saved=settings.capacities?.[model.id]||{};
   const requestedContext=saved.contextWindow??settings.context?.[model.id]??(model.contextLimit?model.contextWindow:undefined);
   const requestedOutput=saved.maxOutputTokens??(model.outputLimit?model.maxOutputTokens:undefined);
@@ -23,23 +23,25 @@ export function applyCapacitySettings(models,settings={}){
 export function applyModelSettings(models,settings){
  return applyCapacitySettings(models,settings).map(m=>({...m,enabled:!(settings.disabled||[]).includes(m.id),effort:settings.efforts?.[m.id],...(settings.maxTokens?.[m.id]!==undefined?{defaultMaxTokens:settings.maxTokens[m.id]}:{}),...(settings.tiers?.[m.id]!==undefined?{serviceTier:settings.tiers[m.id]}:{})}));
 }
-export function updateModelSetting(settings,model,{field,value},{fields=['enabled','effort'],invalid,error='不支持的模型设置',enableIds=[]}={}){
+export function updateModelSetting(settings,model,{field,value},{fields=['enabled','effort'],invalid,error='不支持的模型设置',enableIds=[],effortField='efforts'}={}){
  const id=model.id;
  if(!fields.includes(field))throw invalid(error);
- if(field==='enabled'&&typeof value==='boolean'){
+ try{validateModelSetting({...model,settingFields:fields},{field,value});}catch(e){throw invalid(e.message);}
+ if(field==='enabled'){
   const disabled=new Set(settings.disabled||[]);
   if(value)for(const key of [id,...enableIds])disabled.delete(key);else disabled.add(id);
   settings.disabled=[...disabled];
- }else if(field==='effort'&&(value==='auto'||validEffort(value,model.reasoningEfforts||[]))){
-  settings.efforts||={};if(value==='auto')delete settings.efforts[id];else settings.efforts[id]=value;
- }else if(field==='maxTokens'&&(value===null||validOutputBudget(value,model.maxOutputTokens))){
+ }else if(field==='effort'){
+  settings[effortField]||={};if(value==='auto')delete settings[effortField][id];else settings[effortField][id]=value;
+ }else if(field==='fast'||field==='context'){
+  settings[field]||={};settings[field][id]=value;
+ }else if(field==='maxTokens'){
   settings.maxTokens||={};if(value===null)delete settings.maxTokens[id];else settings.maxTokens[id]=value;
  }else if(['contextWindow','maxOutputTokens'].includes(field)){
-  const ceiling=field==='contextWindow'?model.contextLimit:model.outputLimit;
-  if(!positive(value)||!positive(ceiling)||value>ceiling)throw invalid('所选容量超出模型支持的上限');
+  const ceiling=capacityLimit(model,field);
   settings.capacities||={};settings.capacities[id]||={};
   if(value===ceiling)delete settings.capacities[id][field];else settings.capacities[id][field]=value;
- }else if(field==='serviceTier'&&['auto','default',...(model.serviceTiers||[]).map(t=>t.id)].includes(value)){
+ }else if(field==='serviceTier'){
   settings.tiers||={};if(value==='auto')delete settings.tiers[id];else settings.tiers[id]=value;
  }else throw invalid(error);
  return settings;

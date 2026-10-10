@@ -1,10 +1,8 @@
 // Display presets are shared by every model editor; upstream limits remain authoritative.
+import {positiveCapacity as positive,capacityLimit} from '../../core/model-capabilities.js';
+export {capacityLimit};
 export const contextPresets=[256000,353000,500000,1000000];
 const outputPresets=[4096,8192,16384,32768,65536,131072,262144,524288,1048576];
-const positive=value=>Number.isSafeInteger(value)&&value>0?value:undefined;
-export function capacityLimit(model,field){
- return field==='contextWindow'?positive(model.contextLimit)??positive(Math.max(0,...(model.contextWindows||[]).map(w=>w.length)))??positive(model.contextWindow)??positive(model.maxInputTokens):positive(model.outputLimit)??positive(model.maxOutputTokens);
-}
 export function capacityOptions(model,field){
  const limit=capacityLimit(model,field);if(!limit)return[{value:'',label:'上游未提供'}];
  const presets=field==='contextWindow'?contextPresets:outputPresets;

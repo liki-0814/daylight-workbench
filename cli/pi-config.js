@@ -76,7 +76,7 @@ export function modelConfig(model, previous = {}, api = 'openai-responses', over
   next.compat = { ...previous.compat, supportsLongCacheRetention: false };
   if (api === 'openai-responses') {
     next.compat.supportsStrictMode = false;
-    if (['codex', 'grok'].includes(model.source)) next.compat.supportsMaxOutputTokens = false;
+    if (model.requestOutputBudget===false) next.compat.supportsMaxOutputTokens = false;
   }
   if (api === 'openai-completions') Object.assign(next.compat, { supportsStore: false, supportsUsageInStreaming: true, maxTokensField: 'max_tokens' });
   return next;

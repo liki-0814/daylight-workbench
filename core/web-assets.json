@@ -87,5 +87,6 @@
   "/extensions/client.js": "extensions/client.js",
   "/extensions/controller.js": "extensions/controller.js",
   "/extensions/review.js": "extensions/review.js",
-  "/extensions/extensions.css": "extensions/extensions.css"
+  "/extensions/extensions.css": "extensions/extensions.css",
+  "/core/model-capabilities.js": "../core/model-capabilities.js"
 }

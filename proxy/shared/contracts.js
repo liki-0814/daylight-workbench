@@ -1,3 +1,4 @@
+import {capacityLimit,positiveCapacity} from '../../core/model-capabilities.js';
 /** Diagnostics are metadata only; never pass an upstream body or error message. */
 export const protocolFor = endpoint => ({ '/chat/completions': 'chat', '/responses': 'responses', '/messages': 'messages' })[endpoint];
 
@@ -51,7 +52,10 @@ export function validateModelSetting(model, {field,value}) {
  const fail=message=>{throw Object.assign(new Error(message),{status:400});};
  if(!model.settingFields?.includes(field))fail('此来源不支持该模型设置');
  if(['enabled','fast'].includes(field)&&typeof value!=='boolean')fail('开关必须为布尔值');
- if(['context','contextWindow','maxOutputTokens','defaultMaxTokens','maxTokens'].includes(field)&&(!Number.isSafeInteger(value)||value<1))fail('Token 参数必须为正整数');
+ if(['context','contextWindow','maxOutputTokens','defaultMaxTokens','maxTokens'].includes(field)&&!(field==='maxTokens'&&value===null)&&!positiveCapacity(value))fail('Token 参数必须为正整数');
+ if(['contextWindow','maxOutputTokens'].includes(field)){const ceiling=capacityLimit(model,field);if(!ceiling||value>ceiling)fail('所选容量超出模型支持的上限');}
+ if(['maxTokens','defaultMaxTokens'].includes(field)&&value!==null&&model.maxOutputTokens&&value>model.maxOutputTokens)fail('输出预算超出模型支持的上限');
+ if(field==='context'&&!model.contextWindows?.some(w=>w.length===value))fail('该模型未提供此上下文长度');
  if(field==='reasoningEfforts'&&(!Array.isArray(value)||value.length>16||value.some(e=>typeof e!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(e))))fail('思考档位需为有效字符串列表');
  if(field==='effort'&&value!=='auto'&&!model.reasoningEfforts?.includes(value))fail('该模型未提供此思考强度');
  if(field==='serviceTier'&&!['auto','default',...(model.serviceTiers||[]).map(t=>t.id)].includes(value))fail('该模型未提供此速度档位');

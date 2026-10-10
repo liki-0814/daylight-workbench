@@ -1,5 +1,6 @@
-import {applyCapacitySettings} from '../shared/model-settings.js';
-import {REASONING_EFFORTS, normalizeEffort, contextWindowRejection, effortRejection} from '../shared/llm/index.js';
+import {booleanCapability,reasoningCapabilities} from '../../core/model-capabilities.js';
+import {applyCapacitySettings,updateModelSetting} from '../shared/model-settings.js';
+import {REASONING_EFFORTS, normalizeEffort} from '../shared/llm/index.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -43,9 +44,9 @@ function parseContexts(raw) {
 }
 function parseSupportsFast(raw) {
     const fs = raw.feature_switches ?? raw.featureSwitches;
-    if (!fs) return false;
+    if (!fs) return undefined;
     const hs = fs["highspeed"];
-    return hs === true || hs === "true" || hs === "Fast";
+    return hs === undefined ? undefined : hs === true || hs === "true" || hs === "Fast";
 }
 function parsePromotion(raw) {
     const promo = raw.promotion;
@@ -67,7 +68,7 @@ export function parseModel(raw) {
     if (format !== undefined && format !== "openai") return undefined;
     const id = firstDefined(raw.key, raw.model);
     if (!id) return undefined;
-    const isReasoning = Boolean(firstDefined(raw.is_reasoning, raw.isReasoning));
+    const supported = firstDefined(raw.is_reasoning, raw.isReasoning);
     const { efforts, defaultEffort } = parseEfforts(raw);
     const contextWindows = parseContexts(raw);
     const declaredMax = firstDefined(raw.max_input_tokens, raw.maxInputTokens);
@@ -76,9 +77,8 @@ export function parseModel(raw) {
         id,
         displayName: firstDefined(raw.display_name, raw.displayName, raw.name) ?? id,
         source: raw.source,
-        isVL: Boolean(firstDefined(raw.is_vl, raw.isVl)),
-        isReasoning,
-        reasoningEfforts: efforts,
+        isVL: booleanCapability(firstDefined(raw.is_vl, raw.isVl)),
+        ...reasoningCapabilities(supported,efforts),
         defaultEffort,
         contextWindows,
         maxInputTokens,
@@ -266,9 +266,8 @@ export function applyModelsCommand(sub, args, settings, catalog) {
         case "enable":
         case "disable":
             {
-                const { id } = requireModel(args[0]);
-                next.disabled = next.disabled.filter((d)=>d !== id);
-                if (sub === "disable") next.disabled.push(id);
+                const model = requireModel(args[0]),id=model.id;
+                updateModelSetting(next,model,{field:'enabled',value:sub==='enable'},{fields:['enabled'],invalid:message=>new Error(message)});
                 return {
                     settings: next,
                     message: `${sub}d ${id}`
@@ -281,9 +280,7 @@ export function applyModelsCommand(sub, args, settings, catalog) {
                 if (!Number.isFinite(length)) {
                     throw new Error("usage: models context <model-id> <length>");
                 }
-                const rejection = contextWindowRejection(model, length);
-                if (rejection) throw new Error(rejection);
-                next.context[model.id] = length;
+                updateModelSetting(next,model,{field:'context',value:length},{fields:['context'],invalid:message=>new Error(message)});
                 return {
                     settings: next,
                     message: `context window for ${model.id} = ${length}`
@@ -295,8 +292,8 @@ export function applyModelsCommand(sub, args, settings, catalog) {
                 if (onoff !== "on" && onoff !== "off") {
                     throw new Error("usage: models fast <model-id> on|off");
                 }
-                const { id } = requireModel(args[0]);
-                next.fast[id] = onoff === "on";
+                const model = requireModel(args[0]),id=model.id;
+                updateModelSetting(next,model,{field:'fast',value:onoff==='on'},{fields:['fast'],invalid:message=>new Error(message)});
                 return {
                     settings: next,
                     message: `fast for ${id} = ${onoff}`
@@ -309,8 +306,8 @@ export function applyModelsCommand(sub, args, settings, catalog) {
                     throw new Error(`usage: models effort <model-id> <${REASONING_EFFORTS.join("|")}|${EFFORT_AUTO}>`);
                 }
                 if (level.toLowerCase() === EFFORT_AUTO) {
-                    const { id } = requireModel(args[0]);
-                    delete next.effort[id];
+                    const model = requireModel(args[0]),id=model.id;
+                    updateModelSetting(next,model,{field:'effort',value:'auto'},{effortField:'effort',invalid:message=>new Error(message)});
                     return {
                         settings: next,
                         message: `effort for ${id} cleared — the model's own default applies`
@@ -321,9 +318,7 @@ export function applyModelsCommand(sub, args, settings, catalog) {
                     throw new Error(`unknown effort "${level}" (expected ${REASONING_EFFORTS.join(", ")} or ${EFFORT_AUTO})`);
                 }
                 const model = requireModel(args[0]);
-                const rejection = effortRejection(model, effort);
-                if (rejection) throw new Error(rejection);
-                next.effort[model.id] = effort;
+                updateModelSetting(next,model,{field:'effort',value:effort},{effortField:'effort',invalid:message=>new Error(message)});
                 return {
                     settings: next,
                     message: `effort for ${model.id} = ${effort}`

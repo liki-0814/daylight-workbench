@@ -33,6 +33,6 @@ test('Kimi reads both official effort metadata shapes, saves defaults and respec
  await p.forward({model:'k3',input:'Hi'},'responses');assert.equal(JSON.parse(calls.at(-1).init.body).reasoning_effort,'low');
  await p.forward({model:'k3',messages:[],reasoning_effort:'max'},'chat');assert.equal(JSON.parse(calls.at(-1).init.body).reasoning_effort,'max');
  await assert.rejects(p.forward({model:'k3',messages:[],reasoning_effort:'medium'},'chat'),/思考强度/);
- await assert.rejects(p.setModel({id:'kimi-for-coding-highspeed',field:'effort',value:'high'}),/模型设置/);
+ await assert.rejects(p.setModel({id:'kimi-for-coding-highspeed',field:'effort',value:'high'}),/思考强度/);
  await p.setModel({id:'k3',field:'effort',value:'auto'});await p.forward({model:'k3',messages:[]},'chat');assert.ok(!('reasoning_effort' in JSON.parse(calls.at(-1).init.body)));
 });

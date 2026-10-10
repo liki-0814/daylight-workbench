@@ -1,10 +1,10 @@
+import {mergeModelCapabilities} from '../../core/model-capabilities.js';
 import { parseModelRef } from './llm/models.js';
 import { readJson, writeJson, serial } from './store.js';
 import { createHash } from 'node:crypto';
 
 export const retryableRouteError = error => [401,403,404,408,429].includes(Number(error.status || error.code)) || Number(error.status || error.code) >= 500 && Number(error.status || error.code) <= 599 || ['upstream_error','10605','ECONNRESET','ECONNREFUSED','ETIMEDOUT'].includes(error.code) || ['TypeError','TimeoutError'].includes(error.name);
 const bad = message => Object.assign(new Error(message), {status:400,code:'invalid_request'});
-const minimum = values => values.every(v => Number.isFinite(v) && v > 0) ? Math.min(...values) : undefined;
 const common = lists => (lists[0] || []).filter(v => lists.every(list => (list || []).includes(v)));
 
 export class ModelRouter {
@@ -88,9 +88,7 @@ export class ModelRouter {
         eligible.sort((a,b) => pref.order.indexOf(a.provider) - pref.order.indexOf(b.provider));
         const base = eligible[0] || models[0];
         if (eligible.length < 2) return {...base,id,enabled:!!eligible.length,contextWindows:base.contextWindows || [],reasoningEfforts:base.reasoningEfforts || []};
-        const merged = {...base,id,enabled:true,contextWindows:[],reasoningEfforts:common(eligible.map(m=>m.reasoningEfforts))};
-        for (const field of ['contextWindow','maxInputTokens','maxOutputTokens']) merged[field] = minimum(eligible.map(m=>m[field]));
-        for (const field of ['isVL','isReasoning','supportsFast']) merged[field] = eligible.some(m=>typeof m[field] !== 'boolean') ? undefined : eligible.every(m=>m[field] === true);
+        const merged = {...base,...mergeModelCapabilities(eligible),id,enabled:true,contextWindows:[]};
         merged.contextWindows = common(eligible.map(m=>(m.contextWindows || []).map(w=>w.length))).map(length=>({length,isDefault:length===merged.contextWindow}));
         merged.capabilities = Object.fromEntries(Object.keys(base.capabilities || {}).filter(k=>eligible.every(m=>m.capabilities?.[k] === base.capabilities[k])).map(k=>[k,base.capabilities[k]]));
         for (const field of ['defaultEffort','effort','fast']) if (!eligible.every(m=>m[field] === base[field])) delete merged[field];

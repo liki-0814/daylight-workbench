@@ -72,7 +72,7 @@ test('partial refresh failures retain last-known-good catalogs and the completen
 
 test('proxy page model/settings/custom-source changes reach Pi through the shared catalog without unrelated rediscovery', async t => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-catalog-'));
-  const qoder = provider(), agy = provider(); let agyModels = [{ ...model, id: 'agy-model' }];
+  const qoder = provider(), agy = provider(); let agyModels = [{ ...model, id: 'agy-model', contextLimit:4000, settingFields:['contextWindow'] }];
   agy.listModels = async () => { agy.calls++; return agyModels; };
   agy.setModel = async () => (agyModels = [{ ...agyModels[0], contextWindow: 2000 }]);
   const custom = new CustomSources({ dataDir, secrets: { delete: async () => {} }, fetchImpl: async () => { assert.fail('custom save must not discover remotely'); } });
@@ -88,7 +88,7 @@ test('proxy page model/settings/custom-source changes reach Pi through the share
   const initial = await call('/api/cli/pi/state');
   for (let i = 0; i < 3; i++) assert.equal((await call('/api/cli/pi/state')).version, initial.version);
   assert.deepEqual([qoder.calls, agy.calls], [1, 1]);
-  await call('/api/agy/models/setting', { id: 'agy-model', field: 'context', value: 2000 });
+  await call('/api/agy/models/setting', { id: 'agy-model', field: 'contextWindow', value: 2000 });
   const changed = await call('/api/cli/pi/state');
   assert.notEqual(changed.version, initial.version); assert.equal(changed.models.find(m => m.id === 'agy-model').contextWindow, 2000);
   const input = { name: 'Local', baseUrl: 'https://example.invalid/v1', protocol: 'chat', auth: 'none', models: [{ id: 'custom-model', enabled: true }] };

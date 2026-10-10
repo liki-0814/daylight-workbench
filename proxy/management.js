@@ -1,3 +1,4 @@
+import {validateModelSetting} from './shared/contracts.js';
 import {send,readBody,fail} from './gateway.js';
 import {RequestTrace} from './shared/request-records.js';
 import {events,observeResponse} from './shared/protocol.js';
@@ -29,6 +30,8 @@ export function createManagement({registry,router,sourceState,records,status,sou
  async function updateModel(id,input){
   const source=provider(id);
   if(typeof source.setModel!=='function')fail('请在来源配置中编辑并保存模型',400);
+  const model=(router.catalogs?.get(id)||await listModels(id)).find(m=>m.id===input.id);if(!model)fail('模型不存在',400);
+  validateModelSetting(model,input);
   const models=await source.setModel(input);router.setCatalog(id,models);return{models};
  }
  async function syncSources(){
