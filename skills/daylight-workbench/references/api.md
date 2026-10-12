@@ -149,12 +149,16 @@ start/switch 必须带 expectedTaskVersion；所有动作带 expectedVersion。�
 
 prepare 请求 {"action":...}，返回 normalizedAction、expectedVersion（字符串）、planId、files（真实前后内容/链接）、conflicts、impact。actions 请求 {"requestId":"UUID","expectedVersion":"...","planId":"...","action":规范化动作}；必须使用同一份审阅结果。文件、来源或接入目标变化时 409，保留输入并重新预览。相同 ID 不同内容拒绝，相同原请求成功回执可跨重启重放。
 
-动作：skill.create(directory,content完整SKILL.md)、skill.update(id,file?,content)、skill.archive(id)、mcp.save(server)、mcp.archive(id)、mcp.generate(clientId)、mcp.probe(id)、binding.connect/adopt/disconnect(id,clientId)、client.save(client)、client.remove(clientId)、operation.restore(operationId)。Skill ID 从清单读取，MCP ID 与名称分别存储。archive 可用 operation.restore 恢复，恢复遇到后续文件变化不覆盖。receipt 状态 applying/applied/rolled_back/recovery_required 明确区分；外部漂移须核对文件后重试原请求。
+动作：skill.create(directory,content完整SKILL.md,clientId?省略为共享来源)、skill.update(id,file?,content)、skill.archive(id)、mcp.save(server,clientId?省略为共享来源)、mcp.install(id共享MCP,clientId)、mcp.toggle(id软件MCP,enabled)、mcp.archive(id)、mcp.generate(clientId)、mcp.probe(id)、binding.connect/adopt/disconnect(id,clientId)、client.save(client)、client.select(clientId,selected布尔值)、client.remove(clientId)、operation.restore(operationId)。Skill ID 从清单读取，MCP ID 与名称分别存储。archive 可用 operation.restore 恢复，恢复遇到后续文件变化不覆盖。receipt 状态 applying/applied/rolled_back/recovery_required 明确区分；外部漂移须核对文件后重试原请求。
 
 server 字段 id/name/transport/enabled；stdio 使用 command/args/cwd/envRefs，HTTP 使用 url/headerRefs。凭据引用格式 {"请求头或变量名称":"环境变量名称"}，不接受 env/headers 明文。stdio 不经 shell 执行。mcp.probe 须明确授权，仅 initialize 和 tools/list；实际命令/端点在预览中呈现，不能作为静态诊断的隐式动作。
 
 软件详情的 root 为软件主目录，skillsRoot 为该软件自身的 Skills 目录；state.root/skills 为 Daylight 管理来源。Codex 主目录默认 ~/.codex，可由 CODEX_HOME 指定；Codex 链接位置为 ~/.codex/skills；Pi 主目录默认 ~/.pi，链接位置为 ~/.pi/agent/skills。PI_CODING_AGENT_DIR 显式覆盖时代表 agent 目录，Skills 在其 skills 下。只发现 ~/.agents/skills 的一级子目录。
 
-各软件按 Skill 链接。旧正确链接默认须明确 adopt 后才能 disconnect；用户明确要求仅移除该链接时，可在审阅动作 binding.disconnect 中传 includeExisting:true（必须为布尔值），预览会说明目标及保留主来源，修改前链接记入回执供恢复。该参数不能绕过同名实体、不同目标或已被外部改动的管理链接保护。MCP 生成只在 ~/.agents/mcp/generated，下游全局混合配置不修改；需用户在客户端接入，Pi MCP 当前不支持自动接入。Qoder 含凭据引用的生成形式未验证时拒绝。
+各软件按 Skill 链接，软件本地目录也可用 skill.update/archive 管理；未知外部链接归档只移除链接，不读取或删除其目标。已有正确链接可用 binding.disconnect(includeExisting:true) 预览移除，adopt 只是可选的归属记录。同名实体或外部漂移不能覆盖。
 
-client.save 的 client 字段为 id（client_ 前缀）、name、command（单个命令名或可执行文件绝对路径）、root（绝对路径或 ~/ 开头）、skillsDirectory（相对目录，默认 skills）、mcpFormat（none/toml/json，默认 none）。登记在 ~/.agents/daylight/clients.json，最多 50 项；不会安装或执行 CLI。仅自定义登记支持 client.remove，移除和变更接入目录前须解除已管理链接，恢复登记也受该约束。已登记软件从 state.clients 读取，不把 capabilities.clients 的内置列表当成全量列表。
+MCP 清单通过 scope(shared/client)、clientId、serverKey、sourcePath 区分来源。软件 mcp.save 使用 serverKey 作为 server.id；mcp.install 拒绝覆盖同名服务；mcp.toggle 仅用于 toggleSupported 服务；mcp.generate 仍仅导出到 ~/.agents/mcp/generated。原生 MCP 修改只改变目标字段，其他设置、未知字段和既有凭据保留。公开计划不展开整个软件配置，secretKeys 表示隐藏并保留的字段；新凭据仅填环境变量引用。Qoder 的插值未核实，不写新引用。软件 MCP 握手和运行发现由 CLI 核对；mcp.probe 用于共享 MCP。
+
+client.save 的 client 字段为 id（client_ 前缀）、name、command（单个命令名或可执行文件绝对路径）、root（绝对路径或 ~/ 开头）、skillsDirectory（相对目录，默认 skills）、mcpFormat（none/toml/json，默认 none，仅导出格式）、adapter（auto/manual/codex/qoder/pi/grok/claude，默认按命令匹配）。登记在 ~/.agents/daylight/clients.json，最多 50 项；不会安装或执行 CLI。仅自定义登记支持 client.remove；自动识别项有 registrationId 时可用该旧 ID 删除登记并迁移管理记录，不改链接。其他登记移除和变更接入目录前须解除已管理链接，恢复登记也受该约束。已登记软件从 state.clients 读取，不把 capabilities.clients 的内置列表当成全量列表。
+
+CLI 自动发现只提供候选项，state.clients.selected 表示用户是否选择接入。client.select 通过审阅持久化选择到 clients.json 的 selectedClients；选择后才扫描该 CLI 的 Skills、用户级 MCP，取消选择不修改已有文件、链接和归属记录。未选择的 CLI 不能执行本地 Skill/MCP 写操作，返回 EXTENSIONS_CLIENT_NOT_SELECTED。已有明确登记及 Daylight 管理记录沿用原选择，单纯存在命令、目录或外部链接不自动接入。

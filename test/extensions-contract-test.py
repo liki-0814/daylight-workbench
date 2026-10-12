@@ -62,7 +62,10 @@ def run(command):
             code, state = request('/api/v1/extensions/state'); assert code == 200, state
             assert state['skills'] == [] and not agents.exists() and not (data / 'ai').exists()
             assert next(client for client in state['clients'] if client['id'] == 'codex')['root'] == clients['codex']
-            assert request('/api/v1/capabilities')[1]['extensions']['clients'] == ['codex', 'qoder', 'pi']
+            assert request('/api/v1/capabilities')[1]['extensions']['clients'] == ['codex', 'qoder', 'pi', 'grok', 'claude']
+            assert not any(client.get('selected') for client in state['clients'])
+            for client_id in ['codex', 'qoder', 'pi']:
+                apply({'type': 'client.select', 'clientId': client_id, 'selected': True})
             for asset in ['page.js', 'client.js', 'controller.js', 'review.js', 'extensions.css']:
                 assert request('/extensions/' + asset, auth='none')[0] == 200
             content = '---\nname: contract-skill\ndescription: 合同测试\n---\nFixture'
@@ -108,6 +111,31 @@ def run(command):
             apply({'type': 'mcp.generate', 'clientId': 'codex'})
             assert (agents / 'mcp/generated/codex/servers.toml').exists()
             assert not (pathlib.Path(clients['codex']) / 'config.toml').exists()
+            native_file = pathlib.Path(clients['codex']) / 'config.toml'
+            original_native = '# preserve comment\nmodel = "private-model"\n[mcp_servers.native]\ncommand = "node"\nargs = []\n[mcp_servers.native.env]\nSECRET = "private-value"\n'
+            native_file.write_text(original_native)
+            native_state = request('/api/v1/extensions/refresh', {})[1]
+            native_server = next(item for item in native_state['servers'] if item.get('clientId') == 'codex')
+            assert 'private-value' not in json.dumps(native_state)
+            action = {'type': 'mcp.save', 'clientId': 'codex', 'server': {'id': 'native', 'name': 'native', 'transport': 'stdio', 'command': 'node', 'args': ['new.mjs'], 'enabled': True, 'envRefs': {}}}
+            plan = request('/api/v1/extensions/prepare', {'action': action})[1]
+            assert 'private-value' not in json.dumps(plan) and 'before' not in plan['files'][0]
+            native_changed, _ = apply(action)
+            assert '# preserve comment' in native_file.read_text() and 'private-value' in native_file.read_text()
+            toggled, _ = apply({'type': 'mcp.toggle', 'id': native_server['id'], 'enabled': False})
+            assert not next(item for item in request('/api/v1/extensions/state')[1]['servers'] if item['id'] == native_server['id'])['enabled']
+            # Restore the toggle before restoring the edit, exercising guarded versions.
+            apply({'type': 'operation.restore', 'operationId': toggled['operationId']})
+            apply({'type': 'operation.restore', 'operationId': native_changed['operationId']})
+            assert native_file.read_text() == original_native
+            deselected, _ = apply({'type': 'client.select', 'clientId': 'codex', 'selected': False})
+            disconnected_state = request('/api/v1/extensions/state')[1]
+            assert not any(item.get('clientId') == 'codex' for item in disconnected_state['servers'])
+            assert native_file.read_text() == original_native
+            assert (pathlib.Path(clients['codex']) / 'skills/contract-skill').is_symlink()
+            assert request('/api/v1/extensions/prepare', {'action': action})[0] == 409
+            apply({'type': 'operation.restore', 'operationId': deselected['operationId']})
+            assert next(item for item in request('/api/v1/extensions/state')[1]['clients'] if item['id'] == 'codex')['selected']
             detected, _ = apply({'type': 'mcp.probe', 'id': server['id']})
             for _ in range(200):
                 code, probe = request('/api/v1/extensions/probes/' + detected['probeId'])

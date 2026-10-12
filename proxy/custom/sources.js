@@ -7,7 +7,7 @@ import {readJson,writeJson,serial} from '../shared/store.js';
 import {invalid} from '../shared/protocol.js';
 import {Secrets} from '../shared/secrets.js';
 const paths={chat:'chat/completions',responses:'responses',messages:'messages'};
-const secretId=(s,k)=>k.id==='default'?s.id:`${s.id}:key:${k.id}`;
+const secretId=(s,k)=>k.credentialId?`${s.id}:credential:${k.credentialId}`:k.id==='default'?s.id:`${s.id}:key:${k.id}`;
 const legacyKey=s=>({id:'default',enabled:true,hasKey:!!s.hasKey,models:s.models||[]});
 const normalize=s=>{const keys=s.keys||[legacyKey(s)];return{...s,keys,hasKey:keys.some(k=>k.enabled!==false&&k.hasKey),models:modelUnion(keys)};};
 export class CustomSources {
@@ -32,7 +32,8 @@ export class CustomSources {
    if(aggregate){if(draft.length===1&&(!old||old.keys.length===1))models=aggregate;
     else models=models.flatMap(m=>{const n=aggregate.find(n=>n.upstreamId===m.upstreamId||n.id===m.id);return n?[{...n,upstreamId:m.upstreamId}]:[];});
    }
-   const key={id,enabled:k.enabled!==false,hasKey:!!prior?.hasKey,models};
+   // Credential locations come only from saved settings, never a client draft.
+   const key={id,enabled:k.enabled!==false,hasKey:!!prior?.hasKey,models,...(prior?.credentialId?{credentialId:prior.credentialId}:{})};
    // Keep the original single-key API, including its blank-means-preserve behavior.
    const value=i===0&&input.apiKey?input.apiKey:k.apiKey,clear=!!(i===0&&input.clearKey||k.clearKey);
    if(value!==undefined&&typeof value!=='string'||value&&(value.length>16384||/[\r\n]/.test(value)))throw invalid('API Key 无效');
@@ -50,9 +51,46 @@ export class CustomSources {
   if(preview)return{source:s,credentials:pending,extraHeaders:extra,clearHeaders:input.clearHeaders};
   if(input.clearHeaders){await this.secrets.delete(s.id+':headers');s.hasHeaders=false;}
   if(extra){await this.secrets.set(s.id+':headers',JSON.stringify(extra));s.hasHeaders=true;}
-  for(const {key,value,clear} of pending){if(value)await this.secrets.set(secretId(s,key),value);else if(clear)await this.secrets.delete(secretId(s,key));}
-  await writeJson(this.file,[...list.filter(x=>x.id!==s.id),s]);
+  await this.writeCredentials(list,s,pending);
   for(const key of old?.keys||[])if(!seen.has(key.id))await this.secrets.delete(secretId(s,key));
+  for(const id of this.cooldowns.keys())if(id.startsWith(s.id+':'))this.cooldowns.delete(id);
+  return s;
+ });}
+ async writeCredentials(list,s,pending){
+  const old=list.find(x=>x.id===s.id),priorKeys=old?.keys||(old?[legacyKey(old)]:[]),created=[];
+  try{
+   for(const {key,value,clear} of pending){
+    if(value){
+     // Re-entry replaces the storage location, not the Key's identity/access.
+     // Keep the old item untouched: even updating/deleting it can require UI.
+     if(priorKeys.some(k=>k.id===key.id)){key.credentialId=randomUUID();created.push(secretId(s,key));}
+     await this.secrets.set(secretId(s,key),value);
+    }else if(clear)await this.secrets.delete(secretId(s,key));
+   }
+   await writeJson(this.file,old?list.map(x=>x.id===s.id?s:x):[...list,s]);
+  }catch(error){
+   // Only newly allocated locations are eligible for failed-save cleanup.
+   // writeJson may report a permissions failure after publishing the file.
+   // Never remove a new entry that the persisted configuration already uses.
+   const persisted=await readJson(this.file,null).catch(()=>null);
+   if(persisted){const active=new Set(persisted.flatMap(source=>(source.keys||[]).map(key=>secretId(source,key))));await Promise.allSettled(created.filter(id=>!active.has(id)).map(id=>this.secrets.delete(id)));}
+   throw error;
+  }
+ }
+ async resaveCredentials(input){return this.mutate(async()=>{
+  // Read the stored source verbatim: credential recovery must not normalize,
+  // rediscover or apply unsaved model/form settings.
+  const list=await readJson(this.file,[]),old=list.find(s=>s.id===input.id);if(!old)throw invalid('来源不存在');
+  if(!Array.isArray(input.keys)||!input.keys.length||input.keys.length>50)throw invalid('请先重新填写需要恢复的 API Key');
+  const s=structuredClone(old);s.keys??=[legacyKey(s)];const seen=new Set(),pending=[];
+  for(const entry of input.keys){
+   const key=s.keys.find(k=>k.id===entry?.id),value=entry?.apiKey;
+   if(!key||seen.has(entry.id))throw invalid('Key 标识无效或重复');seen.add(entry.id);
+   if(typeof value!=='string'||!value||value.length>16384||/[\r\n]/.test(value))throw invalid('请重新填写有效的 API Key');
+   key.hasKey=true;pending.push({key,value});
+  }
+  s.hasKey=s.keys.some(k=>k.enabled!==false&&k.hasKey);s.revision=randomUUID();
+  await this.writeCredentials(list,s,pending);
   for(const id of this.cooldowns.keys())if(id.startsWith(s.id+':'))this.cooldowns.delete(id);
   return s;
  });}

@@ -1,3 +1,4 @@
+import {piModelCost} from '../core/model-metadata.js';
 import os from 'node:os';
 import path from 'node:path';
 import { access, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
@@ -48,6 +49,7 @@ function validateOverrides(value, models) {
     for (const [key, v] of Object.entries(fields)) {
       if (['contextWindow','maxTokens'].includes(key)) { if (!positive(v)) fail('Token 参数需为正整数'); next[key]=v; }
       else if (key==='reasoning') { if(typeof v!=='boolean') fail('思考能力需为布尔值'); next[key]=v; }
+      else if (key==='cost') {const cost=piModelCost(v);if(!cost)fail('价表需包含完整的四项非负价格及有效分档');next.cost=cost;}
       else if (key==='input') { if(!Array.isArray(v)||!v.includes('text')||v.some(x=>!['text','image'].includes(x))||new Set(v).size!==v.length) fail('输入类型无效'); next[key]=v; }
       else if (key==='thinkingLevelMap') {
         if(!object(v)) fail('思考档位映射无效'); next[key]={};
@@ -61,18 +63,22 @@ function validateOverrides(value, models) {
 
 export function modelConfig(model, previous = {}, api = 'openai-responses', override = {}) {
   const next = { ...previous, id: model.id, name: model.name, api };
+  const cost=piModelCost(model.cost);if(cost)next.cost=cost;
   if (positive(model.contextWindow)) next.contextWindow = model.contextWindow;
   if (positive(model.maxOutputTokens)) next.maxTokens = model.maxOutputTokens;
   if (typeof model.isReasoning === 'boolean') next.reasoning = model.isReasoning;
-  if (model.reasoningEfforts?.length) {
+  else if(model.reasoningEfforts?.some(level=>!['off','none'].includes(level)))next.reasoning=true;
+  if (model.reasoningEfforts?.length || model.reasoningEffortsProvided) {
     next.thinkingLevelMap = Object.fromEntries(thinkingLevels.map(level=>[level, model.reasoningEfforts.includes(level) ? level : level==='off' && model.reasoningEfforts.includes('none') ? 'none' : level==='max' && model.reasoningEfforts.includes('ultra') ? 'ultra' : null]));
   }
   if (model.thinkingLevelMap) next.thinkingLevelMap = { ...next.thinkingLevelMap, ...model.thinkingLevelMap };
   const levelMap = next.thinkingLevelMap;
-  Object.assign(next, override);
-  if (override.thinkingLevelMap) next.thinkingLevelMap = {...levelMap, ...override.thinkingLevelMap};
+  // Personal capability values are fallbacks after the effective upstream/reference catalog.
+  for (const key of ['contextWindow','maxTokens','reasoning','input']) if (next[key] === undefined && override[key] !== undefined) next[key] = override[key];
+  if (override.cost) next.cost = override.cost;
+  if (override.thinkingLevelMap && !model.reasoningEfforts?.length && !model.reasoningEffortsProvided && model.isReasoning !== false) next.thinkingLevelMap = {...override.thinkingLevelMap, ...levelMap};
   if (typeof model.isVL === 'boolean') next.input = model.isVL ? ['text', 'image'] : ['text'];
-  if (override.input) next.input = override.input;
+
   next.compat = { ...previous.compat, supportsLongCacheRetention: false };
   if (api === 'openai-responses') {
     next.compat.supportsStrictMode = false;
@@ -123,11 +129,18 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
     }
     info ||= getInfo();
     const obsolete = (provider.models || []).filter(m => !catalog.some(c => c.id === m.id)).map(m => ({ id: m.id, name: m.name || m.id, state: 'removed' }));
-    return { files, models, settings, gateway, latest, public: { version, api, models: rows, obsolete, catalogError, automatic: { enabled: sync.enabled, api: sync.api, lastSyncedAt: sync.lastSyncedAt, error: sync.error || '' }, pi: { ...await info, directory: piDir, modelsPath: path.join(piDir, filenames[0]), importedCount: rows.filter(m => provider.models?.some(p => p.id === m.id)).length, configuredCount: provider.models?.length || 0, defaultProvider: settings.defaultProvider || '', defaultModel: settings.defaultModel || '', canRestore }, service: { state: gateway.state, baseUrl: gateway.baseUrl }, pending: latest?.phase === 'pending' } };
+    return { files, models, settings, gateway, latest, failedSources:failed, public: { version, api, models: rows, obsolete, catalogError, automatic: { enabled: sync.enabled, api: sync.api, lastSyncedAt: sync.lastSyncedAt, error: sync.error || '' }, pi: { ...await info, directory: piDir, modelsPath: path.join(piDir, filenames[0]), importedCount: rows.filter(m => provider.models?.some(p => p.id === m.id)).length, configuredCount: provider.models?.length || 0, defaultProvider: settings.defaultProvider || '', defaultModel: settings.defaultModel || '', canRestore }, service: { state: gateway.state, baseUrl: gateway.baseUrl }, pending: latest?.phase === 'pending' } };
   }
-  function build(s, input) {
+  function build(s, input, pricesOnly = false) {
     if (!object(input)) fail('Pi 配置操作需为对象');
     if (s.public.pending) fail('上次写入中断，请先恢复上次接入', 409);
+    if (pricesOnly) {
+      const next=structuredClone(s.models),rows=s.public.models.filter(m=>!s.failedSources.some(source=>source.id===m.source)&&m.priceInfo?.complete&&['llm-pricing','official-reference'].includes(m.priceInfo.basis));
+      const changed=[];
+      for(const model of next.providers?.daylight?.models||[]){const row=rows.find(m=>m.id===model.id),cost=row&&piModelCost(row.configuration.cost);if(cost&&hash(model.cost)!==hash(cost)){model.cost=cost;changed.push(row);}}
+      if(!rows.some(row=>s.models.providers?.daylight?.models?.some(m=>m.id===row.id)))fail(s.public.catalogError,409);
+      return{after:[changed.length?encode(next):s.files[0],s.files[1]],modelOverrides:sync.modelOverrides,public:{ids:changed.map(m=>m.id),pricesOnly:true}};
+    }
     if (s.public.catalogError) fail(s.public.catalogError, 409);
     const selected = s.public.models;
     if (input.ids !== undefined && (!Array.isArray(input.ids) || input.ids.length !== selected.length || new Set(input.ids).size !== selected.length || selected.some(m => !input.ids.includes(m.id)))) fail('现在使用全量同步，请刷新后同步全部中转模型', 409);
@@ -150,11 +163,11 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
     await writeJson(latestFile, { ...latest, phase: 'restored' });
   }
   async function saveSync(next) { await writeJson(syncFile, next); sync = next; }
-  async function remember(s, files, modelOverrides) {
-    const next = { ...sync, modelOverrides, piDir, api: s.public.api, lastModelHash: hash(files[0]), sources: [...new Set(s.public.models.map(m => m.source))], error: '' };
+  async function remember(s, files, modelOverrides, pricesOnly = false) {
+    const next = { ...sync, modelOverrides, piDir, api: s.public.api, lastModelHash: hash(files[0]), sources: pricesOnly?sync.sources:[...new Set(s.public.models.map(m => m.source))], error: pricesOnly?s.public.catalogError:'' };
     if (hash(next) !== hash(sync)) await saveSync({ ...next, lastSyncedAt: new Date().toISOString() });
   }
-  async function applyInput(input, existing) {
+  async function applyInput(input, existing, pricesOnly = false) {
       if (!object(input)) fail('Pi 配置操作需为对象');
       if (typeof input.requestId !== 'string' || !/^[\w-]{1,100}$/.test(input.requestId) || typeof input.expectedVersion !== 'string') fail('缺少合法的 requestId 或 expectedVersion');
       const fingerprint = hash(input), latest = await readJson(latestFile, null);
@@ -166,10 +179,10 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
       }
       const s = existing || await snapshot(input.api);
       if (input.expectedVersion !== s.public.version) fail('Pi 配置或代理模型已变化，请刷新后重试', 409);
-      const plan = build(s, input), count = plan.public.ids.length;
+      const plan = build(s, input, pricesOnly), count = plan.public.ids.length;
       if (hash(plan.after) === hash(s.files)) {
-        await remember(s, s.files, plan.modelOverrides);
-        return { ok: true, count, unchanged: true, message: `Pi 已与中转目录一致，共 ${count} 个模型。` };
+        await remember(s, s.files, plan.modelOverrides, pricesOnly);
+        return { ok: true, count, unchanged: true, ...(pricesOnly?{pricesOnly:true}:{}), message: pricesOnly?'已接入模型的参考价表已一致；全量同步仍等待目录恢复。':`Pi 已与中转目录一致，共 ${count} 个模型。` };
       }
       const id = randomUUID(), backupPath = path.join(folder, id + '.json');
       const backup = { piDir, before: s.files, afterHashes: plan.after.map(hash), createdAt: new Date().toISOString() };
@@ -183,7 +196,8 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
         try { await restoreBackup(backup, receipt); } catch { fail('写入未完成，请恢复上次接入；原配置备份已保留', 409); }
         throw error;
       }
-      await remember(s, plan.after, plan.modelOverrides);
+      await remember(s, plan.after, plan.modelOverrides, pricesOnly);
+      if(pricesOnly)return{ok:true,count,pricesOnly:true,backupPath,message:`已更新 ${count} 个已接入模型的参考价表；全量同步仍等待目录恢复。`};
       const removed = s.public.obsolete.length;
       return { ok: true, count, removed, backupPath, message: `已全量同步 ${count} 个模型，移除 ${removed} 个旧模型。${plan.public.defaultChanged ? input.defaultModel === undefined ? '失效的默认模型已清除。' : '已更新 Pi 默认模型。' : '默认模型未修改。'}` };
   }
@@ -226,7 +240,7 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
       try {
         const s = await snapshot(sync.api);
         if (!sync.lastModelHash || hash(s.files[0]) !== sync.lastModelHash) fail('Pi 模型配置已被外部修改，自动同步暂停；请手动同步确认', 409);
-        return await applyInput({ api: sync.api, expectedVersion: s.public.version, requestId: randomUUID() }, s);
+        return await applyInput({ api: sync.api, expectedVersion: s.public.version, requestId: randomUUID() }, s, !!s.public.catalogError);
       } catch (error) {
         if (sync.error !== error.message) await saveSync({ ...sync, error: error.message });
         return { ok: false, error: error.message };

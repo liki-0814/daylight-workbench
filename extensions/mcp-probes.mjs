@@ -4,7 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { error, hash } from './files.mjs';
-import { privateEnvironmentNames } from './mcp-config.mjs';
+import { privateEnvironmentNames } from './mcp-server.mjs';
 
 export function createProbes({ environment = process.env, timeoutMs = 15000 } = {}) {
   const probes = new Map();

@@ -33,6 +33,9 @@ shutil.copy2(root / 'native/tray-model.mjs', resources / 'tray-model.mjs')
 shutil.copytree(root / 'proxy', resources / 'proxy', dirs_exist_ok=True)
 shutil.copytree(root / 'cli', resources / 'cli', dirs_exist_ok=True)
 subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(root / 'native/Credentials.swift'), '-o', str(resources / 'DaylightCredentials')], check=True)
+agy_credentials = pathlib.Path(build_directory.name) / 'AgyCredentials.swift'
+agy_credentials.write_text((root / 'native/Credentials.swift').read_text().replace('"local.daylight.proxy"', '"gemini"'))
+subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(agy_credentials), '-o', str(resources / 'DaylightAgyCredentials')], check=True)
 shutil.copytree(root / 'ai', resources / 'ai', dirs_exist_ok=True)
 shutil.copytree(root / 'extensions', resources / 'extensions', dirs_exist_ok=True)
 # Compile the adapter dependency graph instead of copying npm's installation tree.

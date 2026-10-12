@@ -1,3 +1,4 @@
+import {modelPriceLabel} from '../../core/model-metadata.js';
 import {capacityLimit,capacityOptions,fastSetting} from './model-options.js';
 import {selectField} from '../components/select.js';
 import {disclosureSection,mountDisclosures,refreshButton,setRefreshState} from '../components/section.js';
@@ -10,11 +11,11 @@ export function modelGroups(models,row,{open=false,selected=m=>m.enabled!==false
 
 function modelSummary(m){
  const context=m.contextWindow||m.contextWindows?.find(w=>w.isDefault)?.length;
- const quantity=value=>Number.isFinite(value)&&value>0?Number(value).toLocaleString():'上游未提供';
- return `<p class="proxy-hint">上下文 ${quantity(context)} · 最大输出 ${quantity(m.maxOutputTokens)}</p><p class="proxy-hint">上游默认推理强度：${esc(m.defaultEffort||'上游未提供')}${m.thinkingType==='only'?' · 不支持关闭思考':''}</p><p class="proxy-hint">支持的推理强度：${esc(m.reasoningEfforts?.length?m.reasoningEfforts.join(' · '):m.isReasoning===false?'不支持思考':'上游未提供')}</p>`;
+ const quantity=value=>Number.isFinite(value)&&value>0?Number(value).toLocaleString():'未提供（Pi 默认）';
+ return `<div data-model-summary><p class="proxy-hint">上下文 ${quantity(context)} · 最大输出 ${quantity(m.maxOutputTokens)}</p><p class="proxy-hint">默认推理强度：${esc(m.effort||m.defaultEffort||'未提供')}${m.thinkingType==='only'?' · 不支持关闭思考':''}</p><p class="proxy-hint">支持的推理强度：${esc(m.reasoningEfforts?.length?m.reasoningEfforts.join(' · '):m.isReasoning===false?'不支持思考':'未提供')}</p><p class="proxy-hint">${esc(modelPriceLabel(m))}</p>${m.modelMetadata?.matchedId?`<p class="proxy-hint">${m.priceInfo?.basis==='official-reference'?'官方价表（本地补充）':'参考目录'}：${esc(m.modelMetadata.matchedId)} · ${esc(m.modelMetadata.updatedAt)} · 仅补全上游未提供的字段</p>`:''}</div>`;
 }
 export function updateModelSummary(row,model){
- row.querySelector('.proxy-hint').outerHTML=modelSummary(model).split('</p>')[0]+'</p>';
+ row.querySelector('[data-model-summary]').outerHTML=modelSummary(model);
 }
 function modelHeading(m,selection){
  return `<div class="proxy-model-heading"><div>${esc(m.displayName||m.upstreamId||m.id)}<small>${esc(m.id)}</small></div><label class="proxy-checkbox ui-first-line-slot">${selection}启用</label></div>`;
@@ -22,28 +23,29 @@ function modelHeading(m,selection){
 function capacityFields(m,field){
  return ['contextWindow','maxOutputTokens'].map(name=>field(name,name==='contextWindow'?'上下文':'最大输出',m[name]??capacityLimit(m,name)??'',capacityOptions(m,name),!capacityLimit(m,name))).join('');
 }
-export function renderModelRow(m){
+export function referenceOptions(references,current=''){return[{value:'',label:'自动匹配模型 ID'},...references.map(m=>({value:m.id,label:m.name+' · '+m.id})),...(current&&!references.some(m=>m.id===current)?[{value:current,label:'已关联（目录未收录）：'+current}]:[])];}
+export function renderModelRow(m,references=[]){
  const fields=m.settingFields||[],field=(name,label,value,options,disabled=false)=>`<div class="proxy-model-field" data-model="${esc(m.id)}" data-field="${name}">${selectField({name,label,value,options,disabled,compact:true})}</div>`;
  const effort=fields.includes('effort')?field('effort','默认推理强度',m.effort||'auto',[{value:'auto',label:'自动'},...m.reasoningEfforts.map(level=>({value:level,label:level}))]):'';
  const fast=fastSetting(m),speed=fast?`<label class="proxy-checkbox"><input type="checkbox" data-model="${esc(m.id)}" data-field="${fast.field}" ${fast.on?`data-fast-tier="${esc(fast.on)}"`:''} ${fast.checked?'checked':''} aria-label="Fast ${esc(m.id)}">Fast</label>`:'';
- return `<div class="proxy-model">${modelHeading(m,`<input type="checkbox" data-model="${esc(m.id)}" data-field="enabled" ${m.enabled?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${speed}</div></div>`;
+ return `<div class="proxy-model">${modelHeading(m,`<input type="checkbox" data-model="${esc(m.id)}" data-field="enabled" ${m.enabled?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${speed}${field('referenceId','参考模型关联',m.modelMetadata?.referenceId||'',referenceOptions(references,m.modelMetadata?.referenceId))}</div></div>`;
 }
 
 export function createModelList({store,source}){
  const element=document.createElement('div');element.innerHTML=disclosureSection({id:source+'-models-details',className:'proxy-disclosure',title:'模型设置',description:'启用与默认参数',actions:refreshButton({ariaLabel:'刷新模型',attrs:{'data-refresh-models':true}}),content:'<div data-models-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-message></p>'});mountDisclosures(element);
- const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],loading=false,version=0,visible=false;
- function paint(){const open=list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,renderModelRow,{open});}
+ const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],references=[],loading=false,version=0,visible=false;
+ function paint(){const open=list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,m=>renderModelRow(m,references),{open});}
  async function load(force=false){
   if(loading)return;loading=true;const current=version;message.textContent='正在获取模型…';setRefreshState(refresh,{loading:true});
-  try{const result=await store.resource(source,'models',{refresh:force});if(current!==version||result===undefined)return;models=result;paint();message.textContent=models.length?'':'账号暂无可用模型';}
+  try{let [result,reference]=await Promise.all([store.resource(source,'models',{refresh:force}),store.api.request('model-metadata'+(force?'?refresh=1':'')).catch(e=>({models:[],error:e.message}))]);references=reference.models;if(current!==version||result===undefined)return;if(reference.meta?.data_version&&result.some(m=>m.modelMetadata&&m.modelMetadata.version!==reference.meta.data_version)){store.invalidate(source);result=await store.resource(source,'models');if(current!==version||result===undefined)return;}models=result;paint();message.textContent=reference.error||(models.length?'':'账号暂无可用模型');}
   catch(e){if(current===version&&e.name!=='AbortError')message.textContent=e.message;}
   finally{if(current===version){loading=false;setRefreshState(refresh);}}
  }
  list.onchange=async event=>{
   const input=event.target,{model,field}=input.closest('[data-model]')?.dataset||{};if(!model)return;
-  const original=models.find(m=>m.id===model),current=version;input.disabled=true;
-  try{const value=input.type==='checkbox'?input.dataset.fastTier?input.checked?input.dataset.fastTier:'auto':input.checked:['context','contextWindow','maxOutputTokens'].includes(field)?Number(input.value):input.value;const result=await store.setModel(source,{id:model,field,value});if(current!==version)return;models=result;message.textContent='已保存';if(field==='enabled')paint();else if(['contextWindow','maxOutputTokens'].includes(field)){const updated=models.find(m=>m.id===model),row=input.closest('.proxy-model');updateModelSummary(row,updated);}}
-  catch(e){if(current!==version)return;message.textContent=e.message;if(input.type==='checkbox')input.checked=field==='enabled'?original.enabled:field==='serviceTier'?['priority','fast'].includes(original.serviceTier):original.fast;else input.value=['contextWindow','maxOutputTokens'].includes(field)?original[field]??'':field==='context'?original.contextWindows.find(w=>w.isDefault)?.length:field==='serviceTier'?original.serviceTier||'auto':field==='fast'?original.fast?'fast':'default':original.effort||'auto';}
+  const original=models.find(m=>m.id===model),current=version,restoreFocus=input.closest('workbench-select')?.contains(document.activeElement);input.disabled=true;
+  try{const value=input.type==='checkbox'?input.dataset.fastTier?input.checked?input.dataset.fastTier:'auto':input.checked:['context','contextWindow','maxOutputTokens'].includes(field)?Number(input.value):input.value;const result=field==='referenceId'?(await store.api.request('model-metadata',{source,id:original.upstreamId||original.id,referenceId:value})).models:await store.setModel(source,{id:model,field,value});if(field==='referenceId')store.invalidate(source);if(current!==version)return;models=result;message.textContent='已保存';if(['enabled','referenceId'].includes(field)){paint();if(restoreFocus)list.querySelector(`[data-model="${CSS.escape(model)}"][data-field="${field}"] .select-trigger`)?.focus({preventScroll:true});}else if(['contextWindow','maxOutputTokens','effort'].includes(field)){const updated=models.find(m=>m.id===model),row=input.closest('.proxy-model');updateModelSummary(row,updated);}}
+  catch(e){if(current!==version)return;message.textContent=e.message;if(input.type==='checkbox')input.checked=field==='enabled'?original.enabled:field==='serviceTier'?['priority','fast'].includes(original.serviceTier):original.fast;else if(field==='referenceId')input.value=original.modelMetadata?.referenceId||'';else input.value=['contextWindow','maxOutputTokens'].includes(field)?original[field]??'':field==='context'?original.contextWindows.find(w=>w.isDefault)?.length:field==='serviceTier'?original.serviceTier||'auto':field==='fast'?original.fast?'fast':'default':original.effort||'auto';}
   finally{input.disabled=false;}
  };
  details.ontoggle=()=>{if(details.open&&visible)void load();};refresh.onclick=()=>{void load(true);};
@@ -56,8 +58,8 @@ function effortChoices(model){
  const selected=new Set(model.reasoningEfforts||[]),levels=[...effortLevels,...selected].filter((level,index,all)=>all.indexOf(level)===index);
  return `<div class="custom-effort-field" role="group" aria-label="支持的思考档位"><span>支持的思考档位</span><div class="custom-effort-choices">${levels.map(level=>`<label class="proxy-checkbox"><input type="checkbox" data-effort value="${esc(level)}" ${selected.has(level)?'checked':''}>${esc(level)}</label>`).join('')}</div></div>`;
 }
-export function renderDraftModelRow(m,i){
+export function renderDraftModelRow(m,i,references=[]){
  const field=(name,label,value,options,disabled=false)=>`<div class="proxy-model-field" data-draft-field="${name}">${selectField({name,label,value,options,disabled,compact:true})}</div>`;
  const effort=m.reasoningEfforts?.length?field('effort','默认推理强度',m.effort||'auto',[{value:'auto',label:'自动'},...m.reasoningEfforts.map(level=>({value:level,label:level}))]):'';
- return `<div class="custom-model-row proxy-model" data-model-index="${i}">${modelHeading(m,`<input type="checkbox" data-selected ${m.enabled!==false?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}</div><details><summary>选项</summary><div class="custom-proxy-grid"><label>对外名称<input data-alias value="${esc(m.id)}" placeholder="${esc(m.upstreamId)}"></label><label>上下文上限<input data-context-limit type="number" min="1" value="${capacityLimit(m,'contextWindow')||''}" placeholder="上游未提供"></label>${effortChoices(m)}<label>最大输出上限<input data-output-limit type="number" min="1" value="${capacityLimit(m,'maxOutputTokens')||''}" placeholder="上游未提供"></label></div></details></div>`;
+ return `<div class="custom-model-row proxy-model" data-model-index="${i}">${modelHeading(m,`<input type="checkbox" data-selected ${m.enabled!==false?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${field('referenceId','参考模型关联',m.referenceId||m.modelMetadata?.referenceId||'',referenceOptions(references,m.referenceId||m.modelMetadata?.referenceId))}</div><details><summary>选项</summary><div class="custom-proxy-grid"><label>对外名称<input data-alias value="${esc(m.id)}" placeholder="${esc(m.upstreamId)}"></label><label>上下文上限<input data-context-limit type="number" min="1" value="${capacityLimit(m,'contextWindow')||''}" placeholder="上游未提供"></label>${effortChoices(m)}<label>最大输出上限<input data-output-limit type="number" min="1" value="${capacityLimit(m,'maxOutputTokens')||''}" placeholder="上游未提供"></label></div></details></div>`;
 }

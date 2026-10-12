@@ -548,8 +548,26 @@
 
 .proxy-tabs {
   display: flex;
+  overflow-x: auto;
   gap: 28px;
   border-bottom: 1px solid var(--border, #dfe5dc);
+}
+
+.proxy-navigation-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.proxy-navigation-row .proxy-tabs { flex: 1; min-width: 0; border-bottom: 0; }
+.proxy-navigation-row > button { flex: 0 0 auto; }
+.proxy-source-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  border: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .proxy-provider-page .proxy-workspace {
@@ -1087,6 +1105,23 @@
 }
 
 /* Keep source controls and shared settings together without stacked workspace padding. */
+.proxy-navigation-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.proxy-navigation-row .proxy-tabs { flex: 1; min-width: 0; border-bottom: 0; }
+.proxy-navigation-row > button { flex: 0 0 auto; }
+.proxy-source-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
 .proxy-provider-page .proxy-workspace {
   padding-bottom: 0;
 }

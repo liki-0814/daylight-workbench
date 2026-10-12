@@ -13,6 +13,7 @@ const content = (name = 'example', body = 'first') => '---\nname: ' + name + '\n
 async function fixture(t, options = {}) {
   const temp = await fs.realpath(await fs.mkdtemp(path.join(tmpdir(), 'daylight-extensions-')));
   const agentsRoot = path.join(temp, 'agents'), clientRoots = Object.fromEntries(['codex', 'qoder', 'pi'].map(id => [id, path.join(temp, id)]));
+  if (options.selectClients !== false) { await fs.mkdir(path.join(agentsRoot, 'daylight'), { recursive: true }); await fs.writeFile(path.join(agentsRoot, 'daylight/clients.json'), JSON.stringify({ schemaVersion: 1, clients: [], selectedClients: ['codex', 'qoder', 'pi'] })); }
   const service = await createExtensionsService({ agentsRoot, clientRoots, environment: { PATH: '' }, cacheMs: 0, ...options });
   t.after(async () => { await service.close(); await fs.rm(temp, { recursive: true, force: true }); });
   const apply = async (action, requestId = randomUUID()) => { const plan = await service.prepare(action); return service.apply({ requestId, expectedVersion: plan.expectedVersion, planId: plan.planId, action: plan.normalizedAction }); };
@@ -20,7 +21,7 @@ async function fixture(t, options = {}) {
 }
 
 test('listing missing canonical root and prepare are read only; standard YAML and unknown metadata survive edits', async t => {
-  const f = await fixture(t); assert.equal((await f.service.state()).skills.length, 0);
+  const f = await fixture(t, { selectClients: false }); assert.equal((await f.service.state()).skills.length, 0);
   await assert.rejects(fs.stat(f.agentsRoot), { code: 'ENOENT' });
   const action = { type: 'skill.create', directory: 'example', content: content() };
   await f.service.prepare(action); await assert.rejects(fs.stat(f.agentsRoot), { code: 'ENOENT' });
@@ -89,7 +90,7 @@ test('Skill archive removes owned links, preserves unowned links and restores fr
   const f = await fixture(t); await f.apply({ type: 'skill.create', directory: 'example', content: content() }); const skill = (await f.service.state(true)).skills[0];
   await f.apply({ type: 'binding.connect', id: skill.id, clientId: 'qoder' });
   await fs.mkdir(path.join(f.clientRoots.codex, 'skills'), { recursive: true }); const legacy = path.join(f.clientRoots.codex, 'skills', 'example'); await fs.symlink(path.join(f.agentsRoot, 'skills', 'example'), legacy);
-  const archived = await f.apply({ type: 'skill.archive', id: skill.id }); assert.equal((await f.service.state(true)).skills.length, 0); assert.ok((await fs.lstat(legacy)).isSymbolicLink());
+  const archived = await f.apply({ type: 'skill.archive', id: skill.id }); assert.equal((await f.service.state(true)).skills.filter(skill => skill.scope === 'shared').length, 0); assert.ok((await fs.lstat(legacy)).isSymbolicLink());
   await f.apply({ type: 'operation.restore', operationId: archived.operationId }); assert.equal((await f.service.state(true)).skills[0].id, skill.id); assert.ok((await fs.lstat(path.join(f.clientRoots.qoder, 'skills', 'example'))).isSymbolicLink());
   const edited = await f.apply({ type: 'skill.update', id: skill.id, content: content('example', 'changed') });
   await fs.writeFile(path.join(f.agentsRoot, 'skills', 'example', 'SKILL.md'), content('example', 'external edit'));
@@ -174,7 +175,7 @@ test('Codex reports its primary directory separately from shared Skills and resp
 });
 
 test('CLI registration is read-only until applied, persists on restart and joins Skill bindings and MCP generation', async t => {
-  const f = await fixture(t), binary = path.join(f.temp, 'custom-command'), marker = path.join(f.temp, 'must-not-execute');
+  const f = await fixture(t, { selectClients: false }), binary = path.join(f.temp, 'custom-command'), marker = path.join(f.temp, 'must-not-execute');
   await fs.writeFile(binary, '#!/bin/sh\ntouch "' + marker + '"\n', { mode: 0o700 });
   const client = { id: 'client_local', name: '本地 CLI', command: binary, root: path.join(f.temp, '.custom'), skillsDirectory: 'agent/skills', mcpFormat: 'toml' }, action = { type: 'client.save', client };
   const plan = await f.service.prepare(action); assert.equal(plan.conflicts.length, 0);
@@ -189,7 +190,7 @@ test('CLI registration is read-only until applied, persists on restart and joins
   await f.apply({ type: 'binding.connect', id: skill.id, clientId: client.id }); const link = path.join(client.root, client.skillsDirectory, 'example');
   assert.equal(await fs.realpath(link), path.join(f.agentsRoot, 'skills/example'));
   await f.apply({ type: 'mcp.save', server: { id: 'local', name: 'local', transport: 'stdio', command: 'node', args: ['server.mjs'] } });
-  await f.apply({ type: 'mcp.generate', clientId: client.id }); assert.match((await f.service.detail(client.id)).generated.content, /\[mcp_servers\."local"\]/);
+  await f.apply({ type: 'mcp.generate', clientId: client.id }); assert.match((await f.service.detail(client.id)).generated.content, /\[mcp_servers\.(?:"local"|local)\]/);
   await assert.rejects(fs.stat(path.join(client.root, 'config.toml')), { code: 'ENOENT' }); await assert.rejects(fs.stat(marker), { code: 'ENOENT' });
   await f.apply({ type: 'client.save', client: { ...client, name: '已改名' } }); assert.equal((await f.service.detail(client.id)).name, '已改名');
   assert.ok((await f.service.prepare({ type: 'client.save', client: { ...client, root: path.join(f.temp, '.other') } })).conflicts.length);
@@ -202,7 +203,7 @@ test('CLI registration is read-only until applied, persists on restart and joins
 });
 
 test('CLI registration refuses duplicate destinations, master aliases, traversal and shell arguments without writes', async t => {
-  const f = await fixture(t), client = { id: 'client_local', name: '本地 CLI', command: 'localcli', root: path.join(f.temp, '.custom'), skillsDirectory: 'skills', mcpFormat: 'none' };
+  const f = await fixture(t, { selectClients: false }), client = { id: 'client_local', name: '本地 CLI', command: 'localcli', root: path.join(f.temp, '.custom'), skillsDirectory: 'skills', mcpFormat: 'none' };
   for (const [changed, message] of [
     [{ name: 'codex' }, /重复/], [{ root: f.clientRoots.codex }, /重复/], [{ root: f.agentsRoot }, /主来源/],
     [{ skillsDirectory: '../skills' }, /相对目录/], [{ root: '/' }, /根目录/], [{ command: 'localcli --flag' }, /命令/], [{ id: 'codex' }, /ID/], [{ arbitrary: true }, /登记/], [{ mcpFormat: 'yaml' }, /格式/],

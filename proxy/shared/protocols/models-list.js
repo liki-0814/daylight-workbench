@@ -22,7 +22,10 @@ export function renderModel(model, createdAt = 0) {
             })),
         context_window: model.contextWindow,
         max_input_tokens: model.maxInputTokens,
-        max_output_tokens: model.maxOutputTokens
+        max_output_tokens: model.maxOutputTokens,
+        cost: model.cost,
+        price_info: model.priceInfo,
+        metadata: model.modelMetadata?{reference_id:model.modelMetadata.matchedId,data_version:model.modelMetadata.version,updated_at:model.modelMetadata.updatedAt}:undefined
     };
 }
 export function renderModelList(models) {

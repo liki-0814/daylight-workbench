@@ -18,7 +18,8 @@ export function metadata(text) {
 }
 export async function skillFile(root, skill, relative = 'SKILL.md') {
   if (typeof relative !== 'string' || !relative || path.isAbsolute(relative) || relative.includes('\\') || relative.split('/').some(part => !part || part === '..' || part.startsWith('.'))) throw error('Skill 文件路径无效');
-  const target = path.resolve(root, 'skills', skill.relativePath, relative);
-  await safePath(path.join(root, 'skills', skill.relativePath), target);
+  const directory = skill.sourcePath || path.join(root, 'skills', skill.relativePath);
+  const target = path.resolve(directory, relative);
+  await safePath(directory, target);
   return { target, content: await readText(target), relative };
 }

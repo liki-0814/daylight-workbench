@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         status = boot(); assert status['native'] and status['state'] == 'stopped'
         assert request('/api/qoder/status', headers={})[0] == 403
         assert request('/api/proxy/status')[1]['native']
-        for route in ['/api/proxy/status', '/api/proxy/sources', '/api/proxy/requests']:
+        for route in ['/api/proxy/status', '/api/proxy/sources', '/api/proxy/requests', '/api/proxy/view']:
             assert request(route)[0] == 200
             assert request(route, headers={})[0] == 403
             assert request(route, headers={'x-workbench-token': token, 'Origin': 'https://example.com'})[0] == 403
@@ -80,6 +80,12 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         assert request('/api/qoder/credits')[1]['buckets'] == [{'id': 'organization', 'label': '团队资源包', 'used': 38, 'remaining': 25962, 'total': 26000}]
         assert request('/api/qoder/settings', {'port': proxy_port, 'autoStart': True})[0] == 200
         assert request('/api/qoder/service', {'enabled': True})[1]['state'] == 'running'
+        before_settings = (directory / 'qoder/service.json').read_bytes()
+        assert request('/api/proxy/view', {'version': 0, 'hiddenSources': ['agy', 'kimi']}) == (200, {'version': 1, 'hiddenSources': ['agy', 'kimi']})
+        assert request('/api/proxy/status')[1]['state'] == 'running'
+        assert (directory / 'qoder/service.json').read_bytes() == before_settings
+        assert request('/api/proxy/view', {'version': 0, 'hiddenSources': []})[0] == 409
+        assert request('/proxy/source-navigation.js')[0] == 200
         assert request('/api/qoder/runtime', {'nodePath': '/missing/node'})[0] == 409
         key = request('/api/qoder/key')[1]['apiKey']
         req = urllib.request.Request(f'http://127.0.0.1:{proxy_port}/v1/chat/completions', data=json.dumps({'model': 'test-model', 'messages': [{'role': 'user', 'content': 'hi'}], 'stream': True}).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
@@ -88,6 +94,7 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         assert rows[0]['outcome'] == 'completed' and rows[0]['httpStatus'] == 200
         assert request('/api/qoder/test', {})[0] == 200
         stop(); boot()
+        assert request('/api/proxy/view')[1] == {'version': 1, 'hiddenSources': ['agy', 'kimi']}
         for _ in range(50):
             if request('/api/qoder/status')[1]['state'] == 'running': break
             time.sleep(.1)

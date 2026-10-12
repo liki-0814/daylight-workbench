@@ -6,7 +6,7 @@ import { validateModelSetting } from './contracts.js';
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const sourceFields=['id','name','baseUrl','protocol','auth','enabled','models','endpoint','modelsEndpoint','defaultMaxTokens','keys'];
-const modelFields=['id','upstreamId','enabled','contextWindow','maxOutputTokens','defaultMaxTokens','reasoningEfforts','effort','isVL','isReasoning','contextLimit','outputLimit'];
+const modelFields=['id','upstreamId','enabled','contextWindow','maxOutputTokens','defaultMaxTokens','reasoningEfforts','effort','isVL','isReasoning','contextLimit','outputLimit','referenceId','reasoningEffortsProvided','cost','pricingConflict','manualCapacities','upstreamCapabilities'];
 const only=(value,keys)=>Object.fromEntries(Object.entries(value||{}).filter(([k])=>keys.includes(k)));
 const sourceURL = id => '/api/proxy/sources/' + encodeURIComponent(id);
 const customModels = source => source.models.map(m => ({ ...m, settingFields: source.settingFields || [] }));

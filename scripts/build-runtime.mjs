@@ -12,7 +12,7 @@ const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const builtins = new Set(builtinModules.map(name => name.replace(/^node:/, '')));
 
 export async function buildRuntime(resources, root = project) {
-  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs'];
+  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'extensions/config-document.mjs'];
   const results = [], artifacts = [];
   for (const entry of entries) {
   const output = path.join(resources, entry);
@@ -22,6 +22,7 @@ export async function buildRuntime(resources, root = project) {
     outfile: output,
     bundle: true,
     platform: 'node',
+    mainFields: ['module', 'main'],
     target: 'node22',
     format: 'esm',
     minify: true,

@@ -20,3 +20,17 @@ state.previous.json
 account.json
 auth.json
 usage.json
+
+# Local OAuth client parameters must never enter source control.
+agy-oauth-clients.json
+# Local login stores and generated gateway/client credentials.
+credentials.json
+credentials/
+antigravity-oauth-token
+server.token
+*.keychain-db
+sources.json
+service.json
+pi-backups/
+pi-sync.json
+pi-latest.json

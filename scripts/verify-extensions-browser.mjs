@@ -35,7 +35,7 @@ try {
   const layouts = [];
   for (const [width, height] of [[1360, 900], [1024, 768], [800, 600], [390, 844]]) {
     await page.setViewportSize({ width, height }); let reference;
-    for (const [tab, title] of [['Skills', '主目录 Skills'], ['MCP 服务', 'MCP 主配置'], ['接入软件', '软件接入方式']]) {
+    for (const [tab, title] of [['Skills', 'Skills 来源'], ['MCP 服务', 'MCP 配置'], ['接入软件', '本地 CLI']]) {
       await page.getByRole('radio', { name: tab, exact: true }).click(); await page.getByRole('heading', { name: title, exact: true }).waitFor();
       const anchors = await page.evaluate(() => Object.fromEntries(['.extension-tabs', '.extension-search', '.extension-software-filter', '.extension-problem-filter', '.extension-category-action', '.extension-list-heading'].map(selector => {
         const { x, y, width, height } = document.querySelector(selector).getBoundingClientRect(); return [selector, { x, y, width, height }];
@@ -87,10 +87,10 @@ try {
   checks.push('Codex/Pi connect in their own directories and existing Codex links can be removed');
   await page.getByRole('radio', { name: '接入软件', exact: true }).click();
   assert.equal((await page.locator('.extensions-page').textContent()).includes('加载结果未核对'), false);
-  const registrationFile = path.join(fixture, 'agents/daylight/clients.json');
+  const registrationFile = path.join(fixture, 'agents/daylight/clients.json'), originalRegistration = await fs.readFile(registrationFile, 'utf8');
   await page.getByRole('button', { name: '添加 CLI', exact: true }).click();
   await dialog().getByLabel('软件名称', { exact: true }).fill('本地调试 CLI'); await dialog().getByLabel('CLI 命令', { exact: true }).fill(process.execPath); await dialog().getByLabel('软件主目录', { exact: true }).fill(path.join(fixture, '.custom'));
-  await dialog().getByRole('button', { name: '预览登记', exact: true }).click(); await dialog().getByRole('button', { name: '确认保存登记', exact: true }).waitFor(); await assert.rejects(fs.stat(registrationFile), { code: 'ENOENT' });
+  await dialog().getByRole('button', { name: '预览登记', exact: true }).click(); await dialog().getByRole('button', { name: '确认保存登记', exact: true }).waitFor(); assert.equal(await fs.readFile(registrationFile, 'utf8'), originalRegistration);
   await page.keyboard.press('Escape'); await closed();
   await page.getByRole('button', { name: '添加 CLI', exact: true }).click(); assert.equal(await dialog().getByLabel('软件名称', { exact: true }).inputValue(), '本地调试 CLI');
   await dialog().getByRole('button', { name: '预览登记', exact: true }).click(); await dialog().getByRole('button', { name: '确认保存登记', exact: true }).click(); await closed();

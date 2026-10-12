@@ -4,6 +4,12 @@ import Security
 do {
  let input = FileHandle.standardInput.readDataToEndOfFile()
  guard let body = try JSONSerialization.jsonObject(with: input) as? [String: String], let id = body["id"], !id.isEmpty else { exit(2) }
+ // The file-based login keychain ignores SecItem authentication-UI flags.
+ // This one-operation helper must never create system UI that outlives it.
+ let interactionStatus = SecKeychainSetUserInteractionAllowed(false)
+ guard interactionStatus == errSecSuccess else {
+  FileHandle.standardError.write(Data("钥匙串操作失败：\(interactionStatus)".utf8)); exit(1)
+ }
  let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "local.daylight.proxy", kSecAttrAccount as String: id]
  var status: OSStatus = errSecSuccess
  var result: [String: Any] = [:]

@@ -51,7 +51,7 @@ try {
   }
   const runtime = await ModelRuntime.create({ modelsPath: path.join(dataDir, 'pi/models.json'), authPath: path.join(dataDir, 'pi/auth.json'), allowModelNetwork: false });
   const model = runtime.getModel('daylight', 'pi-smoke'); assert(model);
-  assert.equal(model.contextWindow,777777);assert.equal(model.maxTokens,32123);assert.equal(model.thinkingLevelMap.max,'high');
+  assert.equal(model.contextWindow,200000);assert.equal(model.maxTokens,32000);assert.equal(model.thinkingLevelMap.max,'high');
   const thinkingModel = model;
   const tools = [{ name: 'echo', description: 'Echo text', parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } }];
   const user = { role: 'user', content: 'Echo hello', timestamp: Date.now() };

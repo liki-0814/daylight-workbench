@@ -11,7 +11,7 @@ import {sourceSnapshot} from './shared/contracts.js';
 
 // These descriptions also keep injected test providers on the public contract.
 const builtins={qoder:qoderDescription,agy:agyDescription,grok:grokDescription,codex:codexDescription,kimi:kimiDescription};
-export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort}){
+export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort,metadata}){
  const config={...loadConfig(dataDir),...overrides},accounts=new AccountStore(config.accountFile);
  const transport=(url,options={})=>fetchImpl(url,{...options,redirect:'error',signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(300000)]):AbortSignal.timeout(30000)});
  const qoder=provider||new QoderProvider(config,new QoderHttp(config,transport),accounts);
@@ -23,6 +23,13 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
   ...(agyProvider||includeAgy?{agy:agyProvider||new AgyProvider({dataDir,fetchImpl})}:{}),
   ...(grokProvider||includeGrok?{grok:grokProvider||new GrokProvider({dataDir,fetchImpl})}:{}),
  };
+ function decorate(id,p){
+  if(!metadata)return p;const list=p.listModels.bind(p);
+  // Qoder validates inference against catalog(), while other adapters use listModels().
+  if(id==='qoder'&&typeof p.catalog==='function'){const catalog=p.catalog.bind(p);p.catalog=async(...args)=>{const result=await catalog(...args);await metadata.refresh();return{...result,models:metadata.enrich(id,result.models)};};}
+  p.listModels=async force=>{const [models]=await Promise.all([list(force),metadata.refresh(force)]);return metadata.enrich(id,models);};return p;
+ }
+ for(const [id,p] of Object.entries(providers))decorate(id,p);
  function snapshot(id){
   const p=providers[id],defaults=builtins[id];if(!p)return undefined;
   const own=p.snapshot?.()||sourceSnapshot({id,...defaults,identityKey:p.identity??p.auth?.identity??p.cache?.identity??p.cache?.id??p.cache?.project,connected:!!p.cache&&!p.lastError,error:p.lastError,checkedAt:p.cache?.at,configured:id==='qoder'?!!provider||!!accounts.current:true,capabilities:{quota:!!(p.quota||p.credits),editableSource:false}});
@@ -31,7 +38,7 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
  async function sync(){
   const next=custom?await custom.providers():{},removed=[];
   for(const id of Object.keys(providers))if(id.startsWith('custom:')&&!next[id]){await providers[id].close?.();delete providers[id];removed.push(id);}
-  for(const [id,p] of Object.entries(next)){await providers[id]?.close?.();providers[id]=p;}
+  for(const [id,p] of Object.entries(next)){await providers[id]?.close?.();providers[id]=decorate(id,p);}
   return{next,removed};
  }
  async function listModels(id,refresh=false){

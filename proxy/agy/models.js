@@ -1,6 +1,22 @@
 import {booleanCapability,mergeModelCapabilities} from '../../core/model-capabilities.js';
 import {reasoningEfforts} from './protocol.js';
 
+// Discover concrete presets directly without starting CLI authentication.
+export function discoverModels(catalog){
+ const entries=Object.entries(catalog.models||{});
+ const preferred=[...new Set((catalog.agentModelSorts||[]).flatMap(sort=>(sort.groups||[]).flatMap(group=>group.modelIds||[])))];
+ const ids=preferred.length?preferred:entries.map(([id])=>id);
+ const label=value=>String(value||'').trim().toLowerCase();
+ const models=ids.flatMap(id=>{
+  const model=catalog.models?.[id];if(!model?.displayName)return[];
+  const aliases=entries.filter(([alias,m])=>alias!==id&&/-(low|medium|high|xhigh|max)$/.test(alias)&&label(m.displayName)===label(model.displayName));
+  const publicId=/-agent$/.test(id)&&aliases.length===1?aliases[0][0]:id;
+  return [{id:publicId,displayName:model.displayName.trim()}];
+ });
+ if(!models.length)throw new Error('AGY 上游未返回可用模型目录');
+ return models;
+}
+
 // CLI aliases identify models; upstream catalog supplies capacities and effort routes.
 export function parseModels(discovered,catalog){
       const preferredIds = new Set((catalog.agentModelSorts || []).flatMap(sort => (sort.groups || []).flatMap(group => group.modelIds || [])));

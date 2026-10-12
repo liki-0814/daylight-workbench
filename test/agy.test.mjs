@@ -8,19 +8,40 @@ import path from 'node:path';
 import { AgyAuth } from '../proxy/agy/auth.js';
 import { AgyProvider } from '../proxy/agy/provider.js';
 import {compileRequest} from '../proxy/agy/protocol.js';
+import {decodeRequest} from '../proxy/shared/protocol.js';
 import { ModelRouter } from '../proxy/shared/router.js';
 import { createProxyService } from '../proxy/service.js';
 
 const json = value => new Response(JSON.stringify(value));
 const model = id => ({ id, enabled: true, contextWindows: [], reasoningEfforts: [] });
-test('keychain decoding and expired credentials renew once without an agent prompt', async () => {
-  let refreshed = false, renewals = 0;
-  const auth = new AgyAuth({ execute: async (file, args) => {
-    if (args[0] === 'models') { renewals++; refreshed = true; return { stdout: '' }; }
-    const data = { token: { access_token: 'secret', expiry: new Date(refreshed ? Date.now() + 3600000 : 1).toISOString() } };
-    return { stdout: 'go-keyring-base64:' + Buffer.from(JSON.stringify(data)).toString('base64') };
-  } });
-  assert.deepEqual(await Promise.all([auth.token(), auth.token()]), ['secret', 'secret']); assert.equal(renewals, 1);
+test('legacy keychain decoding shares one noninteractive read', async () => {
+  let reads=0;
+  const auth = new AgyAuth({tokenFile:null,credentials:{get:async()=>{
+    reads++;
+    const data = { token: { access_token: 'secret', expiry: new Date(Date.now() + 3600000).toISOString() } };
+    return 'go-keyring-base64:' + Buffer.from(JSON.stringify(data)).toString('base64');
+  }} });
+  assert.deepEqual(await Promise.all([auth.token(), auth.token()]), ['secret', 'secret']); assert.equal(reads, 1);
+});
+test('current CLI file login bypasses denied keychain and follows CLI token updates',async()=>{
+ let access_token='current';const auth=new AgyAuth({readFileImpl:async()=>JSON.stringify({token:{access_token,expiry:new Date(Date.now()+3600000).toISOString()}}),credentials:{get:async()=>{throw Error('keychain must not run');}}});
+ assert.equal(await auth.token(),'current');const identity=auth.identity;access_token='refreshed';assert.equal(await auth.token(),'refreshed');assert.notEqual(auth.identity,identity);
+});
+test('missing CLI file uses silent legacy reader, but malformed or expired files never switch accounts',async()=>{
+ let reads=0;const credentials={get:async()=>{reads++;return JSON.stringify({token:{access_token:'legacy',expiry:new Date(Date.now()+3600000).toISOString()}});}};
+ const missing=new AgyAuth({readFileImpl:async()=>{throw Object.assign(Error(),{code:'ENOENT'});},credentials});assert.equal(await missing.token(),'legacy');assert.equal(reads,1);
+ for(const content of ['not json',JSON.stringify({token:{access_token:'expired',expiry:new Date(1).toISOString()}})]){
+  const auth=new AgyAuth({readFileImpl:async()=>content,credentials});
+  await assert.rejects(auth.token(),e=>['EAGY_CREDENTIALS','EAGY_REAUTH_REQUIRED'].includes(e.code));assert.equal(reads,1);
+ }
+ const expired=new AgyAuth({readFileImpl:async()=>JSON.stringify({token:{access_token:'expired',expiry:new Date(1).toISOString()}}),credentials});
+ const provider=new AgyProvider({dataDir:'/unused',auth:expired});assert.match((await provider.status()).error,/未打开授权窗口/);provider.close();
+});
+test('AGY authorization failures remain explicit and never invoke an interactive security reader or CLI',async()=>{
+ let calls=0;const error=Object.assign(new Error('钥匙串凭证需要系统授权，自动读取已停止（未弹出授权窗口）'),{code:'EKEYCHAIN_INTERACTION_REQUIRED'});
+ const auth=new AgyAuth({tokenFile:null,execute:async()=>{calls++;throw Error('must not run');},credentials:{get:async()=>{throw error;}}});
+ await assert.rejects(auth.token(),e=>e===error);assert.equal(calls,0);
+ const provider=new AgyProvider({dataDir:'/unused',auth});assert.deepEqual(await provider.status(),{connected:false,error:error.message});provider.close();
 });
 test('router preserves names, tolerates one unavailable provider, and merges identical names', async () => {
   const a = { listModels: async () => [model('alpha')], async *stream() { yield { type: 'text', delta: 'qoder' }; } };
@@ -41,6 +62,17 @@ test('AGY compiles system, image and tool roundtrip without adding agent tools',
   assert.equal(body.contents[1].parts[0].thoughtSignature,'signature'); assert.equal(body.contents[2].parts[0].functionResponse.name,'weather');
   assert.throws(()=>compileRequest({...request,messages:[request.messages[2]]}),/tool_call/);
   assert.throws(()=>compileRequest({...request,options:{reasoningEffort:'high'}}),/暂不支持/);
+});
+test('AGY accepts Pi Responses cache hints while preserving input and rejecting invalid cache keys',()=>{
+ const raw={model:'agy-model',input:'hello',stream:true,store:false,prompt_cache_key:'pi-session',include:['reasoning.encrypted_content'],reasoning:{summary:'auto'},max_output_tokens:2048};
+ const before=structuredClone(raw),request=decodeRequest(raw,'responses');
+ const body=compileRequest(request);
+ assert.deepEqual(body.contents,[{role:'user',parts:[{text:'hello'}]}]);
+ assert.equal(body.generationConfig.maxOutputTokens,2048);assert.deepEqual(request.options.unsupported,[]);
+ assert.deepEqual(raw,before);assert.equal(request.raw,raw);
+ assert.throws(()=>decodeRequest({...raw,prompt_cache_key:123},'responses'),/请求格式/);
+ assert.throws(()=>decodeRequest({...raw,include:['other']},'responses'),/请求格式/);
+ assert.throws(()=>compileRequest(decodeRequest({...raw,prompt_cache_retention:'24h'},'responses')),/prompt_cache_retention/);
 });
 test('one gateway/key serves Qoder and AGY; all protocols stream and aggregate; source settings remain separate', async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(),'daylight-agy-')); const requests=[];
@@ -64,7 +96,7 @@ test('one gateway/key serves Qoder and AGY; all protocols stream and aggregate; 
   const client=(route,body)=>fetch(`http://127.0.0.1:${port}/v1/${route}`,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
   assert.deepEqual((await(await client('models')).json()).data.map(m=>m.id),['qoder-model','agy-model']);
   assert.equal((await api('/api/agy/status')).data.connected,true);
-  for(const [route,extra] of [['chat/completions',{messages:[{role:'user',content:'hello'}]}],['responses',{input:'hello'}],['messages',{messages:[{role:'user',content:'hello'}],max_tokens:100}]]){
+  for(const [route,extra] of [['chat/completions',{messages:[{role:'user',content:'hello'}]}],['responses',{input:'hello',prompt_cache_key:'pi-session',include:['reasoning.encrypted_content'],reasoning:{summary:'auto'},store:false}],['messages',{messages:[{role:'user',content:'hello'}],max_tokens:100}]]){
     for(const stream of [false,true]) {const r=await client(route,{model:'agy-model',...extra,stream});assert.equal(r.status,200);const result=await r.text();assert.match(result,/杭州/);assert.match(result,/weather/);}
   }
   assert.equal(requests.length,6);assert.equal(requests[0].request.tools,undefined);
@@ -94,12 +126,21 @@ test('quota uses upstream pool windows; missing values are never rendered as ful
  const quota=await p.quota(),html=renderQuota(quota);assert.ok(Math.abs(quota.buckets[0].usedPercent-0.7)<1e-9);assert.match(html,/0.7%/);assert.match(html,/5 小时/);assert.match(html,/7 天/);assert.match(html,/暂无占比/);assert.doesNotMatch(html,/100%/);
 });
 
-test('public AGY catalog follows live CLI IDs rather than the older upstream recommended group', async () => {
+test('AGY catalog preserves discovered aliases and metadata routes across cache refreshes', async () => {
  let discoveries=0;
  const p=new AgyProvider({dataDir:'/tmp/agy-catalog-test',auth:{token:async()=> 'secret',models:async()=>{discoveries++;return [{id:'gemini-3.8-flash-low',displayName:'Gemini 3.8 Flash (Low)'},{id:'gemini-3.1-pro-high',displayName:'Gemini 3.1 Pro (High)'}];}},fetchImpl:async url=>json(url.endsWith('loadCodeAssist')?{cloudaicompanionProject:'p'}:{models:{'gemini-3.8-flash-tiered':{supportsThinking:true},'gemini-pro-agent':{displayName:'Gemini 3.1 Pro (High)'}},agentModelSorts:[{groups:[{modelIds:['gemini-pro-agent']}]}]})});
  const catalog=await p.catalog();assert.deepEqual(catalog.models.map(m=>m.id),['gemini-3.8-flash-low','gemini-3.1-pro-high']);
  assert.equal(catalog.models[0].upstreamId,'gemini-3.8-flash-low');assert.equal(catalog.models[0].catalogId,'gemini-3.8-flash-tiered');assert.equal(catalog.models[1].upstreamId,'gemini-pro-agent');assert.equal(catalog.models[1].catalogId,'gemini-pro-agent');
  await p.catalog();assert.equal(discoveries,1);await p.catalog(true);assert.equal(discoveries,2);
+});
+
+test('live upstream discovery preserves CLI public aliases and unified effort routes without CLI execution',async()=>{
+ const {discoverModels,parseModels}=await import('../proxy/agy/models.js');
+ const catalog={models:{'gemini-pro-agent':{displayName:'Gemini 3.1 Pro (High)',supportsThinking:true},'gemini-3.1-pro-high':{displayName:'Gemini 3.1 Pro (High)',supportsThinking:true},'gemini-3.1-pro-low':{displayName:'Gemini 3.1 Pro (Low)',supportsThinking:true},'internal-tab':{displayName:'internal'}},agentModelSorts:[{groups:[{modelIds:['gemini-pro-agent','gemini-3.1-pro-low','missing']}]}]};
+ const auth=new AgyAuth({tokenFile:null,credentials:{get:async()=>{throw Error('must not read credentials for discovery');}}});
+ assert.deepEqual(await auth.models(catalog),discoverModels(catalog));
+ const models=parseModels(discoverModels(catalog),catalog);assert.equal(models.length,1);assert.equal(models[0].id,'gemini-3.1-pro');assert.deepEqual(models[0].reasoningEfforts,['low','high']);assert.equal(models[0].effortRoutes.high.upstreamId,'gemini-pro-agent');
+ assert.throws(()=>discoverModels({models:{}}),/未返回可用模型/);
 });
 
 test('AGY controls survive all request decoders; unsupported controls fail explicitly', async () => {

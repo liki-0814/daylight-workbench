@@ -8,13 +8,11 @@ export const invalid=(message,param)=>Object.assign(new Error(message),{status:4
 const decoders={chat:decodeChatRequest,messages:decodeMessagesRequest,responses:decodeResponsesRequest};
 // Decode only when an event adapter needs canonical messages; native relays retain raw fields.
 export function decodeRequest(raw,protocol){
- try{return {...decoders[protocol](raw),raw};}
+ try{return {...decoders[protocol](protocol==='responses'?normalizeResponsesHints(raw):raw),raw};}
  catch{throw invalid('请求格式不正确，请检查消息与工具字段');}
 }
 const allowed={chat:'model messages tools tool_choice stream stream_options max_tokens max_completion_tokens reasoning_effort service_tier parallel_tool_calls store',responses:'model input instructions tools tool_choice stream max_output_tokens reasoning service_tier parallel_tool_calls store',messages:'model messages system tools tool_choice stream max_tokens thinking output_config'};
-export function convertRequest(raw,from,to){
- if(from===to)return structuredClone(raw);
- if(from==='responses'){
+function normalizeResponsesHints(raw){
   raw=structuredClone(raw);
   // These are optional output/cache hints, not resumable upstream state.
   if(raw.prompt_cache_key!==undefined){if(raw.prompt_cache_key!==null&&typeof raw.prompt_cache_key!=='string')throw invalid('prompt_cache_key 需为字符串');delete raw.prompt_cache_key;}
@@ -22,7 +20,11 @@ export function convertRequest(raw,from,to){
   if(raw.reasoning?.summary==='auto'){delete raw.reasoning.summary;}
   // Daylight's translated summaries are display text, never opaque reasoning state.
   if(Array.isArray(raw.input))raw.input=raw.input.filter(item=>!(item.type==='reasoning'&&item.id?.startsWith('rs_daylight-')&&!Object.hasOwn(item,'encrypted_content')&&Object.keys(item).every(k=>['type','id','summary'].includes(k))&&Array.isArray(item.summary)&&item.summary.every(p=>p.type==='summary_text'&&typeof p.text==='string')));
- }
+ return raw;
+}
+export function convertRequest(raw,from,to){
+ if(from===to)return structuredClone(raw);
+ if(from==='responses')raw=normalizeResponsesHints(raw);
  for(const k of Object.keys(raw))if(!allowed[from].split(' ').includes(k))throw invalid(`跨协议暂不支持 ${k}，请使用上游原生协议`,k);
  if(raw.store===true)throw invalid('跨协议不支持 store=true');
  if(raw.service_tier!==undefined&&to==='messages')throw invalid('Messages 无法转换 service_tier');

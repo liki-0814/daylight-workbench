@@ -5,17 +5,17 @@ import {readJson,writeJson,serial} from './store.js';
 export function applyCapacitySettings(models,settings={}){
  return models.map(model=>{
   const windows=model.contextWindows||[];
-  const contextLimit=capacityLimit(model,'contextWindow');
-  const outputLimit=capacityLimit(model,'maxOutputTokens');
+  const contextLimit=model.manualCapacities?.contextWindow&&!model.contextLimit&&!windows.length?undefined:capacityLimit(model,'contextWindow');
+  const outputLimit=model.manualCapacities?.maxOutputTokens&&!model.outputLimit?undefined:capacityLimit(model,'maxOutputTokens');
   const saved=settings.capacities?.[model.id]||{};
-  const requestedContext=saved.contextWindow??settings.context?.[model.id]??(model.contextLimit?model.contextWindow:undefined);
-  const requestedOutput=saved.maxOutputTokens??(model.outputLimit?model.maxOutputTokens:undefined);
-  const contextWindow=positive(requestedContext)&&requestedContext<=contextLimit?requestedContext:contextLimit;
-  const maxOutputTokens=positive(requestedOutput)&&requestedOutput<=outputLimit?requestedOutput:outputLimit;
+  const requestedContext=saved.contextWindow??model.manualCapacities?.contextWindow??settings.context?.[model.id]??(model.contextLimit?model.contextWindow:undefined);
+  const requestedOutput=saved.maxOutputTokens??model.manualCapacities?.maxOutputTokens??(model.outputLimit?model.maxOutputTokens:undefined);
+  const contextWindow=positive(requestedContext)&&(!contextLimit||requestedContext<=contextLimit)?requestedContext:contextLimit;
+  const maxOutputTokens=positive(requestedOutput)&&(!outputLimit||requestedOutput<=outputLimit)?requestedOutput:outputLimit;
   // Qoder advertises discrete native windows. Client capacity may be lower than a window,
   // but an upstream request always selects a real window large enough for that capacity.
   const nativeWindow=[...windows].sort((a,b)=>a.length-b.length).find(w=>w.length>=contextWindow)?.length;
-  return {...model,contextLimit,outputLimit,contextWindow,maxOutputTokens,...(nativeWindow?{contextWindows:windows.map(w=>({...w,isDefault:w.length===nativeWindow}))}:{})};
+  return {...model,...(Object.keys(saved).length?{manualCapacities:saved}:{}),contextLimit,outputLimit,contextWindow,maxOutputTokens,...(nativeWindow?{contextWindows:windows.map(w=>({...w,isDefault:w.length===nativeWindow}))}:{})};
  });
 }
 

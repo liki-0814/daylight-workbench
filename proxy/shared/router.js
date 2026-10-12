@@ -1,3 +1,4 @@
+import {mergeModelPrices} from '../../core/model-metadata.js';
 import {mergeModelCapabilities} from '../../core/model-capabilities.js';
 import { parseModelRef } from './llm/models.js';
 import { readJson, writeJson, serial } from './store.js';
@@ -88,7 +89,7 @@ export class ModelRouter {
         eligible.sort((a,b) => pref.order.indexOf(a.provider) - pref.order.indexOf(b.provider));
         const base = eligible[0] || models[0];
         if (eligible.length < 2) return {...base,id,enabled:!!eligible.length,contextWindows:base.contextWindows || [],reasoningEfforts:base.reasoningEfforts || []};
-        const merged = {...base,...mergeModelCapabilities(eligible),id,enabled:true,contextWindows:[]};
+        const merged = {...base,...mergeModelCapabilities(eligible),...mergeModelPrices(eligible),id,enabled:true,contextWindows:[]};
         merged.contextWindows = common(eligible.map(m=>(m.contextWindows || []).map(w=>w.length))).map(length=>({length,isDefault:length===merged.contextWindow}));
         merged.capabilities = Object.fromEntries(Object.keys(base.capabilities || {}).filter(k=>eligible.every(m=>m.capabilities?.[k] === base.capabilities[k])).map(k=>[k,base.capabilities[k]]));
         for (const field of ['defaultEffort','effort','fast']) if (!eligible.every(m=>m[field] === base[field])) delete merged[field];

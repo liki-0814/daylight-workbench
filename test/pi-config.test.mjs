@@ -179,6 +179,23 @@ test('automatic sync fails closed on unavailable catalogs or external Pi edits; 
   assert.equal((await f.pi.autoSync()).ok, true);
   await f.pi.automatic({ enabled: false }); f.setCatalog([]); assert.equal((await f.pi.autoSync()).skipped, true);
 });
+test('an unavailable source only permits complete reference price updates on existing healthy models',async t=>{
+ const f=await fixture(t);await f.pi.start();t.after(()=>f.pi.close());
+ const cost={input:4,output:12,cacheRead:1,cacheWrite:4,tiers:[{inputTokensAbove:200000,input:6,output:18,cacheRead:1.5,cacheWrite:6}]};
+ const grok={id:'a',name:'Grok',source:'grok',contextWindow:256000,cost,priceInfo:{complete:true,basis:'llm-pricing'}};
+ f.setCatalog([grok,{id:'b',name:'B',source:'kimi'}]);
+ await f.pi.automatic({enabled:true,expectedVersion:(await f.pi.state()).version,requestId:'prices-auto',modelOverrides:{a:{maxTokens:999},b:{contextWindow:1234}}});
+ const before=await f.json('models'),settings=await f.text('settings'),syncPath=path.join(f.dataDir,'cli/pi-sync.json'),sync=JSON.parse(await readFile(syncPath,'utf8'));
+ const changed={...grok,name:'Changed name',contextWindow:512000,cost:{...cost,output:15,tiers:[{...cost.tiers[0],input:8,cacheWrite:8}]}};
+ f.setCatalog({models:[changed,{...changed,id:'new'},{id:'incomplete',source:'grok',cost:{input:1},priceInfo:{complete:false,basis:'llm-pricing'}}],failedSources:[{id:'kimi',name:'Kimi'}]});
+ const result=await f.pi.autoSync();assert.equal(result.ok,true);assert.equal(result.pricesOnly,true);assert.equal(result.count,1);
+ const expected=structuredClone(before);expected.providers.daylight.models.find(m=>m.id==='a').cost=changed.cost;assert.deepEqual(await f.json('models'),expected);assert.equal(await f.text('settings'),settings);
+ const afterSync=JSON.parse(await readFile(syncPath,'utf8'));assert.deepEqual(afterSync.sources,sync.sources);assert.deepEqual(afterSync.modelOverrides,sync.modelOverrides);assert.match(afterSync.error,/目录读取失败/);
+ await assert.rejects(apply(f.pi,{},'full-still-blocked'),/目录读取失败/);
+ assert.equal((await f.pi.autoSync()).unchanged,true);
+ await f.pi.restore();assert.deepEqual(await f.json('models'),before);assert.equal(await f.text('settings'),settings);
+});
+
 test('a successfully read empty catalog clears only Daylight, with backup and exact recovery', async t => {
   const f = await fixture(t), before = await f.text('models'); f.setCatalog([]);
   assert.equal((await apply(f.pi, {})).count, 0); assert.deepEqual((await f.json('models')).providers.daylight.models, []);
@@ -238,10 +255,10 @@ test('manual Pi capacity and thinking maps persist before sync, across restart, 
   const restarted=createPiConfig(f.serviceOptions);await restarted.start();t.after(()=>restarted.close());
   assert.deepEqual((await restarted.state()).models[0].overrides,overrides.a);
   await apply(restarted,{},'with-custom');
-  let m=(await f.json('models')).providers.daylight.models[0];assert.equal(m.maxTokens,100000);assert.equal(m.contextWindow,1000000);assert.equal(m.thinkingLevelMap.max,'high');
+  let m=(await f.json('models')).providers.daylight.models[0];assert.equal(m.maxTokens,100000);assert.equal(m.contextWindow,272000);assert.equal(m.thinkingLevelMap.max,'high');
   const state=await restarted.state();await restarted.automatic({enabled:true,expectedVersion:state.version,requestId:'enable-custom'});
   f.setCatalog([{id:'a',name:'Changed A',source:'codex',contextWindow:200000,maxOutputTokens:16000}]);
-  await restarted.autoSync();m=(await f.json('models')).providers.daylight.models[0];assert.equal(m.contextWindow,1000000);assert.equal(m.maxTokens,100000);
+  await restarted.autoSync();m=(await f.json('models')).providers.daylight.models[0];assert.equal(m.contextWindow,200000);assert.equal(m.maxTokens,16000);
   await restarted.configuration({expectedVersion:(await restarted.state()).version,modelOverrides:{}});
   await apply(restarted,{},'reset-custom');m=(await f.json('models')).providers.daylight.models[0];assert.equal(m.contextWindow,200000);assert.equal(m.maxTokens,16000);
   await restarted.close();

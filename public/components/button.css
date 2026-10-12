@@ -68,6 +68,8 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 /* Navigation, form selection and toggles retain their semantic variants. */
 :is(.proxy-tabs,.route-filters,.task-range-tabs,.ai-history-filters) > button { min-height: var(--compact-button-height); padding: var(--compact-button-padding-block) var(--compact-button-padding-inline); border-radius: var(--button-radius); }
 .proxy-tabs [role="tab"] {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: var(--space-3) var(--space-1);
   border: 0;
   border-bottom: var(--tab-indicator-width) solid transparent;

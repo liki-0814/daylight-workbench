@@ -23,7 +23,7 @@ export function createLegacyReader(call) {
 const legacy={qoder:'qoder',agy:'agy',grok:'grok','codex-proxy':'codex','kimi-proxy':'kimi'};
 
 // Direct operations and HTTP routes share this boundary. No fake req/res for tools.
-export function createManagement({registry,router,sourceState,records,status,sources,service,pi,getTools}){
+export function createManagement({registry,router,sourceState,records,viewSettings,status,sources,service,pi,metadata,getTools}){
  const {providers,custom}=registry;
  function provider(id){const p=providers[id];if(!p)fail('来源不存在或未启用',404);return p;}
  async function listModels(id,refresh=false){return router.refreshSource(id,refresh);}
@@ -42,7 +42,7 @@ export function createManagement({registry,router,sourceState,records,status,sou
  async function discoverCustom(input,{withKeys=false}={}){
   if(!custom)fail('自定义上游未启用',404);
   const source=typeof input==='object'?input:(await custom.list()).find(s=>s.id===input);
-  try{const result=await custom.discoverAll(input);if(typeof input==='string')sourceState.discovered(source,result.models);return withKeys?result:result.models;}
+  try{const result=await custom.discoverAll(input);await metadata?.refresh();if(metadata){result.models=metadata.enrich('custom:'+source?.id,result.models);result.keys=result.keys.map(k=>({...k,models:metadata.enrich('custom:'+source?.id,k.models)}));}if(typeof input==='string')sourceState.discovered(source,result.models);return withKeys?result:result.models;}
   catch(error){if(typeof input==='string'&&source)sourceState.discovered(source,null,error);throw error;}
  }
  async function catalogStatus(id,refresh=false){
@@ -88,9 +88,10 @@ export function createManagement({registry,router,sourceState,records,status,sou
  }
  async function customOperation(operation,input){
   if(!custom)fail('自定义上游未启用',404);
-  if(operation==='sources')return{sources:await custom.list(),conflicts:router.conflicts};
+  if(operation==='sources'){await metadata?.refresh();const sources=await custom.list();return{sources:metadata?sources.map(s=>({...s,models:metadata.enrich('custom:'+s.id,s.models),keys:s.keys?.map(k=>({...k,models:metadata.enrich('custom:'+s.id,k.models)}))})):sources,conflicts:router.conflicts};}
   if(operation==='key')return{apiKey:await custom.readKey(input.id,input.keyId)};
   if(operation==='save'){const source=await custom.save(input);sourceState.invalidate('custom:'+source.id);await syncSources();return{source};}
+  if(operation==='credentials'){const source=await custom.resaveCredentials(input);sourceState.invalidate('custom:'+source.id);await syncSources();return{source};}
   if(operation==='delete'){await custom.remove(input.id);await router.forgetSource('custom:'+input.id);sourceState.invalidate('custom:'+input.id);await syncSources();return{ok:true};}
   if(operation==='discover')return discoverCustom(input.config||input.id,{withKeys:true});
   if(operation==='test')return inferenceCheck('custom:'+input.id);
@@ -123,8 +124,19 @@ export function createManagement({registry,router,sourceState,records,status,sou
    const op=route.slice('/api/proxy-tools/'.length);if(!['state','prepare','discover','test','apply','loginState','requests','read'].includes(op))fail('接口不存在',404);
    requireMethod(op==='state'?'GET':'POST');return getTools()[op](input);
   }
+  if(route==='/api/proxy/model-metadata'){
+   if(!metadata)fail('参考目录未启用',404);
+   if(method==='POST'){
+    const model=(router.catalogs.get(input.source)||await listModels(input.source)).find(m=>(m.upstreamId||m.id)===input.id);if(!model)fail('模型不存在');
+    await metadata.bind(input);for(const [id,rows] of router.catalogs)router.setCatalog(id,metadata.enrich(id,rows));return{models:router.catalogs.get(input.source)};
+   }requireMethod('GET');return metadata.read(query.has('refresh'));
+  }
+  if(route==='/api/proxy/model-metadata/preview'){requireMethod('POST');if(!metadata||!Array.isArray(input.models)||input.models.length>1000)fail('模型列表无效');await metadata.refresh();return{models:metadata.enrich('custom:'+input.source,input.models)};}
   if(route==='/api/proxy/routes'){
    if(method==='POST'){await router.routes();return router.saveRoute(input);}requireMethod('GET');return{routes:await router.routes({refresh:query.get('refresh')==='1',retry:query.get('retry')||undefined})};
+  }
+  if(route==='/api/proxy/view'){
+   if(method==='POST')return viewSettings.save(input);requireMethod('GET');return viewSettings.read();
   }
   if(['/api/proxy/status','/api/proxy/sources','/api/proxy/requests'].includes(route)){
    requireMethod('GET');if(route.endsWith('/status'))return{...await status(),recordsError:records.error};if(route.endsWith('/sources'))return{sources:await sources()};
@@ -135,7 +147,7 @@ export function createManagement({registry,router,sourceState,records,status,sou
    if(op==='runtime')fail('请在桌面端设置 Node 运行环境',404);
    if(op==='check')return service.check();return service[op](input);
   }
-  const customMatch=/^\/api\/(?:custom-proxy|proxy\/custom)\/(sources(?:\/(?:save|delete|discover|key))?|save|delete|discover|key|test)$/.exec(route);
+  const customMatch=/^\/api\/(?:custom-proxy|proxy\/custom)\/(sources(?:\/(?:save|delete|discover|key|credentials))?|save|delete|discover|key|test|credentials)$/.exec(route);
   if(customMatch){const op=customMatch[1].replace(/^sources\//,'');requireMethod(op==='sources'?'GET':'POST');return customOperation(op,input);}
   const match=/^\/api\/proxy\/sources\/([^/]+)\/(status|models(?:\/setting)?|quota|auth\/(?:login|poll|cancel|refresh|logout)|check)$/.exec(route);
   if(match){const op=match[2];requireMethod(['status','models','quota','auth/poll'].includes(op)?'GET':'POST');return sourceOperation(decodeURIComponent(match[1]),op,input,query);}

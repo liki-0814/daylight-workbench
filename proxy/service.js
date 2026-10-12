@@ -5,15 +5,18 @@ import {createPiConfig} from '../cli/pi-config.js';
 import {createProxyTools} from './shared/tools.js';
 import {ModelRouter} from './shared/router.js';
 import {RequestRecords} from './shared/request-records.js';
+import {createViewSettings} from './shared/view-settings.js';
 import {SourceState} from './shared/source-state.js';
 import {readJson,writeJson,serial} from './shared/store.js';
+import {createModelMetadata} from './shared/model-metadata.js';
 import {createProviders} from './providers.js';
 import {createGateway,fail} from './gateway.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
-export async function createProxyService({ dataDir, fetchImpl = fetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, customSources, piOptions = {} } = {}) {
-  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,customSources,getPort:()=>settings.port});
+export async function createProxyService({ dataDir, fetchImpl = fetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
+  const metadata=createModelMetadata({dataDir,enabled:!injectedProvider,...pricingOptions});
+  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,customSources,metadata,getPort:()=>settings.port});
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');
   const sourceState = new SourceState();
@@ -29,6 +32,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
   await writeJson(serviceFile, settings);
   await registry.sync();
   const records = await RequestRecords.load(usageFile);
+  const viewSettings=createViewSettings(path.join(directory,'view.json'));
   const sources = async () => {
     const account = await accounts.load();
     if (!injectedProvider && registry.snapshot('qoder').catalogIdentityKey !== account?.id) {
@@ -81,17 +85,20 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
   const pi = createPiConfig({ ...piOptions, dataDir,
     getGateway: async () => ({ state, baseUrl: `http://127.0.0.1:${settings.port}/v1`, apiKey: settings.apiKey }),
     getCatalog: async force => {
+      await metadata.refresh(force);
+      for(const [id,rows] of router.catalogs){const next=metadata.enrich(id,rows);if(JSON.stringify(rows)!==JSON.stringify(next))router.setCatalog(id,next);}
       const definitions = await sources();
       const catalog = await (force ? router.listModels(true) : router.cachedModels());
       const failedSources = definitions.filter(s => s.enabled && s.configured && router.errors[s.id]).map(s => ({ id:s.id, name:s.name, unconfigured:!router.catalogs.has(s.id) }));
       return { failedSources, models: catalog.filter(m => m.enabled).map(m => ({
       id: m.id, name: m.displayName || m.id, source: m.provider,
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
+      cost:m.cost,priceInfo:m.priceInfo,modelMetadata:m.modelMetadata,reasoningEffortsProvided:m.reasoningEffortsProvided,
       pi:registry.snapshot(m.provider)?.capabilities?.pi,
       requestOutputBudget:registry.snapshot(m.provider)?.capabilities?.piOutputBudget??registry.snapshot(m.provider)?.capabilities?.requestOutputBudget,
       ...(providers[m.provider]?.source?.protocol ? {nativeProtocol:providers[m.provider].source.protocol} : {}),
       ...((m.contextWindow || m.contextWindows?.find(w=>w.isDefault)?.length) ? {contextWindow:m.contextWindow || m.contextWindows.find(w=>w.isDefault).length} : {}), ...(m.maxOutputTokens ? {maxOutputTokens:m.maxOutputTokens} : {}),
-      ...(m.reasoningEfforts?.length ? {reasoningEfforts:m.reasoningEfforts} : {}), ...(m.thinkingLevelMap ? {thinkingLevelMap:m.thinkingLevelMap} : {}),
+      ...(m.reasoningEfforts?.length || m.reasoningEffortsProvided ? {reasoningEfforts:m.reasoningEfforts||[]} : {}), ...(m.thinkingLevelMap ? {thinkingLevelMap:m.thinkingLevelMap} : {}),
       ...(typeof m.isReasoning === 'boolean' ? {isReasoning:m.isReasoning} : {}), ...(typeof m.isVL === 'boolean' ? {isVL:m.isVL} : {}),
       })) };
     },
@@ -114,7 +121,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
       const result=await response.json();return{message:`连接正常，${result.data.length} 个模型可用（未发送推理请求）`};
     },
   };
-  const management=createManagement({registry,router,sourceState,records,status,sources,service,pi,getTools:()=>tools});
+  const management=createManagement({registry,router,sourceState,records,viewSettings,status,sources,service,pi,metadata,getTools:()=>tools});
   const tools=createProxyTools({dataDir,custom,discoverCustom:id=>management.discoverCustom(id,{withKeys:true}),getSources:sources,getRoutes:()=>router.routes(),call:management.call,readConfiguration:createLegacyReader(management.call)});
   const handle=management.handle;
   // Startup errors belong to this module, never prevent task management from opening.

@@ -1,6 +1,6 @@
 ---
 name: daylight-workbench
-description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日历安排、专注计时与统计、导出和撤销、AI 历史对话，以及 ~/.agents 下的 Skill/MCP 与本机软件接入。用户要求查看或修改工作台、管理本地扩展，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
+description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日历安排、专注计时与统计、导出和撤销、AI 历史对话，以及共享和本机 CLI 的 Skill/MCP。用户要求查看或修改工作台、管理本地扩展，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
 ---
 
 # Daylight 工作台连接
@@ -90,7 +90,7 @@ VERSION 和 UPDATED_AT 必须来自刚读取的目标。成功后再次读取列
 
 ## 本地扩展管理
 
-扩展管理只读取和管理 ~/.agents 的主来源。Skill 来源为 ~/.agents/skills，MCP 主配置为 ~/.agents/mcp/servers.json。只发现 Skills 一级子目录；内置 Codex/Qoder/Pi，并可通过 client.save 登记其他本地 CLI；所有登记软件按单项 Skill 管理自身目录下的链接，不覆盖或导入其他软件的独立配置。公共 MCP 不自动装载到 Daylight 对话。
+扩展管理读取和管理 ~/.agents 的共享来源，以及已接入 CLI 的本地 Skills 与用户级 MCP。自动识别和手动登记使用同一接入定义，支持 Codex/Qoder/Pi/Grok/Claude Code；仅扫描一级 Skills，不扫描项目目录。软件本地 Skill 显示真实来源；已知来源的链接不会重复列出，未知外部链接不读取。MCP 管理能力以 state.clients 的 mcpMode 和 mcpToggle 为准，不凭 JSON/TOML 格式猜测字段。原生配置编辑保留其他配置与既有凭据；新凭据只填环境变量引用，不读回明文。公共 MCP 不自动装载到 Daylight 对话。
 
 先 extensions-state 或 extension-detail，静态诊断用 extensions-diagnostics。修改、归档、接入、接管或实际 MCP 检测先用 extensions-prepare 生成真实差异与影响。内置 AI 使用审阅卡；外部 Skill 应呈现计划供用户理解，并依据当前明确授权执行。已有授权不用重复确认，尚在讨论不能应用。
 

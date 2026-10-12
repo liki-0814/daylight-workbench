@@ -192,3 +192,6 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 后续应补充各来源真实账号回归；默认不改真实客户端配置。修改公共代码执行 `npm run check`、`npm test`；涉及原生资源/进程执行相应原生测试与构建。新增来源先实现公开接口、认证描述和能力目录，再注册；避免复制页面或在公共推理层增加来源名称分支。
 
 重命名资源时同步检查 server.mjs 和 native/Server.swift 静态允许列表、native/Proxy.swift 管理转发、scripts/check-proxy.mjs、构建依赖图与动态入口。安装包继续裁剪不可达模块，保留许可证；SDK 对话适配与纯模型 API 中转分别验证。
+
+
+来源显示使用 `public/proxy/source-navigation.js` 的统一标签注册，所有来源共用选择、可见页面回退与键盘顺序。统一 `GET/POST /api/proxy/view` 通过 `shared/view-settings.js` 原子保存 `qoder/view.json`，带版本校验拒绝其他窗口的过期覆盖，不改变运行设置或路由，不以账号连接状态自动隐藏来源。首次读取前隐藏标签栏，读取失败保留已有显示并提供重试，损坏配置保留原文件。Node 与桌面 helper 共用同一管理入口和页面资产。

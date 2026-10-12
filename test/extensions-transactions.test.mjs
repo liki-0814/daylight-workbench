@@ -10,6 +10,7 @@ const content = '---\nname: source\ndescription: test\n---\nBefore';
 async function setup(t) {
   const temp = await fs.realpath(await fs.mkdtemp(path.join(tmpdir(), 'daylight-extension-transaction-')));
   const options = { agentsRoot: path.join(temp, 'agents'), clientRoots: Object.fromEntries(['codex', 'qoder', 'pi'].map(id => [id, path.join(temp, id)])), environment: { PATH: '' }, cacheMs: 0 };
+  await fs.mkdir(path.join(options.agentsRoot, 'daylight'), { recursive: true }); await fs.writeFile(path.join(options.agentsRoot, 'daylight/clients.json'), JSON.stringify({ schemaVersion: 1, clients: [], selectedClients: ['codex', 'qoder', 'pi'] }));
   const service = await createExtensionsService(options); t.after(async () => { await service.close(); await fs.rm(temp, { recursive: true, force: true }); });
   const create = await service.prepare({ type: 'skill.create', directory: 'source', content });
   await service.apply({ requestId: 'create-original-source', expectedVersion: create.expectedVersion, planId: create.planId, action: create.normalizedAction });

@@ -41,9 +41,7 @@ export class AgyProvider {
       const project = typeof account.cloudaicompanionProject === 'string' ? account.cloudaicompanionProject : account.cloudaicompanionProject?.id;
       if (!project) throw new Error('AGY 账号尚未完成开通，请先在 agy 中完成登录');
       const catalog = await (await this.call('fetchAvailableModels', { project })).json();
-      // The CLI expands tiered models and applies local model aliases. Its live catalog
-      // supplies generation IDs; production supplies the capability metadata.
-      const discovered = await this.auth.models();
+      const discovered = await this.auth.models(catalog);
       const models=parseModels(discovered,catalog);
       await this.auth.token();if(this.auth.identity!==identity)throw Object.assign(new Error('AGY 账号已切换，请重新请求'),{status:401});
       return {project,models};
@@ -53,7 +51,7 @@ export class AgyProvider {
     const { models } = await this.catalog(force), settings = await readJson(this.file, { disabled: [] });
     return applyCapacitySettings(models,settings).map(m => ({ ...m, enabled: !(settings.disabled||[]).includes(m.id) && !(m.variantIds?.every(id => (settings.disabled||[]).includes(id))), effort: settings.efforts?.[m.id] }));
   }
-  async status(){try{await this.listModels(true);this.lastError=null;return{connected:true};}catch{this.lastError='无法连接 AGY，请在终端运行 agy 登录后刷新';return{connected:false,error:this.lastError};}}
+  async status(){try{await this.listModels(true);this.lastError=null;return{connected:true};}catch(error){this.lastError=error.code?.startsWith('EKEYCHAIN_')||error.code?.startsWith('EAGY_')?error.message:'无法连接 AGY，请在终端运行 agy 登录后刷新';return{connected:false,error:this.lastError};}}
   async quota() {
     const { project } = await this.catalog();
     const data = await (await this.call('retrieveUserQuotaSummary', { project })).json();
