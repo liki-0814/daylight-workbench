@@ -7,7 +7,7 @@ import {CatalogCache} from '../shared/catalog-cache.js';
 
 export class CodexAuth {
  constructor({home=process.env.CODEX_HOME||path.join(os.homedir(),'.codex'),rpcFactory=()=>new RPC(executable('codex'),['app-server','--listen','stdio://'],os.homedir())}={}){
-  Object.assign(this,{home,rpcFactory});this.catalog=new CatalogCache();
+  Object.assign(this,{home,rpcFactory});this.catalog=new CatalogCache();this.activeRPCs=new Set();this.closed=false;
  }
  async read(){
   const a=await readJson(path.join(this.home,'auth.json'),null);
@@ -16,8 +16,8 @@ export class CodexAuth {
   this.identity=createHash('sha256').update(a.tokens.account_id).digest('hex');
   return{token:a.tokens.access_token,account:a.tokens.account_id,exp,identity:this.identity};
  }
- async rpc(operation){const rpc=this.rpcFactory();try{await rpc.initialize();await rpc.call('account/read',{refreshToken:true});return await operation(rpc);}finally{rpc.close();}}
- async quota(){await this.read();return this.rpc(rpc=>rpc.call('account/rateLimits/read',{}));}
+ async rpc(operation,{refreshToken=false}={}){if(this.closed)throw new Error('Codex 来源已关闭');const rpc=this.rpcFactory();this.activeRPCs.add(rpc);try{await rpc.initialize();await rpc.call('account/read',{refreshToken});return await operation(rpc);}finally{this.activeRPCs.delete(rpc);rpc.close();}}
+ async quota(){const credential=await this.read();return this.rpc(rpc=>rpc.call('account/rateLimits/read',{}),{refreshToken:credential.exp<=Date.now()+60000});}
  async discover(refresh=false){
   const credential=await this.read();
   return this.catalog.get({identity:credential.identity,refresh,valid:credential.exp>Date.now()+60000,load:()=>this.rpc(async rpc=>{
@@ -25,7 +25,7 @@ export class CodexAuth {
    do{const r=await rpc.call('model/list',{limit:100,...(cursor?{cursor}:{})});models.push(...r.data);cursor=r.nextCursor;}while(cursor);
    const current=await this.read();if(current.identity!==credential.identity)throw Object.assign(new Error('Codex 账号已切换，请重新请求'),{status:401});
    return{credential:current,models,meta:await readJson(path.join(this.home,'models_cache.json'),{models:[]})};
-  })});
+  },{refreshToken:refresh||credential.exp<=Date.now()+60000})});
  }
- close(){this.catalog.invalidate();}
+ close(){this.closed=true;this.catalog.invalidate();for(const rpc of this.activeRPCs)rpc.close();}
 }

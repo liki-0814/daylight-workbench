@@ -1,4 +1,5 @@
 import {modelPriceLabel} from '../../core/model-metadata.js';
+import {reasoningCapabilityLabel} from '../../core/model-capabilities.js';
 import {capacityLimit,capacityOptions,fastSetting} from './model-options.js';
 import {selectField} from '../components/select.js';
 import {disclosureSection,mountDisclosures,refreshButton,setRefreshState} from '../components/section.js';
@@ -12,7 +13,8 @@ export function modelGroups(models,row,{open=false,selected=m=>m.enabled!==false
 function modelSummary(m){
  const context=m.contextWindow||m.contextWindows?.find(w=>w.isDefault)?.length;
  const quantity=value=>Number.isFinite(value)&&value>0?Number(value).toLocaleString():'未提供（Pi 默认）';
- return `<div data-model-summary><p class="proxy-hint">上下文 ${quantity(context)} · 最大输出 ${quantity(m.maxOutputTokens)}</p><p class="proxy-hint">默认推理强度：${esc(m.effort||m.defaultEffort||'未提供')}${m.thinkingType==='only'?' · 不支持关闭思考':''}</p><p class="proxy-hint">支持的推理强度：${esc(m.reasoningEfforts?.length?m.reasoningEfforts.join(' · '):m.isReasoning===false?'不支持思考':'未提供')}</p><p class="proxy-hint">${esc(modelPriceLabel(m))}</p>${m.modelMetadata?.matchedId?`<p class="proxy-hint">${m.priceInfo?.basis==='official-reference'?'官方价表（本地补充）':'参考目录'}：${esc(m.modelMetadata.matchedId)} · ${esc(m.modelMetadata.updatedAt)} · 仅补全上游未提供的字段</p>`:''}</div>`;
+ const reasoning=reasoningCapabilityLabel(m);
+ return `<div data-model-summary><p class="proxy-hint">上下文 ${quantity(context)} · 最大输出 ${quantity(m.maxOutputTokens)}</p><p class="proxy-hint">默认推理强度：${esc(m.effort||m.defaultEffort||'未提供')}${m.thinkingType==='only'?' · 不支持关闭思考':''}</p><p class="proxy-hint">支持的推理强度：${esc(reasoning)}</p><p class="proxy-hint">${esc(modelPriceLabel(m))}</p>${m.modelMetadata?.matchedId?`<p class="proxy-hint">${m.priceInfo?.basis==='official-reference'?'官方价表（本地补充）':'参考目录'}：${esc(m.modelMetadata.matchedId)} · ${esc(m.modelMetadata.updatedAt)} · 仅补全上游未提供的字段</p>`:''}</div>`;
 }
 export function updateModelSummary(row,model){
  row.querySelector('[data-model-summary]').outerHTML=modelSummary(model);
@@ -38,13 +40,22 @@ export function renderModelRow(m,references=[]){
 
 export function createModelList({store,source}){
  const element=document.createElement('div');element.innerHTML=disclosureSection({id:source+'-models-details',className:'proxy-disclosure',title:'模型设置',description:'启用与默认参数',actions:refreshButton({ariaLabel:'刷新模型',attrs:{'data-refresh-models':true}}),content:'<div data-models-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-message></p>'});mountDisclosures(element);
- const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],references=[],loading=false,version=0,visible=false;
+ const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],references=[],referenceSnapshot,loaded=false,loading=false,version=0,visible=false;
  function paint(){const open=list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,m=>renderModelRow(m,references),{open});}
  async function load(force=false){
-  if(loading)return;loading=true;const current=version;message.textContent='正在获取模型…';setRefreshState(refresh,{loading:true});
-  try{let [result,reference]=await Promise.all([store.resource(source,'models',{refresh:force}),store.api.request('model-metadata'+(force?'?refresh=1':'')).catch(e=>({models:[],error:e.message}))]);references=reference.models;if(current!==version||result===undefined)return;if(reference.meta?.data_version&&result.some(m=>m.modelMetadata&&m.modelMetadata.version!==reference.meta.data_version)){store.invalidate(source);result=await store.resource(source,'models');if(current!==version||result===undefined)return;}models=result;paint();message.textContent=reference.error||(models.length?'':'账号暂无可用模型');}
-  catch(e){if(current===version&&e.name!=='AbortError')message.textContent=e.message;}
-  finally{if(current===version){loading=false;setRefreshState(refresh);}}
+  if(loading||!force&&loaded&&models===store.cachedResource(source,'models')&&referenceSnapshot&&referenceSnapshot===store.cachedResource(null,'model-metadata'))return;
+  loading=true;const current=version;let retry=false;message.textContent=loaded?'正在刷新模型…':'正在获取模型…';setRefreshState(refresh,{loading:true});
+  try{
+   let [result,reference]=await Promise.all([store.resource(source,'models',{refresh:force}),store.resource(null,'model-metadata',{refresh:force}).catch(e=>({...store.cachedResource(null,'model-metadata')||{models:[]},error:e.message}))]);
+   if(current!==version)return;
+   if(result===undefined||reference===undefined){retry=true;return;}
+   if(reference.meta?.data_version&&result.some(m=>m.modelMetadata&&m.modelMetadata.version!==reference.meta.data_version)){
+    store.invalidate(source);result=await store.resource(source,'models');if(current!==version)return;if(result===undefined){retry=true;return;}
+   }
+   references=reference.models;referenceSnapshot=reference;models=result;loaded=true;paint();message.textContent=reference.error||(models.length?'':'账号暂无可用模型');
+  }
+  catch(e){if(current===version){if(e.name==='AbortError')retry=true;else message.textContent=e.message;}}
+  finally{if(current===version){loading=false;setRefreshState(refresh);if(retry&&visible&&details.open)void load();}}
  }
  list.onchange=async event=>{
   const input=event.target,{model,field}=input.closest('[data-model]')?.dataset||{};if(!model)return;
@@ -54,7 +65,7 @@ export function createModelList({store,source}){
   finally{input.disabled=false;}
  };
  details.ontoggle=()=>{if(details.open&&visible)void load();};refresh.onclick=()=>{void load(true);};
- return{element,load,refreshIfOpen(force=false){if(details.open)void load(force);},getModel:()=>models.find(m=>m.enabled)?.id,setVisible(value){visible=value;if(value&&details.open)void load();},reset(){version++;loading=false;models=[];list.replaceChildren();message.textContent='';setRefreshState(refresh);},dispose(){version++;}};
+ return{element,load,refreshIfOpen(force=false){if(details.open)void load(force);},getModel:()=>models.find(m=>m.enabled)?.id,setVisible(value){visible=value;if(value&&details.open)void load();},reset(){version++;loading=false;loaded=false;referenceSnapshot=undefined;models=[];list.replaceChildren();message.textContent='';setRefreshState(refresh);},dispose(){version++;}};
 }
 
 // Draft mode keeps edits in the Custom transaction; the same module owns all model rows.

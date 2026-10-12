@@ -1,4 +1,4 @@
-import {capacityLimit,positiveCapacity} from './model-capabilities.js';
+import {capacityLimit,positiveCapacity,reasoningCapabilities,resolveReasoningCapabilities} from './model-capabilities.js';
 const fields=['input','output','cacheRead','cacheWrite'];
 export const validRate=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
@@ -29,16 +29,11 @@ export function fillModelMetadata(model,reference,{referenceId='',version='',upd
    if(value){if(next[field]!==value)fill(field,value);if(next[limit]!==value)fill(limit,value);}
   }
   const reasoning=reference?.reasoning_effort;
-  const declaredReasoning=typeof upstream.isReasoning==='boolean'||upstream.reasoningEffortsProvided||upstream.reasoningEfforts?.length;
-  if(manualFallback&&declaredReasoning){
-   for(const field of ['isReasoning','reasoningEfforts','reasoningEffortsProvided'])if(upstream[field]!==undefined&& !same(next[field],upstream[field]))fill(field,upstream[field]);
-  }
-  if(upstream.isReasoning!==false&&!upstream.reasoningEffortsProvided&&!upstream.reasoningEfforts?.length&&Array.isArray(reasoning?.levels)&&reasoning.field_status?.levels==='verified'){
-   const levels=reasoning.levels.filter(level=>typeof level==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(level));
-   if(reasoning.can_disable===true&&!levels.some(level=>['off','none'].includes(level)))levels.unshift('none');
-   if(levels.length){fill('reasoningEfforts',[...new Set(levels)]);fill('isReasoning',true);}
-  }
-  if(next.defaultEffort===undefined&&next.reasoningEfforts?.includes(reasoning?.default))fill('defaultEffort',reasoning.default);
+  const levels=reasoning?.field_status?.levels==='verified'&&Array.isArray(reasoning.levels)?reasoning.levels.filter(level=>typeof level==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(level)):undefined;
+  if(levels?.length&&reasoning.can_disable===true&&!levels.some(level=>['off','none'].includes(level)))levels.unshift('none');
+  const referenceReasoning={...reasoningCapabilities(reasoning?.field_status?.supported==='verified'?reasoning.supported:undefined,levels),defaultEffort:reasoning?.default};
+  const resolved=resolveReasoningCapabilities(upstream,referenceReasoning,manualFallback?next:undefined);
+  for(const field of ['isReasoning','reasoningEfforts','reasoningEffortsProvided','thinkingType','defaultEffort'])if(resolved[field]!==undefined&&!same(next[field],resolved[field]))fill(field,resolved[field]);
   if(next.settingFields&&!next.settingFields.includes('effort')&&next.reasoningEfforts?.length)fill('settingFields',[...next.settingFields,'effort']);
  }
  const includedCacheWrite=cacheWriteIncluded||reference?.billing?.cache_write_mode==='included_in_input';

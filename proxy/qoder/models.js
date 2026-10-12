@@ -69,6 +69,9 @@ export function parseModel(raw) {
     const id = firstDefined(raw.key, raw.model);
     if (!id) return undefined;
     const supported = firstDefined(raw.is_reasoning, raw.isReasoning);
+    // Normalize native controls; the legacy flag is retained separately for the wire protocol.
+    const thinkingEnabled = Boolean(raw.thinking_config?.enabled);
+    const thinkingType = thinkingEnabled ? raw.thinking_config.disabled ? 'enabled' : 'only' : raw.thinking_config?.disabled ? 'disabled' : undefined;
     const { efforts, defaultEffort } = parseEfforts(raw);
     const contextWindows = parseContexts(raw);
     const declaredMax = firstDefined(raw.max_input_tokens, raw.maxInputTokens);
@@ -78,7 +81,8 @@ export function parseModel(raw) {
         displayName: firstDefined(raw.display_name, raw.displayName, raw.name) ?? id,
         source: raw.source,
         isVL: booleanCapability(firstDefined(raw.is_vl, raw.isVl)),
-        ...reasoningCapabilities(supported,efforts),
+        upstreamIsReasoning: booleanCapability(supported),
+        ...reasoningCapabilities(supported,raw.thinking_config ? efforts : undefined,thinkingType),
         defaultEffort,
         contextWindows,
         maxInputTokens,

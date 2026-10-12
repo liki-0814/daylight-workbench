@@ -23,7 +23,8 @@ export function createProxyState(api){
   if(row.pending)return row.pending;if(!refresh&&row.value!==undefined&&Date.now()-row.at<ttl)return row.value;
   const epoch=row.epoch,controller=new AbortController();row.controller=controller;
   const task=(async()=>{
-   const result=id==='custom'?await api.custom(kind,undefined,{signal:controller.signal}):await api.source(id,kind+(refresh&&kind==='models'?'?refresh=1':''),undefined,{signal:controller.signal});
+   // Shared reference metadata has no provider owner.
+   const result=id===null?await api.request(kind+(refresh?'?refresh=1':''),undefined,{signal:controller.signal}):id==='custom'?await api.custom(kind,undefined,{signal:controller.signal}):await api.source(id,kind+(refresh&&kind==='models'?'?refresh=1':''),undefined,{signal:controller.signal});
    if(disposed||epoch!==row.epoch)return undefined;row.value=kind==='models'?result.models:result;row.at=Date.now();return row.value;
   })();row.pending=task;
   try{return await task;}finally{if(row.pending===task){row.pending=null;row.controller=null;}}
@@ -49,5 +50,5 @@ export function createProxyState(api){
    try{await auth(id,'poll');}catch(e){logins.set(id,{...login,error:e.message});notify();}
   }));
  }
- return {api,refresh,resource,setModel,auth,pollLogins,cancel,invalidate,source,login:id=>logins.get(id),get status(){return status;},get sources(){return sources;},get error(){return error;},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},dispose(){disposed=true;for(const row of resources.values())row.controller?.abort();listeners.clear();}};
+ return {api,refresh,resource,cachedResource:(id,kind)=>resources.get(id+':'+kind)?.value,setModel,auth,pollLogins,cancel,invalidate,source,login:id=>logins.get(id),get status(){return status;},get sources(){return sources;},get error(){return error;},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},dispose(){disposed=true;for(const row of resources.values())row.controller?.abort();listeners.clear();}};
 }

@@ -102,6 +102,7 @@ function compileParameters(req) {
 }
 export function compileNativeBody(req, ctx) {
     const { model, session } = ctx;
+    const nativeReasoning = model.upstreamIsReasoning ?? model.isReasoning;
     const text = currentTurnText(req);
     const tools = compileTools(req.tools);
     const nativeMessages = compileMessages(req.messages);
@@ -125,7 +126,7 @@ export function compileNativeBody(req, ctx) {
             extra: {
                 context: [],
                 modelConfig: {
-                    is_reasoning: model.isReasoning,
+                    is_reasoning: nativeReasoning,
                     key: model.id
                 },
                 originalContent: text
@@ -149,7 +150,7 @@ export function compileNativeBody(req, ctx) {
             model: "",
             format: "openai",
             is_vl: model.isVL,
-            is_reasoning: model.isReasoning,
+            is_reasoning: nativeReasoning,
             api_key: "",
             url: "",
             source: model.source ?? "system",

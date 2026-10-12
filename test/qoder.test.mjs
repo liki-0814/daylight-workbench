@@ -17,7 +17,7 @@ const teamModel = { key: 'team-model', display_name: 'Qwen3.8-Max（采供线专
 const enterpriseModel = { key: 'mode-24b28efaa85443a5bf7eac4de15190f5', display_name: 'Qwen3.8-Max-DogFooding', source: 'organization', format: 'openai', context_config: [{ token_count: 1000000, is_default: true }], thinking_config: { enabled: { efforts: { high: {} } } } };
 const teamDogfood = { ...enterpriseModel, key: 'team-dogfood', source: 'byokTeams' };
 const catalog = {
-  assistant: [{ key: 'test-model', display_name: 'Test Model', source: 'system', format: 'openai', context_config: [{ token_count: 128000, is_default: true }, { token_count: 256000 }], thinking_config: { enabled: { efforts: { low: {}, high: {} } } }, feature_switches: { highspeed: true } }],
+  assistant: [{ key: 'test-model', display_name: 'Test Model', source: 'system', format: 'openai', is_reasoning: false, context_config: [{ token_count: 128000, is_default: true }, { token_count: 256000 }], thinking_config: { enabled: { efforts: { low: {}, high: {} } } }, feature_switches: { highspeed: true } }],
   byok_teams: [teamModel, teamDogfood], byok_enterprise: [enterpriseModel],
 };
 const account = { id: 'acc_test', profile: 'qoder', credential: { uid: 'test', access: 'private-access', refresh: 'private-refresh', machineId: 'test-machine', machineToken: 'private-machine', expires: Date.now() + 3600000 } };
@@ -137,10 +137,12 @@ test('manual lifecycle, PKCE login, key protection, overlay, non-streaming and s
   assert.equal(dogfoodResponse.status, 200); await dogfoodResponse.json();
   assert.equal((await f.api('settings', { port: 5000, autoStart: false })).status, 409);
   assert.equal((await f.api('test', {})).status, 200);
+  assert.equal((await f.api('models/setting', { id: 'test-model', field: 'effort', value: 'high' })).status, 200);
   const requests = [ ['chat/completions', { messages: [{ role: 'user', content: 'private-prompt' }] }], ['responses', { input: 'private-prompt' }], ['messages', { messages: [{ role: 'user', content: 'private-prompt' }], max_tokens: 100 }] ];
   for (const [route, body] of requests) {
     const response = await f.client(route, { model: 'test-model', ...body }); assert.equal(response.status, 200); const result = await response.json(); assert.match(JSON.stringify(result), /你好/); assert.match(JSON.stringify(result), /lookup/);
     const streamed = await f.client(route, { model: 'test-model', ...body, stream: true }); assert.match(streamed.headers.get('content-type'), /event-stream/); const text = await streamed.text(); assert.match(text, /你好/); assert.match(text, /lookup/);
+    const sent=f.fake.calls.at(-1).body;assert.equal(sent.parameters.reasoning_effort,'high');assert.equal(sent.model_config.is_reasoning,false);assert.equal(sent.chat_context.extra.modelConfig.is_reasoning,false);
   }
   assert.equal((await f.client('chat/completions', { model: 'test-model', messages: [], reasoning_effort: 'invalid' })).status, 400);
   assert.equal((await f.api('models/setting', { id: 'test-model', field: 'context', value: 123 })).status, 400);

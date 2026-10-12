@@ -1,4 +1,4 @@
-import {booleanCapability,mergeModelCapabilities} from '../../core/model-capabilities.js';
+import {booleanCapability,reasoningCapabilities,mergeModelCapabilities} from '../../core/model-capabilities.js';
 import {reasoningEfforts} from './protocol.js';
 
 // Discover concrete presets directly without starting CLI authentication.
@@ -33,7 +33,7 @@ export function parseModels(discovered,catalog){
         const catalogId = catalog.models?.[upstreamId] ? upstreamId : catalog.models?.[tiered] ? tiered : upstreamId;
         const m = catalog.models?.[catalogId] || {};
         const model = { id, provider: 'agy', displayName, enabled: true, source: 'agy', isVL: booleanCapability(m.supportsImages), isReasoning: booleanCapability(m.supportsThinking), reasoningEfforts: [], contextWindows: [], maxInputTokens: m.maxTokens, maxOutputTokens: m.maxOutputTokens, quota: m.quotaInfo, thinkingBudget: m.thinkingBudget, catalogId, upstreamId };
-        model.reasoningEfforts = reasoningEfforts(model);
+        Object.assign(model,reasoningCapabilities(m.supportsThinking,reasoningEfforts(model)));
         return model;
       });
       // Merge reasoning presets from every AGY family by base ID.

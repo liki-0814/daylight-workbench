@@ -69,6 +69,14 @@ test('frontend service status survives unavailable source metadata so native run
  const store=createProxyState({request:async op=>{if(op==='status')return{state:'stopped',native:true,runtimeError:'missing Node'};throw Error('sidecar unavailable');}});
  await store.refresh();assert.equal(store.status.native,true);assert.equal(store.status.runtimeError,'missing Node');assert.equal(store.error,'sidecar unavailable');store.dispose();
 });
+test('frontend reference catalog is shared, deduped and explicitly refreshed without losing the last snapshot',async()=>{
+ let calls=0,pending=deferred();const store=createProxyState({request:async route=>{calls++;assert.match(route,/^model-metadata(?:\?refresh=1)?$/);return pending.promise;}});
+ const first=store.resource(null,'model-metadata'),same=store.resource(null,'model-metadata');pending.resolve({models:[],meta:{data_version:'v1'}});
+ const snapshot=await first;assert.strictEqual(await same,snapshot);assert.strictEqual(await store.resource(null,'model-metadata'),snapshot);assert.equal(calls,1);
+ pending=deferred();const refresh=store.resource(null,'model-metadata',{refresh:true});assert.strictEqual(store.cachedResource(null,'model-metadata'),snapshot);
+ pending.reject(Error('offline'));await assert.rejects(refresh,/offline/);assert.strictEqual(await store.resource(null,'model-metadata'),snapshot);
+ store.dispose();
+});
 test('shared quota rendering keeps missing values distinct from an explicit zero',()=>{
  const quota=renderQuota({buckets:[{id:'unknown',name:'unknown',unit:'unknown'},{id:'zero',name:'zero',unit:'percent',usedPercent:0}]});assert.match(quota,/暂无占比/);assert.match(quota,/上游未提供/);assert.match(quota,/0%/);
 });

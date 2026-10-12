@@ -8,9 +8,63 @@ import {createModelMetadata} from '../proxy/shared/model-metadata.js';
 import {modelConfig,createPiConfig} from '../cli/pi-config.js';
 import {parseModels,validateModels,modelUnion} from '../proxy/custom/models.js';
 import {applyCapacitySettings} from '../proxy/shared/model-settings.js';
+import {parseModel as qoderModel} from '../proxy/qoder/models.js';
 const reference={id:'reference',name:'Reference',limits:{context_length:1000000,max_output_tokens:128000},reasoning_effort:{levels:['low','high'],default:'high',can_disable:false,field_status:{levels:'verified'}},pricing:{input:2,output:10,cached_input:.1,cache_write:2.5},pricing_tiers:[{input_tokens_gt:272000,input_tokens_lte:null,input:4,output:15,cached_input:.2,cache_write:5}],price_basis:{type:'official'}};
 const payload=(entry=reference,version='v1')=>({api_version:'v1',meta:{data_version:version,updated_at:'2026-10-11',currency:'USD',unit:'per_1M_tokens'},data:[entry]});
 const fixture=async t=>{const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-pricing-test-'));t.after(()=>rm(dataDir,{recursive:true,force:true}));return dataDir;};
+test('Qoder matches complete display names to unique reference IDs or names while preserving explicit associations',async t=>{
+ const dataDir=await fixture(t),rows=[
+  ['qmodel_38max','Qwen3.8-Max','qwen3.8-max','Qwen3.8-Max'],
+  ['qfmodel','Qwen3.8-Flash','qwen3.8-flash','Qwen3.8-Flash'],
+  ['qmodel_latest','Qwen3.7-Max','qwen3.7-max','Qwen3.7-Max'],
+  ['qmodel','Qwen3.7-Plus','qwen3.7-plus','Qwen3.7-Plus'],
+  ['kmodel_latest','Kimi-K3','kimi-k3','Kimi K3'],
+  ['kmodel','Kimi-K2.8-Preview','kimi-for-coding','Kimi K2.8 Preview'],
+  ['gmodel','GLM-5.3','glm-5.3','GLM-5.3'],
+  ['gfmodel','GLM-5.3-Flash','glm-5.3-flash','GLM-5.3-Flash'],
+  ['dmodel','DeepSeek-V4-Pro','deepseek-v4-pro','DeepSeek-V4-Pro-0813'],
+  ['dfmodel','DeepSeek-Flash','deepseek-flash','DeepSeek-V4.1-Flash'],
+  ['mmodel','MiniMax-M3','minimax-m3','MiniMax-M3'],
+ ];
+ const metadata=createModelMetadata({dataDir,fetchImpl:async()=>Response.json({...payload(),data:rows.map(([, ,id,name])=>({...reference,id,name}))})});await metadata.refresh();
+ for(const [id,displayName,matchedId] of rows){const model=metadata.enrich('qoder',[{id,displayName,contextWindow:64000}])[0];assert.equal(model.modelMetadata.matchedId,matchedId);assert.equal(model.id,id);assert.equal(model.contextWindow,64000);}
+ const match=(model,source='qoder')=>metadata.enrich(source,[model])[0].modelMetadata.matchedId;
+ assert.equal(match({id:'qfmodel',displayName:' QWEN3.8 Flash '}),'qwen3.8-flash');
+ assert.equal(match({id:'qwen3.8-max',displayName:'GLM-5.3'}),'qwen3.8-max');
+ await metadata.bind({source:'qoder',id:'qfmodel',referenceId:'glm-5.3'});
+ assert.equal(match({id:'qfmodel',displayName:'Qwen3.8-Flash'}),'glm-5.3');
+ assert.equal(match({id:'qfmodel',displayName:'Qwen3.8-Flash',referenceId:'minimax-m3'}),'minimax-m3');
+ assert.equal(match({id:'qfmodel',displayName:'Qwen3.8-Flash',referenceId:'missing'}),'');
+ await metadata.bind({source:'qoder',id:'qfmodel',referenceId:''});assert.equal(match({id:'qfmodel',displayName:'Qwen3.8-Flash'}),'qwen3.8-flash');
+ assert.equal(match({id:'qfmodel',displayName:'Qwen3.8-Flash'},'custom:one'),'qwen3.8-flash');
+});
+test('all sources share complete identity matching and verified thinking mode matching without dropping variants',async t=>{
+ const dataDir=await fixture(t),opus={...reference,id:'claude-opus-4.6',name:'Claude Opus 4.6',reasoning_effort:{supported:true,can_disable:true,levels:['low','medium','high','max'],field_status:{supported:'verified',can_disable:'verified',levels:'verified'}}};
+ let current={...payload(),data:[opus,{...reference,id:'other',name:'Other'}]};const metadata=createModelMetadata({dataDir,fetchImpl:async()=>Response.json(current)});await metadata.refresh();
+ const model={id:'claude-opus-4-6-thinking',displayName:'Claude Opus 4.6 (Thinking)',isReasoning:true,reasoningEfforts:['low','medium','high']};
+ const match=(source,m=model)=>metadata.enrich(source,[m])[0].modelMetadata.matchedId;
+ for(const source of ['qoder','agy','grok','codex','kimi','custom:one']){
+  assert.equal(match(source),'claude-opus-4.6');assert.equal(match(source,{id:'claude-opus-4-6'}),'claude-opus-4.6');
+  if(!source.startsWith('custom:'))assert.deepEqual(metadata.enrich(source,[model])[0].reasoningEfforts,['low','medium','high']);
+ }
+ for(const m of [{...model,isReasoning:false,reasoningEfforts:[]},{...model,isReasoning:undefined,reasoningEfforts:[]},{...model,id:'opaque',displayName:'Claude Opus 4.6 Preview (Thinking)'},{...model,id:'claude-opus-4-60-thinking',displayName:'Claude Opus 4.60 (Thinking)'},{id:'claude-opus-46'},{id:'opaque',displayName:'Claude Opus 4.6',upstreamId:'OTHER'}])assert.equal(match('agy',m),'');
+ await metadata.bind({source:'agy',id:model.id,referenceId:'other'});assert.equal(match('agy'),'other');assert.equal(match('agy',{...model,referenceId:'missing'}),'');await metadata.bind({source:'agy',id:model.id,referenceId:''});
+ const filled=metadata.enrich('agy',[model])[0];assert.equal(filled.modelMetadata.matchedId,opus.id);
+ current={...current,data:[{...opus,reasoning_effort:{...opus.reasoning_effort,can_disable:false}},current.data[1]]};await metadata.refresh(true);assert.equal(match('agy',filled),'');
+ current={...current,data:[opus,{...opus,id:'alternative'}]};await metadata.refresh(true);assert.equal(match('agy'),'');
+ current={...current,data:[opus,{...opus,id:model.id,name:model.displayName}]};await metadata.refresh(true);assert.equal(match('agy'),model.id);
+});
+test('Qoder leaves incomplete, variant and ambiguous names unmatched and reevaluates names on refresh',async t=>{
+ const dataDir=await fixture(t),model={id:'kmodel_latest',displayName:'Kimi-K3'};let current={...payload(),data:[{...reference,id:'kimi-k3',name:'Kimi K3'},{...reference,id:'qwen3.8-max',name:'Qwen3.8-Max'}]};
+ const metadata=createModelMetadata({dataDir,fetchImpl:async()=>Response.json(current)});await metadata.refresh();
+ for(const displayName of ['Auto','Ultimate','Performance','Efficient','Sonus','Qwen3.8','Qwen3.8-Max-DogFooding','Kimi-K3-Fast','Kimi-K3-Preview','Kimi-K30','Kimi-K3.0','',undefined])assert.equal(metadata.enrich('qoder',[{id:'opaque',displayName}])[0].modelMetadata.matchedId,'');
+ const matched=metadata.enrich('qoder',[model])[0];assert.equal(matched.modelMetadata.matchedId,'kimi-k3');assert.equal(matched.cost.input,2);
+ assert.equal(metadata.enrich('qoder',[{...matched,displayName:'Kimi-K4'}])[0].modelMetadata.matchedId,'');
+ current={...current,data:[...current.data,{...reference,id:'another-kimi',name:'Kimi-K3'}]};await metadata.refresh(true);
+ const ambiguous=metadata.enrich('qoder',[matched])[0];assert.equal(ambiguous.modelMetadata.matchedId,'');assert.equal(ambiguous.cost,undefined);assert.equal(ambiguous.contextWindow,undefined);
+ assert.equal(metadata.enrich('qoder',[{id:'kimi-k3',displayName:'Kimi-K3'}])[0].modelMetadata.matchedId,'kimi-k3');
+ await metadata.bind({source:'qoder',id:model.id,referenceId:'kimi-k3'});assert.equal(metadata.enrich('qoder',[model])[0].modelMetadata.matchedId,'kimi-k3');
+});
 test('missing metadata fills per field; upstream ceilings, declared efforts and explicit zero prices win',()=>{
  const model=fillModelMetadata({id:'alias',contextWindow:272000,maxOutputTokens:64000,reasoningEfforts:['medium'],cost:{input:0,output:3,cacheRead:null}},reference,{subscription:true});
  assert.equal(model.contextWindow,272000);assert.equal(model.maxOutputTokens,64000);assert.deepEqual(model.reasoningEfforts,['medium']);assert.equal(model.defaultEffort,undefined);
@@ -18,8 +72,8 @@ test('missing metadata fills per field; upstream ceilings, declared efforts and 
  const config=modelConfig(model);assert.equal(config.cost.tiers[0].inputTokensAbove,272000);
  assert.equal(modelConfig(model,{},undefined,{maxTokens:1000}).maxTokens,64000);
 });
-test('empty declarations and reasoning false remain authoritative; unknown stays absent in Pi',()=>{
- const parsed=parseModels({data:[{id:'reference',reasoning_efforts:[]}]})[0];assert.deepEqual(fillModelMetadata(parsed,reference).reasoningEfforts,[]);
+test('empty declarations use the reference; explicit refusal stops fallback and unknown stays absent in Pi',()=>{
+ const parsed=parseModels({data:[{id:'reference',reasoning_efforts:[]}]})[0];assert.deepEqual(fillModelMetadata(parsed,reference).reasoningEfforts,['low','high']);
  assert.deepEqual(fillModelMetadata({id:'reference',isReasoning:false,reasoningEfforts:[]},reference).reasoningEfforts,[]);
  const unknown=fillModelMetadata({id:'missing'},undefined);const pi=modelConfig(unknown);
  for(const key of ['contextWindow','maxTokens','reasoning','cost'])assert.equal(Object.hasOwn(pi,key),false);
@@ -96,12 +150,24 @@ test('capability priority is upstream then reference then saved manual fallback'
  assert.equal(mapped.contextWindow,1000000);assert.equal(mapped.maxOutputTokens,128000);assert.deepEqual(mapped.reasoningEfforts,['low','high']);
  assert.deepEqual(stripModelMetadata(mapped),manual);
  const declared=fillModelMetadata({...manual,upstreamCapabilities:{contextWindow:32000,reasoningEfforts:[],reasoningEffortsProvided:true}},reference,{manualFallback:true});
- assert.equal(declared.contextWindow,32000);assert.deepEqual(declared.reasoningEfforts,[]);assert.equal(modelConfig(declared,{},'openai-responses',{thinkingLevelMap:{high:'manual'}}).thinkingLevelMap.high,null);
+ assert.equal(declared.contextWindow,32000);assert.deepEqual(declared.reasoningEfforts,['low','high']);assert.equal(modelConfig(declared,{},'openai-responses',{thinkingLevelMap:{high:'manual'}}).thinkingLevelMap.high,'high');
  assert.deepEqual(fillModelMetadata({id:'reference',isReasoning:true},reference).reasoningEfforts,['low','high']);
  const unknown=fillModelMetadata(manual,undefined,{manualFallback:true});assert.equal(unknown.contextWindow,64000);assert.deepEqual(unknown.reasoningEfforts,['manual']);
  const pi=modelConfig(mapped,{},'openai-responses',{contextWindow:2,maxTokens:3,reasoning:false,thinkingLevelMap:{max:'manual'}});
  assert.equal(pi.contextWindow,1000000);assert.equal(pi.maxTokens,128000);assert.equal(pi.reasoning,true);assert.equal(pi.thinkingLevelMap.max,null);
  assert.equal(modelConfig({id:'missing'}, {},'openai-responses',{maxTokens:99}).maxTokens,99);
+});
+test('reasoning fallback uses upstream then reference then manual and stops at explicit refusal',()=>{
+ const three={...reference,reasoning_effort:{supported:true,levels:['low','medium','high'],default:'medium',can_disable:true,field_status:{supported:'verified',levels:'verified'}}};
+ const manual={id:'alias',isReasoning:true,reasoningEfforts:['manual'],defaultEffort:'manual',upstreamCapabilities:{reasoningEfforts:[],reasoningEffortsProvided:true}};
+ const fromAPI=fillModelMetadata(manual,three,{manualFallback:true});assert.deepEqual(fromAPI.reasoningEfforts,['none','low','medium','high']);assert.equal(fromAPI.defaultEffort,'medium');assert.deepEqual(stripModelMetadata(fromAPI),manual);
+ const fromUpstream=fillModelMetadata({...manual,upstreamCapabilities:{isReasoning:true,reasoningEfforts:['max'],defaultEffort:'max'}},three,{manualFallback:true});assert.deepEqual(fromUpstream.reasoningEfforts,['max']);assert.equal(fromUpstream.defaultEffort,'max');
+ const fromManual=fillModelMetadata(manual,undefined,{manualFallback:true});assert.deepEqual(fromManual.reasoningEfforts,['manual']);assert.equal(fromManual.defaultEffort,'manual');
+ const denied=fillModelMetadata({...manual,upstreamCapabilities:{isReasoning:false,reasoningEfforts:[]}},three,{manualFallback:true});assert.equal(denied.isReasoning,false);assert.deepEqual(denied.reasoningEfforts,[]);assert.equal(denied.defaultEffort,null);assert.equal(modelConfig(denied).reasoning,false);
+ const deniedByAPI=fillModelMetadata(manual,{...three,reasoning_effort:{supported:false,levels:null,field_status:{supported:'verified'}}},{manualFallback:true});assert.equal(deniedByAPI.isReasoning,false);assert.deepEqual(deniedByAPI.reasoningEfforts,[]);
+ const qwen=qoderModel({key:'qmodel_latest',is_reasoning:false,thinking_config:{enabled:{is_default:true},disabled:{}}});const effective=fillModelMetadata(qwen,three);assert.equal(effective.isReasoning,false);assert.deepEqual(effective.reasoningEfforts,[]);assert.equal(modelConfig(effective).reasoning,false);
+ const kimi=qoderModel({key:'kmodel_latest',is_reasoning:false,thinking_config:{enabled:{efforts:{low:{},high:{},max:{is_default:true}}}}});assert.deepEqual(fillModelMetadata(kimi,three).reasoningEfforts,['low','high','max']);
+ const unknown=qoderModel({key:'unknown',thinking_config:{enabled:{efforts:{}}}});assert.deepEqual(fillModelMetadata(unknown,three).reasoningEfforts,['low','medium','high']);
 });
 
 test('local official references fill missing public models and yield to future llm-pricing entries',async t=>{

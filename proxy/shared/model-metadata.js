@@ -1,9 +1,23 @@
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {readJson,writeJson,serial} from './store.js';
-import {fillModelMetadata} from '../../core/model-metadata.js';
+import {fillModelMetadata,stripModelMetadata} from '../../core/model-metadata.js';
+import {reasoningCapabilities} from '../../core/model-capabilities.js';
 export const pricingURL='https://liki-0814.github.io/llm-pricing/api/v1/models.json';
 const bad=message=>Object.assign(new Error(message),{status:400});
+// Compare complete names; keep version dots and variant suffixes significant.
+const modelName=value=>typeof value==='string'?value.toLowerCase().replace(/(\d)[_-](?=\d)/g,'$1.').replace(/[\s_-]+/g,''):'';
+const thinkingName=value=>typeof value==='string'?value.replace(/(?:[\s_-]+thinking|\s*\(\s*thinking\s*\))$/i,''):value;
+function automaticReference(model,catalog){
+ const original=stripModelMetadata(model),names=[original.upstreamId||original.id,original.displayName];
+ const unique=matches=>matches.length===1?matches[0]:undefined;
+ const complete=catalog.filter(m=>names.some(name=>modelName(name)&&[m.id,m.name].some(value=>modelName(value)===modelName(name))));
+ if(complete.length)return unique(complete);
+ // A mode suffix can refer to a toggleable reference only when both sources declare thinking support.
+ if(reasoningCapabilities(original.isReasoning,original.reasoningEfforts,original.thinkingType).isReasoning!==true)return;
+ const modes=names.filter(name=>thinkingName(name)!==name).map(thinkingName).map(modelName);
+ return unique(catalog.filter(m=>m.reasoning_effort?.supported===true&&m.reasoning_effort?.can_disable===true&&m.reasoning_effort?.field_status?.supported==='verified'&&m.reasoning_effort?.field_status?.can_disable==='verified'&&[m.id,m.name].some(value=>modes.includes(modelName(value)))));
+}
 export function createModelMetadata({dataDir,fetchImpl=fetch,enabled=true,ttlMs=86400000,timeoutMs=5000,url=pricingURL,now=Date.now}={}){
  const cacheFile=path.join(dataDir,'proxy/llm-pricing-cache.json'),bindingsFile=path.join(dataDir,'proxy/model-references.json'),supplementFile=path.join(dataDir,'proxy/model-reference-supplement.json'),run=serial();
  let cache,bindings,pending,lastAttempt=0,error='',supplement,supplementError='';
@@ -29,7 +43,8 @@ export function createModelMetadata({dataDir,fetchImpl=fetch,enabled=true,ttlMs=
   const catalog=entries(),info=meta();
   return models.map(model=>{
    const referenceId=model.referenceId??bindings?.[key(source,model.upstreamId||model.id)]??'';
-   const reference=catalog.find(m=>m.id===(referenceId||model.upstreamId||model.id));
+   let reference=catalog.find(m=>m.id===(referenceId||model.upstreamId||model.id));
+   if(!reference&&!referenceId)reference=automaticReference(model,catalog);
    return fillModelMetadata(model,reference,{referenceId,version:info?.data_version||'',updatedAt:reference?.checked_at||info?.updated_at||'',subscription:!source.startsWith('custom:'),manualFallback:source.startsWith('custom:'),cacheWriteIncluded:source==='grok'&&reference?.billing?.cached_input_type==='implicit'});
   });
  }

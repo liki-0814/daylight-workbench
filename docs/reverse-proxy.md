@@ -38,7 +38,7 @@ Grok 输出预算为可选项：请求未传且没有历史默认预算时，不
 
 ## Codex
 
-Codex 标签只复用本机 `CODEX_HOME`（默认 `~/.codex`）中的 ChatGPT OAuth 文件。认证刷新和模型发现使用官方 app-server 的 account/model RPC；推理直接请求 Codex Responses 上游，不创建 CLI Agent、线程或工具执行环境，也不读取 Pi 的 Codex 凭据。模型发现缓存五分钟并按账号隔离，设置默认推理强度和速度不会强制重新探测。
+Codex 标签只复用本机 `CODEX_HOME`（默认 `~/.codex`）中的 ChatGPT OAuth 文件。认证刷新和模型发现使用官方 app-server 的 account/model RPC；推理直接请求 Codex Responses 上游，不创建 CLI Agent、线程或工具执行环境，也不读取 Pi 的 Codex 凭据。模型发现缓存五分钟并按账号隔离，成功目录会写入数据目录。重启后只要访问令牌仍有效，就先恢复上次目录；本机探测失败不会把账号显示成未登录，并会自动再试。设置默认推理强度和速度不会强制重新探测。令牌仍有效时不会强制刷新 OAuth，只有令牌即将过期、上游返回 401 或手动点击刷新时才刷新。
 
 - 推荐使用 `/v1/responses`，支持原生流式事件、图片、function 工具调用和完整历史回传。工具由调用方执行；加密 reasoning 项原样保留。Chat/Messages 采用有限协议转换，不能表示的字段明确报错。
 - Codex 通道不接受显式 `max_output_tokens`（包括其他协议转换来的输出预算）、`previous_response_id`、服务端 conversation、`store=true` 和当前未适配的采样参数。多轮携带完整历史。上下文来自本机模型目录，未知最大输出不编造。

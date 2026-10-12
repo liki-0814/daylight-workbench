@@ -7,14 +7,16 @@ export function createSourcePage({store,source,name,confirmAction}){
  const root=document.createElement('section');root.id='proxy-panel-'+source;root.className='proxy-provider-page';root.hidden=true;root.setAttribute('role','tabpanel');root.setAttribute('aria-labelledby','proxy-tab-'+source);
  root.innerHTML=`<div class="workspace proxy-workspace"><section class="proxy-panel" aria-label="账号"><div class="proxy-account"><div class="proxy-account-info"><span class="proxy-caption" data-caption></span><span data-account>正在读取…</span></div><div class="proxy-account-actions">${refreshButton({label:'刷新登录',attrs:{'data-refresh-account':true,hidden:true}})}${actionButton({variant:'text',attrs:{'data-action':true,hidden:true}})}</div></div><p class="proxy-error" role="alert" data-error hidden></p><div class="proxy-login" data-login hidden><p data-login-note>在浏览器中完成授权，此页会自动更新。</p><p data-login-code hidden></p><a data-login-link rel="noreferrer" target="_blank">打开登录页面 ↗</a><button class="text-button" data-cancel>取消</button></div></section></div>`;
  const $=s=>root.querySelector(s),workspace=$('.workspace'),models=createModelList({store,source}),quota=createQuotaPanel({store,source});workspace.append(models.element,quota.element);
- let visible=false,busy=false,identity,disposed=false;
+ let visible=false,busy=false,identity,revision,disposed=false;
  function error(message=''){$('[data-error]').textContent=message;$('[data-error]').hidden=!message;}
  function paint(){
   if(disposed)return;const description=store.source(source),status=store.status,authentication=description?.authentication||{operations:[]},ops=authentication.operations,connected=status?.sources?.[source]?.connected||false;
   $('[data-caption]').textContent=(description?.name||name)+' 账号';
   const account=authentication.requiresStoppedService?status?.account:undefined;
   $('[data-account]').textContent=status?.sources?.[source]?.error||description?.error?.hint||(account?[account.organization,account.uid].filter(Boolean).join(' · '):connected?'已连接本机 '+(description?.name||name):authentication.instruction||'尚未连接 · 请登录后刷新');
-  const identityKey=description?.identityKey;if(identity!==identityKey){identity=identityKey;models.reset();quota.reset();if(visible){models.setVisible(true);quota.setVisible(true);}}
+  const identityKey=description?.identityKey,nextRevision=description?.revision,revisionChanged=revision!==nextRevision;revision=nextRevision;
+  if(identity!==identityKey){identity=identityKey;models.reset();quota.reset();if(visible){models.setVisible(true);quota.setVisible(true);}}
+  else if(revisionChanged&&visible)models.refreshIfOpen();
   quota.element.hidden=!description?.capabilities.quota;
   const locked=authentication.requiresStoppedService&&status?.state!=='stopped',action=$('[data-action]');
   const operation=account&&ops.includes('logout')?'logout':!connected&&ops.includes('login')?'login':null;

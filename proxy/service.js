@@ -22,11 +22,25 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
   const sourceState = new SourceState();
   const router = new ModelRouter(providers, {
     routesFile: path.join(directory, 'model-routes.json'), cacheRoutesMs: 300000,
-    onCatalog: (id, models, error, provider) => sourceState.checked(id, provider, models, error),
+    onCatalog: (id, models, error, provider) => { sourceState.checked(id, provider, models, error); if (error && error.status !== 401) scheduleCatalogRetry(); },
     getSourceHealth: () => sources(),
     retrySource: (id, model) => id.startsWith('custom:') ? management.testCustom(id.slice(7), model) : undefined,
   });
   const listModels=(id,refresh=false)=>router.refreshSource(id,refresh);
+  let catalogRetry, catalogAttempts = 0, retiring = false;
+  // The manual refresh button bypasses this cooldown. Startup failures must do the same.
+  function scheduleCatalogRetry() {
+    if (retiring || catalogRetry || catalogAttempts >= 4) return;
+    catalogRetry = setTimeout(() => {
+      catalogRetry = null;
+      const failed = Object.keys(router.errors);
+      if (!failed.length || retiring) { catalogAttempts = 0; return; }
+      catalogAttempts++;
+      for (const id of failed) router.failedAt.delete(id);
+      Promise.allSettled(failed.map(id => listModels(id))).finally(() => { if (Object.keys(router.errors).length) scheduleCatalogRetry(); else catalogAttempts = 0; });
+    }, 2000);
+    catalogRetry.unref?.();
+  }
   let settings = await readJson(serviceFile, { port: 4319, autoStart: false, apiKey: randomBytes(32).toString('hex') });
   if (!Number.isInteger(settings.port) || settings.port < 1024 || settings.port > 65535 || typeof settings.autoStart !== 'boolean' || !/^[a-f0-9]{64}$/.test(settings.apiKey)) throw new Error('代理配置无效，原文件已保留');
   await writeJson(serviceFile, settings);
@@ -81,7 +95,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
     await Promise.all(finishing);
     state = 'stopped'; startedAt = null;
   }
-  const close = () => mutate(async () => {await pi.close();await stop(true);await registry.close();});
+  const close = () => mutate(async () => {retiring = true; clearTimeout(catalogRetry); await pi.close();await stop(true);await registry.close();});
   const pi = createPiConfig({ ...piOptions, dataDir,
     getGateway: async () => ({ state, baseUrl: `http://127.0.0.1:${settings.port}/v1`, apiKey: settings.apiKey }),
     getCatalog: async force => {
@@ -125,6 +139,11 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
   const tools=createProxyTools({dataDir,custom,discoverCustom:id=>management.discoverCustom(id,{withKeys:true}),getSources:sources,getRoutes:()=>router.routes(),call:management.call,readConfiguration:createLegacyReader(management.call)});
   const handle=management.handle;
   // Startup errors belong to this module, never prevent task management from opening.
-  const initialize = () => settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();
+  const initialize = () => {
+    const startup = settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();
+    // Qoder is recognized from its account file. Codex is not, unless a probe or saved catalog runs.
+    const codex = !settings.autoStart && providers.codex ? listModels('codex').catch(() => {}) : Promise.resolve();
+    return Promise.all([startup, codex]).then(() => {});
+  };
   return { handle, close, initialize, status, accounts };
 }

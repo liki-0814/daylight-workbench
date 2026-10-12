@@ -4,6 +4,7 @@ import { decodeChatRequest } from '../proxy/shared/protocols/openai-chat.js';
 import { decodeResponsesRequest } from '../proxy/shared/protocols/openai-responses.js';
 import { convertRequest } from '../proxy/shared/protocol.js';
 import { compileNativeBody } from '../proxy/qoder/protocol.js';
+import { parseModel } from '../proxy/qoder/models.js';
 
 const messages = [
   { role: 'system', content: 'System instructions' },
@@ -12,6 +13,14 @@ const messages = [
   { role: 'assistant', content: 'Hi' },
 ];
 const instructions = 'System instructions\n\n开发者规则\nSecond rule';
+
+test('Qoder native model flag remains unchanged when thinking configuration declares selectable efforts',()=>{
+ const model=parseModel({key:'kmodel_latest',is_reasoning:false,thinking_config:{enabled:{efforts:{high:{},max:{is_default:true}}}}});
+ assert.equal(model.isReasoning,true);
+ const request=decodeChatRequest({model:model.id,messages:[{role:'user',content:'hello'}],reasoning_effort:'high'});
+ const body=compileNativeBody(request,{model,session:{},clientVersion:'test'});
+ assert.equal(body.model_config.is_reasoning,false);assert.equal(body.chat_context.extra.modelConfig.is_reasoning,false);assert.equal(body.parameters.reasoning_effort,'high');
+});
 
 // Qoder/DeepSeek accepts canonical system instructions, not OpenAI's developer role.
 // This must hold for the protocol boundary, independently of the selected model.
