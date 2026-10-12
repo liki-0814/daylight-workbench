@@ -369,6 +369,32 @@
   min-width: 110px;
 }
 
+.proxy-model-reference {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.proxy-model-reference .proxy-model-field,
+.proxy-model-reference workbench-select {
+  max-width: 100%;
+}
+
+.proxy-model-reference .select-field {
+  flex-wrap: wrap;
+}
+
+.proxy-model-reference-status {
+  min-width: 0;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 :root[data-input-mode="keyboard"] .proxy-copy:focus-within {
   outline: 2px solid #63856c;
   outline-offset: 3px;

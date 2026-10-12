@@ -24,11 +24,16 @@ function capacityFields(m,field){
  return ['contextWindow','maxOutputTokens'].map(name=>field(name,name==='contextWindow'?'上下文':'最大输出',m[name]??capacityLimit(m,name)??'',capacityOptions(m,name),!capacityLimit(m,name))).join('');
 }
 export function referenceOptions(references,current=''){return[{value:'',label:'自动匹配模型 ID'},...references.map(m=>({value:m.id,label:m.name+' · '+m.id})),...(current&&!references.some(m=>m.id===current)?[{value:current,label:'已关联（目录未收录）：'+current}]:[])];}
+function referenceField(m,references,field){
+ const referenceId=m.referenceId??m.modelMetadata?.referenceId??'',matchedId=m.modelMetadata?.matchedId;
+ const status=matchedId?'已匹配：'+matchedId:m.modelMetadata?'未匹配到参考模型':'等待匹配';
+ return `<div class="proxy-model-reference">${field('referenceId','参考模型关联',referenceId,referenceOptions(references,referenceId))}${referenceId?'':`<span class="proxy-model-reference-status" role="status">${esc(status)}</span>`}</div>`;
+}
 export function renderModelRow(m,references=[]){
  const fields=m.settingFields||[],field=(name,label,value,options,disabled=false)=>`<div class="proxy-model-field" data-model="${esc(m.id)}" data-field="${name}">${selectField({name,label,value,options,disabled,compact:true})}</div>`;
  const effort=fields.includes('effort')?field('effort','默认推理强度',m.effort||'auto',[{value:'auto',label:'自动'},...m.reasoningEfforts.map(level=>({value:level,label:level}))]):'';
  const fast=fastSetting(m),speed=fast?`<label class="proxy-checkbox"><input type="checkbox" data-model="${esc(m.id)}" data-field="${fast.field}" ${fast.on?`data-fast-tier="${esc(fast.on)}"`:''} ${fast.checked?'checked':''} aria-label="Fast ${esc(m.id)}">Fast</label>`:'';
- return `<div class="proxy-model">${modelHeading(m,`<input type="checkbox" data-model="${esc(m.id)}" data-field="enabled" ${m.enabled?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${speed}${field('referenceId','参考模型关联',m.modelMetadata?.referenceId||'',referenceOptions(references,m.modelMetadata?.referenceId))}</div></div>`;
+ return `<div class="proxy-model">${modelHeading(m,`<input type="checkbox" data-model="${esc(m.id)}" data-field="enabled" ${m.enabled?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${speed}${referenceField(m,references,field)}</div></div>`;
 }
 
 export function createModelList({store,source}){
@@ -61,5 +66,5 @@ function effortChoices(model){
 export function renderDraftModelRow(m,i,references=[]){
  const field=(name,label,value,options,disabled=false)=>`<div class="proxy-model-field" data-draft-field="${name}">${selectField({name,label,value,options,disabled,compact:true})}</div>`;
  const effort=m.reasoningEfforts?.length?field('effort','默认推理强度',m.effort||'auto',[{value:'auto',label:'自动'},...m.reasoningEfforts.map(level=>({value:level,label:level}))]):'';
- return `<div class="custom-model-row proxy-model" data-model-index="${i}">${modelHeading(m,`<input type="checkbox" data-selected ${m.enabled!==false?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${field('referenceId','参考模型关联',m.referenceId||m.modelMetadata?.referenceId||'',referenceOptions(references,m.referenceId||m.modelMetadata?.referenceId))}</div><details><summary>选项</summary><div class="custom-proxy-grid"><label>对外名称<input data-alias value="${esc(m.id)}" placeholder="${esc(m.upstreamId)}"></label><label>上下文上限<input data-context-limit type="number" min="1" value="${capacityLimit(m,'contextWindow')||''}" placeholder="上游未提供"></label>${effortChoices(m)}<label>最大输出上限<input data-output-limit type="number" min="1" value="${capacityLimit(m,'maxOutputTokens')||''}" placeholder="上游未提供"></label></div></details></div>`;
+ return `<div class="custom-model-row proxy-model" data-model-index="${i}">${modelHeading(m,`<input type="checkbox" data-selected ${m.enabled!==false?'checked':''} aria-label="启用 ${esc(m.id)}">`)}${modelSummary(m)}<div class="proxy-model-options">${capacityFields(m,field)}${effort}${referenceField(m,references,field)}</div><details><summary>选项</summary><div class="custom-proxy-grid"><label>对外名称<input data-alias value="${esc(m.id)}" placeholder="${esc(m.upstreamId)}"></label><label>上下文上限<input data-context-limit type="number" min="1" value="${capacityLimit(m,'contextWindow')||''}" placeholder="上游未提供"></label>${effortChoices(m)}<label>最大输出上限<input data-output-limit type="number" min="1" value="${capacityLimit(m,'maxOutputTokens')||''}" placeholder="上游未提供"></label></div></details></div>`;
 }
