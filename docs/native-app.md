@@ -21,6 +21,14 @@ Pi 模型配置抽屉支持手动上下文、最大输出 Token、扩展思考�
 
 原生构建在临时目录完成编译、签名与校验，成功后发布 App；DMG 使用压缩 HFS+ 镜像。清理构建资源不会删除工作台数据或本机 CLI 配置。
 
+## 本地 0.5.0 打包记录
+
+2026-10-16：基于 `609bbe4dedb720b8debe73cb99505f30dd28e8bf` 构建，生成 `dist/native/Daylight.app` 与 `dist/Daylight-0.5.0-arm64.dmg`。App 版本和构建号均为 0.5.0，架构为 arm64，签名方式仍为本地 ad-hoc。DMG 为 884,494 字节（约 864 KiB），比本机保留的 0.4.0 镜像增加 12,884 字节；App 文件合计 2,703,263 字节。
+
+静态检查、原生隔离运行验收、DMG 校验及只读挂载验收通过，镜像内 236 个 App 文件与构建产物逐文件一致，签名验证通过。包内 Pi 模拟验收覆盖 Kimi、Grok、Codex、AGY 的 Responses 工具调用与结果续接，以及 Copilot 的 Chat Completions、Responses、Messages 三种协议；这些是隔离模拟检查，真实 AGY 结果见[独立登录验证记录](verification/proxy/agy-independent-login.json)。扫描确认包内未包含本机私有 AGY OAuth 客户端参数。
+
+本轮仅生成安装包，已安装 App 与 Pi 的 models.json、settings.json、auth.json 摘要在打包前后保持一致。完整 SHA-256、源提交和校验摘要保存在本地 `dist/Daylight-0.5.0-release.json`，构建产物不提交 Git。
+
 ## 本地 0.4.0 打包记录
 
 2026-10-03：package.json 与 package-lock.json 版本为 0.4.0，已生成 `dist/native/Daylight.app` 和 `dist/Daylight-0.4.0-arm64.dmg`。App 签名、DMG 校验和及只读挂载后的包内版本均已核验；发布摘要位于本地 `dist/Daylight-0.4.0-release.json`，构建产物不提交 Git。
