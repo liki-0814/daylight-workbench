@@ -4,6 +4,10 @@
 
 标签栏右侧“显示来源”可勾选需要显示的来源，默认全部显示，保存后在本机持续生效。隐藏只影响来源页面，不会停用来源、退出账号、删除配置或改变模型路由，代理运行时也能修改。模型路由始终可见；当前来源被隐藏时切换到第一个可见页面。显示设置独立保存在 `qoder/view.json`，记录隐藏项而非固定的可见白名单，新增来源默认显示。
 
+除 AGY 外，Qoder、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，无需安装对应 CLI。来源页复用同一账号栏：未登录时提供网页登录，登录后显示账号、刷新登录和退出账号；“刷新登录”续期当前凭据并重新检测目录。Qoder 更换或退出账号前仍需停止代理。取消待完成的授权不删除已有账号，退出只清除 Daylight 保存的该来源凭据，不修改 CLI 登录文件。Kimi、Grok、Codex 和 Copilot 凭据保存在 macOS Keychain。
+
+独立认证仅用于反向代理。AI 对话的 Codex / Qoder 执行后端继续使用各自 CLI；AI 管理工具可以为所有上述来源生成登录、取消、刷新及退出草稿，由用户审阅应用。
+
 ## 公共服务与 Qoder / AGY
 
 - 默认监听 `127.0.0.1:4319`，端口可配置。OpenAI Base URL 为 `http://127.0.0.1:4319/v1`，Anthropic Base URL 为 `http://127.0.0.1:4319`。
@@ -23,7 +27,7 @@
 
 ## Grok
 
-Grok 与其他来源共用地址、Key 和运行开关。使用本机官方 `~/.grok/bin/grok` 的 OAuth 登录；首次运行 `grok login --oauth`。过期时调用官方 `grok models` 刷新并重读凭据，刷新锁与原子保存由官方 CLI 负责，Daylight 不复制刷新令牌、不自行写认证文件、不运行 CLI Agent，也不自动回退到独立付费 API Key。模型与额度使用真实 CLI 上游目录和 billing 接口，分别缓存五分钟与一分钟；模型缓存按账号隔离，默认参数修改不会重新发现模型。
+Grok 与其他来源共用地址、Key 和运行开关。Daylight 通过 xAI OIDC 发现设备授权与令牌端点，用户在官方网页输入授权码后完成登录；访问令牌与轮换的刷新令牌独立保存，不读取 `~/.grok`，也不运行 `grok login` 或 `grok models`。模型和额度继续使用现有订阅通道的 models / billing 接口，分别缓存五分钟与一分钟；模型缓存按账号隔离，默认参数修改不会重新发现模型。该路径不会自动回退到独立付费 API Key。
 
 - 三种协议支持流式/非流式、图片输入、function 工具及多轮回传、推理强度；默认值可以由请求覆盖。Grok 模型上下文来自 `context_window`，不能冒充独立最大输入；最大输出未提供时保持未知。上游的输出预算限制正文，usage 输出总量还包含思考 token。
 - Responses 保留原生事件、引用及不透明 reasoning 项，支持 `web_search` 和 `x_search`；Chat 的 `response_format` 和 Responses 的 `text.format` 可设置结构化输出。原生搜索只通过 Responses 开放，避免在协议转换时丢失事件语义。
@@ -38,10 +42,12 @@ Grok 输出预算为可选项：请求未传且没有历史默认预算时，不
 
 ## Codex
 
-Codex 标签只复用本机 `CODEX_HOME`（默认 `~/.codex`）中的 ChatGPT OAuth 文件。认证刷新和模型发现使用官方 app-server 的 account/model RPC；推理直接请求 Codex Responses 上游，不创建 CLI Agent、线程或工具执行环境，也不读取 Pi 的 Codex 凭据。模型发现缓存五分钟并按账号隔离，成功目录会写入数据目录。重启后只要访问令牌仍有效，就先恢复上次目录；本机探测失败不会把账号显示成未登录，并会自动再试。设置默认推理强度和速度不会强制重新探测。令牌仍有效时不会强制刷新 OAuth，只有令牌即将过期、上游返回 401 或手动点击刷新时才刷新。
+Codex 标签通过 [Sign in with ChatGPT 的开源客户端流程](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)独立授权。点击“Continue with ChatGPT”后打开登录链接，使用本机随机端口回调、PKCE、state、nonce 和签名校验；保留稳定 host ID 与授权返回的 client ID。访问、刷新和 ID 令牌保存在 Daylight 的 Keychain 项，不读取 `CODEX_HOME`，不启动 app-server。模型与推理直接调用 `https://api.openai.com/v1/models` 和 `/responses`，模型目录按账号缓存五分钟，401 最多续期重试一次。需要用户授权 `chatgpt.tokens.use.direct`，实际可用性受套餐及上游准入限制。
+
+此独立授权接口没有文档化的额度查询端点，额度区明确显示暂未提供；不会将未知额度显示成零。用量与授权可在 [ChatGPT 设置](https://chatgpt.com/settings/usage)核对。
 
 - 推荐使用 `/v1/responses`，支持原生流式事件、图片、function 工具调用和完整历史回传。工具由调用方执行；加密 reasoning 项原样保留。Chat/Messages 采用有限协议转换，不能表示的字段明确报错。
-- Codex 通道不接受显式 `max_output_tokens`（包括其他协议转换来的输出预算）、`previous_response_id`、服务端 conversation、`store=true` 和当前未适配的采样参数。多轮携带完整历史。上下文来自本机模型目录，未知最大输出不编造。
+- Codex 通道不接受显式 `max_output_tokens`（包括其他协议转换来的输出预算）、`previous_response_id`、服务端 conversation、`store=true` 和当前未适配的采样参数。多轮携带完整历史。上下文来自账号在线模型目录，未知最大输出不编造。
 - Fast 映射到 `service_tier: priority`，与 reasoning effort 独立。请求记录分别保存请求档位与实际档位。应以上游回显的实际档位为准，不能仅凭请求成功认定 Fast 已生效。
 
 ## 自定义来源
@@ -52,7 +58,7 @@ Codex 标签只复用本机 `CODEX_HOME`（默认 `~/.codex`）中的 ChatGPT OA
 
 ## Kimi Code
 
-Kimi 标签通过官方本机授权服务启动网页 OAuth，复用 `~/.kimi-code/credentials/kimi-code.json` 的访问凭据。需要安装官方 Kimi Code；优先连接已运行的本机服务，无服务时按需启动 `kimi web --no-open`。授权与令牌刷新由官方服务负责，Daylight 不复制刷新令牌或自行写官方认证文件；推理直接调用模型 API，不创建 CLI Agent 对话。退出 Daylight 时只结束由 Daylight 启动的授权服务。
+Kimi 标签直接使用官方设备 OAuth 端点。点击网页登录，在 Kimi 官方网页输入授权码；Daylight 按返回间隔轮询并处理等待、减速、拒绝、过期和取消，自动续期独立保存的凭据。无需本机 Kimi Code，不启动本地授权服务、不读取或修改 `~/.kimi-code`。推理和模型、额度仍直接访问 Coding API。设备 ID 保存在 Daylight 数据目录，令牌保存在 Keychain。
 
 模型列表读取真实上游目录，页面优先显示展示名称，并保留接口 ID。2026-10-01 的实测中，`kimi-for-coding` 对应 K2.8 Preview，另有 K2.7 Code Highspeed、K3、K3-256k；名称和可用性由上游更新。所有模型进入统一模型路由，原有自定义配置保留。
 
@@ -98,3 +104,9 @@ Pi 自动同步遇到其他来源目录失败时，全量模型同步仍暂停�
 自定义配置在 `/api/proxy/custom/sources` 及 `/sources/save`、`/sources/delete`、`/sources/discover`、`/sources/key` 管理，推理检查在 `/api/proxy/custom/test`；路由保持 `/api/proxy/routes`。以上接口都需要工作台管理凭据，旧来源管理路径继续兼容。
 
 公共参数模块只统一可复用规则。上游是否接受输出预算、采样参数、Fast 或某个推理档位仍由来源能力和原生协议决定；未知能力不会被补成相同默认值。额度页面明确显示单位和未知值，刷新失败保留上一份有效数据。
+
+## 独立认证参考与验证
+
+认证参考：[Kimi Code 官方 OAuth 实现](https://github.com/MoonshotAI/kimi-code/tree/ef727e517923cb312cb48d42825c49dfacd528e7/packages/oauth)、[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)、[ChatGPT 开源接入](https://developers.openai.com/siwc/token-sharing-open-source)。这次没有引入这些项目作为运行时依赖。
+
+`test/standalone-accounts.test.mjs` 使用隔离凭据和模拟上游验证登录、续期、取消、退出、回调校验及账号隔离；`scripts/check-standalone-pi.mjs` 使用本机 Pi 验证三个独立来源的工具调用和多轮回传。模拟验证不代表真实账号已完成授权或推理。

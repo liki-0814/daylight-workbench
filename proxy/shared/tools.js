@@ -10,6 +10,12 @@ const modelFields=['id','upstreamId','enabled','contextWindow','maxOutputTokens'
 const only=(value,keys)=>Object.fromEntries(Object.entries(value||{}).filter(([k])=>keys.includes(k)));
 const sourceURL = id => '/api/proxy/sources/' + encodeURIComponent(id);
 const customModels = source => source.models.map(m => ({ ...m, settingFields: source.settingFields || [] }));
+// Reauthorization URLs may contain an ID-token hint. Never expose it to AI history.
+function safeLogin(login){
+ if(!login)return login;const result=only(login,['status','url','userCode','expiresAt','interval','authorized','error']);
+ if(result.url){const url=new URL(result.url);url.searchParams.delete('id_token_hint');result.url=url.href;}
+ return result;
+}
 export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.discover(id),getSources=async()=>[],getRoutes=async()=>[],readConfiguration=async()=>{fail('读取资源不存在');}}) {
   const mutate=serial(),file=path.join(dataDir,'proxy-tool-receipts.json');
   async function state() {
@@ -26,12 +32,12 @@ export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.
     const routes=await getRoutes();
     for(const row of rows)row.diagnostics=diagnostics.find(s=>s.id===(row.kind==='custom'?'custom:'+row.id:row.id));
     return{version:hash({account:only(runtime.account,['uid','organization']),routes:routes.map(r=>only(r,['id','order','excluded'])),service:only(service,['state','port','autoStart']),sources:rows.map(s=>({...only(s,[...sourceFields,'kind','hasKey','hasHeaders','keys','revision']),models:s.models.map(m=>only(m,['id','upstreamId','enabled','contextWindow','maxOutputTokens','defaultMaxTokens','effort','fast','serviceTier','contextWindows','reasoningEfforts','isVL','isReasoning']))}))}),service,sources:rows,routes,
-      operations:['pi.configuration','pi.apply','pi.automatic','pi.restore','service.settings','source.save','source.enabled','source.delete','model.setting','route.save','auth.login','auth.cancel','auth.logout','service.enabled'],credentials:'API Key 仅在用户审阅时填写，不得传入工具参数'};
+      operations:['pi.configuration','pi.apply','pi.automatic','pi.restore','service.settings','source.save','source.enabled','source.delete','model.setting','route.save','auth.login','auth.cancel','auth.refresh','auth.logout','service.enabled'],credentials:'API Key 仅在用户审阅时填写，不得传入工具参数'};
   }
   async function prepare(input) {
     const a=input.action;if(!a||typeof a!=='object'||Array.isArray(a))fail('需要代理 action');
     // Credentials and arbitrary headers never belong in model-visible arguments.
-    const allowed={ 'source.save':['type','source'], 'source.enabled':['type','sourceId','enabled'], 'model.setting':['type','sourceId','id','field','value'], 'service.enabled':['type','enabled'], 'source.delete':['type','sourceId'], 'route.save':['type','id','order','excluded'], 'auth.login':['type','sourceId'], 'auth.cancel':['type','sourceId'], 'auth.logout':['type','sourceId'], 'service.settings':['type','port','autoStart'], 'pi.configuration':['type','options'], 'pi.apply':['type','options'], 'pi.automatic':['type','options'], 'pi.restore':['type','options'] };
+    const allowed={ 'source.save':['type','source'], 'source.enabled':['type','sourceId','enabled'], 'model.setting':['type','sourceId','id','field','value'], 'service.enabled':['type','enabled'], 'source.delete':['type','sourceId'], 'route.save':['type','id','order','excluded'], 'auth.login':['type','sourceId'], 'auth.cancel':['type','sourceId'], 'auth.refresh':['type','sourceId'], 'auth.logout':['type','sourceId'], 'service.settings':['type','port','autoStart'], 'pi.configuration':['type','options'], 'pi.apply':['type','options'], 'pi.automatic':['type','options'], 'pi.restore':['type','options'] };
     if(!allowed[a.type]||Object.keys(a).some(k=>!allowed[a.type].includes(k)))fail('代理操作或字段不支持');
     let action=structuredClone(a),requiresKey=false,requiresKeys=[],impact=[];
     if(a.type.startsWith('pi.')) {
@@ -72,7 +78,7 @@ export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.
       const route=(await getRoutes()).find(r=>r.id===a.id);if(!route||!Array.isArray(a.order)||!Array.isArray(a.excluded||[]))fail('模型路由无效');
       if(a.order.length!==route.order.length||new Set(a.order).size!==a.order.length||a.order.some(id=>!route.order.includes(id))||new Set(a.excluded||[]).size!==(a.excluded||[]).length||(a.excluded||[]).some(id=>!a.order.includes(id)))fail('路由来源不完整或无效');
       const primary=a.order.find(id=>!(a.excluded||[]).includes(id));if(!route.sources.find(s=>s.id===primary)?.available)fail('至少保留一个可用主用来源');action.excluded=a.excluded||[];impact.push('将更新该模型的主用与备用顺序，并清除旧会话来源绑定。');
-    } else if(['auth.login','auth.cancel','auth.logout'].includes(a.type)){const source=(await getSources()).find(s=>s.id===a.sourceId);if(!source?.authentication?.operations?.includes(a.type.slice(5)))fail('此来源不支持该授权操作');impact.push(a.type==='auth.login'?'启动官方网页授权，需要用户在网页完成登录。':a.type==='auth.logout'?`退出 ${source.name||source.id} 登录；需要重新授权才能使用。`:'取消当前待完成的网页授权。');
+    } else if(['auth.login','auth.cancel','auth.refresh','auth.logout'].includes(a.type)){const source=(await getSources()).find(s=>s.id===a.sourceId);if(!source?.authentication?.operations?.includes(a.type.slice(5)))fail('此来源不支持该授权操作');impact.push(a.type==='auth.login'?'启动官方网页授权，需要用户在网页完成登录。':a.type==='auth.refresh'?'刷新当前账号凭据和模型目录。':a.type==='auth.logout'?`退出 ${source.name||source.id} 登录；需要重新授权才能使用。`:'取消当前待完成的网页授权。');
     } else if(typeof a.enabled!=='boolean')fail('开关必须为布尔值');
     return{action,requiresKey,requiresKeys,impact};
   }
@@ -110,7 +116,8 @@ export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.
       const {source:saved}=await call('/api/custom-proxy/save',source);a.source.id=saved.id;
     } else if(a.type==='source.delete')await call('/api/custom-proxy/delete',{id:a.sourceId});
     else if(a.type==='route.save')await call('/api/proxy/routes',{id:a.id,order:a.order,excluded:a.excluded});
-    else if(a.type==='auth.login')login=await call(sourceURL(a.sourceId)+'/auth/login',{});
+    else if(a.type==='auth.login')login=safeLogin(await call(sourceURL(a.sourceId)+'/auth/login',{}));
+    else if(a.type==='auth.refresh'){const result=await call(sourceURL(a.sourceId)+'/auth/refresh',{});if(result.connected===false)fail(result.error||'刷新登录后无法读取目录');if(result.url)login=safeLogin(result);}
     else if(a.type==='auth.cancel')await call(sourceURL(a.sourceId)+'/auth/cancel',{});
     else if(a.type==='auth.logout')await call(sourceURL(a.sourceId)+'/auth/logout',{});
     else if(a.type==='source.enabled'||a.type==='model.setting'&&custom&&(await custom.list()).some(s=>s.id===a.sourceId)) {
@@ -129,7 +136,7 @@ export function createProxyTools({call,custom,dataDir,discoverCustom=id=>custom.
     if(!source?.authentication?.operations?.includes('poll'))fail('此来源不支持网页授权状态查询');
     const status=await call(sourceURL(sourceId)+'/status');
     let login=null;try{login=await call(sourceURL(sourceId)+'/auth/poll');}catch{}
-    return{connected:status.connected,error:status.error,login};
+    return{connected:status.connected,error:status.error,login:safeLogin(login)};
   }
   const read = ({resource,options={}}) => readConfiguration(resource,options);
   async function requests({limit=20}={}){if(!Number.isInteger(limit)||limit<1||limit>1000)fail('记录数量需为 1–1000 的整数');return call('/api/proxy/requests?limit='+limit);}

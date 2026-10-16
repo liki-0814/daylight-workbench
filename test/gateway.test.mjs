@@ -71,39 +71,6 @@ test('failed custom validation does not erase an existing credential',async t=>{
  await assert.rejects(()=>c.save({...s,clearKey:true,apiKey:'replacement',extraHeaders:'bad'}));assert.equal(await vault.get(s.id),'saved');
 });
 
-test('Codex shutdown cancels pending discovery and prevents late RPC startup',async()=>{
- const {CodexAuth}=await import('../proxy/codex/auth.js');let reject,spawned=0;
- const auth=new CodexAuth({rpcFactory:()=>{spawned++;return{initialize:()=>new Promise((resolve,fail)=>{reject=fail;}),close(){reject(new Error('CLI 进程已退出'));}};}});
- const pending=auth.rpc(()=>assert.fail('closed RPC must not run'));const rejected=assert.rejects(pending,/CLI 进程已退出/);
- auth.close();await rejected;await assert.rejects(auth.rpc(()=>{}),/来源已关闭/);assert.equal(spawned,1);
-});
-
-test('Codex uses only account/model RPC, caches discovery and retries expired OAuth once',async t=>{
- const {CodexProvider}=await import('../proxy/codex/provider.js');const {writeFile}=await import('node:fs/promises');
- const home=await temp(t),methods=[],refreshes=[];const token='x.'+Buffer.from(JSON.stringify({exp:Date.now()/1000+3600})).toString('base64url')+'.x';
- await writeFile(path.join(home,'auth.json'),JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:token,account_id:'test-account'}}));
- let requests=0,body;
- const p=new CodexProvider({home,dataDir:home,rpcFactory:()=>({initialize:async()=>{},close(){},call:async(method,params)=>{methods.push(method);if(method==='account/read')refreshes.push(params.refreshToken);return method==='model/list'?{data:[{model:'test',supportedReasoningEfforts:[{reasoningEffort:'low'}],serviceTiers:[{id:'priority',name:'Fast'}]}]}:{};}}),fetchImpl:async(url,options)=>{assert.equal(url,'https://chatgpt.com/backend-api/codex/responses');body=JSON.parse(options.body);requests++;return new Response('',{status:requests===1?401:200});}});
- await Promise.all([p.listModels(),p.listModels()]);assert.deepEqual(methods,['account/read','model/list']);
- await p.forward({model:'test',input:'hello',service_tier:'fast',reasoning:{effort:'low'}},'responses',{signal:AbortSignal.timeout(1000)});
- assert.equal(requests,2);assert.equal(body.service_tier,'priority');assert.equal(body.store,false);assert.equal(body.stream,true);assert.deepEqual(methods,['account/read','model/list','account/read','model/list']);assert.deepEqual(refreshes,[false,true]);
- await assert.rejects(()=>p.forward({model:'test',input:'hello',max_output_tokens:32},'responses',{}),/max_output_tokens/);
-});
-test('Codex cold detection avoids forced OAuth and successful discovery clears a stale source error',async t=>{
- const {CodexProvider}=await import('../proxy/codex/provider.js'),{writeFile}=await import('node:fs/promises');const home=await temp(t);
- const token='x.'+Buffer.from(JSON.stringify({exp:Date.now()/1000+3600})).toString('base64url')+'.x';await writeFile(path.join(home,'auth.json'),JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:token,account_id:'test-account'}}));
- const p=new CodexProvider({home,dataDir:home,rpcFactory:()=>({initialize:async()=>{},close(){},call:async(method,params)=>{if(method==='account/read'&&params.refreshToken)throw Error('workspace routing discovery timed out');return method==='model/list'?{data:[{model:'test',supportedReasoningEfforts:[]}]}:{};}})});
- assert.equal((await p.status()).connected,true);p.lastError='transient failure';await p.listModels();assert.equal(p.snapshot().connected,true);assert.equal(p.lastError,null);p.close();
-});
-test('Codex restart reuses the saved catalog and does not treat an app-server failure as logged out',async t=>{
- const {CodexProvider}=await import('../proxy/codex/provider.js'),{readFile,writeFile}=await import('node:fs/promises');const home=await temp(t);
- const token='x.'+Buffer.from(JSON.stringify({exp:Date.now()/1000+3600})).toString('base64url')+'.x';await writeFile(path.join(home,'auth.json'),JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:token,account_id:'test-account'}}));
- const rpc=()=>({initialize:async()=>{},close(){},call:async method=>method==='model/list'?{data:[{model:'test',supportedReasoningEfforts:[]}]}:{}});
- const first=new CodexProvider({home,dataDir:home,rpcFactory:rpc});assert.equal((await first.listModels())[0].id,'test');first.close();
- let spawned=0;const quiet=new CodexProvider({home,dataDir:home,rpcFactory:()=>{spawned++;throw Error('should not spawn');}});assert.equal((await quiet.listModels())[0].id,'test');assert.equal((await quiet.status()).connected,true);assert.equal(spawned,0);quiet.close();
- const catalog=JSON.parse(await readFile(path.join(home,'codex-proxy/catalog.json'),'utf8'));catalog.at=Date.now()-400000;await writeFile(path.join(home,'codex-proxy/catalog.json'),JSON.stringify(catalog));
- const revived=new CodexProvider({home,dataDir:home,rpcFactory:()=>{spawned++;return{initialize:async()=>{throw Error('app-server down');},close(){}};}});const result=await revived.status();assert.equal(result.connected,true);for(let i=0;i<20&&spawned<1;i++)await new Promise(resolve=>setTimeout(resolve,10));assert.equal(spawned,1);assert.equal(revived.snapshot().connected,true);assert.ok(!revived.snapshot().error);revived.close();
-});
 test('a Codex catalog failure is retried without using the refresh button',async t=>{
  const dataDir=await temp(t);let calls=0;
  const codex={listModels:async()=>{calls++;if(calls===1)throw Object.assign(new Error('app-server not ready'),{status:503});return[{id:'test',enabled:true}];},snapshot(){return{id:'codex',name:'Codex',connected:calls>1,configured:true,authentication:{operations:['refresh']},capabilities:{},nativeProtocols:['responses']};},close(){}};
@@ -111,13 +78,6 @@ test('a Codex catalog failure is retried without using the refresh button',async
  await service.initialize();let status;for(let i=0;i<30&&!status?.sources?.codex?.connected;i++){status=await service.status();if(!status.sources.codex?.connected)await new Promise(resolve=>setTimeout(resolve,200));}
  assert.equal(status.sources.codex.connected,true);assert.equal(status.sources.codex.error,undefined);assert.ok(calls>=2);
 });
-test('Codex refreshes expired credentials but does not describe a runtime failure as logged out',async t=>{
- const {CodexAuth}=await import('../proxy/codex/auth.js'),{CodexProvider}=await import('../proxy/codex/provider.js'),{writeFile}=await import('node:fs/promises');const home=await temp(t),refreshes=[];
- const seed=seconds=>writeFile(path.join(home,'auth.json'),JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:'x.'+Buffer.from(JSON.stringify({exp:Date.now()/1000+seconds})).toString('base64url')+'.x',account_id:'test-account'}}));await seed(-1);
- const auth=new CodexAuth({home,rpcFactory:()=>({initialize:async()=>{},close(){},call:async(method,params)=>{if(method==='account/read'){refreshes.push(params.refreshToken);await seed(3600);}return method==='model/list'?{data:[]}:{};}})});await auth.discover();assert.deepEqual(refreshes,[true]);auth.close();
- const p=new CodexProvider({home,dataDir:home,rpcFactory:()=>({initialize:async()=>{throw Error('CLI unavailable');},close(){}})});const result=await p.status();assert.equal(result.connected,false);assert.match(result.error,/检测.*CLI.*网络/);assert.doesNotMatch(result.error,/登录后/);p.close();
-});
-
 test('Codex declared SSE remains SSE when upstream labels it application/json',async()=>{
  const {relay}=await import('../proxy/shared/relay.js');let result;
  const provider={forward:async()=>({response:new Response('event: response.completed\ndata: '+JSON.stringify({type:'response.completed',response:{status:'completed',output:[]}})+'\n\n',{headers:{'Content-Type':'application/json'}}),protocol:'responses',streaming:true,model:'test'})};

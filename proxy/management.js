@@ -58,7 +58,7 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   const p=provider(id),description=registry.snapshot(id);
   if(!description.authentication.operations.includes(operation))fail('来源不支持此认证操作',404);
   if(description.authentication.requiresStoppedService&&['login','logout'].includes(operation))return service.accountChange(operation,async()=>{const result=await p.auth[operation]();if(operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}return result;});
-  if(operation==='refresh')return catalogStatus(id,true);
+  if(operation==='refresh'){const result=await p.auth?.refresh?.();return result?.url?result:catalogStatus(id,true);}
   const result=await p.auth[operation]();
   if(result.authorized||operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}
   if(result.authorized&&p.status)return{...result,...await catalogStatus(id,true)};

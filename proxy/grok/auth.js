@@ -1,44 +1,16 @@
-import os from 'node:os';
-import path from 'node:path';
-import { readFile } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { createHash } from 'node:crypto';
-
-const execute = promisify(execFile);
-export const authError = () => Object.assign(new Error('请在终端运行 grok login --oauth，完成后刷新登录'), { code: 'source_auth_required' });
-export class GrokAuth {
-  constructor({ home = path.join(os.homedir(), '.grok'), run = execute } = {}) { this.home = home; this.run = run; }
-  async read() {
-    let store;
-    try { store = JSON.parse(await readFile(path.join(this.home, 'auth.json'), 'utf8')); } catch { throw authError(); }
-    const candidates = Object.entries(store).filter(([scope, a]) => scope.startsWith('https://auth.x.ai::') && a.auth_mode === 'oidc' && typeof a.key === 'string' && a.key);
-    // Never guess which account owns the subscription when multiple scopes exist.
-    if (candidates.length !== 1) throw authError();
-    const [scope, a] = candidates[0];
-    return { token: a.key, expires: Date.parse(a.expires_at), identity: createHash('sha256').update(JSON.stringify([scope, a.user_id, a.principal_id, a.team_id])).digest('hex') };
-  }
-  async version() {
-    if (!this.clientVersion) {
-      const { stdout } = await this.run(path.join(this.home, 'bin/grok'), ['--version'], { timeout: 10000, maxBuffer: 65536 });
-      this.clientVersion = /^grok\s+(\d+\.\d+\.\d+)/.exec(stdout)?.[1];
-      if (!this.clientVersion) throw authError();
-    }
-    return this.clientVersion;
-  }
-  async credential(force = false) {
-    let a = await this.read();
-    if (force || !Number.isFinite(a.expires) || a.expires < Date.now() + 60000) {
-      if (!this.refreshing && Date.now() - (this.refreshedAt || 0) > 30000) {
-        this.refreshedAt = Date.now();
-        // Official CLI owns its flock, rotating refresh token and atomic persistence.
-        // models performs no agent turn and executes no tools.
-        this.refreshing = this.run(path.join(this.home, 'bin/grok'), ['models'], { cwd: this.home, timeout: 45000, maxBuffer: 1_000_000, env: { ...process.env, XAI_API_KEY: '', GROK_API_KEY: '' } }).catch(() => {}).finally(() => { this.refreshing = null; });
-      }
-      await this.refreshing;
-      a = await this.read();
-    }
-    if (!Number.isFinite(a.expires) || a.expires <= Date.now()) throw authError();
-    return { ...a, version: await this.version() };
-  }
+import {DeviceOAuthAccount,oauthError,trustedURL} from '../shared/oauth-account.js';
+import {verifyIdentity} from '../shared/oidc.js';
+export const authError=()=>oauthError('请在 Daylight 中网页登录 Grok');
+export class GrokAuth extends DeviceOAuthAccount {
+ constructor(options={}){super({id:'grok',name:'Grok',...options});}
+ async flow(){
+  const metadata=await this.request('https://auth.x.ai/.well-known/openid-configuration');
+  if(metadata.issuer!=='https://auth.x.ai')throw Error('Grok 返回了无效认证服务');
+  return{clientId:'b1a00492-073a-47ea-816f-4c329264a828',scope:'openid profile email offline_access grok-cli:access api:access',domains:['x.ai'],deviceEndpoint:trustedURL(metadata.device_authorization_endpoint,['x.ai']),tokenEndpoint:trustedURL(metadata.token_endpoint,['x.ai']),metadata};
+ }
+ async profile(data,config,signal){
+  const user=config.metadata.userinfo_endpoint?await this.request(trustedURL(config.metadata.userinfo_endpoint,['x.ai']),{token:data.access_token,signal}):await verifyIdentity(data.id_token,{issuer:'https://auth.x.ai',clientId:config.clientId,metadata:config.metadata,fetchImpl:this.fetchImpl,now:this.now()});
+  if(!user.sub)throw authError();return{id:user.sub,login:user.email||user.name||user.preferred_username||user.sub};
+ }
+ async credential(force=false){const s=await this.getSession(force);return{token:s.access_token,expires:s.expiresAt,identity:s.identity,version:'1.0.41'};}
 }

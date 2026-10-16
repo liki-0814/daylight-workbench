@@ -16,11 +16,11 @@ import {modelConfig} from '../cli/pi-config.js';
 import {fillModelMetadata} from '../core/model-metadata.js';
 
 test('missing upstream capability fields stay unknown across providers and Pi',()=>{
- const models=[qoder({key:'q'}),kimi({data:[{id:'k'}]})[0],grok({data:[{id:'g',api_backend:'responses'}]})[0],codex({models:[{model:'c'}],meta:{}})[0],custom({data:[{id:'u'}]})[0]];
+ const models=[qoder({key:'q'}),kimi({data:[{id:'k'}]})[0],grok({data:[{id:'g',api_backend:'responses'}]})[0],codex({models:[{slug:'c',visibility:'list'}],meta:{}})[0],custom({data:[{id:'u'}]})[0]];
  for(const m of models){assert.equal(m.isReasoning,undefined,m.id);assert.equal(m.isVL,undefined,m.id);const configured=modelConfig(m,{reasoning:true,input:['text','image']});assert.equal(configured.reasoning,true);assert.deepEqual(configured.input,['text','image']);}
 });
 test('declared reasoning levels and thinking-only metadata are positive evidence',()=>{
- const models=[qoder({key:'q',thinking_config:{enabled:{efforts:{high:{}}}}}),kimi({data:[{id:'k',reasoning:{type:'only',effort:{valid:['high']}}}]})[0],grok({data:[{id:'g',api_backend:'responses',reasoning_efforts:[{value:'high'}]}]})[0],codex({models:[{model:'c',supportedReasoningEfforts:[{reasoningEffort:'high'}]}],meta:{}})[0],custom({data:[{id:'u',reasoning_efforts:['high']}]})[0]];
+ const models=[qoder({key:'q',thinking_config:{enabled:{efforts:{high:{}}}}}),kimi({data:[{id:'k',reasoning:{type:'only',effort:{valid:['high']}}}]})[0],grok({data:[{id:'g',api_backend:'responses',reasoning_efforts:[{value:'high'}]}]})[0],codex({models:[{slug:'c',visibility:'list',supported_reasoning_efforts:[{reasoning_effort:'high'}]}],meta:{}})[0],custom({data:[{id:'u',reasoning_efforts:['high']}]})[0]];
  for(const m of models){assert.equal(m.isReasoning,true,m.id);assert.deepEqual(m.reasoningEfforts,['high']);}
  assert.equal(validateModels([{id:'unknown',reasoningEfforts:[]}])[0].isReasoning,undefined);
  assert.throws(()=>validateModels([{id:'bad',reasoningEfforts:['high'],isReasoning:false}]),/不能配置/);
@@ -44,7 +44,7 @@ test('all provider adapters apply the shared priority for concrete reasoning evi
   qoder({key:'q',is_reasoning:false,thinking_config:{enabled:{efforts:Object.fromEntries(levels.map(level=>[level,{}]))}}}),
   kimi({data:[{id:'k',supports_reasoning:false,reasoning:{effort:{valid:levels}}}]})[0],
   grok({data:[{id:'g',api_backend:'responses',supports_reasoning:false,reasoning_efforts:levels.map(value=>({value}))}]})[0],
-  codex({models:[{model:'c',supportedReasoningEfforts:levels.map(reasoningEffort=>({reasoningEffort}))}],meta:{}})[0],
+  codex({models:[{slug:'c',visibility:'list',supported_reasoning_efforts:levels.map(reasoning_effort=>({reasoning_effort}))}],meta:{}})[0],
   custom({data:[{id:'u',supports_reasoning:false,reasoning_efforts:levels}]})[0],
   agy([{id:'a-tiered',displayName:'A'}],{models:{'a-tiered':{supportsThinking:true}}})[0],
  ];
@@ -57,7 +57,7 @@ test('all provider adapters apply the shared priority for concrete reasoning evi
 });
 test('empty effort lists use matched reference levels across all provider adapters',()=>{
  const reference={id:'reference',reasoning_effort:{levels:['low','high'],field_status:{levels:'verified'}}};
- const models=[qoder({key:'q',thinking_config:{enabled:{efforts:{}}}}),kimi({data:[{id:'k',supports_reasoning:true,reasoning:{effort:{valid:[]}}}]})[0],grok({data:[{id:'g',api_backend:'responses',supports_reasoning:true,reasoning_efforts:[]}]})[0],codex({models:[{model:'c',supportedReasoningEfforts:[]}],meta:{}})[0],custom({data:[{id:'u',supports_reasoning:true,reasoning_efforts:[]}]})[0],agy([{id:'a',displayName:'A'}],{models:{a:{supportsThinking:true}}})[0]];
+ const models=[qoder({key:'q',thinking_config:{enabled:{efforts:{}}}}),kimi({data:[{id:'k',supports_reasoning:true,reasoning:{effort:{valid:[]}}}]})[0],grok({data:[{id:'g',api_backend:'responses',supports_reasoning:true,reasoning_efforts:[]}]})[0],codex({models:[{slug:'c',visibility:'list',supported_reasoning_efforts:[]}],meta:{}})[0],custom({data:[{id:'u',supports_reasoning:true,reasoning_efforts:[]}]})[0],agy([{id:'a',displayName:'A'}],{models:{a:{supportsThinking:true}}})[0]];
  for(const model of models){assert.equal(model.reasoningEffortsProvided,true,model.id);assert.deepEqual(fillModelMetadata(model,reference).reasoningEfforts,['low','high'],model.id);}
 });
 test('Key pooling and source routing apply identical conservative capability rules',async()=>{

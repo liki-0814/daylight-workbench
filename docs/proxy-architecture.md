@@ -71,16 +71,16 @@
 | AGY | `models.js` | CLI 别名与上游能力合并、Gemini 思考档位归并 |
 | AGY | `quota.js` | 共享额度分组与周期解析 |
 | Grok | `provider.js` | 目录/额度缓存、设置、上游执行与输出策略 |
-| Grok | `auth.js` | 官方 CLI OAuth 读取、CLI 负责的刷新与锁、版本和身份隔离 |
+| Grok | `auth.js` | 独立 OIDC 设备授权、Keychain、自动续期和身份隔离 |
 | Grok | `protocol.js` | Responses 请求/事件、搜索、引用、不透明 reasoning、原生响应组装 |
 | Grok | `models.js` | Responses 目录、容量、推理与搜索能力 |
 | Grok | `quota.js` | billing 订阅周期、百分比与未知额度解析 |
 | Codex | `provider.js` | 目录、设置、参数约束、原生 Responses 与 401 刷新重试 |
-| Codex | `auth.js` | 唯一本机 OAuth 来源、短生命周期 app-server 的账号/目录/额度 RPC |
-| Codex | `models.js` | app-server 目录与本机容量元数据、思考/速度能力 |
-| Codex | `quota.js` | 官方账户限额周期与百分比 |
+| Codex | `auth.js` | 独立 ChatGPT OAuth、loopback + PKCE、签名校验与 Keychain |
+| Codex | `models.js` | 账号在线 models 目录、上游明确返回的容量与思考/速度能力 |
+| Codex | `auth.js` 的 `quota()` | 独立接口尚无额度 API，返回明确未知状态 |
 | Kimi | `provider.js` | 目录、额度、设置、Chat 执行和 401 刷新重试 |
-| Kimi | `auth.js` | 官方凭据、本机授权服务发现/按需启动、网页登录/轮询/取消/刷新；只关闭自身启动的进程 |
+| Kimi | `auth.js` | 独立设备 OAuth、Keychain、轮询/取消/续期和稳定设备 ID |
 | Kimi | `models.js` | 官方容量、thinking 类型、推理档位与模型能力 |
 | Kimi | `quota.js` | usages 的订阅、周期限额与未知单位 |
 | Copilot | `auth.js` | 独立 GitHub device flow、Keychain、短期 Copilot token 与安全端点校验 |
@@ -198,3 +198,9 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 
 
 来源显示使用 `public/proxy/source-navigation.js` 的统一标签注册，所有来源共用选择、可见页面回退与键盘顺序。统一 `GET/POST /api/proxy/view` 通过 `shared/view-settings.js` 原子保存 `qoder/view.json`，带版本校验拒绝其他窗口的过期覆盖，不改变运行设置或路由，不以账号连接状态自动隐藏来源。首次读取前隐藏标签栏，读取失败保留已有显示并提供重试，损坏配置保留原文件。Node 与桌面 helper 共用同一管理入口和页面资产。
+
+### 公共账号认证与页面
+
+`shared/oauth-account.js` 负责 Daylight 自有凭据、单次并发续期、轮换刷新令牌、授权轮询及取消后的写入隔离；`shared/oidc.js` 验证签名、issuer、audience、nonce 与账号身份。Kimi / Grok 采用设备授权，Codex 使用本机回调。来源只输出公开账号信息与身份指纹，不输出令牌。AGY 保持原路径。
+
+`public/proxy/source-page.js` 统一渲染账号、登录、刷新登录、退出及授权提示。`state.js` 以认证代次丢弃取消/退出前的迟到回复。AI 管理仍走公开认证契约及审阅草稿；授权 URL 中的 ID-token hint 不进入 AI 工具结果。Pi 从同一模型目录生成配置，不读取上述来源的 CLI 凭据。

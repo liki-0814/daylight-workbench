@@ -58,7 +58,7 @@ test('unified management and legacy aliases share actions, shapes and non-infere
  assert.equal((await api('/api/proxy/sources/qoder/models/setting',{id:'demo',field:'enabled',value:false})).code,200);assert.equal(settings,1);
  assert.equal((await api('/api/qoder/models/setting',{id:'demo',field:'enabled',value:true})).code,200);assert.equal(settings,2);
  assert.equal((await api('/api/proxy/sources/qoder/check',{kind:'catalog'})).code,200);assert.equal(executions,0);
- assert.equal((await api('/api/proxy/sources/qoder/auth/refresh',{})).code,404);assert.equal((await api('/api/proxy/sources/qoder/check',{kind:'unknown'})).code,400);
+ assert.equal((await api('/api/proxy/sources/qoder/auth/refresh',{})).code,200);assert.equal((await api('/api/proxy/sources/qoder/check',{kind:'unknown'})).code,400);
  assert.deepEqual(await api('/api/qoder/key'),await api('/api/proxy/key'));assert.equal((await api('/api/proxy/sources/qoder/models/setting')).code,404);
 });
 test('frontend store dedupes resources and drops replies from previous account generations',async()=>{

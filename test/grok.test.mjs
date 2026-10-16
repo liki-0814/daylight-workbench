@@ -5,7 +5,6 @@ import { once } from 'node:events';
 import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { GrokAuth } from '../proxy/grok/auth.js';
 import { GrokProvider } from '../proxy/grok/provider.js';
 import { compileRequest, decodeStream, parseUsage } from '../proxy/grok/protocol.js';
 import { createProxyService } from '../proxy/service.js';
@@ -40,14 +39,6 @@ test('Grok streamed args are not duplicated; raw Responses and usage are preserv
  assert.equal(all.at(-1).reason,'tool_calls');
  assert.equal((await Array.fromAsync(decodeStream(sse(events.slice(0,-1)),model.id))).at(-1).code,'incomplete_stream');
  assert.equal(parseUsage({input_tokens:0}).inputTokens,0);assert.equal(parseUsage({}).inputTokens,undefined);
-});
-test('Grok auth renews using CLI once, never overwrites credentials, rejects ambiguous scopes',async t=>{
- const home=await mkdtemp(path.join(os.tmpdir(),'grok-auth-'));t.after(()=>rm(home,{recursive:true,force:true}));let runs=0;
- const file=path.join(home,'auth.json'),store={'https://auth.x.ai::client':{auth_mode:'oidc',key:'old',expires_at:new Date(0).toISOString(),user_id:'u'}};
- await writeFile(file,JSON.stringify(store));
- const a=new GrokAuth({home,run:async(_,args)=>{if(args[0]==='--version')return{stdout:'grok 1.0.41 (build)'};runs++;store['https://auth.x.ai::client'].key='new';store['https://auth.x.ai::client'].expires_at=new Date(Date.now()+3600000).toISOString();await writeFile(file,JSON.stringify(store));return{stdout:''};}});
- const result=await Promise.all([a.credential(),a.credential()]);assert.equal(runs,1);assert.equal(result[0].token,'new');assert.equal(result[1].token,'new');
- store['https://auth.x.ai::second']={...store['https://auth.x.ai::client']};await writeFile(file,JSON.stringify(store));await assert.rejects(()=>a.credential(),/grok login/);
 });
 test('Grok persistent catalog is identity scoped; refresh deduplicates and never saves credentials',async t=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'grok-models-'));t.after(()=>rm(dir,{recursive:true,force:true}));let calls=0,identity='a';

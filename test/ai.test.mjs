@@ -21,7 +21,7 @@ async function fixture(t) {
   const dir = await mkdtemp(path.join(tmpdir(), 'daylight-ai-test-'));
   const emptyProvider={listModels:async()=>[]};
   const secrets=new Map(),customSources=new CustomSources({dataDir:dir,secrets:{get:async id=>secrets.get(id),set:async(id,value)=>secrets.set(id,value),delete:async id=>secrets.delete(id)}});
-  const workbench = await createWorkbench({ dataDir: dir,proxyOptions:{provider:emptyProvider,agyProvider:emptyProvider,grokProvider:emptyProvider,codexProvider:emptyProvider,kimiProvider:emptyProvider,customSources,piOptions:{piDir:path.join(dir,'pi'),getInfo:async()=>({installed:true})}} }); await listen(workbench);
+  const workbench = await createWorkbench({ dataDir: dir,proxyOptions:{provider:emptyProvider,agyProvider:emptyProvider,grokProvider:emptyProvider,codexProvider:emptyProvider,kimiProvider:emptyProvider,copilotProvider:emptyProvider,customSources,piOptions:{piDir:path.join(dir,'pi'),getInfo:async()=>({installed:true})}} }); await listen(workbench);
   const endpoint = `http://127.0.0.1:${workbench.address().port}`;
   const sessions = [], modes = [];
   const adapter = { discover: async () => ({ models: [{ id: 'test-model', efforts: ['low'] }, { id: 'test-qoder', efforts: [] }] }), run: async ({ mcp, text, ask, emit, conversation, setSession }) => {

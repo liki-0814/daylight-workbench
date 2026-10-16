@@ -18,13 +18,9 @@ test('Kimi quota uses the official usages endpoint without returning credentials
  const provider=new KimiProvider({dataDir:os.tmpdir(),auth:{credential:async()=>({access_token:'secret'})},fetchImpl:async(url,options)=>{request={url,options};return Response.json({usage:{limit:100,used:25},secret:'do not expose'});}});
  const result=await provider.quota();assert.equal(request.url,'https://api.kimi.com/coding/v1/usages');assert.equal(request.options.redirect,'error');assert.equal(result.buckets[0].usedPercent,25);assert.doesNotMatch(JSON.stringify(result),/secret/);
 });
-test('Codex quota reuses the official app server and always closes it',async()=>{
- const home=await mkdtemp(path.join(os.tmpdir(),'daylight-quota-'));await mkdir(path.join(home,'unused'));
- await writeFile(path.join(home,'auth.json'),JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:'secret',account_id:'account'}}));
- let closed=0,calls=[];
- const provider=new CodexProvider({dataDir:home,home,rpcFactory:()=>({initialize:async()=>{},call:async(method)=>{calls.push(method);return method==='account/read'?{}:{rateLimits:{primary:{usedPercent:12,windowDurationMins:300}}};},close:()=>closed++})});
- assert.equal((await provider.quota()).buckets[0].usedPercent,12);assert.deepEqual(calls,['account/read','account/rateLimits/read']);assert.equal(closed,1);
- provider.auth.rpcFactory=()=>({initialize:async()=>{},call:async()=>{throw Error('unavailable')},close:()=>closed++});await assert.rejects(provider.quota(),/unavailable/);assert.equal(closed,2);
+test('Codex independent quota preserves unknown values without starting a CLI',async()=>{
+ const provider=new CodexProvider({dataDir:os.tmpdir(),auth:{quota:async()=>({buckets:[],message:'额度未提供'}),close(){}}});
+ const result=await provider.quota();assert.deepEqual(result.buckets,[]);assert.match(result.message,/未提供/);
 });
 
 test('quota resources are available to the AI bridge',async()=>{

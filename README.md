@@ -29,7 +29,7 @@ npm run web
 
 安装依赖时跳过 SDK 的下载脚本；AI 使用已经安装并登录的本机 CLI。只使用任务管理时无需配置模型账号。
 
-进入「设置 → AI 对话」，选择 Codex 或 Qoder，点击「刷新模型与技能」并保存模型，即可在浏览器中与本机 CLI 对话。「扩展管理」维护 `~/.agents`；「CLI 配置」继续提供 Pi 与模型中转的联动。AI 认证复用本机 CLI 登录，无需复制账号凭据。
+进入「设置 → AI 对话」，选择 Codex 或 Qoder，点击「刷新模型与技能」并保存模型，即可在浏览器中与本机 CLI 对话。「扩展管理」维护 `~/.agents`；「CLI 配置」继续提供 Pi 与模型中转的联动。AI 对话认证复用本机 CLI 登录。反向代理中除 AGY 外，各内置来源支持 Daylight 独立网页登录，统一提供刷新登录与退出账号；详见 [反向代理说明](docs/reverse-proxy.md)。
 
 只启动服务、稍后手动打开页面可用 `npm start`，或 `npm run web -- --no-open`。网页与桌面版共用默认数据目录和端口，切换模式先退出正在运行的实例；端口冲突时不会自动换端口启动第二份服务。菜单栏、全局快捷键和 macOS 系统提醒由原生 App 提供。
 
@@ -125,7 +125,7 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | `extensions/` | 本地主来源、客户端接入与可恢复扩展操作 |
 | `ai/` | AI 会话、CLI 适配和业务工具 |
 | `proxy/` | 统一中转服务入口，`shared/` 放公共协议、路由、存储和请求记录 |
-| `proxy/{qoder,agy,grok,codex,kimi,custom}/` | 各来源的认证和推理适配 |
+| `proxy/{qoder,agy,grok,codex,kimi,copilot,custom}/` | 各来源的认证和推理适配 |
 | `skills/` | 外部工作台管理 skill |
 | `test/` | 单元测试和集成测试 |
 

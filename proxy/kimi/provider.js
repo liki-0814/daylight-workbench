@@ -11,18 +11,18 @@ import {invalid,convertRequest} from '../shared/protocol.js';
 
 const BASE='https://api.kimi.com/coding/v1';
 
-export const sourceDescription = {id:'kimi',name:'Kimi Code',authentication:{mode:'browser',operations:['login', 'poll', 'cancel', 'refresh']},capabilities:{quota:true,editableSource:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['chat']};
+export const sourceDescription = {id:'kimi',name:'Kimi Code',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Kimi 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['chat']};
 
 export class KimiProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort']);}
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
-  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
- constructor({dataDir,fetchImpl=fetch,auth=new KimiAuth({fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.file=path.join(dataDir,'kimi-proxy/settings.json');this.catalogCache=new CatalogCache();this.settings=modelSettings(this.file);}
+  snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.identity,configured:!!this.auth.account,connected:!!this.cache&&!!this.auth.account&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
+ constructor({dataDir,fetchImpl=fetch,auth=new KimiAuth({dataDir,fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.file=path.join(dataDir,'kimi-proxy/settings.json');this.catalogCache=new CatalogCache();this.settings=modelSettings(this.file);this.auth.onChange=()=>{this.catalogCache.invalidate();this.identity=null;};}
  get cache(){return this.catalogCache.value;}
- async credential(force=false){const token=await this.auth.credential(force);let account;try{const claims=JSON.parse(Buffer.from(token.access_token.split('.')[1],'base64url'));account=claims.user_id||claims.sub;}catch{}this.identity=createHash('sha256').update(String(account||token.access_token)).digest('hex');return token;}
+ async credential(force=false){const token=await this.auth.credential(force);let account;try{const claims=JSON.parse(Buffer.from(token.access_token.split('.')[1],'base64url'));account=claims.user_id||claims.sub;}catch{}this.identity=token.identity||this.auth.identity||createHash('sha256').update(String(account||token.access_token)).digest('hex');return token;}
  async quota(){
   const token=await this.credential();
-  const response=await this.fetchImpl(BASE+'/usages',{redirect:'error',headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+  const response=await this.fetchImpl(BASE+'/usages',{redirect:'error',headers:{...await this.auth.headers?.(),Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
   if(!response.ok){await response.body?.cancel();throw Object.assign(new Error(`Kimi 额度读取失败（${response.status}）`),{status:response.status});}
   return kimiQuota(await response.json());
  }
@@ -30,7 +30,7 @@ export class KimiProvider {
   const token=await this.credential();
   const identity=this.identity;
   const cache=await this.catalogCache.get({identity,refresh:force,load:async()=>{
-   const response=await this.fetchImpl(BASE+'/models',{redirect:'error',headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+   const response=await this.fetchImpl(BASE+'/models',{redirect:'error',headers:{...await this.auth.headers?.(),Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
    if(!response.ok){await response.body?.cancel();throw Object.assign(new Error(`Kimi 模型获取失败（${response.status}）`),{status:response.status});}
    const data=await response.json();
    await this.credential();if(this.identity!==identity)throw authError('Kimi 账号已切换，请重新请求');
@@ -54,7 +54,7 @@ export class KimiProvider {
    body.reasoning_effort=effort;
   }
   // Only confirmed official models omit temperature; other parameters pass through.
-  observe({stage:'upstream'});const call=credential=>this.fetchImpl(BASE+'/chat/completions',{method:'POST',redirect:'error',signal,headers:{Authorization:`Bearer ${credential.access_token}`,'Content-Type':'application/json','User-Agent':'Daylight/0.3.0'},body:JSON.stringify(body)});
+  observe({stage:'upstream'});const call=async credential=>this.fetchImpl(BASE+'/chat/completions',{method:'POST',redirect:'error',signal,headers:{...await this.auth.headers?.(),Authorization:`Bearer ${credential.access_token}`,'Content-Type':'application/json','User-Agent':'Daylight/0.3.0'},body:JSON.stringify(body)});
   let response=await call(token);if(response.status===401){await response.body?.cancel();observe({stage:'authentication',retries:1});const fresh=await this.credential(true);if(this.identity!==identity)throw authError('Kimi 账号已切换，请重新请求');observe({stage:'upstream'});response=await call(fresh);}
   return{response,protocol:'chat',streaming:body.stream===true,model:model.id,upstreamModel:model.id};
  }

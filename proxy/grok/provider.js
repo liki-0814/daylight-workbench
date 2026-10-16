@@ -11,16 +11,16 @@ import { compileRequest, decodeStream, invalid,renderNativeStream,renderNativeRe
 import { readJson, writeJson } from '../shared/store.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
-export const sourceDescription = {id:'grok',name:'Grok',authentication:{mode:'local',operations:['refresh'],instruction:'请在本机运行 grok login --oauth 登录后刷新'},capabilities:{quota:true,editableSource:false,piOutputBudget:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['responses']};
+export const sourceDescription = {id:'grok',name:'Grok',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Grok 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,piOutputBudget:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['responses']};
 
 export class GrokProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'maxTokens']);}
-  close(){this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();}
+  close(){this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();this.auth.close?.();}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',renderers:{responses:[renderNativeStream,renderNativeResponse]},headerTimeoutOnly:true,events:this.stream(request,context)};}
-  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
-  constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth() }) {
+  snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity??this.cache?.identity,configured:!!this.auth.account,connected:!!this.cache&&!!this.auth.account&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
+  constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth({fetchImpl}) }) {
     Object.assign(this, { fetchImpl, auth });
-    this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));
+    this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));this.auth.onChange=()=>{this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();};
   }
   async call(endpoint, body, signal, credential, retried = false, observe = () => {}) {
     const a = credential || await this.auth.credential();
@@ -55,7 +55,7 @@ export class GrokProvider {
     const a = await this.auth.credential();
     if(!this.cache||this.cache.identity!==a.identity){
       const cached=await readJson(path.join(this.directory,'catalog.json'),null);
-      if(cached?.schemaVersion===1&&Array.isArray(cached.models))this.catalogCache.seed(cached,a.identity);
+      if(cached?.schemaVersion===1&&cached.identity===a.identity&&Array.isArray(cached.models))this.catalogCache.seed(cached,a.identity);
     }
     return this.catalogCache.get({identity:a.identity,refresh:force,load:async()=>{
         const data = await (await this.call('models', undefined, undefined, a)).json();
@@ -72,7 +72,7 @@ export class GrokProvider {
     return applyModelSettings(cache.models, settings);
   }
   async status(force = false) {
-    try { await this.listModels(force); this.lastError = null; return { connected: true, discoveredAt: new Date(this.cache.at).toISOString(), authMode: 'cli_oauth' }; }
+    try { await this.listModels(force); this.lastError = null; return { connected: true, discoveredAt: new Date(this.cache.at).toISOString(), authMode: 'grok_oauth' }; }
     catch (e) { this.lastError = e.code === 'source_auth_required' ? e.message : 'Grok 无法连接，请检查登录状态与网络'; return { connected: false, error: this.lastError }; }
   }
   async quota() {

@@ -1,10 +1,6 @@
-import {reasoningCapabilities} from '../../core/model-capabilities.js';
-// Merge public app-server models with local model metadata.
+import {positiveCapacity,booleanCapability,reasoningCapabilities} from '../../core/model-capabilities.js';
+// Account-specific catalog from the documented ChatGPT plan /v1/models endpoint.
 export function parseModels(catalog){
- return catalog.models.filter(m=>!m.hidden).map(m=>{
-      const c=catalog.meta.models?.find(x=>x.slug===m.model)||{};
-      return {id:m.model,provider:'codex',source:'codex',displayName:m.displayName||m.model,enabled:true,contextWindows:[],contextWindow:c.context_window,maxOutputTokens:c.max_output_tokens,
-        isVL:Array.isArray(m.inputModalities)?m.inputModalities.includes('image'):undefined,...reasoningCapabilities(undefined,m.supportedReasoningEfforts?.map(e=>e.reasoningEffort).filter(e=>e!=='ultra')),defaultEffort:m.defaultReasoningEffort,
-        serviceTiers:m.serviceTiers||[],capabilities:{nativeResponses:true,service_tiers:m.serviceTiers||[],tools:true}};
-    });
+ const rows=catalog.models;if(!Array.isArray(rows))throw Error('ChatGPT 未返回有效模型目录');
+ return rows.filter(m=>typeof m.slug==='string'&&m.slug&&m.visibility==='list').map(m=>({id:m.slug,displayName:m.display_name||m.slug,provider:'codex',source:'codex',enabled:true,contextWindows:[],contextWindow:positiveCapacity(m.context_window),maxOutputTokens:positiveCapacity(m.max_output_tokens),isVL:Array.isArray(m.input_modalities)?m.input_modalities.includes('image'):booleanCapability(m.supports_images),...reasoningCapabilities(m.supports_reasoning,m.supported_reasoning_efforts?.map(e=>typeof e==='string'?e:e.reasoning_effort)),defaultEffort:m.default_reasoning_effort,serviceTiers:m.service_tiers||[],capabilities:{nativeResponses:true,tools:true}}));
 }

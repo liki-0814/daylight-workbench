@@ -12,16 +12,16 @@ export function createSourcePage({store,source,name,confirmAction}){
  function paint(){
   if(disposed)return;const description=store.source(source),status=store.status,authentication=description?.authentication||{operations:[]},ops=authentication.operations,connected=status?.sources?.[source]?.connected||false;
   $('[data-caption]').textContent=(description?.name||name)+' 账号';
-  const account=authentication.requiresStoppedService?status?.account:description?.account;
-  $('[data-account]').textContent=(!description?.configured&&authentication.instruction)||status?.sources?.[source]?.error||description?.error?.hint||(account?[account.login,account.organization,account.uid].filter(Boolean).join(' · '):connected?'已连接 '+(description?.name||name):authentication.instruction||'尚未连接 · 请登录后刷新');
+  const account=description?.account||(authentication.requiresStoppedService?status?.account:undefined);
+  $('[data-account]').textContent=account?[account.login,account.organization,account.uid].filter(Boolean).join(' · '):(!description?.configured&&authentication.instruction)||status?.sources?.[source]?.error||description?.error?.hint||(connected?'已连接 '+(description?.name||name):authentication.instruction||'尚未连接 · 请登录后刷新');
   const identityKey=description?.identityKey,nextRevision=description?.revision,revisionChanged=revision!==nextRevision;revision=nextRevision;
   if(identity!==identityKey){identity=identityKey;models.reset();quota.reset();if(visible){models.setVisible(true);quota.setVisible(true);}}
   else if(revisionChanged&&visible)models.refreshIfOpen();
   quota.element.hidden=!description?.capabilities.quota;
   const locked=authentication.requiresStoppedService&&status?.state!=='stopped',action=$('[data-action]');
   const operation=account&&ops.includes('logout')?'logout':!connected&&ops.includes('login')?'login':null;
-  action.hidden=locked||!operation;action.dataset.operation=operation||'';
-  action.textContent=operation==='logout'?'退出账号':'网页登录';action.disabled=busy||!description||!!status?.runtimeError;
+  action.hidden=!operation;action.dataset.operation=operation||'';
+  action.textContent=operation==='logout'?'退出账号':authentication.loginLabel||'网页登录';action.disabled=locked||busy||!description||!!status?.runtimeError;action.title=locked?'请先停止代理，再更换或退出账号':'';
   const refresh=$('[data-refresh-account]');refresh.hidden=!ops.includes('refresh');setRefreshState(refresh,{loading:busy,disabled:busy||!!status?.runtimeError});
   const login=store.login(source);$('[data-login]').hidden=!login;
   if(login){const expires=login.expiresAt>1e12?login.expiresAt:login.expiresAt*1000,expired=Number.isFinite(expires)&&Date.now()>=expires;

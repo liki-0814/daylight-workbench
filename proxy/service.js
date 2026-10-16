@@ -142,7 +142,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
   const initialize = () => {
     const startup = settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();
     // These accounts need a probe before their saved login/catalog is visible.
-    const discovery = !settings.autoStart ? Promise.allSettled(['codex','copilot'].filter(id=>providers[id]).map(id=>listModels(id))) : Promise.resolve();
+    const discovery = !settings.autoStart ? Promise.allSettled(['codex','copilot','kimi','grok'].filter(id=>providers[id]).map(id=>listModels(id))) : Promise.resolve();
     return Promise.all([startup, discovery]).then(() => {});
   };
   return { handle, close, initialize, status, accounts };

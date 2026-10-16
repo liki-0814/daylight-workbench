@@ -93,5 +93,6 @@ export class QoderAuth {
   return{authorized:await this.polling};
  }
  async cancel(){this.pending=null;return{ok:true};}
+ async refresh(){return this.accounts.run(async()=>{const account=await this.accounts.require();account.credential=await refreshCredential(this.http,account.credential);await this.accounts.save(account);return{ok:true};});}
  async logout(){this.pending=null;await this.accounts.logout();this.onChange();return{ok:true};}
 }

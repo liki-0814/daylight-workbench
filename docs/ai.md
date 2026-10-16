@@ -73,3 +73,5 @@ Codex/Qoder 共用 `daylight_get_calendar`、`daylight_get_focus`、`daylight_ge
 
 
 扩展查询和管理通过四个 daylight 扩展工具进入共用服务，管理目录不替换当前 Skill picker 或运行工作目录。extensionReferences 是独立的真实对象快照，不扩大 workspace/project/task scope。extensionChanges 使用与页面共用的差异审阅；extensionSubmission 在批准发送前保存完整原请求，重启或丢失响应后可通过 extension-submission 核对。未知提交未核对时不能删除该对话。公共 MCP 不自动装载到模型会话。详见[扩展管理](extensions.md)。
+
+反向代理的账号管理与上述 AI 对话运行时分开：Qoder、Kimi、Grok、Codex、Copilot 均可通过代理管理工具生成登录、取消、刷新登录及退出草稿；用户在页面审阅应用并在官方网页授权。`daylight_get_proxy_login` 可读取这些来源的公开授权状态，不返回令牌；独立代理账号不会替换 AI 对话的 CLI 登录。

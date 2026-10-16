@@ -9,6 +9,7 @@ const apis = [{ value: 'openai-responses', label: 'Responses' }, { value: 'opena
 const sourceTypes = [
   { id: 'all', name: '全部模型', mark: '', tone: '' },
   { id: 'codex', name: 'Codex', mark: 'C', tone: 'codex' },
+  { id: 'copilot', name: 'Copilot', mark: 'C', tone: 'codex' },
   { id: 'kimi', name: 'Kimi', mark: 'K', tone: 'kimi' },
   { id: 'grok', name: 'Grok', mark: 'G', tone: 'grok' },
   { id: 'qoder', name: 'Qoder', mark: 'Q', tone: 'codex' },

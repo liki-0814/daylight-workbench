@@ -60,6 +60,7 @@ export class CopilotAuth {
  }
  cancelPending(){this.epoch++;this.controller?.abort();this.pending=null;this.polling=null;}
  async cancel(){this.cancelPending();return{status:'cancelled'};}
+ async refresh(){await this.credential(true);return{ok:true};}
  async logout(){this.cancelPending();return this.mutate(async()=>{await this.secrets.delete(KEY);this.account=null;this.token=null;return{status:'logged_out'};});}
  async read(){
   const epoch=this.epoch,raw=await this.secrets.get(KEY);if(epoch!==this.epoch)throw authError('Copilot 登录状态已变化，请重新请求');let value;try{value=JSON.parse(raw);}catch{}

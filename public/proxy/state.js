@@ -1,6 +1,6 @@
 // One service poll; model and quota requests are keyed by source and resource.
 export function createProxyState(api){
- let status,sources=[],error='',disposed=false,refreshing;const listeners=new Set(),resources=new Map(),logins=new Map(),authTasks=new Map();
+ let status,sources=[],error='',disposed=false,refreshing;const listeners=new Set(),resources=new Map(),logins=new Map(),authTasks=new Map(),authEpochs=new Map();
  const notify=()=>{if(!disposed)for(const listener of listeners)listener();};
  const source=id=>sources.find(s=>s.id===id);
  function cancel(id){for(const [key,row] of resources)if(key.startsWith(id+':')){row.epoch++;row.controller?.abort();row.pending=null;row.controller=null;}}
@@ -33,21 +33,24 @@ export function createProxyState(api){
   const result=await api.source(id,'models/setting',input);invalidate(id);resources.set(id+':models',{epoch:0,at:Date.now(),value:result.models});await refresh();return result.models;
  }
  async function auth(id,operation){
-  if(authTasks.has(id))return authTasks.get(id);
+  if(authTasks.has(id)&&!['cancel','logout'].includes(operation))return authTasks.get(id);
+  if(['login','cancel','logout'].includes(operation))authEpochs.set(id,(authEpochs.get(id)||0)+1);
+  const epoch=authEpochs.get(id)||0;
   const task=(async()=>{
    const result=await api.source(id,'auth/'+operation,operation==='poll'?undefined:{});
-   if(operation==='login'&&result?.url)logins.set(id,result);
+   if(epoch!==(authEpochs.get(id)||0))return{status:'cancelled'};
+   if(['login','refresh'].includes(operation)&&result?.url)logins.set(id,result);
    if(['cancel','logout'].includes(operation)||result?.authorized||result?.status==='authenticated')logins.delete(id);
    if(operation==='poll'&&result?.status&&result.status!=='pending'&&result.status!=='authenticated')logins.set(id,{...logins.get(id),terminal:true,error:'登录未完成：'+result.status});
    if(operation!=='poll'||result?.authorized||result?.status==='authenticated'){invalidate(id);await refresh();}
    notify();return result;
-  })();authTasks.set(id,task);try{return await task;}finally{authTasks.delete(id);}
+  })();authTasks.set(id,task);try{return await task;}finally{if(authTasks.get(id)===task)authTasks.delete(id);}
  }
  async function pollLogins(){
   await Promise.all([...logins.keys()].map(async id=>{
    const login=logins.get(id),expires=login.expiresAt>1e12?login.expiresAt:login.expiresAt*1000;
    if(login.terminal||Number.isFinite(expires)&&Date.now()>expires)return;
-   try{await auth(id,'poll');}catch(e){logins.set(id,{...login,error:e.message});notify();}
+   try{await auth(id,'poll');}catch(e){if(logins.get(id)===login){logins.set(id,{...login,error:e.message});notify();}}
   }));
  }
  return {api,refresh,resource,cachedResource:(id,kind)=>resources.get(id+':'+kind)?.value,setModel,auth,pollLogins,cancel,invalidate,source,login:id=>logins.get(id),get status(){return status;},get sources(){return sources;},get error(){return error;},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},dispose(){disposed=true;for(const row of resources.values())row.controller?.abort();listeners.clear();}};
