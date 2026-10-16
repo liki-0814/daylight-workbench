@@ -29,6 +29,10 @@ Pi 模型配置抽屉支持手动上下文、最大输出 Token、扩展思考�
 
 本轮仅生成安装包，已安装 App 与 Pi 的 models.json、settings.json、auth.json 摘要在打包前后保持一致。完整 SHA-256、源提交和校验摘要保存在本地 `dist/Daylight-0.5.0-release.json`，构建产物不提交 Git。
 
+同日按用户要求安装至 `/Applications/Daylight.app`：替换前代理活动请求为零，3 个 AI 对话均为空闲；旧 App 与业务数据快照保存在本地 `.local/app-backups/20261016-144629-0.5.0/`。安装后的版本为 0.5.0，签名验证通过，全包文件与已验证的构建产物一致，原生窗口正常显示 3 个项目、12 项任务。
+
+安装前后任务状态、AI 设置与对话完全一致。核对的 31 个业务文件中，30 个摘要不变，Grok 模型缓存仅更新 `at` 时间戳；Pi 的 models.json、settings.json、auth.json 及私有 AGY OAuth 客户端配置摘要不变。五个独立来源的登录记录仍可读取，Kimi 启动时自动续期，其余四个凭据摘要不变，所有来源账号身份保持一致。代理按原设置自动运行于 4319 端口，所有原已连接来源仍已连接；本地 `before.json` 与 `after.json` 保存安装核验依据，不提交凭据或数据备份。
+
 ## 本地 0.4.0 打包记录
 
 2026-10-03：package.json 与 package-lock.json 版本为 0.4.0，已生成 `dist/native/Daylight.app` 和 `dist/Daylight-0.4.0-arm64.dmg`。App 签名、DMG 校验和及只读挂载后的包内版本均已核验；发布摘要位于本地 `dist/Daylight-0.4.0-release.json`，构建产物不提交 Git。
