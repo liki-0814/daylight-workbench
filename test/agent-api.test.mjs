@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createWorkbench } from '../server.mjs';
+import { createTaskWorkbench, closeWorkbench } from '../fixtures/workbench.mjs';
 import { applyAction } from '../agent-api.mjs';
 
 const run = promisify(execFile);
@@ -51,12 +51,12 @@ test('agent API auth, idempotency across restart, conflicts, atomic failure and 
   const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-agent-'));
   let server, url, token;
   async function boot() {
-    server = await createWorkbench({ dataDir });
+    server = await createTaskWorkbench(dataDir);
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     url = `http://127.0.0.1:${server.address().port}`;
     token = await readFile(path.join(dataDir, 'agent-token'), 'utf8');
   }
-  const stop = () => new Promise(resolve => server.close(resolve));
+  const stop = () => closeWorkbench(server);
   const post = (body, headers = {}) => fetch(`${url}/api/v1/actions`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, ...headers }, body: JSON.stringify(body) });
   try {
     await writeFile(path.join(dataDir, 'state.json'), JSON.stringify({ version: 0, state: fixtureState() }));
@@ -96,7 +96,7 @@ test('agent API auth, idempotency across restart, conflicts, atomic failure and 
 test('installed-format Python skill client performs real reads, writes, filtering and export', async () => {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-cli-'));
   await writeFile(path.join(dataDir, 'state.json'), JSON.stringify({ version: 0, state: fixtureState() }));
-  const server = await createWorkbench({ dataDir });
+  const server = await createTaskWorkbench(dataDir);
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${server.address().port}`;
   const cli = async (...args) => JSON.parse((await run('python3', [client, '--url', url, '--data-dir', dataDir, ...args])).stdout);
@@ -117,7 +117,7 @@ test('installed-format Python skill client performs real reads, writes, filterin
     await assert.rejects(cli('export', '--out', outfile));
     await assert.rejects(run('python3', [client, '--url', 'https://example.com', 'state']), /仅允许/);
   } finally {
-    await new Promise(resolve => server.close(resolve));
+    await closeWorkbench(server);
     await rm(dataDir, { recursive: true, force: true });
   }
 });
@@ -168,8 +168,8 @@ test('unified task API and new CLI query preserve legacy state views and read-on
   const dir=await mkdtemp(path.join(tmpdir(),'daylight-task-query-'));
   const state=fixtureState(); state.tasks[0].status='done';state.tasks[0].completedAt='2026-10-01T00:00:00Z';state.tasks[7].projectId=null;state.plans['2026-10-01']=['task-2','task-1'];
   await writeFile(path.join(dir,'state.json'),JSON.stringify({version:0,state}));
-  const server=await createWorkbench({dataDir:dir});await new Promise(r=>server.listen(0,'127.0.0.1',r));
-  t.after(async()=>{await server.closeProxy();await new Promise(r=>{server.close(r);server.closeAllConnections();});await rm(dir,{recursive:true,force:true});});
+  const server=await createTaskWorkbench(dir);await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  t.after(async()=>{await closeWorkbench(server);await rm(dir,{recursive:true,force:true});});
   const url=`http://127.0.0.1:${server.address().port}`, token=(await readFile(path.join(dir,'agent-token'),'utf8')).trim();
   const get=async route=>{const r=await fetch(url+route,{headers:{Authorization:'Bearer '+token}});return {status:r.status,...await r.json()};};
   assert.equal((await fetch(url+'/api/v1/tasks')).status,401);
@@ -192,7 +192,7 @@ test('external Skill conversation API enforces auth, deletion, restart replay an
   try {
     const {AIStore}=await import('../ai/store.mjs');const store=new AIStore(dataDir);
     const id=randomUUID();store.save({id,title:'待删除聊天',backend:'codex',config:{model:'test'},scope:{kind:'workspace'},status:'idle',messages:[],createdAt:new Date().toISOString()});
-    const boot=async()=>{server=await createWorkbench({dataDir});await new Promise(r=>server.listen(0,'127.0.0.1',r));return `http://127.0.0.1:${server.address().port}`;};
+    const boot=async()=>{server=await createTaskWorkbench(dataDir);await new Promise(r=>server.listen(0,'127.0.0.1',r));return `http://127.0.0.1:${server.address().port}`;};
     let url=await boot();
     const cli=async(...args)=>JSON.parse((await run('python3',[client,'--url',url,'--data-dir',dataDir,...args])).stdout);
     assert.equal((await fetch(url+'/api/v1/ai/state')).status,401);
@@ -205,8 +205,8 @@ test('external Skill conversation API enforces auth, deletion, restart replay an
     assert.equal((await cli(...args)).ok,true);
     assert.equal((await cli('conversations')).conversations.length,0);
     assert.deepEqual((await cli('state')).state,before.state);
-    await new Promise(r=>server.close(r));url=await boot();
+    await closeWorkbench(server);url=await boot();
     assert.equal((await cli(...args)).ok,true);
     assert.equal((await cli('conversations')).conversations.length,0);
-  } finally {if(server?.listening)await new Promise(r=>server.close(r));await rm(dataDir,{recursive:true,force:true});}
+  } finally {await closeWorkbench(server);await rm(dataDir,{recursive:true,force:true});}
 });
