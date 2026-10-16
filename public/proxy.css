@@ -494,17 +494,6 @@
   line-height: var(--font-metric-line);
 }
 
-.proxy-credit-key {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-}
-
-.proxy-credit-key.remaining {
-  background: #cdd6c8;
-}
-
 @media (max-width: 650px) {
   .proxy-credit-bucket {
     gap: 18px;
@@ -600,181 +589,6 @@
   padding-top: 28px;
 }
 
-.proxy-credits.agy-quotas {
-  display: block;
-}
-
-.agy-quota-card {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: var(--space-6) 26px;
-}
-
-.agy-quota-card-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: 26px;
-}
-
-.agy-quota-mark {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  background: #f0edf5;
-  color: #807198;
-  font: 600 var(--font-capture-size)/var(--font-capture-line) Georgia,serif;
-  border-radius: 9px;
-}
-
-.agy-quota-card-heading > div {
-  display: grid;
-  gap: 5px;
-}
-
-.agy-quota-card-heading strong {
-  font-size: var(--font-body-size);
-  font-weight: 550;
-  line-height: var(--font-body-line);
-}
-
-.agy-quota-card-heading > div > span, .agy-native-label {
-  font-size: var(--font-label-size);
-  color: var(--muted);
-  line-height: var(--font-label-line);
-}
-
-.agy-native-label {
-  margin-left: auto;
-}
-
-.agy-pool-row {
-  display: grid;
-  grid-template-columns: minmax(110px, .75fr) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 30px;
-  align-items: center;
-}
-
-.agy-pool-row + .agy-pool-row {
-  margin-top: 26px;
-}
-
-.agy-pool-name {
-  font-size: var(--font-body-size);
-  font-weight: 500;
-  line-height: var(--font-body-line);
-}
-
-.agy-meter-heading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: 10px;
-  font-size: var(--font-meta-size);
-  color: var(--muted);
-  white-space: nowrap;
-  line-height: var(--font-meta-line);
-}
-
-.agy-meter-heading small {
-  font-size: var(--font-meta-size);
-  margin-left: auto;
-  line-height: var(--font-meta-line);
-}
-
-.agy-meter-heading strong {
-  color: var(--green);
-  font-size: var(--font-metric-size);
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-  line-height: var(--font-metric-line);
-}
-
-.agy-pool-track {
-  height: 4px;
-  background: #efecf3;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.agy-pool-track > span {
-  display: block;
-  height: 100%;
-  background: #8b7ca5;
-  border-radius: inherit;
-}
-
-.agy-pool-meter.low .agy-pool-track > span {
-  background: #b88b45;
-}
-
-.agy-pool-meter time {
-  display: block;
-  text-align: right;
-  color: var(--muted);
-  font-size: var(--font-meta-size);
-  margin-top: 9px;
-  font-variant-numeric: tabular-nums;
-  line-height: var(--font-meta-line);
-}
-
-@media(max-width: 760px) {
-  .agy-pool-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--space-3) 22px;
-  }
-  .agy-pool-name {
-    grid-column: 1 / -1;
-  }
-}
-
-@media(max-width: 440px) {
-  .agy-quota-card {
-    padding: 18px var(--space-4);
-  }
-  .agy-meter-heading {
-    flex-wrap: wrap;
-    gap: var(--space-1);
-  }
-  .agy-meter-heading small {
-    order: 3;
-    width: 100%;
-  }
-  .agy-meter-heading strong {
-    margin-left: auto;
-  }
-}
-
-.grok-quota-meter {
-  display: block;
-  width: 100%;
-  height: 6px;
-  border: 0;
-  border-radius: 4px;
-  background: #efecf3;
-  appearance: none;
-}
-
-.grok-quota-meter::-webkit-meter-bar {
-  background: #efecf3;
-  border: 0;
-  border-radius: 4px;
-}
-
-.grok-quota-meter::-webkit-meter-optimum-value {
-  background: #8b7ca5;
-  border-radius: 4px;
-}
-
-.grok-quota-meter::-moz-meter-bar {
-  background: #8b7ca5;
-  border-radius: 4px;
-}
-
-
-
 .custom-proxy-actions {
   display: flex;
   align-items: center;
@@ -796,7 +610,7 @@
   margin: var(--section-gap) 0;
 }
 
-.custom-proxy-grid label,.custom-proxy-grid .select-field,.custom-models-label {
+.custom-proxy-grid label,.custom-proxy-grid .select-field{
   display: flex;
   flex-direction: column;
   gap: var(--field-label-gap);
@@ -815,7 +629,7 @@
   color: inherit;
 }
 
-.custom-proxy-grid input:not([type=checkbox]),.custom-models-label textarea {
+.custom-proxy-grid input:not([type=checkbox]){
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--line);
@@ -835,12 +649,6 @@
   min-height: var(--form-control-height);
   padding: var(--form-control-padding);
 
-
-}
-
-.custom-models-label textarea {
-  resize: vertical;
-  min-height: 110px;
 }
 
 .custom-proxy-actions {
@@ -913,25 +721,6 @@
   position: relative;
   border-bottom: 1px solid var(--line);
   padding: var(--space-4) 0;
-}
-
-.custom-model-choice {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding-right: 64px;
-  font-size: var(--font-body-size);
-  overflow-wrap: anywhere;
-  cursor: pointer;
-  line-height: var(--font-body-line);
-}
-
-.custom-model-choice input {
-  flex: none;
-  accent-color: var(--green);
-  width: 16px;
-  height: 16px;
-  margin-top: calc((var(--font-body-line) - var(--space-4)) / 2);
 }
 
 #proxy-panel-custom .custom-model-row details {
@@ -1077,16 +866,6 @@
   line-height: var(--font-meta-line);
 }
 
-
-.custom-model-capacity {
-  display: block;
-  font-size: var(--font-meta-size);
-  line-height: var(--font-meta-line);
-  color: var(--muted);
-  margin-top: var(--metadata-gap);
-  font-weight: 400;
-}
-
 .proxy-disabled-models {
   margin-top: 18px;
   border-top: 1px solid var(--line);
@@ -1114,16 +893,6 @@
 
 .proxy-common .proxy-panel {
   margin-bottom: var(--space-5);
-}
-
-.proxy-source-note {
-  margin: 0 26px 18px;
-}
-
-@media(max-width:650px) {
-  .proxy-source-note {
-    margin-inline: 18px;
-  }
 }
 
 .proxy-common .proxy-disclosure {
@@ -1215,7 +984,7 @@
   background: var(--paper);
 }
 
-.proxy-drawer .proxy-hint,.proxy-drawer .custom-proxy-grid label,.proxy-drawer .select-label,.proxy-drawer .custom-key-label,.proxy-drawer .custom-model-capacity,.proxy-drawer .route-priority-row small,.proxy-drawer .dialog-header p {
+.proxy-drawer .proxy-hint,.proxy-drawer .custom-proxy-grid label,.proxy-drawer .select-label,.proxy-drawer .custom-key-label,.proxy-drawer .route-priority-row small,.proxy-drawer .dialog-header p {
   color: #64715f;
 }
 
@@ -1317,7 +1086,6 @@
 
 .route-filters button {
   padding: 7px var(--space-3);
-
 
   white-space: nowrap;
 
@@ -1575,7 +1343,7 @@
   margin-top: 0;
 }
 
-.custom-proxy-grid input:not([type=checkbox]),.custom-models-label textarea,.custom-manual input {
+.custom-proxy-grid input:not([type=checkbox]),.custom-manual input {
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
 }

@@ -1,3 +1,4 @@
+import { eventExecution } from '../fixtures/proxy/provider.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -54,7 +55,7 @@ test('one address routes Grok on all three protocols, preserves native output an
   if(url.endsWith('/models'))return Response.json({data:[{id:model.id,api_backend:'responses',supports_reasoning_effort:true,reasoning_efforts:[{value:'low'},{value:'high'}]}]});
   bodies.push(JSON.parse(opts.body));assert.equal(opts.headers.Authorization,'Bearer private-token');return sse();
  }});
- const q={listModels:async()=>[{...model,id:'qoder-test'}],async *stream(){yield{type:'text',delta:'qoder'};yield{type:'finish',reason:'stop'};}};
+ const q={listModels:async()=>[{...model,id:'qoder-test'}],execute:eventExecution(async function*(){yield{type:'text',delta:'qoder'};yield{type:'finish',reason:'stop'};})};
  const bridge=await createProxyService({dataDir:dir,provider:q,grokProvider:g});
  const management=http.createServer((req,res)=>bridge.handle(req,res));management.listen(0,'127.0.0.1');await once(management,'listening');
  const base=`http://127.0.0.1:${management.address().port}`;

@@ -1,4 +1,3 @@
-import {decodeRequest} from './shared/protocol.js';
 import {QoderProvider,sourceDescription as qoderDescription,loadConfig} from './qoder/provider.js';
 import {AccountStore} from './qoder/auth.js';
 import {QoderHttp} from './qoder/transport.js';
@@ -47,12 +46,6 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
   const p=providers[id];if(!p)throw Object.assign(new Error('来源不存在'),{status:404});
   return p.listModels(refresh);
  }
- async function execute(id,input,context){
-  const p=providers[id];
-  if(p.execute)return p.execute(input,context);
-  // Only older injected fixtures use these paths; production providers implement execute.
-  if(p.forward)return{kind:'response',...await p.forward(input.raw,input.protocol,context)};
-  return{kind:'events',events:p.stream(decodeRequest(input.raw,input.protocol),context)};
- }
+ const execute=(id,input,context)=>providers[id].execute(input,context);
  return{config,accounts,custom,providers,qoder,snapshot,sync,listModels,execute,async close(){await Promise.all(Object.values(providers).map(p=>p.close?.()));}};
 }

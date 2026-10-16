@@ -7,7 +7,7 @@ import http from 'node:http';
 import {once} from 'node:events';
 import {CustomSources} from '../proxy/custom/sources.js';
 import {ModelRouter} from '../proxy/shared/router.js';
-import {relay} from '../proxy/shared/relay.js';
+import {relayResult} from '../proxy/shared/relay.js';
 import {createProxyService} from '../proxy/service.js';
 import {createProxyTools} from '../proxy/shared/tools.js';
 const model=id=>({id,upstreamId:id,enabled:true});
@@ -78,9 +78,15 @@ test('server-side continuation cannot move accounts; streamed partial output nev
  await p.forward(raw,'responses',{conversationId:'session'});calls.length=0;fail=true;
  const result=await p.forward({...raw,previous_response_id:'response-id'},'responses',{conversationId:'session'});assert.equal(result.response.status,503);assert.deepEqual(calls,['Bearer secret-a']);
  await assert.rejects(()=>p.forward({...raw,previous_response_id:'response-id'},'responses'),/稳定的对话标识/);
- let forwards=0;const broken={forward:async()=>{forwards++;return{response:new Response('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',{headers:{'content-type':'text/event-stream'}}),protocol:'chat',model:'shared'};}};
- let output='';await assert.rejects(()=>relay(broken,{...input,stream:true},'chat',{writeHead(){},write(chunk){output+=chunk;return true;},end(){}},AbortSignal.timeout(1000),()=>{}),/提前结束/);
- assert.match(output,/partial/);assert.equal(forwards,1);
+ const partialCalls=[];
+ const partial=await fixture(t,async(_url,options)=>{
+  partialCalls.push(options.headers.Authorization);
+  return new Response('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',{headers:{'content-type':'text/event-stream'}});
+ });
+ const partialSource=await partial.custom.save({...config,keys:keys()});
+ const broken=await(await provider(partial.custom,partialSource)).execute({raw:{...input,stream:true},protocol:'chat'},{});
+ let output='';await assert.rejects(()=>relayResult(broken,{...input,stream:true},'chat',{writeHead(){},write(chunk){output+=chunk;return true;},end(){}},AbortSignal.timeout(1000),()=>{}),/提前结束/);
+ assert.match(output,/partial/);assert.deepEqual(partialCalls,['Bearer secret-a']);
 });
 
 test('save global selection and aliases into each key without inventing model access; clear remains cleared',async t=>{
@@ -111,7 +117,7 @@ test('review version reflects secondary credentials and key model access, withou
 test('HTTP gateway passes the conversation header only to custom sources and records the chosen key',async t=>{
  const calls=[];const f=await fixture(t,async(_url,o)=>{calls.push(o.headers.Authorization);return Response.json({choices:[{message:{role:'assistant',content:'OK'}}]});});
  await f.custom.save({...config,keys:keys()});let builtinOptions;
- const builtin={listModels:async()=>[{...model('builtin'),contextWindows:[],reasoningEfforts:[]}],forward:async(raw,protocol,options)=>{builtinOptions=options;return{response:Response.json({choices:[{message:{content:'OK'}}]}),model:raw.model,protocol};}};
+ const builtin={listModels:async()=>[{...model('builtin'),contextWindows:[],reasoningEfforts:[]}],execute:async({raw,protocol},options)=>{builtinOptions=options;return{kind:'response',response:Response.json({choices:[{message:{content:'OK'}}]}),model:raw.model,protocol};}};
  const bridge=await createProxyService({dataDir:f.dataDir,customSources:f.custom,provider:{listModels:async()=>[]},codexProvider:builtin});
  const management=http.createServer((q,r)=>bridge.handle(q,r));management.listen(0,'127.0.0.1');await once(management,'listening');
  t.after(async()=>{await bridge.close();management.closeAllConnections();await new Promise(r=>management.close(r));});

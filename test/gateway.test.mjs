@@ -79,9 +79,9 @@ test('a Codex catalog failure is retried without using the refresh button',async
  assert.equal(status.sources.codex.connected,true);assert.equal(status.sources.codex.error,undefined);assert.ok(calls>=2);
 });
 test('Codex declared SSE remains SSE when upstream labels it application/json',async()=>{
- const {relay}=await import('../proxy/shared/relay.js');let result;
- const provider={forward:async()=>({response:new Response('event: response.completed\ndata: '+JSON.stringify({type:'response.completed',response:{status:'completed',output:[]}})+'\n\n',{headers:{'Content-Type':'application/json'}}),protocol:'responses',streaming:true,model:'test'})};
- await relay(provider,{model:'test'},'responses',{writeHead(){},end(t){result=JSON.parse(t);}},AbortSignal.timeout(1000),()=>{});
+ const {relayResult}=await import('../proxy/shared/relay.js');let result;
+ const response={response:new Response('event: response.completed\ndata: '+JSON.stringify({type:'response.completed',response:{status:'completed',output:[]}})+'\n\n',{headers:{'Content-Type':'application/json'}}),protocol:'responses',streaming:true,model:'test'};
+ await relayResult(response,{model:'test'},'responses',{writeHead(){},end(t){result=JSON.parse(t);}},AbortSignal.timeout(1000),()=>{});
  assert.equal(result.status,'completed');
 });
 

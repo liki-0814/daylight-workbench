@@ -110,17 +110,6 @@ export function aesEncryptInfo(userInfoJson, temporaryKey) {
     ]);
     return enc.toString("base64");
 }
-export function aesDecryptInfo(infoB64, temporaryKey) {
-    const key = Buffer.from(temporaryKey, "utf8");
-    const decipher = crypto.createDecipheriv("aes-128-cbc", key, key);
-    decipher.setAutoPadding(false);
-    const dec = Buffer.concat([
-        decipher.update(Buffer.from(infoB64, "base64")),
-        decipher.final()
-    ]);
-    const padLen = dec[dec.length - 1] ?? 0;
-    return dec.subarray(0, dec.length - padLen).toString("utf8");
-}
 export function signedPathOf(url) {
     const u = new URL(url);
     let path = u.pathname;

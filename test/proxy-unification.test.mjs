@@ -1,3 +1,4 @@
+import { eventExecution } from '../fixtures/proxy/provider.mjs';
 import {capacityOptions,fastSetting} from '../public/proxy/model-options.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,7 +52,7 @@ test('six production providers expose snapshots and execute without exposing cre
 });
 test('unified management and legacy aliases share actions, shapes and non-inference catalog checks',async t=>{
  const dir=await temporary(t);let models=[{id:'demo',enabled:true,contextWindows:[],reasoningEfforts:[],settingFields:['enabled']}],settings=0,executions=0;
- const provider={cache:{at:Date.now()},listModels:async()=>models,setModel:async input=>{settings++;models=models.map(m=>({...m,enabled:input.value}));return models;},stream:async function*(){executions++;yield{type:'finish',reason:'stop'};}};
+ const provider={cache:{at:Date.now()},listModels:async()=>models,setModel:async input=>{settings++;models=models.map(m=>({...m,enabled:input.value}));return models;},execute:eventExecution(async function*(){executions++;yield{type:'finish',reason:'stop'};})};
  const service=await createProxyService({dataDir:dir,provider,piOptions:{piDir:path.join(dir,'pi')}});t.after(()=>service.close());
  async function api(url,body){const req=Readable.from(body===undefined?[]:[Buffer.from(JSON.stringify(body))]);req.url=url;req.method=body===undefined?'GET':'POST';let code,value;await service.handle(req,{destroyed:false,writeHead(n){code=n;},end(text){value=JSON.parse(text);}});return{code,value};}
  const legacy=await api('/api/qoder/models'),unified=await api('/api/proxy/sources/qoder/models');assert.deepEqual(unified,legacy);

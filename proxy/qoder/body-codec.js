@@ -10,14 +10,6 @@ const ENCODE_MAP = (()=>{
     m[STD_PAD] = QODER_PAD;
     return m;
 })();
-const DECODE_MAP = (()=>{
-    const m = {};
-    for(let i = 0; i < QODER_ALPHABET.length; i++){
-        m[QODER_ALPHABET[i]] = STD_ALPHABET[i];
-    }
-    m[QODER_PAD] = STD_PAD;
-    return m;
-})();
 function swapOuterThirds(s) {
     const len = s.length;
     const edge = Math.floor(len / 3);
@@ -47,17 +39,3 @@ export function encodeBodyText(jsonText) {
 export function encodeBody(body) {
     return encodeBodyText(JSON.stringify(body));
 }
-export function decodeBodyText(encoded) {
-    const unswapped = swapOuterThirds(encoded);
-    const std = remap(unswapped, DECODE_MAP);
-    return Buffer.from(std, "base64").toString("utf8");
-}
-export function decodeBody(encoded) {
-    return JSON.parse(decodeBodyText(encoded));
-}
-export const __internal = {
-    swapOuterThirds,
-    STD_ALPHABET,
-    QODER_ALPHABET,
-    QODER_PAD
-};

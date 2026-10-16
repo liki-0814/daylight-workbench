@@ -1,3 +1,4 @@
+import { eventExecution } from '../fixtures/proxy/provider.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
@@ -9,7 +10,7 @@ import {ModelRouter} from '../proxy/shared/router.js';
 import {createProxyService} from '../proxy/service.js';
 import {selectModelRoutes} from '../public/model-routes.js';
 const model={id:'shared',enabled:true,contextWindows:[],reasoningEfforts:[]};
-const source=(extra={})=>({listModels:async()=>[{...model,...extra}],async *stream(){yield {type:'text',delta:'OK'};yield {type:'finish',reason:'stop'};}});
+const source=(extra={})=>({listModels:async()=>[{...model,...extra}],execute:eventExecution(async function*(){yield {type:'text',delta:'OK'};yield {type:'finish',reason:'stop'};})});
 test('route lists hide disabled models but retain enabled models with failed connections', async () => {
  const a=source(),b=source({enabled:false}),router=new ModelRouter({a,b});
  await router.listModels();a.listModels=async()=>{throw Error('offline');};
@@ -58,18 +59,31 @@ test('same-name routes publish once, use conservative capabilities and persist p
 test('disabled primary is retained with attention state while backup takes over',async()=>{
  const a=source(),b=source(),router=new ModelRouter({a,b});await router.listModels();a.listModels=async()=>[{...model,enabled:false}];const route=(await router.routes())[0];assert.equal(route.primary,'a');assert.equal(route.needsAttention,true);assert.equal((await router.resolve({model:'shared'})).provider,'b');await assert.rejects(router.saveRoute({id:'shared',order:['a','b']}),/主用来源不可用/);
 });
-test('retry only before first stream event; parameter errors and partial streams do not replay',async()=>{
- let backupCalls=0;const a=source(),b={...source(),async *stream(){backupCalls++;yield {type:'text',delta:'backup'};}};a.stream=async function*(){yield {type:'error',code:'503',message:'unavailable'};};let router=new ModelRouter({a,b});assert.equal((await Array.fromAsync(router.stream({model:'shared'})))[0].delta,'backup');assert.equal(backupCalls,1);
- a.stream=async function*(){yield {type:'error',code:'invalid_request',message:'bad parameters'};};router=new ModelRouter({a,b});assert.equal((await Array.fromAsync(router.stream({model:'shared'})))[0].code,'invalid_request');assert.equal(backupCalls,1);
- a.stream=async function*(){yield {type:'text',delta:'partial'};throw Object.assign(new Error('reset'),{code:'ECONNRESET'});};router=new ModelRouter({a,b});await assert.rejects(Array.fromAsync(router.stream({model:'shared'})),/reset/);assert.equal(backupCalls,1);
+test('retry only before first stream event; parameter errors and partial streams do not replay',async t=>{
+ let mode='unavailable',backupCalls=0;
+ const a={...source(),execute:eventExecution(async function*(){
+  if(mode==='unavailable')yield {type:'error',code:'503',message:'unavailable'};
+  else if(mode==='invalid')yield {type:'error',code:'invalid_request',message:'bad parameters'};
+  else{yield {type:'text',delta:'partial'};throw Object.assign(new Error('reset'),{code:'ECONNRESET'});}
+ })};
+ const b={...source(),execute:eventExecution(async function*(){backupCalls++;yield {type:'text',delta:'backup'};yield {type:'finish',reason:'stop'};})};
+ const {api,client}=await bridgeFixture(t,{a,b});
+ let response=await client({});assert.equal(response.status,200);assert.match(await response.text(),/backup/);assert.equal(backupCalls,1);
+ for(const next of ['invalid','partial']){
+  mode=next;assert.equal((await api('/api/proxy/routes',{id:'shared',order:['qoder','agy'],excluded:[]})).status,200);
+  response=await client({stream:true});
+  if(next==='invalid'){assert.equal(response.status,400);assert.equal((await response.json()).error.code,'invalid_request');}
+  else{assert.equal(response.status,200);const wire=await response.text();assert.match(wire,/partial/);assert.match(wire,/event: error/);}
+  assert.equal(backupCalls,1);
+ }
 });
 test('explicit conversations pin a successful backup; new requests return to primary after cooldown, stateful requests never migrate',async()=>{
  const router=new ModelRouter({a:source(),b:source()},{cacheRoutesMs:300000});const [a,b]=await router.candidates({model:'shared'});router.failed(a);router.success(b,'private-session');router.cooldowns.clear();assert.equal((await router.candidates({model:'shared'},{conversationId:'private-session'}))[0].provider,'b');assert.equal((await router.candidates({model:'shared'}))[0].provider,'a');
  assert.deepEqual((await router.candidates({model:'shared'},{conversationId:'private-session',stateful:true})).map(m=>m.provider),['b']);await assert.rejects(router.candidates({model:'shared'},{stateful:true}),/会话状态/);assert.ok(!JSON.stringify([...router.sessions]).includes('private-session'));
 });
 async function bridgeFixture(t,providers){const dir=await temporary(t,false);const bridge=await createProxyService({dataDir:dir,provider:providers.a,agyProvider:providers.b});const management=http.createServer((q,r)=>bridge.handle(q,r));management.listen(0,'127.0.0.1');await once(management,'listening');t.after(async()=>{await bridge.close();management.closeAllConnections();await new Promise(r=>management.close(r));await rm(dir,{recursive:true,force:true,maxRetries:3});});const base=`http://127.0.0.1:${management.address().port}`;const api=async(route,body)=>{const response=await fetch(base+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return {status:response.status,data:await response.json()};};const socket=http.createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');const port=socket.address().port;await new Promise(r=>socket.close(r));await api('/api/qoder/settings',{port,autoStart:false});const key=(await api('/api/qoder/key')).data.apiKey;await api('/api/qoder/service',{enabled:true});const client=(body,header={})=>fetch(`http://127.0.0.1:${port}/v1/chat/completions`,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json',...header},body:JSON.stringify({model:'shared',messages:[{role:'user',content:'hello'}],...body})});return{api,client,port,key};}
-test('HTTP routes merge catalog, fall back from forward to stream, preserve stateful binding, and record sanitized attempts',async t=>{
- let status=429,failBackup=false,backupCalls=0;const a={...source(),forward:async(raw,protocol)=>({response:Response.json(status===200?{choices:[{message:{content:'primary'}}]}:{error:'private-error'},{status}),model:raw.model,protocol})};const b={...source(),async *stream(){backupCalls++;if(failBackup){yield {type:'error',code:'503',message:'unavailable'};return;}yield {type:'text',delta:'backup'};yield {type:'finish',reason:'stop'};}};
+test('HTTP routes merge catalog, fall back from native responses to events, preserve stateful binding, and record sanitized attempts',async t=>{
+ let status=429,failBackup=false,backupCalls=0;const a={...source(),execute:async({raw,protocol})=>({kind:'response',response:Response.json(status===200?{choices:[{message:{content:'primary'}}]}:{error:'private-error'},{status}),model:raw.model,protocol})};const b={...source(),execute:eventExecution(async function*(){backupCalls++;if(failBackup){yield {type:'error',code:'503',message:'unavailable'};return;}yield {type:'text',delta:'backup'};yield {type:'finish',reason:'stop'};})};
  const {api,client,port,key}=await bridgeFixture(t,{a,b});const headers={Authorization:`Bearer ${key}`};const catalog=await(await fetch(`http://127.0.0.1:${port}/v1/models`,{headers})).json();assert.deepEqual(catalog.data.map(m=>m.id),['shared']);
  let response=await client({}, {'x-daylight-conversation-id':'private-session'});assert.equal(response.status,200);assert.match(await response.text(),/backup/);status=200;
  response=await client({}, {'x-daylight-conversation-id':'private-session'});assert.match(await response.text(),/backup/);
@@ -79,7 +93,7 @@ test('HTTP routes merge catalog, fall back from forward to stream, preserve stat
  const saved=await api('/api/proxy/routes',{id:'shared',order:['qoder','agy'],excluded:[]});assert.equal(saved.status,200);status=400;response=await client({});assert.equal(response.status,400);await response.text();assert.equal(backupCalls,3);
 });
 test('HTTP forward accepted body failure is never replayed on backup',async t=>{
- let backupCalls=0;const a={...source(),forward:async(raw,protocol)=>({response:new Response(new ReadableStream({start(controller){controller.error(Object.assign(new TypeError('body interrupted'),{code:'ECONNRESET'}));}})),model:raw.model,protocol})};const b={...source(),async *stream(){backupCalls++;yield {type:'text',delta:'backup'};}};
+ let backupCalls=0;const a={...source(),execute:async({raw,protocol})=>({kind:'response',response:new Response(new ReadableStream({start(controller){controller.error(Object.assign(new TypeError('body interrupted'),{code:'ECONNRESET'}));}})),model:raw.model,protocol})};const b={...source(),execute:eventExecution(async function*(){backupCalls++;yield {type:'text',delta:'backup'};})};
  const {client}=await bridgeFixture(t,{a,b});const response=await client({});assert.equal(response.status,502);assert.equal(backupCalls,0);
 });
 

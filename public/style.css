@@ -30,9 +30,6 @@ button {
   background: none;
 }
 
-
-
-
 .icon {
   width: 19px;
   height: 19px;
@@ -155,36 +152,6 @@ a {
   background: #e7ebe1;
 }
 
-.nav-label {
-  margin: 31px var(--space-3) 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: var(--font-label-size);
-  letter-spacing: 1px;
-  color: #84907e;
-  line-height: var(--font-label-line);
-}
-
-.nav-label .icon-button {
-  width: 24px;
-  height: 24px;
-}
-
-.project-nav .nav-item {
-  align-items: flex-start;
-  gap: 10px;
-
-}
-
-.project-nav .dot {
-  margin-top: 7px;
-}
-
-.project-nav small {
-  padding-top: 1px;
-}
-
 .dot {
   display: inline-block;
   width: 7px;
@@ -203,26 +170,6 @@ a {
 
 .dot.neutral {
   background: #a2ada2;
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  padding: var(--space-8) var(--space-3) 0;
-}
-
-.sidebar-footer .icon {
-  width: 13px;
-  height: 13px;
-}
-
-.sidebar-footer>button {
-  color: #6b7968;
-  margin-top: var(--space-4);
-  padding: 0;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-
 }
 
 main {
@@ -436,8 +383,6 @@ h1 {
   line-height: var(--font-meta-line);
 }
 
-
-
 .empty {
   padding: var(--space-7) var(--space-5);
   text-align: center;
@@ -463,49 +408,11 @@ h1 {
   margin: 0 0 var(--section-gap);
 }
 
-
-
-
 .quiet-note {
   font-size: var(--font-caption-size);
   color: #89947f;
   margin: 19px 0;
   line-height: var(--font-caption-line);
-}
-
-.rail-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 7px 1px 17px;
-}
-
-.rail-heading h2 {
-  font-size: var(--font-section-size);
-  font-weight: 500;
-  margin: 0;
-  line-height: var(--font-section-line);
-}
-
-.rail-heading>span {
-  font-size: var(--font-meta-size);
-  color: #909887;
-  line-height: var(--font-meta-line);
-}
-
-.project-card {
-  border: 1px solid var(--line);
-  background: #fafbf8;
-  border-radius: 10px;
-  padding: 19px;
-  margin-bottom: 14px;
-}
-
-.project-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
 }
 
 .project-square {
@@ -536,102 +443,6 @@ h1 {
 .project-square.neutral {
   background: #edf0e9;
   color: #7a8275;
-}
-
-.project-card-top>.muted {
-  font-size: var(--font-meta-size);
-  line-height: var(--font-meta-line);
-}
-
-.project-name {
-  font-size: var(--font-body-size);
-  font-weight: 550;
-  line-height: var(--font-body-line);
-  padding: 0;
-  width: 100%;
-  text-align: left;
-  display: flex;
-  gap: 9px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.project-name>.icon {
-  width: 15px;
-  height: 15px;
-  margin-top: 5px;
-  color: #849078;
-}
-
-.project-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: 18px;
-}
-
-.project-progress progress {
-  height: 3px;
-  width: 100%;
-  appearance: none;
-  border: 0;
-  border-radius: 3px;
-  overflow: hidden;
-  background: #e9eddf;
-}
-
-.project-progress progress::-webkit-progress-bar {
-  background: #e9eddf;
-}
-
-.project-progress progress::-webkit-progress-value {
-  background: #839b6c;
-}
-
-.project-progress progress::-moz-progress-bar {
-  background: #839b6c;
-}
-
-.project-progress span {
-  font-size: var(--font-meta-size);
-  color: #929b88;
-  white-space: nowrap;
-  line-height: var(--font-meta-line);
-}
-
-.path-line {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  font-size: var(--font-meta-size);
-  color: #969e8d;
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid #e9ede2;
-  min-width: 0;
-  line-height: var(--font-meta-line);
-}
-
-.path-line>.icon {
-  width: 12px;
-  height: 12px;
-}
-
-.path-line>span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-
-.path-line .icon-button {
-  width: 20px;
-  height: 20px;
-}
-
-.path-line .icon-button .icon {
-  width: 12px;
-  height: 12px;
 }
 
 .workspace-footer {
@@ -744,12 +555,6 @@ h1 {
 .task-actions {
   gap: 3px;
 }
-
-
-
-
-
-
 
 .order-buttons {
   display: flex;
@@ -1090,9 +895,7 @@ dialog::backdrop {
   .empty {
     min-height: 260px;
   }
-  .project-card {
-    padding: 23px;
-  }
+
   .task-row {
     padding: var(--space-6);
   }
@@ -1132,9 +935,7 @@ dialog::backdrop {
     font-size: var(--font-meta-size);
     line-height: var(--font-meta-line);
   }
-  .project-card {
-    padding: var(--space-4);
-  }
+
   h1 {
     font-size: var(--font-page-size);
     line-height: var(--font-page-line);
@@ -1157,18 +958,7 @@ dialog::backdrop {
   .content-grid {
     grid-template-columns: 1fr;
   }
-  .project-rail {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  .rail-heading {
-    grid-column: 1/-1;
-    padding-bottom: 0;
-  }
-  .project-card {
-    margin: 0;
-  }
+
   .workspace-footer {
     margin-top: var(--page-footer-gap);
   }
@@ -1244,9 +1034,7 @@ dialog::backdrop {
     width: 15px;
     height: 15px;
   }
-  .nav-label,.project-nav,.sidebar-footer {
-    display: none;
-  }
+
   main {
     margin-left: 0;
   }
@@ -1301,16 +1089,7 @@ dialog::backdrop {
   .empty {
     min-height: 220px;
   }
-  .project-rail {
-    grid-template-columns: 1fr;
-  }
-  .project-card {
-    padding: 18px;
-  }
-  .project-name {
-    font-size: var(--font-body-size);
-    line-height: var(--font-body-line);
-  }
+
   .workspace-footer {
     font-size: var(--font-meta-size);
     letter-spacing: 0;
@@ -1332,7 +1111,6 @@ dialog::backdrop {
   .task-actions,.single .task-actions {
     gap: 0;
   }
-
 
   .task-meta b {
     display: none;
@@ -1415,16 +1193,11 @@ dialog::backdrop {
   align-items: center;
 }
 
-
-
-
-
 .delete-name {
   overflow-wrap: anywhere;
   font-size: var(--font-section-size);
   line-height: var(--font-section-line);
 }
-
 
 #app > main[hidden] {
   display: none;
@@ -1432,11 +1205,6 @@ dialog::backdrop {
 
 .sidebar {
   overflow-anchor: none;
-}
-
-.sidebar-footer>button.active {
-  color: #304d37;
-
 }
 
 .settings-panel {
@@ -1597,71 +1365,11 @@ dialog::backdrop {
   padding: 28px var(--space-5);
 }
 
-.today-workspace .project-rail {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 18px var(--space-5);
-}
-
-.today-workspace .rail-heading {
-  padding: 0 0 var(--space-3);
-}
-
-.today-workspace .project-card {
-  display: grid;
-  grid-template-columns: 28px minmax(0,1fr) auto;
-  column-gap: var(--space-3);
-  row-gap: 10px;
-  padding: var(--space-4) 0;
-  margin: 0;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-}
-
-.today-workspace .project-card-top {
-  display: contents;
-}
-
 .today-workspace .project-square {
   grid-column: 1;
   grid-row: 1;
   width: 28px;
   height: 28px;
-}
-
-.today-workspace .project-card-top>.muted {
-  grid-column: 3;
-  grid-row: 1;
-  align-self: center;
-  white-space: nowrap;
-}
-
-.today-workspace .project-name {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: center;
-  line-height: var(--font-body-line);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.today-workspace .project-name>.icon {
-  display: none;
-}
-
-.today-workspace .project-progress {
-  grid-column: 2/-1;
-  margin: 0;
-}
-
-.today-workspace .path-line {
-  grid-column: 2/-1;
-  margin: 0;
-  padding: 0;
-  border: 0;
 }
 
 .today-workspace .workspace-footer {
@@ -1674,18 +1382,14 @@ dialog::backdrop {
     grid-template-columns: minmax(0,1.7fr) minmax(280px,1fr);
     gap: var(--space-5);
   }
-  .today-workspace .project-rail {
-    padding: var(--space-4);
-  }
+
 }
 
 @media(max-width:930px) {
   .today-workspace .content-grid {
     grid-template-columns: 1fr;
   }
-  .today-workspace .project-rail {
-    display: block;
-  }
+
   .today-workspace .empty {
     min-height: 190px;
   }
@@ -1719,9 +1423,7 @@ dialog::backdrop {
   .today-workspace .empty {
     flex: 1;
   }
-  .today-workspace .project-rail {
-    align-self: start;
-  }
+
   .today-workspace .workspace-footer {
     flex-shrink: 0;
   }
@@ -1804,7 +1506,7 @@ dialog::backdrop {
 
 }
 
-.task-filters,.task-toolbar,.task-conversation-actions,.picker-filters {
+.task-toolbar,.task-conversation-actions,.picker-filters {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -1887,12 +1589,6 @@ dialog::backdrop {
 .nav-item [data-ai-activity] {
   font-size: var(--font-meta-size);
   line-height: var(--font-meta-line);
-}
-
-@media(min-width:1000px) {
-  .task-filters .select-field:has([name="task-filter"]) {
-    max-width: 240px;
-  }
 }
 
 /* Page-only navigation and project groups inside Tasks. */
@@ -2047,7 +1743,6 @@ dialog::backdrop {
   margin: 0 0 0 auto;
   max-width: 240px;
 }
-
 
 .task-panel>.panel-header {
   gap: 14px;

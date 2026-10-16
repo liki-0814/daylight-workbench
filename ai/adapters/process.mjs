@@ -1,9 +1,7 @@
-import { spawn, execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { executableCandidates } from '../../core/local-executables.mjs';
-export const exec = promisify(execFile);
 export function executable(backend, custom = '') {
   const name = backend === 'codex' ? 'codex' : 'qodercli';
   for (const p of executableCandidates(name, { custom })) { try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {} }

@@ -1,3 +1,4 @@
+import { eventExecution } from '../fixtures/proxy/provider.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -138,13 +139,13 @@ test('authenticated public diagnostics preserve wire responses and capture both 
   const saved = await custom.save({ name: 'Custom', baseUrl: 'https://example.test/v1', protocol: 'chat', apiKey: 'private-key', models: [{ id: 'public', upstreamId: 'private-model' }] });
   const q = {
     listModels: async () => [model('q'), model('cancel')],
-    async *stream(request, { signal }) {
+    execute: eventExecution(async function*(request, { signal }) {
       yield { type: 'text', delta: 'Q' };
       if (request.model === 'cancel') { await once(signal, 'abort'); signal.throwIfAborted(); }
       yield { type: 'usage', usage: { inputTokens: 5, cacheReadTokens: 0 } };
       yield { type: 'finish', reason: 'length' };
       signal.throwIfAborted();
-    },
+    }),
   };
   const app = await createWorkbench({ dataDir: dir, proxyOptions: { provider: q, includeAgy: false, includeGrok: false, includeGateway: false, customSources: custom } });
   app.listen(0, '127.0.0.1'); await once(app, 'listening');

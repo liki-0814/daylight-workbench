@@ -26,7 +26,7 @@
 | `service.js` | 创建并连接各组件、监听端口、启动/停止、活动请求统计、资源关闭 |
 | `gateway.js` | `/v1` 客户端鉴权、推理校验、模型路由、输出前回退、取消与请求记录 |
 | `management.js` | 公共管理操作、HTTP 路由、旧管理路径兼容；AI 工具直接调用操作，不伪造 HTTP 对象 |
-| `providers.js` | 内置与自定义来源注册、公开描述、动态自定义实例增删、执行结果入口；旧注入测试对象的兼容路径仅留在此边界 |
+| `providers.js` | 内置与自定义来源注册、公开描述、动态自定义实例增删；生产及注入来源统一通过 `execute` 执行 |
 
 ### shared 公共机制
 
@@ -64,7 +64,7 @@
 | Qoder | `provider.js` | 组合认证、目录、请求与流，处理 Qoder 排队和重试 |
 | Qoder | `auth.js` | 账号存储、PKCE 授权、轮询、取消/退出、令牌刷新、组织信息 |
 | Qoder | `transport.js` | COSY 身份、签名、专属请求头与 HTTP；签名绑定实际发送路径与正文 |
-| Qoder | `body-codec.js` | 正文编码/解码纯函数 |
+| Qoder | `body-codec.js` | 上游请求正文编码；测试用反向解码位于 `fixtures/qoder/wire.mjs` |
 | Qoder | `protocol.js` | 请求封装、session/request-set/business 字段、工具续接阶段 |
 | Qoder | `stream.js` | 拆开上游 SSE 包装后交给共享 Chat 流解析器 |
 | Qoder | `models.js` | Qoder 目录、CLI 模型配置、原生上下文档位、专属设置和排队规则 |
@@ -111,6 +111,8 @@ Qoder 8 文件、AGY 6、Grok 5、Kimi/Copilot 各 4、Codex/Custom 各 3。Qode
 | `quota()`、认证操作 | 按来源声明提供，不支持的操作在页面隐藏、接口拒绝 |
 
 execute 输入为 `{raw,protocol,model,conversationId,stateful}`，context 携带 `signal/observe`。原始请求字段保留供原生适配器使用；事件适配器通过 shared 协议解码。
+
+注入测试来源也必须提供 `execute`，返回原生 response 或标准 events，不再由注册表猜测 `forward/stream`。事件测试复用 `fixtures/proxy/provider.mjs` 的 `eventExecution`；各来源内部仍可保留专属 `forward` 或 `stream` 实现。模型选择、冷却和会话绑定由 router 管理，实际执行及输出前回退由 gateway 管理；已删除仅被旧测试调用的 `ModelRouter.stream` 和 `relay(provider)`，相应测试改走 HTTP 网关、来源 `execute` 或 `relayResult`。
 
 - `{kind:'response', response, protocol, ...}`：保留原生 HTTP/JSON/SSE、不透明字段与 usage。
 - `{kind:'events', events, renderers?, ...}`：共享 text/reasoning/tool_call/usage/finish/error 事件。Grok 可携带原生渲染策略，公共层按结果类型选择输出。

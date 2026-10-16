@@ -22,6 +22,10 @@ Web 调试直接使用 `PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/web-dev" npm r
 
 构建 App 后运行 `npm run test:contracts`：同一组 HTTP 用例分别检查 Node 和实际原生二进制，包括鉴权、非法输入、版本、原子失败、删除/撤销、重启去重、旧回执和资源允许列表。运行时特有错误文案及时间字段不要求逐字相同。测试只使用临时数据目录，不替换已安装 App。
 
+生产代码只保留运行时使用的工具函数。Qoder 线协议的反向解码、AES 解密断言辅助代码位于 `fixtures/qoder/wire.mjs`，不进入 App；事件 Provider 测试共用 `fixtures/proxy/provider.mjs`，与生产来源使用同一 `execute` 契约。仅在模块内部使用且无需测试导入的符号不额外导出。历史管理路径、旧数据/凭据迁移、旧单 Key 配置和回执兼容仍需保留，不能因名称含 legacy 就删除。
+
+移除旧样式时检查真实模板、动态类名和公共组件别名。分组选择器只移除已失效的分支，保留同组仍在使用的样式；关联页面须共同验收。2026-10-16 的清理范围和验证结果见[代码清理记录](verification/code-cleanup.md)。
+
 ## 外部 AI skill
 
 Skill 源文件随本仓库提交，位于 `skills/daylight-workbench/`，独立安装，不进入 App 或 DMG。本机按用户指定安装到 `~/agents/skills/daylight-workbench/`（没有前导点）。不假定所有 AI 宿主自动扫描这个目录，未发现 skill 时请让 AI 读取该目录的 SKILL.md。

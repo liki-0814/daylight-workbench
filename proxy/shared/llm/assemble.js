@@ -90,8 +90,3 @@ export class ResponseAssembler {
         };
     }
 }
-export function assembleResponse(events, opts) {
-    const asm = new ResponseAssembler(opts.model);
-    for (const e of events)asm.push(e);
-    return asm.build();
-}

@@ -4,11 +4,6 @@ import {renderChatStream,renderChatResponse} from './protocols/openai-chat.js';
 import {renderResponsesStream,renderResponsesResponse} from './protocols/openai-responses.js';
 import {renderMessagesStream,renderMessagesResponse} from './protocols/anthropic-messages.js';
 const renderers={chat:[renderChatStream,renderChatResponse],responses:[renderResponsesStream,renderResponsesResponse],messages:[renderMessagesStream,renderMessagesResponse]};
-export async function relay(provider,raw,protocol,res,signal,observe,options={}){
- const timeout=new AbortController();const timer=setTimeout(()=>timeout.abort(),300000);let result;
- try{result=await provider.forward(raw,protocol,{...options,signal:AbortSignal.any([signal,timeout.signal]),observe});}catch(error){if(timeout.signal.aborted)observe({error:{name:'TimeoutError'}});throw error;}finally{clearTimeout(timer);}
- return relayResult(result,raw,protocol,res,signal,observe,options);
-}
 export async function relayResult(result,raw,protocol,res,signal,observe,options={}){
  const {response,model,upstreamModel,requestedTier}=result;observe({upstreamModel,requestedTier,upstreamStatus:response.status,upstreamProtocol:result.protocol,execution:protocol===result.protocol?'native':'converted',stage:'response'});
  if(!response.ok){await response.body?.cancel();throw Object.assign(new Error(`上游请求失败（${response.status}）`),{status:response.status>=400&&response.status<600?response.status:502});}

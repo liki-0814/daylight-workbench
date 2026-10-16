@@ -1,3 +1,4 @@
+import { eventExecution } from '../fixtures/proxy/provider.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -15,13 +16,13 @@ import { createProxyService } from '../proxy/service.js';
 const json = value => new Response(JSON.stringify(value));
 const model = id => ({ id, enabled: true, contextWindows: [], reasoningEfforts: [] });
 test('router preserves names, tolerates one unavailable provider, and merges identical names', async () => {
-  const a = { listModels: async () => [model('alpha')], async *stream() { yield { type: 'text', delta: 'qoder' }; } };
-  const b = { listModels: async () => [model('beta')], async *stream() { yield { type: 'text', delta: 'agy' }; } };
+  const a = { listModels: async () => [model('alpha')] };
+  const b = { listModels: async () => [model('beta')] };
   const r = new ModelRouter({ qoder: a, agy: b });
   assert.deepEqual((await r.listModels()).map(m => m.id), ['alpha', 'beta']);
-  assert.equal((await Array.fromAsync(r.stream({model:'beta'}, {})))[0].delta, 'agy');
+  assert.equal((await r.resolve({model:'beta'})).provider, 'agy');
   b.listModels = async () => [model('alpha')];
-  assert.equal((await Array.fromAsync(r.stream({model:'alpha'}, {})))[0].delta, 'qoder');
+  assert.equal((await r.resolve({model:'alpha'})).provider, 'qoder');
   b.listModels = async () => { throw new Error('secret must not leak'); };
   assert.deepEqual((await r.listModels()).filter(m=>m.enabled).map(m => m.id), ['alpha']); assert.ok(!JSON.stringify(r.errors).includes('secret'));
 });
@@ -55,7 +56,7 @@ test('one gateway/key serves Qoder and AGY; all protocols stream and aggregate; 
     const wire = [ {response:{candidates:[{content:{parts:[{text:'杭州'}]}}]}}, {response:{candidates:[{content:{parts:[{functionCall:{name:'weather',args:{city:'杭州'},id:'tool1'},thoughtSignature:'signed'}]},finishReason:'STOP'}],usageMetadata:{promptTokenCount:10,candidatesTokenCount:2,thoughtsTokenCount:3,totalTokenCount:15}}} ].map(d=>`data: ${JSON.stringify(d)}\n\n`).join('');
     const bytes=Buffer.from(wire); let pos=0; return new Response(new ReadableStream({pull(c){if(pos>=bytes.length)return c.close();c.enqueue(bytes.subarray(pos,pos+=5));}}));
   }});
-  const qoder = {listModels:async()=>[model('qoder-model')],async *stream(){yield {type:'text',delta:'qoder-ok'};yield {type:'finish',reason:'stop'};}};
+  const qoder = {listModels:async()=>[model('qoder-model')],execute:eventExecution(async function*(){yield {type:'text',delta:'qoder-ok'};yield {type:'finish',reason:'stop'};})};
   const bridge=await createProxyService({dataDir:dir,provider:qoder,agyProvider:agy});
   const management=http.createServer((req,res)=>bridge.handle(req,res));management.listen(0,'127.0.0.1');await once(management,'listening');
   const base=`http://127.0.0.1:${management.address().port}`;
@@ -194,22 +195,25 @@ test('Gemini 3.8 exposes one model and routes protocol effort or saved default t
   return new Response('data: {"response":{"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}}\n\n');
  }});
  const models=await p.listModels();assert.deepEqual(models.map(m=>m.id),['gemini-3.8-flash']);assert.deepEqual(models[0].reasoningEfforts,['low','medium','high']);
- const {decodeChatRequest,renderChatResponse}=await import('../proxy/shared/protocols/openai-chat.js');
- const {decodeResponsesRequest}=await import('../proxy/shared/protocols/openai-responses.js');
- const {decodeMessagesRequest}=await import('../proxy/shared/protocols/anthropic-messages.js');
+ const {renderChatResponse}=await import('../proxy/shared/protocols/openai-chat.js');
  const router=new ModelRouter({agy:p});
- for (const level of ['low','medium','high']) for(const request of [decodeChatRequest({model:models[0].id,messages:[{role:'user',content:'hi'}],reasoning_effort:level}),decodeResponsesRequest({model:models[0].id,input:'hi',reasoning:{effort:level}}),decodeMessagesRequest({model:models[0].id,messages:[{role:'user',content:'hi'}],output_config:{effort:level}})]) {
-  const r=await renderChatResponse(router.stream(request),request.model);
+ const events=async(raw,protocol='chat')=>{const model=await router.resolve(raw);return(await p.execute({raw,protocol,model},{})).events;};
+ for (const level of ['low','medium','high']) for(const [protocol,raw] of [
+  ['chat',{model:models[0].id,messages:[{role:'user',content:'hi'}],reasoning_effort:level}],
+  ['responses',{model:models[0].id,input:'hi',reasoning:{effort:level}}],
+  ['messages',{model:models[0].id,messages:[{role:'user',content:'hi'}],output_config:{effort:level}}],
+ ]) {
+  const r=await renderChatResponse(await events(raw,protocol),raw.model);
   assert.equal(r.model,'gemini-3.8-flash');assert.equal(requests.at(-1).model,`gemini-3.8-flash-${level}`);assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,level.toUpperCase());
  }
- const request=decodeChatRequest({model:models[0].id,messages:[{role:'user',content:'hi'}]});
- await Array.fromAsync(router.stream(request));assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,'MEDIUM');
+ const request={model:models[0].id,messages:[{role:'user',content:'hi'}]};
+ await Array.fromAsync(await events(request));assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,'MEDIUM');
  await p.setModel({id:models[0].id,field:'effort',value:'low'});
- await Array.fromAsync(router.stream(request));assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,'LOW');
+ await Array.fromAsync(await events(request));assert.equal(requests.at(-1).request.generationConfig.thinkingConfig.thinkingLevel,'LOW');
  const count=requests.length;
- const errors=await Array.fromAsync(router.stream({...request,options:{reasoningEffort:'max'}}));assert.equal(errors[0].code,'invalid_request');assert.equal(requests.length,count);
+ const errors=await Array.fromAsync(await events({...request,reasoning_effort:'max'}));assert.equal(errors[0].code,'invalid_request');assert.equal(requests.length,count);
  await p.setModel({id:models[0].id,field:'enabled',value:false});
- assert.equal((await Array.fromAsync(router.stream(request)))[0].code,'model_not_found');
+ await router.listModels(true);await assert.rejects(events(request),{code:'model_not_found'});
 });
 
 test('AGY preserves discovered models when capability metadata is missing', async t => {

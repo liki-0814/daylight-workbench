@@ -186,21 +186,4 @@ export class ModelRouter {
   }
   failed(model) { this.cooldowns.set(model.id+'\0'+model.provider,Date.now()+30000); }
   async resolve(request) { return (await this.candidates(request))[0]; }
-  async *stream(request, options={}) {
-    let candidates;
-    try { candidates = await this.candidates(request,options); } catch(e) { yield {type:'error',code:e.code || 'upstream_error',message:e.message}; return; }
-    for (const [i,model] of candidates.entries()) {
-      options.onRoute?.(model.provider);
-      const iterator = this.providers[model.provider].stream(request,options)[Symbol.asyncIterator]();
-      let started=false;
-      try {
-        const first = await iterator.next();
-        if (first.value?.type==='error' && i<candidates.length-1 && !options.stateful && retryableRouteError(first.value)) { this.failed(model); continue; }
-        if (first.value?.type!=='error') this.success(model,options.conversationId);
-        if (!first.done) {started=true;yield first.value;}
-        for (;;) { const step=await iterator.next(); if(step.done)return;yield step.value; }
-      } catch(e) { if(started || i===candidates.length-1 || options.stateful || options.signal?.aborted || !retryableRouteError(e))throw e;this.failed(model); }
-      finally { await iterator.return?.(); }
-    }
-  }
 }

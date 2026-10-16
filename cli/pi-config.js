@@ -39,7 +39,7 @@ async function atomicText(file, text) {
   finally { await unlink(temp).catch(error => { if (error.code !== 'ENOENT') throw error; }); }
 }
 
-export const thinkingLevels = ['off','minimal','low','medium','high','xhigh','max'];
+const thinkingLevels = ['off','minimal','low','medium','high','xhigh','max'];
 function validateOverrides(value, models) {
   if (!object(value)) fail('Pi 个性化配置需为对象');
   const result = {};

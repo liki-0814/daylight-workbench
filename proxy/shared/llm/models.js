@@ -11,9 +11,6 @@ export function contextWindowRejection(model, length) {
     const available = model.contextWindows.map((w)=>w.length).join(", ") || "none declared";
     return `model ${model.id} has no ${length} token context window (available: ${available})`;
 }
-export function defaultContextLength(model) {
-    return model.contextWindows.find((w)=>w.isDefault)?.length;
-}
 
 export function parseModelRef(ref) {
     const trimmed = ref.trim();

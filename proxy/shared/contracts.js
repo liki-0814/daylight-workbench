@@ -2,7 +2,7 @@ import {capacityLimit,positiveCapacity} from '../../core/model-capabilities.js';
 /** Diagnostics are metadata only; never pass an upstream body or error message. */
 export const protocolFor = endpoint => ({ '/chat/completions': 'chat', '/responses': 'responses', '/messages': 'messages' })[endpoint];
 
-export function classifyError({ code, status, name } = {}) {
+function classifyError({ code, status, name } = {}) {
   if (status === 401 || status === 403 || ['401', '403', 'source_auth_required'].includes(code)) return 'authentication';
   if (status === 429 || code === '429' || code === '10605') return 'rate_limit';
   if (name === 'TimeoutError' || ['ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'idle_timeout'].includes(code)) return 'timeout';
@@ -13,7 +13,7 @@ export function classifyError({ code, status, name } = {}) {
   return 'upstream';
 }
 
-export const errorHints = {
+const errorHints = {
   authentication: '请检查对应来源的登录或 API Key',
   rate_limit: '请检查额度，或稍后重试',
   timeout: '请检查网络，或稍后重试',
