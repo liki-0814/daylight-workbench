@@ -113,4 +113,4 @@ Pi 按来源同步：目录正常的来源继续更新模型、容量和参考�
 
 `test/standalone-accounts.test.mjs` 使用隔离凭据和模拟上游验证登录、续期、取消、退出、回调校验及账号隔离；`scripts/check-standalone-pi.mjs` 使用本机 Pi 验证 Kimi、Grok、Codex、AGY 四个独立来源的工具调用和多轮回传。模拟验证不代表真实账号已完成授权或推理。
 
-AGY 独立 OAuth 的端点、scope、回调和项目发现参考 [CLIProxyAPI 固定版本源码](https://github.com/router-for-me/CLIProxyAPI/tree/355fd10e76b82e03ba6625acc583b900286e4bf2/internal/auth/antigravity)。本次 AGY 授权、续期、退出及 Pi 检查使用隔离凭据和模拟上游；真实账号由用户登录后，再验证推理与工具续接。
+AGY 独立 OAuth 的端点、scope、回调和项目发现参考 [CLIProxyAPI 固定版本源码](https://github.com/router-for-me/CLIProxyAPI/tree/355fd10e76b82e03ba6625acc583b900286e4bf2/internal/auth/antigravity)。AGY 授权、续期、退出的边界回归使用隔离凭据和模拟上游。2026-10-16 用户完成独立登录后，真实 `gemini-3.8-flash` 和 `claude-opus-4-6-thinking` 均通过 Messages 文本推理，以及本机 Pi 1.2.0 `ModelRuntime` 的 Responses 工具调用、结果回传与续接；6 条请求均确认来自 AGY，HTTP 200 且完整结束。20 个受保护配置文件和已有登录记录核对未变。具体范围和摘要见 [真实验证记录](proxy-architecture.md#agy-独立登录后的真实验证)。

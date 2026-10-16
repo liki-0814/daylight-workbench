@@ -1,0 +1,140 @@
+{
+  "startedAt": "2026-10-16T06:27:21.225Z",
+  "finishedAt": "2026-10-16T06:27:33.112Z",
+  "appCommit": "1966434",
+  "realAccount": true,
+  "piVersion": "1.2.0",
+  "transport": "Installed Pi ModelRuntime through installed App gateway",
+  "configuration": {
+    "protectedFileCount": 20,
+    "changes": [],
+    "piFilesUnchanged": true,
+    "loginRecordsUnchanged": true,
+    "defaultsAndPersonalSettingsUnchanged": true,
+    "temporaryFilesRemoved": true
+  },
+  "localTime": "2026-10-16 14:27 Asia/Shanghai",
+  "scope": "Two enabled AGY models; native Messages text inference and installed Pi ModelRuntime Responses tool call plus result continuation. Other models and protocol combinations were not tested.",
+  "results": [
+    {
+      "source": "agy",
+      "model": "gemini-3.8-flash",
+      "passed": true,
+      "text": {
+        "api": "anthropic-messages",
+        "http": 200,
+        "reply": "17 plus 25 is **42**."
+      },
+      "piAPI": "openai-responses",
+      "tool": {
+        "name": "calculator",
+        "arguments": {
+          "b": 25,
+          "a": 17
+        }
+      },
+      "continuation": {
+        "reply": "The sum of 17 and 25 is 42."
+      },
+      "records": [
+        {
+          "id": "f52032c5-c979-44e0-9157-2dff8746da66",
+          "time": "2026-10-16T06:27:24.477Z",
+          "completedAt": "2026-10-16T06:27:26.047Z",
+          "protocol": "responses",
+          "provider": "agy",
+          "model": "gemini-3.8-flash",
+          "upstreamModel": "gemini-3.8-flash-low",
+          "status": 200,
+          "upstreamStatus": 200,
+          "outcome": "completed"
+        },
+        {
+          "id": "c7022970-ba4a-426e-b2f8-3f88dd02ec55",
+          "time": "2026-10-16T06:27:22.982Z",
+          "completedAt": "2026-10-16T06:27:24.468Z",
+          "protocol": "responses",
+          "provider": "agy",
+          "model": "gemini-3.8-flash",
+          "upstreamModel": "gemini-3.8-flash-low",
+          "status": 200,
+          "upstreamStatus": 200,
+          "outcome": "completed",
+          "toolCallObserved": true
+        },
+        {
+          "id": "22792866-a5d0-4990-9565-0354de88ebc2",
+          "time": "2026-10-16T06:27:21.229Z",
+          "completedAt": "2026-10-16T06:27:22.898Z",
+          "protocol": "messages",
+          "provider": "agy",
+          "model": "gemini-3.8-flash",
+          "upstreamModel": "gemini-3.8-flash-low",
+          "status": 200,
+          "upstreamStatus": 200,
+          "outcome": "completed"
+        }
+      ]
+    },
+    {
+      "source": "agy",
+      "model": "claude-opus-4-6-thinking",
+      "passed": true,
+      "text": {
+        "api": "anthropic-messages",
+        "http": 200,
+        "reply": "17 plus 25 equals **42**."
+      },
+      "piAPI": "openai-responses",
+      "tool": {
+        "name": "calculator",
+        "arguments": {
+          "a": 17,
+          "b": 25
+        }
+      },
+      "continuation": {
+        "reply": "The sum of 17 and 25 is **42**."
+      },
+      "records": [
+        {
+          "id": "81082341-30ad-49ec-8900-05ad97b7c764",
+          "time": "2026-10-16T06:27:30.737Z",
+          "completedAt": "2026-10-16T06:27:33.050Z",
+          "protocol": "responses",
+          "provider": "agy",
+          "model": "claude-opus-4-6-thinking",
+          "upstreamModel": "claude-opus-4-6-thinking",
+          "status": 200,
+          "upstreamStatus": 200,
+          "outcome": "completed"
+        },
+        {
+          "id": "705bc966-4b22-482b-9d4a-ba9ca16e87b6",
+          "time": "2026-10-16T06:27:27.939Z",
+          "completedAt": "2026-10-16T06:27:30.728Z",
+          "protocol": "responses",
+          "provider": "agy",
+          "model": "claude-opus-4-6-thinking",
+          "upstreamModel": "claude-opus-4-6-thinking",
+          "status": 200,
+          "upstreamStatus": 200,
+          "outcome": "completed",
+          "toolCallObserved": true
+        },
+        {
+          "id": "f6ff5f74-8efc-48d5-bd40-56dde12325de",
+          "time": "2026-10-16T06:27:26.056Z",
+          "completedAt": "2026-10-16T06:27:27.929Z",
+          "protocol": "messages",
+          "provider": "agy",
+          "model": "claude-opus-4-6-thinking",
+          "upstreamModel": "claude-opus-4-6-thinking",
+          "status": 200,
+          "upstreamStatus": 200,
+          "outcome": "completed"
+        }
+      ]
+    }
+  ]
+}
