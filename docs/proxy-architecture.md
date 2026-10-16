@@ -197,10 +197,12 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 重命名资源时同步检查 server.mjs 和 native/Server.swift 静态允许列表、native/Proxy.swift 管理转发、scripts/check-proxy.mjs、构建依赖图与动态入口。安装包继续裁剪不可达模块，保留许可证；SDK 对话适配与纯模型 API 中转分别验证。
 
 
-来源显示使用 `public/proxy/source-navigation.js` 的统一标签注册，所有来源共用选择、可见页面回退与键盘顺序。统一 `GET/POST /api/proxy/view` 通过 `shared/view-settings.js` 原子保存 `qoder/view.json`，带版本校验拒绝其他窗口的过期覆盖，不改变运行设置或路由，不以账号连接状态自动隐藏来源。首次读取前隐藏标签栏，读取失败保留已有显示并提供重试，损坏配置保留原文件。Node 与桌面 helper 共用同一管理入口和页面资产。
+来源基础信息统一在 `core/proxy-sources.js` 定义，代理标签、Pi 来源筛选及后端来源名称从中生成；各页面保留原有排序和简短标签。来源显示使用 `public/proxy/source-navigation.js` 的统一标签注册，所有来源共用选择、可见页面回退与键盘顺序。统一 `GET/POST /api/proxy/view` 通过 `shared/view-settings.js` 原子保存 `qoder/view.json`，带版本校验拒绝其他窗口的过期覆盖，不改变运行设置或路由，不以账号连接状态自动隐藏来源。首次读取前隐藏标签栏，读取失败保留已有显示并提供重试，损坏配置保留原文件。Node 与桌面 helper 共用同一管理入口和页面资产。
 
 ### 公共账号认证与页面
 
-`shared/oauth-account.js` 负责 Daylight 自有凭据、单次并发续期、轮换刷新令牌、授权轮询及取消后的写入隔离；`shared/oidc.js` 验证签名、issuer、audience、nonce 与账号身份。Kimi / Grok 采用设备授权，Codex 使用本机回调。来源只输出公开账号信息与身份指纹，不输出令牌。AGY 保持原路径。
+`shared/oauth-account.js` 负责 Daylight 自有凭据、单次并发续期、轮换刷新令牌、授权轮询及取消后的写入隔离；`shared/oidc.js` 验证签名、issuer、audience、nonce 与账号身份。Kimi / Grok / Copilot 复用同一设备授权流程，来源适配器保留请求编码、账号读取和令牌格式差异；Codex 使用本机回调。Copilot 继续读取原 Keychain 项与原 GitHub 凭据格式，短期 Copilot token 仍单独换取。来源只输出公开账号信息与身份指纹，不输出令牌。AGY 保持原路径。
+
+`shared/account-catalog.js` 统一绑定账号变化与目录/额度缓存失效，并阻止旧账号检测结果覆盖新状态。管理层也按认证代次过滤迟到检测结果。
 
 `public/proxy/source-page.js` 统一渲染账号、登录、刷新登录、退出及授权提示。`state.js` 以认证代次丢弃取消/退出前的迟到回复。AI 管理仍走公开认证契约及审阅草稿；授权 URL 中的 ID-token hint 不进入 AI 工具结果。Pi 从同一模型目录生成配置，不读取上述来源的 CLI 凭据。

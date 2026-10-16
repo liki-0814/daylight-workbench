@@ -12,11 +12,17 @@ const entry = fileURLToPath(new URL('../server.mjs', import.meta.url));
 async function fixture(t) {
   const root = await mkdtemp(path.join(tmpdir(), 'daylight-web-')), bin = path.join(root, 'bin'), data = path.join(root, 'data'), browserLog = path.join(root, 'browser.json');
   await mkdir(bin);
+  // Web lifecycle tests must not use a developer's real account or external catalogs.
+  const preload=path.join(root,'isolated-runtime.mjs');
+  await writeFile(preload,`import {Secrets} from ${JSON.stringify(new URL('../proxy/shared/secrets.js',import.meta.url).href)};
+Secrets.prototype.run=async action=>{if(action==='get')return{};throw Error('Web fixture cannot change Keychain');};
+const original=globalThis.fetch;globalThis.fetch=(input,options)=>{const url=new URL(typeof input==='string'||input instanceof URL?input:input.url);return ['127.0.0.1','localhost','[::1]'].includes(url.hostname)?original(input,options):Promise.reject(Error('External network disabled in Web fixture'));};
+`);
   const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
   await writeFile(path.join(bin, opener), `#!${process.execPath}\n(async () => { const args = process.argv.slice(2); const response = await fetch(args[0] + '/api/state'); require('node:fs').writeFileSync(${JSON.stringify(browserLog)}, JSON.stringify({args, status: response.status})); })().catch(() => process.exit(1));\n`, { mode: 0o755 });
   const children = [];
   const start = (args = [], port = '0') => {
-    const child = spawn(process.execPath, [entry, ...args], { cwd: root, env: { ...process.env, PORT: port, WORKBENCH_DATA_DIR: data, WORKBENCH_AGENTS_ROOT: path.join(root, 'agents'), WORKBENCH_EXTENSION_CLIENT_ROOTS: JSON.stringify({ codex: path.join(root, 'codex'), qoder: path.join(root, 'qoder'), pi: path.join(root, 'pi') }), PI_CODING_AGENT_DIR: path.join(root, 'pi'), PATH: bin + path.delimiter + process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['--import',preload,entry, ...args], { cwd: root, env: { ...process.env, PORT: port, WORKBENCH_DATA_DIR: data, WORKBENCH_AGENTS_ROOT: path.join(root, 'agents'), WORKBENCH_EXTENSION_CLIENT_ROOTS: JSON.stringify({ codex: path.join(root, 'codex'), qoder: path.join(root, 'qoder'), pi: path.join(root, 'pi') }), PI_CODING_AGENT_DIR: path.join(root, 'pi'), PATH: bin + path.delimiter + process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
     const run = { child, output: '', errors: '', exit: new Promise((resolve, reject) => { child.once('error', reject); child.once('close', (code, signal) => resolve({ code, signal })); }) };
     child.stdout.on('data', value => { run.output += value; }); child.stderr.on('data', value => { run.errors += value; }); children.push(run);
     return run;
@@ -45,6 +51,7 @@ test('Web opens only after HTTP readiness, serves repository assets and preserve
   assert.deepEqual(JSON.parse(await readFile(f.browserLog, 'utf8')), { args: [url], status: 200 });
   assert.equal((await fetch(url + '/')).status, 200);
   assert.equal((await fetch(url + '/extensions/page.js')).status, 200);
+  const sharedSources=await fetch(url+'/core/proxy-sources.js');assert.equal(sharedSources.status,200);assert.match(await sharedSources.text(),/GitHub Copilot/);
   const state = await (await fetch(url + '/api/state')).json();
   assert.equal((await fetch(url + '/api/ai/settings')).status, 403);
   const headers = { 'X-Workbench-Token': state.token, Origin: url, 'Content-Type': 'application/json' };

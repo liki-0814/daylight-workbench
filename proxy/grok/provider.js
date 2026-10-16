@@ -1,3 +1,4 @@
+import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {grokQuota} from './quota.js';
 import {decodeRequest} from '../shared/protocol.js';
@@ -20,7 +21,7 @@ export class GrokProvider {
   snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity??this.cache?.identity,configured:!!this.auth.account,connected:!!this.cache&&!!this.auth.account&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
   constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth({fetchImpl}) }) {
     Object.assign(this, { fetchImpl, auth });
-    this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));this.auth.onChange=()=>{this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();};
+    this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));bindAccountCatalog(this,{caches:[this.catalogCache,this.quotaCatalogCache]});
   }
   async call(endpoint, body, signal, credential, retried = false, observe = () => {}) {
     const a = credential || await this.auth.credential();
@@ -71,10 +72,7 @@ export class GrokProvider {
     const cache = await this.catalog(force), settings = await readJson(path.join(this.directory, 'settings.json'), { disabled: [] });
     return applyModelSettings(cache.models, settings);
   }
-  async status(force = false) {
-    try { await this.listModels(force); this.lastError = null; return { connected: true, discoveredAt: new Date(this.cache.at).toISOString(), authMode: 'grok_oauth' }; }
-    catch (e) { this.lastError = e.code === 'source_auth_required' ? e.message : 'Grok 无法连接，请检查登录状态与网络'; return { connected: false, error: this.lastError }; }
-  }
+  async status(force=false){return checkAccountCatalog(this,force,{success:()=>({discoveredAt:new Date(this.cache.at).toISOString(),authMode:'grok_oauth'}),error:e=>e.code==='source_auth_required'?e.message:'Grok 无法连接，请检查登录状态与网络'});}
   async quota() {
     const a=await this.auth.credential();
     const cached=await this.quotaCatalogCache.get({identity:a.identity,load:async()=>{

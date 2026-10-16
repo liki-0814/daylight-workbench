@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { diagnosticError } from './contracts.js';
+import {proxySourceNames as names} from '../../core/proxy-sources.js';
 
-const names = { qoder: 'Qoder', agy: 'AGY', grok: 'Grok', codex: 'Codex', kimi: 'Kimi', copilot: 'GitHub Copilot' };
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const modelFields = ['id', 'upstreamId', 'enabled', 'effort', 'fast', 'serviceTier', 'defaultMaxTokens', 'contextWindow'];
 const unavailableCategories = ['authentication', 'rate_limit', 'network', 'timeout', 'interrupted', 'upstream'];

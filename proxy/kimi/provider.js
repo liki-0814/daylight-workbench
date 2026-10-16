@@ -1,3 +1,4 @@
+import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {kimiQuota} from './quota.js';
 import {CatalogCache} from '../shared/catalog-cache.js';
@@ -17,7 +18,7 @@ export class KimiProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort']);}
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
   snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.identity,configured:!!this.auth.account,connected:!!this.cache&&!!this.auth.account&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
- constructor({dataDir,fetchImpl=fetch,auth=new KimiAuth({dataDir,fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.file=path.join(dataDir,'kimi-proxy/settings.json');this.catalogCache=new CatalogCache();this.settings=modelSettings(this.file);this.auth.onChange=()=>{this.catalogCache.invalidate();this.identity=null;};}
+ constructor({dataDir,fetchImpl=fetch,auth=new KimiAuth({dataDir,fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.file=path.join(dataDir,'kimi-proxy/settings.json');this.catalogCache=new CatalogCache();this.settings=modelSettings(this.file);bindAccountCatalog(this,{reset:()=>{this.identity=null;}});}
  get cache(){return this.catalogCache.value;}
  async credential(force=false){const token=await this.auth.credential(force);let account;try{const claims=JSON.parse(Buffer.from(token.access_token.split('.')[1],'base64url'));account=claims.user_id||claims.sub;}catch{}this.identity=token.identity||this.auth.identity||createHash('sha256').update(String(account||token.access_token)).digest('hex');return token;}
  async quota(){
@@ -38,7 +39,7 @@ export class KimiProvider {
   }});
   this.lastError=null;return applyModelSettings(cache.models,await this.settings.read());
  }
- async status(force=false){try{const models=await this.listModels(force);return{connected:true,authMode:'kimi_oauth',models};}catch(error){this.lastError=error.message;return{connected:false,error:this.lastError};}}
+ async status(force=false){return checkAccountCatalog(this,force,{success:models=>({authMode:'kimi_oauth',models})});}
   async setModel(input) {
     const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');
     await this.settings.save(model,input,{fields:['contextWindow', 'maxOutputTokens', 'enabled', 'effort'],invalid,error:'不支持的模型设置'});return this.listModels();

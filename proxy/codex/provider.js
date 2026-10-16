@@ -1,3 +1,4 @@
+import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {CatalogCache} from '../shared/catalog-cache.js';
 import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
@@ -13,7 +14,7 @@ export class CodexProvider {
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
   snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:!!this.auth.account,connected:!!this.cache&&this.cache.identity===this.auth.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
   constructor({dataDir,fetchImpl=fetch,auth,...options}) {
-    this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth({dataDir,fetchImpl,...options});this.settings=modelSettings(path.join(dataDir,'codex-proxy/settings.json'));this.catalogCache=new CatalogCache();this.auth.onChange=()=>this.catalogCache.invalidate();
+    this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth({dataDir,fetchImpl,...options});this.settings=modelSettings(path.join(dataDir,'codex-proxy/settings.json'));this.catalogCache=new CatalogCache();bindAccountCatalog(this);
   }
   get cache(){return this.catalogCache.value;}
   async read(){return this.auth.read();}
@@ -28,7 +29,7 @@ export class CodexProvider {
       const models=parseModels(await response.json());if(epoch!==this.auth.epoch)throw Object.assign(Error('ChatGPT 账号已切换，请重试'),{status:401});return{models};
     }});this.lastError=null;return applyModelSettings(cached.models,await this.settings.read());
   }
-  async status(force=false){try{await this.listModels(force);return{connected:true,authMode:'chatgpt_oauth'};}catch(error){this.lastError=error.status?error.message:'ChatGPT 检测失败，请检查网络或钥匙串后重试';return{connected:false,error:this.lastError};}}
+  async status(force=false){return checkAccountCatalog(this,force,{success:()=>({authMode:'chatgpt_oauth'}),error:e=>e.status?e.message:'ChatGPT 检测失败，请检查网络或钥匙串后重试'});}
   async setModel(input) {
     const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');
     await this.settings.save(model,input,{fields:['contextWindow', 'maxOutputTokens', 'enabled', 'effort', 'serviceTier'],invalid,error:'不支持的模型设置'});return this.listModels();

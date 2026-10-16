@@ -15,7 +15,7 @@ export class CodexAuth extends OAuthAccount {
  publicLogin(){const p=this.pending;return p?{status:p.result?.status||'pending',url:p.url,expiresAt:p.expiresAt,interval:3,...(p.result||{})}:null;}
  stopListener(owner){if(owner&&owner!==this.listenerOwner)return;clearTimeout(this.listenerTimer);this.listener?.close();this.listener?.closeAllConnections();this.listener=null;}
  async login(){
-  this.cancelPending();const p={epoch:this.epoch,controller:new AbortController(),state:randomBytes(32).toString('base64url'),nonce:randomBytes(32).toString('base64url'),verifier:randomBytes(32).toString('base64url'),expiresAt:this.now()+300000};this.pending=p;
+  const p=Object.assign(this.beginLogin(),{state:randomBytes(32).toString('base64url'),nonce:randomBytes(32).toString('base64url'),verifier:randomBytes(32).toString('base64url'),expiresAt:this.now()+300000});
   try{
    const host=await this.hostIdentity();let saved;
    try{saved=await this.readSession();}catch(error){if(error.status!==401)throw error;}
@@ -49,7 +49,7 @@ export class CodexAuth extends OAuthAccount {
    const session=this.session(data,{clientId,tokenEndpoint:TOKEN,account:{id:identity.sub,login:identity.email||identity.name||identity.sub}});
    await this.validateRefresh(session,session);await this.commit(session,p.epoch);
    if(p!==this.pending)throw oauthError('登录已取消');
-   p.result={status:'authenticated',authorized:true};this.onChange?.();reply(200,'登录成功，请返回 Daylight。');
+   p.result={status:'authenticated',authorized:true};this.accountChanged();reply(200,'登录成功，请返回 Daylight。');
   }catch{if(p===this.pending)p.result={status:'failed',error:'ChatGPT 登录未完成，请检查授权后重试'};reply(400,'登录未完成，请返回 Daylight 重试。');}
   finally{p.completing=false;this.stopListener(p);}
  }

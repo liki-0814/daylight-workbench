@@ -1,3 +1,4 @@
+import {piSourceTypes} from '../core/proxy-sources.js';
 import {modelPriceLabel} from '../core/model-metadata.js';
 import { icon } from './components/icons.js';
 import { refreshButton, setRefreshState } from './components/section.js';
@@ -6,16 +7,7 @@ import { createProxyDrawer } from './components/proxy-drawer.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const apis = [{ value: 'openai-responses', label: 'Responses' }, { value: 'openai-completions', label: 'Chat Completions' }, { value: 'anthropic-messages', label: 'Messages' }];
-const sourceTypes = [
-  { id: 'all', name: '全部模型', mark: '', tone: '' },
-  { id: 'codex', name: 'Codex', mark: 'C', tone: 'codex' },
-  { id: 'copilot', name: 'Copilot', mark: 'C', tone: 'codex' },
-  { id: 'kimi', name: 'Kimi', mark: 'K', tone: 'kimi' },
-  { id: 'grok', name: 'Grok', mark: 'G', tone: 'grok' },
-  { id: 'qoder', name: 'Qoder', mark: 'Q', tone: 'codex' },
-  { id: 'agy', name: 'AGY', mark: 'A', tone: 'kimi' },
-  { id: 'custom', name: '自定义', mark: 'M', tone: 'custom' },
-];
+const sourceTypes = piSourceTypes;
 const sourceType = model => model.source.startsWith('custom:') ? 'custom' : model.source;
 const context = model => model.contextWindow ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 1 }).format(model.contextWindow / 1000) + 'K 上下文' : '上下文未提供';
 

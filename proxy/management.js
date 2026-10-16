@@ -46,10 +46,11 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   catch(error){if(typeof input==='string'&&source)sourceState.discovered(source,null,error);throw error;}
  }
  async function catalogStatus(id,refresh=false){
-  const p=provider(id);
+  const p=provider(id),epoch=p.auth?.epoch;
   let result;
   if(p.status)result=await p.status(refresh);
   else{try{await listModels(id,refresh);result={connected:true};}catch{result={connected:false,error:'无法连接来源，请检查登录状态与网络'};}}
+  if(epoch!==p.auth?.epoch)return{connected:false,error:'账号已变化，请重新检测'};
   if(result.connected){router.failedAt.delete(id);await listModels(id);}
   else router.setCatalog(id,undefined,new Error('Source unavailable'));
   return result;

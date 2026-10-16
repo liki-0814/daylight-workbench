@@ -1,3 +1,4 @@
+import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import path from 'node:path';
 import {CopilotAuth,copilotHeaders,authError} from './auth.js';
 import {parseModels} from './models.js';
@@ -9,7 +10,7 @@ import {invalid,convertRequest} from '../shared/protocol.js';
 
 export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat','responses','messages']};
 export class CopilotProvider {
- constructor({dataDir,fetchImpl=fetch,auth=new CopilotAuth({fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'copilot-proxy/settings.json'));}
+ constructor({dataDir,fetchImpl=fetch,auth=new CopilotAuth({fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'copilot-proxy/settings.json'));bindAccountCatalog(this);}
  get cache(){return this.catalogCache.value;}
  snapshot(){return{...sourceSnapshot({...sourceDescription,configured:!!this.auth.account,identityKey:this.auth.token?.identity,connected:!!this.cache&&this.cache.identity===this.auth.token?.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
  async request(endpoint,options={},credential){
@@ -28,7 +29,7 @@ export class CopilotProvider {
   }});
   this.lastError=null;return modelCapabilities(applyModelSettings(cache.models,await this.settings.read()),['enabled','effort']);
  }
- async status(force=false){try{await this.listModels(force);return{connected:true};}catch(error){this.lastError=error.status?error.message:'Copilot 检测失败，请检查网络或钥匙串后重试';return{connected:false,error:this.lastError};}}
+ async status(force=false){return checkAccountCatalog(this,force,{error:e=>e.status?e.message:'Copilot 检测失败，请检查网络或钥匙串后重试'});}
  async quota(){const saved=await this.auth.read();return copilotQuota(await this.auth.request('https://api.github.com/copilot_internal/user',{token:saved.accessToken}));}
  async setModel(input){const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');await this.settings.save(model,input,{fields:['enabled','effort','contextWindow','maxOutputTokens'],invalid,error:'不支持的 Copilot 模型设置'});return this.listModels();}
  async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
