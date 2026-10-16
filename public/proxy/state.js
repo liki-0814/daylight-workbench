@@ -38,7 +38,7 @@ export function createProxyState(api){
    const result=await api.source(id,'auth/'+operation,operation==='poll'?undefined:{});
    if(operation==='login'&&result?.url)logins.set(id,result);
    if(['cancel','logout'].includes(operation)||result?.authorized||result?.status==='authenticated')logins.delete(id);
-   if(operation==='poll'&&result?.status&&result.status!=='pending'&&result.status!=='authenticated'){logins.delete(id);throw Error('登录未完成：'+result.status);}
+   if(operation==='poll'&&result?.status&&result.status!=='pending'&&result.status!=='authenticated')logins.set(id,{...logins.get(id),terminal:true,error:'登录未完成：'+result.status});
    if(operation!=='poll'||result?.authorized||result?.status==='authenticated'){invalidate(id);await refresh();}
    notify();return result;
   })();authTasks.set(id,task);try{return await task;}finally{authTasks.delete(id);}
@@ -46,7 +46,7 @@ export function createProxyState(api){
  async function pollLogins(){
   await Promise.all([...logins.keys()].map(async id=>{
    const login=logins.get(id),expires=login.expiresAt>1e12?login.expiresAt:login.expiresAt*1000;
-   if(Number.isFinite(expires)&&Date.now()>expires)return;
+   if(login.terminal||Number.isFinite(expires)&&Date.now()>expires)return;
    try{await auth(id,'poll');}catch(e){logins.set(id,{...login,error:e.message});notify();}
   }));
  }

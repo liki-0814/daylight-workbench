@@ -3,7 +3,7 @@ import {escapeButtonText as esc} from '../components/button.js';
 
 // One registration drives page creation, display choices and keyboard order.
 export const proxyTabs=[
- ...[['qoder','Qoder'],['agy','AGY'],['grok','Grok'],['codex','Codex'],['kimi','Kimi']].map(([id,name])=>({id,name,kind:'provider'})),
+ ...[['qoder','Qoder'],['agy','AGY'],['grok','Grok'],['codex','Codex'],['kimi','Kimi'],['copilot','Copilot']].map(([id,name])=>({id,name,kind:'provider'})),
  {id:'custom',name:'自定义',kind:'source'},
  {id:'routes',name:'模型路由',kind:'utility'},
 ];

@@ -4,7 +4,7 @@ import {RequestTrace} from './shared/request-records.js';
 import {events,observeResponse} from './shared/protocol.js';
 import {normalizeQuota} from './shared/quota.js';
 
-export const legacyReadResources={'pi.state':'/api/cli/pi/state','qoder.credits':'/api/qoder/credits','agy.quota':'/api/agy/quota','grok.quota':'/api/grok/quota','kimi.quota':'/api/kimi-proxy/quota','codex.quota':'/api/codex-proxy/quota','qoder.login':'/api/proxy/status'};
+export const legacyReadResources={'pi.state':'/api/cli/pi/state','qoder.credits':'/api/qoder/credits','agy.quota':'/api/agy/quota','grok.quota':'/api/grok/quota','kimi.quota':'/api/kimi-proxy/quota','codex.quota':'/api/codex-proxy/quota','copilot.quota':'/api/proxy/sources/copilot/quota','qoder.login':'/api/proxy/status'};
 export function createLegacyReader(call) {
  return async(resource,options={})=>{
   if(resource==='pi.prepare')return call('/api/cli/pi/prepare',options);
@@ -61,6 +61,7 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   if(operation==='refresh')return catalogStatus(id,true);
   const result=await p.auth[operation]();
   if(result.authorized||operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}
+  if(result.authorized&&p.status)return{...result,...await catalogStatus(id,true)};
   return result;
  }
  async function inferenceCheck(id,modelId){

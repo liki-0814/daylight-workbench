@@ -12,8 +12,8 @@ export function createSourcePage({store,source,name,confirmAction}){
  function paint(){
   if(disposed)return;const description=store.source(source),status=store.status,authentication=description?.authentication||{operations:[]},ops=authentication.operations,connected=status?.sources?.[source]?.connected||false;
   $('[data-caption]').textContent=(description?.name||name)+' 账号';
-  const account=authentication.requiresStoppedService?status?.account:undefined;
-  $('[data-account]').textContent=status?.sources?.[source]?.error||description?.error?.hint||(account?[account.organization,account.uid].filter(Boolean).join(' · '):connected?'已连接本机 '+(description?.name||name):authentication.instruction||'尚未连接 · 请登录后刷新');
+  const account=authentication.requiresStoppedService?status?.account:description?.account;
+  $('[data-account]').textContent=(!description?.configured&&authentication.instruction)||status?.sources?.[source]?.error||description?.error?.hint||(account?[account.login,account.organization,account.uid].filter(Boolean).join(' · '):connected?'已连接 '+(description?.name||name):authentication.instruction||'尚未连接 · 请登录后刷新');
   const identityKey=description?.identityKey,nextRevision=description?.revision,revisionChanged=revision!==nextRevision;revision=nextRevision;
   if(identity!==identityKey){identity=identityKey;models.reset();quota.reset();if(visible){models.setVisible(true);quota.setVisible(true);}}
   else if(revisionChanged&&visible)models.refreshIfOpen();
@@ -25,7 +25,7 @@ export function createSourcePage({store,source,name,confirmAction}){
   const refresh=$('[data-refresh-account]');refresh.hidden=!ops.includes('refresh');setRefreshState(refresh,{loading:busy,disabled:busy||!!status?.runtimeError});
   const login=store.login(source);$('[data-login]').hidden=!login;
   if(login){const expires=login.expiresAt>1e12?login.expiresAt:login.expiresAt*1000,expired=Number.isFinite(expires)&&Date.now()>=expires;
-   $('[data-login-link]').href=login.url;$('[data-login-link]').hidden=expired;$('[data-login-code]').hidden=!login.userCode&&!expired;$('[data-login-code]').textContent=expired?'授权已过期，请取消后重新登录。':login.userCode?'授权码：'+login.userCode:'';$('[data-login-note]').textContent=login.error||'点击下方链接，在浏览器中完成授权，此页会自动更新。';
+   $('[data-login-link]').href=login.url;$('[data-login-link]').hidden=expired||!!login.terminal;$('[data-login-code]').hidden=!login.userCode&&!expired;$('[data-login-code]').textContent=expired?'授权已过期，请取消后重新登录。':login.userCode?'授权码：'+login.userCode:'';$('[data-login-note]').textContent=login.error||'点击下方链接，在浏览器中完成授权，此页会自动更新。';
   }
   quota.tick();
  }

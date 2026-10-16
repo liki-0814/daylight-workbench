@@ -1,6 +1,6 @@
 # 反向代理
 
-侧栏“反向代理”包含 Qoder、AGY、Grok、Codex、Kimi、自定义来源及模型路由标签，分别管理账号、模型与额度，共用一个服务开关、接入地址和 API Key；模型、额度、运行设置默认折叠。默认手动开启，可在停止状态下设置“随 Daylight 启动”。关闭窗口后继续运行，退出 App 时停止代理；有请求进行时，停止前需要确认中断。后端和前端的具体文件职责见 [中转架构](proxy-architecture.md)。
+侧栏“反向代理”包含 Qoder、AGY、Grok、Codex、Kimi、Copilot、自定义来源及模型路由标签，分别管理账号、模型与额度，共用一个服务开关、接入地址和 API Key；模型、额度、运行设置默认折叠。默认手动开启，可在停止状态下设置“随 Daylight 启动”。关闭窗口后继续运行，退出 App 时停止代理；有请求进行时，停止前需要确认中断。后端和前端的具体文件职责见 [中转架构](proxy-architecture.md)。
 
 标签栏右侧“显示来源”可勾选需要显示的来源，默认全部显示，保存后在本机持续生效。隐藏只影响来源页面，不会停用来源、退出账号、删除配置或改变模型路由，代理运行时也能修改。模型路由始终可见；当前来源被隐藏时切换到第一个可见页面。显示设置独立保存在 `qoder/view.json`，记录隐藏项而非固定的可见白名单，新增来源默认显示。
 
@@ -61,6 +61,14 @@ OAuth 与 API Key 的 `kimi-for-coding` 请求均在传入 `temperature: 0.7` �
 K2.8 Preview 和 K3 已分别验证普通请求及 function 工具调用，K2.8 Preview 已验证流式输出。真实工具多轮回传、不同客户端的完整编码会话及全协议兼容仍需按实际使用核验。官方授权参考：[登录流程](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-command.html#kimi-login)、[本机授权服务 API](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/server-api.html)。
 
 Kimi 与 Qoder、Codex、Grok、AGY 使用同一 `public/proxy/source-page.js` 来源页面，模型与额度分别复用 `model-list.js` 和 `quota-panel.js`。网页登录是公共账号栏中的来源专属操作。官方目录的 reasoning.effort.valid / think_efforts.valid_efforts 提供支持档位，按目录展示默认推理强度；客户端传入的 reasoning_effort 或跨协议 reasoning.effort 优先于中转默认值。Highspeed 未声明档位时不提供默认强度设置。Pi 同步使用同一目录，only thinking 模型的关闭档位为不支持。
+
+## GitHub Copilot
+
+Copilot 使用 GitHub 账号独立网页登录，无需安装、运行或读取本机 Copilot CLI。点击“网页登录”，打开 GitHub 官方链接并输入页面显示的用户码；Daylight 按 GitHub 返回的间隔轮询，处理等待、减速、拒绝、过期和取消。授权完成后自动读取模型目录，账号栏显示 GitHub 用户名。GitHub OAuth 凭据仅存入现有 macOS Keychain，短期 Copilot token 在内存缓存，过期前换取新 token；401 最多刷新重试一次，账号变化时不重放请求。退出账号删除 Daylight 保存的凭据。
+
+模型、容量、视觉和工具能力读取上游目录，不按模型名称猜测；按模型声明选择 Chat Completions、Responses 或 Anthropic Messages 上游端点。客户端仍共用三个现有协议入口、模型路由、流式与工具转换、请求诊断及公共模型/额度组件。额度读取 Copilot 上游请求配额，缺失值保持未知，不以 token 数估算 Premium 请求或费用。Pi 接入复用现有全量同步、备份、恢复与默认值保护。建议使用 Responses 或 Chat Completions；选择 Pi Messages 时，仅原生声明 Messages 的模型可接入，以保留手动 thinking 预算、签名和缓存字段。Pi Messages 的 Base URL 使用服务根地址，避免 SDK 重复追加 `/v1`。AI 管理支持 `sourceId: copilot` 的登录/取消/退出、目录和模型设置；`daylight_get_configuration` 使用 `copilot.quota` 查询额度，写操作仍通过审阅草稿。
+
+协议调研参考 [copilot-api](https://github.com/ericc-ch/copilot-api/tree/0ea08febdd7e3e055b03dd298bf57e669500b5c1/src)（MIT）及 [GitHub device flow 文档](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow)。Copilot token、目录及推理路径属于上游非公开兼容接口，实际账号的订阅和组织策略仍决定可用性。当前实现支持 github.com 账号；自建 GitHub Enterprise Server 登录域未接入。
 
 ## 模型路由与统一控件
 

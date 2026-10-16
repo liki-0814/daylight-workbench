@@ -26,7 +26,7 @@
 | `service.js` | 创建并连接各组件、监听端口、启动/停止、活动请求统计、资源关闭 |
 | `gateway.js` | `/v1` 客户端鉴权、推理校验、模型路由、输出前回退、取消与请求记录 |
 | `management.js` | 公共管理操作、HTTP 路由、旧管理路径兼容；AI 工具直接调用操作，不伪造 HTTP 对象 |
-| `providers.js` | 六类来源注册、公开描述、动态自定义实例增删、执行结果入口；旧注入测试对象的兼容路径仅留在此边界 |
+| `providers.js` | 内置与自定义来源注册、公开描述、动态自定义实例增删、执行结果入口；旧注入测试对象的兼容路径仅留在此边界 |
 
 ### shared 公共机制
 
@@ -83,11 +83,14 @@
 | Kimi | `auth.js` | 官方凭据、本机授权服务发现/按需启动、网页登录/轮询/取消/刷新；只关闭自身启动的进程 |
 | Kimi | `models.js` | 官方容量、thinking 类型、推理档位与模型能力 |
 | Kimi | `quota.js` | usages 的订阅、周期限额与未知单位 |
+| Copilot | `auth.js` | 独立 GitHub device flow、Keychain、短期 Copilot token 与安全端点校验 |
+| Copilot | `provider.js` | 目录缓存、模型设置、按声明分流 Chat/Responses/Messages、401 单次重试与账号隔离 |
+| Copilot | `models.js` / `quota.js` | 上游能力与请求配额，保留未知值 |
 | Custom | `sources.js` | 来源和逐 Key 配置、发现、校验、保存/删除、配置版本、Keychain 调用 |
 | Custom | `provider.js` | 单来源执行实例、映射、逐 Key 权限、冷却/回退/亲和性、协议转换 |
 | Custom | `models.js` | 目录解析、模型校验、逐 Key 权限与容量的保守合并 |
 
-Qoder 8 文件、AGY/Grok 各 5、Codex/Kimi 各 4、Custom 3。Qoder 多出的签名传输、正文编码和 SSE 拆包对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。
+Qoder 8 文件、AGY/Grok 各 5、Codex/Kimi/Copilot 各 4、Custom 3。Qoder 多出的签名传输、正文编码和 SSE 拆包对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。
 
 来源级回退由 router 负责，Custom 内部 Key 回退由 provider 负责。模型设置不能自动把某个 Key 的权限复制给其他 Key。
 

@@ -14,9 +14,9 @@ import {createGateway,fail} from './gateway.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
-export async function createProxyService({ dataDir, fetchImpl = fetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
+export async function createProxyService({ dataDir, fetchImpl = fetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
   const metadata=createModelMetadata({dataDir,enabled:!injectedProvider,...pricingOptions});
-  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,customSources,metadata,getPort:()=>settings.port});
+  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,customSources,metadata,getPort:()=>settings.port});
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');
   const sourceState = new SourceState();
@@ -108,7 +108,7 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
       id: m.id, name: m.displayName || m.id, source: m.provider,
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
       cost:m.cost,priceInfo:m.priceInfo,modelMetadata:m.modelMetadata,reasoningEffortsProvided:m.reasoningEffortsProvided,
-      pi:registry.snapshot(m.provider)?.capabilities?.pi,
+      pi:{...registry.snapshot(m.provider)?.capabilities?.pi,...m.pi},
       requestOutputBudget:registry.snapshot(m.provider)?.capabilities?.piOutputBudget??registry.snapshot(m.provider)?.capabilities?.requestOutputBudget,
       ...(providers[m.provider]?.source?.protocol ? {nativeProtocol:providers[m.provider].source.protocol} : {}),
       ...((m.contextWindow || m.contextWindows?.find(w=>w.isDefault)?.length) ? {contextWindow:m.contextWindow || m.contextWindows.find(w=>w.isDefault).length} : {}), ...(m.maxOutputTokens ? {maxOutputTokens:m.maxOutputTokens} : {}),
@@ -141,9 +141,9 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
   // Startup errors belong to this module, never prevent task management from opening.
   const initialize = () => {
     const startup = settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();
-    // Qoder is recognized from its account file. Codex is not, unless a probe or saved catalog runs.
-    const codex = !settings.autoStart && providers.codex ? listModels('codex').catch(() => {}) : Promise.resolve();
-    return Promise.all([startup, codex]).then(() => {});
+    // These accounts need a probe before their saved login/catalog is visible.
+    const discovery = !settings.autoStart ? Promise.allSettled(['codex','copilot'].filter(id=>providers[id]).map(id=>listModels(id))) : Promise.resolve();
+    return Promise.all([startup, discovery]).then(() => {});
   };
   return { handle, close, initialize, status, accounts };
 }

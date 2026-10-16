@@ -111,7 +111,9 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
   }
   async function snapshot(api = sync.api, force = false) {
     if (!piAPIs.includes(api)) fail('Pi 接口无效');
-    const [files, result, gateway, latest] = await Promise.all([currentFiles(), getCatalog(force), getGateway(), readJson(latestFile, null)]);
+    const [files, result, rawGateway, latest] = await Promise.all([currentFiles(), getCatalog(force), getGateway(), readJson(latestFile, null)]);
+    // Anthropic's SDK appends /v1/messages itself; OpenAI SDKs expect the /v1 base.
+    const gateway = {...rawGateway,baseUrl:api==='anthropic-messages'?rawGateway.baseUrl.replace(/\/v1\/?$/,''):rawGateway.baseUrl};
     const catalog = Array.isArray(result) ? result : result.models;
     const models = parse(files[0], 0), settings = parse(files[1], 1), provider = models.providers?.daylight || {};
     const failed = (result.failedSources || []).filter(s => !s.unconfigured || sync.sources?.includes(s.id) || (!sync.lastModelHash || !catalog.length) && provider.models?.length);

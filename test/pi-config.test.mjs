@@ -23,6 +23,12 @@ async function fixture(t, options = {}) {
 }
 async function apply(pi, input, requestId = 'apply-one') { const state = await pi.state(input.api); return pi.apply({ ...input, expectedVersion: state.version, requestId }); }
 
+test('Pi Messages uses the SDK root base URL while OpenAI retains /v1',async t=>{
+ const f=await fixture(t);f.setCatalog([{id:'native',name:'Native',source:'copilot'}]);
+ await apply(f.pi,{api:'anthropic-messages'},'messages-base');assert.equal((await f.json('models')).providers.daylight.baseUrl,'http://127.0.0.1:4319');
+ await apply(f.pi,{api:'openai-responses'},'responses-base');assert.equal((await f.json('models')).providers.daylight.baseUrl,'http://127.0.0.1:4319/v1');
+});
+
 test('Pi preview is read-only, shows real metadata and never exposes keys or model headers', async t => {
   const f = await fixture(t), before = await f.text('models');
   const state = await f.pi.state(), plan = await f.pi.prepare({});

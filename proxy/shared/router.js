@@ -121,7 +121,7 @@ export class ModelRouter {
         const model = models.find(m=>m.provider===provider), p = this.providers[provider];
         const failure = health.get(provider);
         const reason = !p ? '来源已移除或停用' : !model?.enabled ? '模型已停用或移除' : !this.available.has(provider) || failure?.state === 'unavailable' ? failure?.error?.message || '来源不可用' : '';
-        return {id:provider,name:p?.source?.name || ({qoder:'Qoder',agy:'AGY',grok:'Grok',codex:'Codex',kimi:'Kimi'}[provider] || provider),enabled:!!p&&!!model?.enabled,available:!reason,reason,participating:!pref.excluded.includes(provider)};
+        return {id:provider,name:p?.source?.name || ({qoder:'Qoder',agy:'AGY',grok:'Grok',codex:'Codex',kimi:'Kimi',copilot:'GitHub Copilot'}[provider] || provider),enabled:!!p&&!!model?.enabled,available:!reason,reason,participating:!pref.excluded.includes(provider)};
       });
       return {id,enabled:sources.some(s=>s.enabled&&s.participating),primary,needsAttention:!sources.find(s=>s.id===primary)?.available,sources,order:pref.order,excluded:pref.excluded};
     });
