@@ -17,9 +17,7 @@ export class CodexProvider {
     this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth({dataDir,fetchImpl,...options});this.settings=modelSettings(path.join(dataDir,'codex-proxy/settings.json'));this.catalogCache=new CatalogCache();bindAccountCatalog(this);
   }
   get cache(){return this.catalogCache.value;}
-  async read(){return this.auth.read();}
   async quota(){return this.auth.quota();}
-  async discover(force=false){return this.auth.read(force);}
   close(){this.catalogCache.invalidate();this.auth.close();}
   async catalogModels(force=false){
     const a=await this.auth.read(),epoch=this.auth.epoch;
@@ -38,7 +36,7 @@ export class CodexProvider {
     observe({stage:'discovery'});
     const model=(await this.listModels()).find(m=>m.id===raw.model&&m.enabled);if(!model)throw invalid('模型已停用或不存在');
     observe({stage:'authentication'});
-    const a=await this.discover(),epoch=this.auth.epoch;if(a.identity!==this.cache?.identity)throw Object.assign(Error('ChatGPT 账号已切换，请重试'),{status:401});observe({stage:'conversion'});const body=protocol==='responses'?structuredClone(raw):convertRequest(raw,protocol,'responses');
+    const a=await this.auth.read(),epoch=this.auth.epoch;if(a.identity!==this.cache?.identity)throw Object.assign(Error('ChatGPT 账号已切换，请重试'),{status:401});observe({stage:'conversion'});const body=protocol==='responses'?structuredClone(raw):convertRequest(raw,protocol,'responses');
     for(const k of ['previous_response_id','conversation','max_output_tokens','temperature','top_p','truncation','background','max_tool_calls','metadata','moderation','multi_agent','prompt','prompt_cache_retention','safety_identifier','top_logprobs','user'])if(body[k]!=null)throw invalid(`Codex 通道暂不支持 ${k}`,k);
     if(body.store===true)throw invalid('Codex 使用无状态历史，不支持 store=true','store');
     body.model=model.id;body.store=false;body.stream=true;body.instructions??='You are a helpful assistant.';
@@ -54,7 +52,7 @@ export class CodexProvider {
     const call = credential => this.fetchImpl('https://api.openai.com/v1/responses',{method:'POST',redirect:'error',signal,headers:{Authorization:`Bearer ${credential.token}`,'Content-Type':'application/json',Accept:'text/event-stream'},body:JSON.stringify(body)});
     observe({stage:'upstream'});
     let response=await call(a);
-    if(response.status===401){observe({stage:'authentication',retries:1});await response.body?.cancel();const fresh=await this.discover(true);if(fresh.identity!==a.identity||epoch!==this.auth.epoch)throw Object.assign(new Error('Codex 账号已切换，请重新请求'),{status:401});observe({stage:'upstream'});response=await call(fresh);}
+    if(response.status===401){observe({stage:'authentication',retries:1});await response.body?.cancel();const fresh=await this.auth.read(true);if(fresh.identity!==a.identity||epoch!==this.auth.epoch)throw Object.assign(new Error('Codex 账号已切换，请重新请求'),{status:401});observe({stage:'upstream'});response=await call(fresh);}
     return{response,streaming:true,protocol:'responses',model:model.id,upstreamModel:model.id,requestedTier:tier};
   }
 }

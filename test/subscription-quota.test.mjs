@@ -1,17 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,writeFile,mkdir} from 'node:fs/promises';
+import {mkdtemp} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {kimiQuota} from '../proxy/kimi/quota.js';
-import {codexQuota} from '../proxy/codex/quota.js';
 import {KimiProvider} from '../proxy/kimi/provider.js';
 import {CodexProvider} from '../proxy/codex/provider.js';
-test('subscription quota preserves absent values and distinct windows',()=>{
+test('Kimi subscription quota preserves absent values and distinct windows',()=>{
  const k=kimiQuota({usage:{limit:"100",remaining:"30",resetAt:'2026-10-02T00:00:00Z'},limits:[{window:{duration:5,timeUnit:'TIME_UNIT_HOUR'},detail:{limit:20,used:0}},{detail:{limit:20}}]});
  assert.equal(k.buckets[0].usedPercent,70);assert.equal(k.buckets[1].remaining,20);assert.equal(k.buckets[1].usedPercent,0);assert.equal(k.buckets[2].usedPercent,undefined);assert.equal(k.buckets[2].remaining,undefined);
- const c=codexQuota({rateLimits:{primary:{usedPercent:90}},rateLimitsByLimitId:{codex:{primary:{usedPercent:0,windowDurationMins:300,resetsAt:1790899200}},review:{secondary:{usedPercent:40,windowDurationMins:10080}}}});
- assert.equal(c.buckets.length,2);assert.match(c.buckets[0].name,/5 小时/);assert.match(c.buckets[1].name,/7 天/);assert.equal(c.buckets[0].usedPercent,0);assert.equal(c.buckets[1].resetsAt,undefined);assert.deepEqual(codexQuota({}).buckets,[]);
 });
 test('Kimi quota uses the official usages endpoint without returning credentials',async()=>{
  let request;

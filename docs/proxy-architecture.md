@@ -43,9 +43,12 @@
 | `request-parameters.js` | 输出预算/强度读取与校验、别名冲突、已确认的 Kimi temperature 兼容规则 |
 | `model-settings.js` | 默认模型设置和容量校验、能力上限保留、串行原子保存，适配原有 JSON 布局 |
 | `catalog-cache.js` | 上游目录 TTL、并发去重、账号隔离、失效代次 |
+| `account-catalog.js` | 账号变化时统一使目录/额度缓存失效，过滤旧账号迟到的检查结果 |
+| `oauth-account.js` | 独立账号凭据、并发续期、设备授权、取消/退出及写入隔离 |
+| `oidc.js` | OIDC 签名、issuer、audience、nonce 与账号身份验证 |
 | `quota.js` | 额度公共格式、数值与单位规范化，保留缺失值 |
 | `store.js` | JSON 读取、原子写入与串行操作 |
-| `secrets.js` | 自定义 Key 与敏感额外请求头的 Keychain 存取 |
+| `secrets.js` | 自定义 Key、敏感额外请求头与独立账号凭据的 Keychain 存取 |
 | `tools.js` | AI state/prepare/apply 等操作、读取来源能力的审阅草稿、配置版本与操作回执 |
 | `utils.js` | 少量基础工具 |
 
@@ -53,7 +56,7 @@
 
 ## 来源目录与文件职责
 
-每个来源都有 `provider.js` 和 `models.js`；提供额度的来源有 `quota.js`；独立账号流程放在 `auth.js`。只有存在专属协议编解码时才增加 `protocol.js`，文件数量按实际职责决定。
+每个来源都有 `provider.js` 和 `models.js`；需要解析额度的来源有 `quota.js`；独立账号流程放在 `auth.js`。只有存在专属协议编解码时才增加 `protocol.js`，文件数量按实际职责决定。
 
 | 来源 | 文件 | 功能 |
 | --- | --- | --- |
@@ -66,7 +69,8 @@
 | Qoder | `models.js` | Qoder 目录、CLI 模型配置、原生上下文档位、专属设置和排队规则 |
 | Qoder | `quota.js` | Credits、团队包、按账号隔离的额度快照历史 |
 | AGY | `provider.js` | 认证、目录缓存、有效设置与上游执行编排 |
-| AGY | `auth.js` | 官方 Keychain 读取、CLI 刷新、模型发现、身份指纹 |
+| AGY | `auth.js` | CLI 登录文件/旧 Keychain 读取、静默续期、模型发现、身份指纹 |
+| AGY | `oauth-client.js` | 读取本机 OAuth 客户端配置，校验登录方式与必需字段 |
 | AGY | `protocol.js` | 生成请求、思考配置、图片、工具、响应与签名适配 |
 | AGY | `models.js` | CLI 别名与上游能力合并、Gemini 思考档位归并 |
 | AGY | `quota.js` | 共享额度分组与周期解析 |
@@ -90,7 +94,7 @@
 | Custom | `provider.js` | 单来源执行实例、映射、逐 Key 权限、冷却/回退/亲和性、协议转换 |
 | Custom | `models.js` | 目录解析、模型校验、逐 Key 权限与容量的保守合并 |
 
-Qoder 8 文件、AGY/Grok 各 5、Codex/Kimi/Copilot 各 4、Custom 3。Qoder 多出的签名传输、正文编码和 SSE 拆包对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。
+Qoder 8 文件、AGY 6、Grok 5、Kimi/Copilot 各 4、Codex/Custom 各 3。Qoder 多出的签名传输、正文编码和 SSE 拆包对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。Codex 已移除原 app-server RPC 额度解析器及专属测试，当前独立接口通过 `auth.quota()` 明确返回未知额度；推理和 401 重试直接使用同一 `auth.read()`。
 
 来源级回退由 router 负责，Custom 内部 Key 回退由 provider 负责。模型设置不能自动把某个 Key 的权限复制给其他 Key。
 
@@ -191,6 +195,12 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 - 0.4.0 DMG 与镜像内 App 签名已校验；本地 App 已替换并启动，安装包与构建包一致，业务/配置摘要保留、代理自动启动。详情见 [macOS 应用记录](native-app.md#本地-040-打包记录)，安装核验不代替真实上游回归。
 
 此前真实 Pi → Qoder 的并行工具短历史验证只证明原缺陷修复；2026-09-30 的 Grok 实测覆盖文本、图片、结构化输出、工具回传和搜索，属于重构前证据。上述记录不代表重构后六个真实账号或全部协议已完成端到端验收，也未重放真实会话。
+
+2026-10-16 独立账号与公共组件复用的补充记录：
+
+- `npm run check`、454 项 Node 测试通过；其中 `test/account-reuse.test.mjs` 的 14 项回归覆盖账号切换、迟到目录检查、授权取消、关闭清理、来源元数据一致性及 Copilot 原 Keychain 格式兼容。
+- 打包资源通过本机 Pi 库的模拟工具调用和结果续接：Kimi/Grok/Codex 使用 Responses，Copilot 覆盖三个协议。真实 Copilot 账号通过 Pi Messages 完成工具调用及结果续接，两次请求均记录为 Copilot、HTTP 200；该证据不代表其他独立账号或全部模型已完成真实推理。
+- 本机 App 已构建、签名校验并替换；业务数据、AI 会话、已有登录记录、Pi 配置与 CLI 登录文件保留。AGY 目录失败仍会暂停 Pi 全量自动同步，已有配置继续保留。
 
 后续应补充各来源真实账号回归；默认不改真实客户端配置。修改公共代码执行 `npm run check`、`npm test`；涉及原生资源/进程执行相应原生测试与构建。新增来源先实现公开接口、认证描述和能力目录，再注册；避免复制页面或在公共推理层增加来源名称分支。
 
