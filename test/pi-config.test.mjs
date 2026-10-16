@@ -171,13 +171,13 @@ test('automatic switch is durable, syncs additions/removals and metadata, and re
   assert.deepEqual((await f.json('models')).providers.daylight.models.map(m => m.id), ['a', 'b']);
   f.setCatalog([]); assert.equal((await restarted.autoSync()).skipped, true);
 });
-test('automatic sync fails closed on unavailable catalogs or external Pi edits; manual sync resumes it', async t => {
+test('automatic sync retains failed-source models and still stops on external Pi edits', async t => {
   const f = await fixture(t); await f.pi.start(); t.after(() => f.pi.close());
   await f.pi.automatic({ enabled: true, expectedVersion: (await f.pi.state()).version, requestId: 'enable-auto' });
   const before = await f.text('models');
   f.setCatalog({ models: [{ id: 'a', name: 'A', source: 'codex', requestOutputBudget:false, pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'} }], failedSources: [{ id: 'kimi', name: 'Kimi' }] });
-  assert.equal((await f.pi.autoSync()).ok, false); assert.equal(await f.text('models'), before);
-  await assert.rejects(apply(f.pi, {}, 'unavailable'), /目录读取失败/);
+  assert.equal((await f.pi.autoSync()).ok, true); assert.deepEqual((await f.json('models')).providers.daylight.models.find(m=>m.id==='b'),JSON.parse(before).providers.daylight.models.find(m=>m.id==='b'));
+  assert.equal((await apply(f.pi, {}, 'unavailable')).retained,1);
   f.setCatalog([{ id: 'a', name: 'A', source: 'codex', requestOutputBudget:false, pi: {'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'} }]);
   await writeJson(path.join(f.piDir, 'models.json'), { ...await f.json('models'), manual: true });
   const edited = await f.text('models'); assert.match((await f.pi.autoSync()).error, /外部修改/); assert.equal(await f.text('models'), edited);
@@ -185,7 +185,7 @@ test('automatic sync fails closed on unavailable catalogs or external Pi edits; 
   assert.equal((await f.pi.autoSync()).ok, true);
   await f.pi.automatic({ enabled: false }); f.setCatalog([]); assert.equal((await f.pi.autoSync()).skipped, true);
 });
-test('an unavailable source only permits complete reference price updates on existing healthy models',async t=>{
+test('a failed source keeps its models while healthy additions, metadata and prices continue syncing',async t=>{
  const f=await fixture(t);await f.pi.start();t.after(()=>f.pi.close());
  const cost={input:4,output:12,cacheRead:1,cacheWrite:4,tiers:[{inputTokensAbove:200000,input:6,output:18,cacheRead:1.5,cacheWrite:6}]};
  const grok={id:'a',name:'Grok',source:'grok',contextWindow:256000,cost,priceInfo:{complete:true,basis:'llm-pricing'}};
@@ -194,10 +194,10 @@ test('an unavailable source only permits complete reference price updates on exi
  const before=await f.json('models'),settings=await f.text('settings'),syncPath=path.join(f.dataDir,'cli/pi-sync.json'),sync=JSON.parse(await readFile(syncPath,'utf8'));
  const changed={...grok,name:'Changed name',contextWindow:512000,cost:{...cost,output:15,tiers:[{...cost.tiers[0],input:8,cacheWrite:8}]}};
  f.setCatalog({models:[changed,{...changed,id:'new'},{id:'incomplete',source:'grok',cost:{input:1},priceInfo:{complete:false,basis:'llm-pricing'}}],failedSources:[{id:'kimi',name:'Kimi'}]});
- const result=await f.pi.autoSync();assert.equal(result.ok,true);assert.equal(result.pricesOnly,true);assert.equal(result.count,1);
- const expected=structuredClone(before);expected.providers.daylight.models.find(m=>m.id==='a').cost=changed.cost;assert.deepEqual(await f.json('models'),expected);assert.equal(await f.text('settings'),settings);
- const afterSync=JSON.parse(await readFile(syncPath,'utf8'));assert.deepEqual(afterSync.sources,sync.sources);assert.deepEqual(afterSync.modelOverrides,sync.modelOverrides);assert.match(afterSync.error,/目录读取失败/);
- await assert.rejects(apply(f.pi,{},'full-still-blocked'),/目录读取失败/);
+ const result=await f.pi.autoSync();assert.equal(result.ok,true);assert.equal(result.partial,true);assert.equal(result.retained,1);assert.equal(result.count,4);
+ const saved=(await f.json('models')).providers.daylight.models;assert.deepEqual(saved.map(m=>m.id),['a','new','incomplete','b']);assert.equal(saved[0].contextWindow,512000);assert.deepEqual(saved[0].cost,changed.cost);assert.deepEqual(saved[3],before.providers.daylight.models.find(m=>m.id==='b'));assert.equal(await f.text('settings'),settings);
+ const afterSync=JSON.parse(await readFile(syncPath,'utf8'));assert.deepEqual(afterSync.modelOverrides,sync.modelOverrides);assert.match(afterSync.warning,/目录读取失败/);assert.equal(afterSync.error,'');
+ assert.equal((await apply(f.pi,{},'partial-manual')).unchanged,true);
  assert.equal((await f.pi.autoSync()).unchanged,true);
  await f.pi.restore();assert.deepEqual(await f.json('models'),before);assert.equal(await f.text('settings'),settings);
 });
@@ -218,7 +218,7 @@ test('never configured sources do not block first setup; previously managed sour
   const before = await f.text('models');
   const restarted = createPiConfig(f.serviceOptions); await restarted.start(); t.after(() => restarted.close());
   f.setCatalog({ models: [], failedSources: [{ id: 'codex', name: 'Codex', unconfigured: true }] });
-  await assert.rejects(apply(restarted, {}, 'failed-after-restart'), /目录读取失败/);
+  assert.equal((await apply(restarted, {}, 'failed-after-restart')).retained,1);
   assert.equal(await f.text('models'), before);
 });
 test('the automatic timer updates the complete model set without an HTTP request', async t => {
@@ -304,4 +304,21 @@ test('automatic Pi sync reads the shared catalog without force and leaves unchan
 test('Kimi thinking-only restriction preserves its declared effort mappings', () => {
   const configured = modelConfig({ id: 'kimi/k3', name: 'K3', source: 'kimi', pi: {'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}, isReasoning: true, reasoningEfforts: ['low', 'high', 'max'], thinkingLevelMap: { off: null } });
   assert.deepEqual(configured.thinkingLevelMap, { off: null, minimal: null, low: 'low', medium: null, high: 'high', xhigh: null, max: 'max' });
+});
+
+test('partial sync preserves legacy unknown models, defaults and private headers without exposing them',async t=>{
+ const f=await fixture(t);f.setCatalog([{id:'a',name:'A',source:'qoder'}]);await apply(f.pi,{});
+ const saved=await f.json('models');saved.providers.daylight.models.push({id:'legacy',name:'Legacy',headers:{Authorization:'private-retained'},apiKey:'private-retained'});await writeJson(path.join(f.piDir,'models.json'),saved);
+ await writeJson(path.join(f.piDir,'settings.json'),{...f.settings,defaultProvider:'daylight',defaultModel:'legacy'});
+ const before=await f.text('settings');f.setCatalog({models:[{id:'a',name:'New A',source:'qoder'},{id:'new',name:'New',source:'grok'}],failedSources:[{id:'agy',name:'AGY'}]});
+ const state=await f.pi.state(),plan=await f.pi.prepare({});assert.equal(state.catalogError,'');assert.match(state.catalogWarning,/AGY/);assert.equal(state.models.find(m=>m.id==='legacy').state,'retained');assert(!JSON.stringify([state,plan]).includes('private-retained'));
+ await apply(f.pi,{},'partial-legacy');assert.deepEqual((await f.json('models')).providers.daylight.models.find(m=>m.id==='legacy'),saved.providers.daylight.models[1]);assert.equal(await f.text('settings'),before);
+ await assert.rejects(f.pi.prepare({api:'anthropic-messages'}),/等待来源恢复/);
+ f.setCatalog([{id:'a',name:'A',source:'qoder'}]);await apply(f.pi,{},'recovered');assert.equal((await f.json('models')).providers.daylight.models.some(m=>m.id==='legacy'),false);
+});
+test('partial sync removes confirmed healthy stale models but keeps failed and shared-source rows across restart',async t=>{
+ const f=await fixture(t);f.setCatalog({models:[{id:'a',source:'qoder'},{id:'b',source:'agy'},{id:'shared',source:'qoder'}],modelSources:{a:['qoder'],b:['agy'],shared:['qoder','agy']}});await f.pi.start();await apply(f.pi,{});
+ const restarted=createPiConfig(f.serviceOptions);await restarted.start();t.after(()=>restarted.close());
+ f.setCatalog({models:[{id:'new',source:'grok'}],failedSources:[{id:'agy',name:'AGY'}]});const state=await restarted.state();assert.deepEqual(state.obsolete.map(m=>m.id),['a']);assert.deepEqual(state.models.filter(m=>m.retained).map(m=>m.id),['b','shared']);
+ await apply(restarted,{},'partial-shared');assert.deepEqual((await f.json('models')).providers.daylight.models.map(m=>m.id),['new','b','shared']);
 });

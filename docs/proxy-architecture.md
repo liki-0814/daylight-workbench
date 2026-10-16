@@ -45,6 +45,7 @@
 | `catalog-cache.js` | 上游目录 TTL、并发去重、账号隔离、失效代次 |
 | `account-catalog.js` | 账号变化时统一使目录/额度缓存失效，过滤旧账号迟到的检查结果 |
 | `oauth-account.js` | 独立账号凭据、并发续期、设备授权、取消/退出及写入隔离 |
+| `loopback-account.js` | AGY/Codex 共用本机回调、state 校验、过期、单次交换及资源关闭 |
 | `oidc.js` | OIDC 签名、issuer、audience、nonce 与账号身份验证 |
 | `quota.js` | 额度公共格式、数值与单位规范化，保留缺失值 |
 | `store.js` | JSON 读取、原子写入与串行操作 |
@@ -69,7 +70,7 @@
 | Qoder | `models.js` | Qoder 目录、CLI 模型配置、原生上下文档位、专属设置和排队规则 |
 | Qoder | `quota.js` | Credits、团队包、按账号隔离的额度快照历史 |
 | AGY | `provider.js` | 认证、目录缓存、有效设置与上游执行编排 |
-| AGY | `auth.js` | CLI 登录文件/旧 Keychain 读取、静默续期、模型发现、身份指纹 |
+| AGY | `auth.js` | 独立 Google OAuth、Keychain、静默续期及旧登录只读导入 |
 | AGY | `oauth-client.js` | 读取本机 OAuth 客户端配置，校验登录方式与必需字段 |
 | AGY | `protocol.js` | 生成请求、思考配置、图片、工具、响应与签名适配 |
 | AGY | `models.js` | CLI 别名与上游能力合并、Gemini 思考档位归并 |
@@ -200,7 +201,7 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 
 - `npm run check`、454 项 Node 测试通过；其中 `test/account-reuse.test.mjs` 的 14 项回归覆盖账号切换、迟到目录检查、授权取消、关闭清理、来源元数据一致性及 Copilot 原 Keychain 格式兼容。
 - 打包资源通过本机 Pi 库的模拟工具调用和结果续接：Kimi/Grok/Codex 使用 Responses，Copilot 覆盖三个协议。真实 Copilot 账号通过 Pi Messages 完成工具调用及结果续接，两次请求均记录为 Copilot、HTTP 200；该证据不代表其他独立账号或全部模型已完成真实推理。
-- 本机 App 已构建、签名校验并替换；业务数据、AI 会话、已有登录记录、Pi 配置与 CLI 登录文件保留。AGY 目录失败仍会暂停 Pi 全量自动同步，已有配置继续保留。
+- 本机 App 已构建、签名校验并替换；业务数据、AI 会话、已有登录记录、Pi 配置与 CLI 登录文件保留。此阶段 AGY 目录失败仍会暂停 Pi 全量自动同步；后续已改为下文的按来源同步。
 
 后续应补充各来源真实账号回归；默认不改真实客户端配置。修改公共代码执行 `npm run check`、`npm test`；涉及原生资源/进程执行相应原生测试与构建。新增来源先实现公开接口、认证描述和能力目录，再注册；避免复制页面或在公共推理层增加来源名称分支。
 
@@ -211,8 +212,16 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 
 ### 公共账号认证与页面
 
-`shared/oauth-account.js` 负责 Daylight 自有凭据、单次并发续期、轮换刷新令牌、授权轮询及取消后的写入隔离；`shared/oidc.js` 验证签名、issuer、audience、nonce 与账号身份。Kimi / Grok / Copilot 复用同一设备授权流程，来源适配器保留请求编码、账号读取和令牌格式差异；Codex 使用本机回调。Copilot 继续读取原 Keychain 项与原 GitHub 凭据格式，短期 Copilot token 仍单独换取。来源只输出公开账号信息与身份指纹，不输出令牌。AGY 保持原路径。
+`shared/oauth-account.js` 负责 Daylight 自有凭据、单次并发续期、轮换刷新令牌、授权轮询及取消后的写入隔离；`shared/oidc.js` 验证签名、issuer、audience、nonce 与账号身份。Kimi / Grok / Copilot 复用同一设备授权流程，来源适配器保留请求编码、账号读取和令牌格式差异；AGY / Codex 复用 `shared/loopback-account.js` 的本机回调；来源仅实现授权参数与令牌/身份交换。Copilot 继续读取原 Keychain 项与原 GitHub 凭据格式，短期 Copilot token 仍单独换取。来源只输出公开账号信息与身份指纹，不输出令牌。AGY 使用独立 Keychain 项，旧登录仅在首次兼容导入时读取；退出后不再导入。
 
 `shared/account-catalog.js` 统一绑定账号变化与目录/额度缓存失效，并阻止旧账号检测结果覆盖新状态。管理层也按认证代次过滤迟到检测结果。
 
 `public/proxy/source-page.js` 统一渲染账号、登录、刷新登录、退出及授权提示。`state.js` 以认证代次丢弃取消/退出前的迟到回复。AI 管理仍走公开认证契约及审阅草稿；授权 URL 中的 ID-token hint 不进入 AI 工具结果。Pi 从同一模型目录生成配置，不读取上述来源的 CLI 凭据。
+
+### Pi 按来源同步
+
+`cli/pi-config.js` 复用同一套预览、版本校验、写入事务、备份和恢复流程。健康来源正常同步；失败来源的原模型定义不参与重建，直接保留。来源集合写入 `cli/pi-sync.json` 的 `modelSources`，同名模型可对应多个来源；归属未知的旧模型在部分失败时保守保留。前端以 `retained` 状态展示，不开放修改保留模型，恢复后回到正常模型控件。目录告警使用 `catalogWarning`，不再阻止健康来源同步；协议、地址或 Key 变化与保留配置冲突时才用 `catalogError` 阻止写入。原先目录失败时仅同步参考价表的分支及对应旧测试已删除。
+
+回归覆盖健康来源新增/移除/容量/价表更新、失败模型原样保留、跨重启的来源集合、未知归属、共享模型、默认值/私有头保护、恢复及外部修改冲突。AGY 回归覆盖回调校验、PKCE、取消/拒绝/过期、并发续期、退出竞态、原凭据兼容导入、目录权限与迟到账号结果。真实 AGY 推理和 Pi 调用待用户登录后验证。
+
+2026-10-16 本轮验证：`npm run check`、456 项 Node 测试、签名 App 构建与原生数据服务测试通过；打包资源使用本机 Pi 1.2.0 完成 Kimi/Grok/Codex/AGY 的模拟 Responses 工具调用及续接，Copilot 完成三个协议的模拟回归。隔离浏览器验收覆盖部分同步、AGY 授权/取消/刷新/退出、空结果和焦点恢复；六个来源在 1440px 与 900px 下公共布局锚点一致，无横向溢出。源码及安装包未包含本机 AGY OAuth 客户端配置值。

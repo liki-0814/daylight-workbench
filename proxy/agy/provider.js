@@ -1,3 +1,4 @@
+import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {agyQuota} from './quota.js';
 import {decodeRequest} from '../shared/protocol.js';
@@ -12,38 +13,39 @@ import { readJson } from '../shared/store.js';
 import { SseParser } from '../shared/llm/sse.js';
 const invalid = message => Object.assign(new Error(message), { status: 400, code: 'invalid_request' });
 
-export const sourceDescription = {id:'agy',name:'AGY',authentication:{mode:'local',operations:['refresh'],instruction:'请在终端运行 agy 登录后刷新'},capabilities:{quota:true,editableSource:false},nativeProtocols:['messages']};
+export const sourceDescription = {id:'agy',name:'AGY',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Google 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['messages']};
 
 export class AgyProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort']);}
-  close(){this.catalogCache.invalidate();this.signatures.clear();}
+  close(){this.catalogCache.invalidate();this.signatures.clear();this.auth.close?.();}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',events:this.stream(request,context)};}
-  snapshot(){return sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:true,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at});}
-  constructor({ dataDir, fetchImpl = fetch, auth = new AgyAuth() }) {
-    Object.assign(this, { fetchImpl, auth });
-    this.file = path.join(dataDir, 'agy/settings.json'); this.catalogCache=new CatalogCache();this.signatures = new Map(); this.settings=modelSettings(this.file);
+  snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:!!this.auth.account,connected:!!this.cache&&this.cache.identity===this.auth.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
+  constructor({ dataDir, fetchImpl = fetch, auth }) {
+    Object.assign(this, { fetchImpl, auth:auth||new AgyAuth({dataDir,fetchImpl}) });
+    this.file = path.join(dataDir, 'agy/settings.json'); this.catalogCache=new CatalogCache();this.signatures = new Map(); this.settings=modelSettings(this.file);bindAccountCatalog(this,{reset:()=>this.signatures.clear()});
   }
   get cache(){return this.catalogCache.value;}
-  async call(method, body, signal) {
+  async call(method, body, signal, owner) {
     const token = await this.auth.token();
+    if(owner&&(owner.identity!==this.auth.identity||owner.epoch!==this.auth.epoch))throw Object.assign(Error('AGY 账号已切换，请重新请求'),{status:401});
     // Catalog metadata and CLI generation use different services. The hub client
     // version selects the generation routing contract, including public preset IDs.
     const generating = method.startsWith('streamGenerateContent');
     const host = generating ? 'daily-cloudcode-pa.googleapis.com' : 'cloudcode-pa.googleapis.com';
     const response = await this.fetchImpl(`https://${host}/v1internal:${method}`, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'antigravity/hub/2.8.0' }, body: JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(300000)]) : AbortSignal.timeout(45000) });
-    if (!response.ok) { await response.body?.cancel(); throw Object.assign(new Error(`AGY 上游请求失败（${response.status}）`), { code: String(response.status) }); }
+    if (!response.ok) { await response.body?.cancel(); throw Object.assign(new Error(response.status===403?'AGY 账号权限或资格检查未通过，请在官方页面核验账号':`AGY 上游请求失败（${response.status}）`), { code: response.status===403?'EAGY_PERMISSION':String(response.status),status:response.status }); }
     return response;
   }
   async catalog(force = false) {
-    await this.auth.token();const identity=this.auth.identity;
+    await this.auth.token();const identity=this.auth.identity,epoch=this.auth.epoch;
     return this.catalogCache.get({identity,refresh:force,load:async()=>{
-      const account = await (await this.call('loadCodeAssist', {})).json();
+      const account = await (await this.call('loadCodeAssist', {},undefined,{identity,epoch})).json();
       const project = typeof account.cloudaicompanionProject === 'string' ? account.cloudaicompanionProject : account.cloudaicompanionProject?.id;
-      if (!project) throw new Error('AGY 账号尚未完成开通，请先在 agy 中完成登录');
-      const catalog = await (await this.call('fetchAvailableModels', { project })).json();
+      if (!project) throw Object.assign(new Error('AGY 账号尚未完成开通，请在 Google 官方页面完成账号开通后刷新'),{code:'EAGY_ONBOARDING'});
+      const catalog = await (await this.call('fetchAvailableModels', { project },undefined,{identity,epoch})).json();
       const discovered = await this.auth.models(catalog);
       const models=parseModels(discovered,catalog);
-      await this.auth.token();if(this.auth.identity!==identity)throw Object.assign(new Error('AGY 账号已切换，请重新请求'),{status:401});
+      await this.auth.token();if(this.auth.identity!==identity||this.auth.epoch!==epoch)throw Object.assign(new Error('AGY 账号已切换，请重新请求'),{status:401});
       return {project,models};
     }});
   }
@@ -51,10 +53,10 @@ export class AgyProvider {
     const { models } = await this.catalog(force), settings = await readJson(this.file, { disabled: [] });
     return applyCapacitySettings(models,settings).map(m => ({ ...m, enabled: !(settings.disabled||[]).includes(m.id) && !(m.variantIds?.every(id => (settings.disabled||[]).includes(id))), effort: settings.efforts?.[m.id] }));
   }
-  async status(){try{await this.listModels(true);this.lastError=null;return{connected:true};}catch(error){this.lastError=error.code?.startsWith('EKEYCHAIN_')||error.code?.startsWith('EAGY_')?error.message:'无法连接 AGY，请在终端运行 agy 登录后刷新';return{connected:false,error:this.lastError};}}
+  async status(force=false){return checkAccountCatalog(this,force,{error:e=>e.code?.startsWith('EAGY_')||e.status===401?e.message:'无法连接 AGY，请检查登录状态、账号资格或网络'});}
   async quota() {
-    const { project } = await this.catalog();
-    const data = await (await this.call('retrieveUserQuotaSummary', { project })).json();
+    const epoch=this.auth.epoch,{ project,identity } = await this.catalog();
+    const data = await (await this.call('retrieveUserQuotaSummary', { project },undefined,{identity,epoch})).json();
     return agyQuota(data);
   }
   async setModel(input) {
@@ -66,13 +68,15 @@ export class AgyProvider {
   async *stream(request, { signal, observe = () => {} } = {}) {
     try {
       observe({stage:'discovery'});
+      const epoch=this.auth.epoch;
       const model = (await this.listModels()).find(m => m.id === request.model && m.enabled);
       if (!model) throw invalid('模型不存在或已停用');
+      const identity=this.cache?.identity;if(epoch!==this.auth.epoch)throw Object.assign(Error('AGY 账号已切换，请重新请求'),{status:401});
       observe({stage:'conversion'});
       const inner = compileRequest(request, this.signatures, model);
       const route = model.effortRoutes?.[request.options.reasoningEffort || model.effort || model.defaultEffort];
       observe({stage:'upstream',upstreamModel:route?.upstreamId || model.upstreamId});
-      const response = await this.call('streamGenerateContent?alt=sse', { project: this.cache.project, model: route?.upstreamId || model.upstreamId, userAgent: 'antigravity', requestId: randomUUID(), request: inner }, signal);
+      const response = await this.call('streamGenerateContent?alt=sse', { project: this.cache.project, model: route?.upstreamId || model.upstreamId, userAgent: 'antigravity', requestId: randomUUID(), request: inner }, signal,{identity,epoch});
       observe({stage:'response',upstreamStatus:response.status});
       const parser = new SseParser(), decoder = new TextDecoder(), reader = response.body.getReader();
       let finished = false, index = 0, usageMetadata = {};

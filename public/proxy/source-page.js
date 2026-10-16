@@ -33,7 +33,7 @@ export function createSourcePage({store,source,name,confirmAction}){
   if(operation==='logout'&&!await confirmAction('退出账号？','将删除本机保存的登录凭证。重新登录后可继续使用代理。','退出账号'))return;
   const trigger=document.activeElement;
   busy=true;error();paint();try{const result=await store.auth(source,operation);if(result?.connected===false)error(result.error);if(operation==='logout')models.reset();if(visible){models.refreshIfOpen(operation==='refresh');quota.tick();}if(store.login(source))$('[data-login-link]').focus();}
-  catch(e){error(e.message);}finally{busy=false;paint();if(visible&&root.contains(trigger)&&!trigger.disabled&&!trigger.closest('[hidden]')&&document.activeElement===document.body)trigger.focus();}
+  catch(e){error(e.message);}finally{busy=false;paint();if(visible&&(document.activeElement===document.body||root.contains(document.activeElement)&&document.activeElement.closest('[hidden]'))){const target=root.contains(trigger)&&!trigger.disabled&&!trigger.closest('[hidden]')?trigger:$('[data-action]');if(!target.disabled&&!target.closest('[hidden]'))target.focus();}}
  }
  $('[data-action]').onclick=()=>{void run($('[data-action]').dataset.operation);};$('[data-refresh-account]').onclick=()=>{void run('refresh');};$('[data-cancel]').onclick=()=>{void run('cancel');};
  const unsubscribe=store.subscribe(paint);paint();

@@ -51,7 +51,7 @@ export class OAuthAccount {
   if(this.refreshing?.epoch===epoch&&this.refreshing.identity===saved.identity)return this.refreshing.task;
   const task=(async()=>{
    if(!saved.refresh_token)throw oauthError(`${this.name} 登录已过期，请重新网页登录`);
-   const data=await this.request(saved.tokenEndpoint,{form:{client_id:saved.clientId,grant_type:'refresh_token',refresh_token:saved.refresh_token,...this.refreshFields?.(saved)},headers:await this.headers?.()});
+   const data=await this.request(saved.tokenEndpoint,{form:{client_id:saved.clientId,grant_type:'refresh_token',refresh_token:saved.refresh_token,...await this.refreshFields?.(saved)},headers:await this.headers?.()});
    if(data.error)throw oauthError(`${this.name} 续期失败，请重新网页登录`);
    const next=this.session(data,saved);await this.validateRefresh?.(next,saved);
    return this.commit(next,epoch);

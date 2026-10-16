@@ -1,72 +1,57 @@
-import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import os from 'node:os';
+import {readFile} from 'node:fs/promises';
 import path from 'node:path';
-import { Secrets } from '../shared/secrets.js';
-import { discoverModels } from './models.js';
-import { writeJson } from '../shared/store.js';
-import { loadOAuthClient } from './oauth-client.js';
+import os from 'node:os';
+import {createHash} from 'node:crypto';
+import {LoopbackOAuthAccount} from '../shared/loopback-account.js';
+import {oauthError} from '../shared/oauth-account.js';
+import {Secrets} from '../shared/secrets.js';
+import {readJson,writeJson} from '../shared/store.js';
+import {discoverModels} from './models.js';
+import {loadOAuthClient} from './oauth-client.js';
 
-const authError = (message,code='EAGY_REFRESH_FAILED') => Object.assign(new Error(message),{code});
-
-export class AgyAuth {
-  constructor({ tokenFile = path.join(os.homedir(), '.gemini/antigravity-cli/antigravity-oauth-token'), readFileImpl = readFile, writeJsonImpl = writeJson, fetchImpl = fetch, now = Date.now, getOAuthClientImpl = loadOAuthClient, credentials = new Secrets({helperName:'DaylightAgyCredentials',timeoutMs:15000}) } = {}) { Object.assign(this,{tokenFile,readFileImpl,writeJsonImpl,fetchImpl,now,getOAuthClientImpl,credentials}); }
-  async profile() {
-    try {
-      // The current CLI falls back to this profile when its keyring read times out.
-      // Existing CLI profiles remain authoritative, including expired sessions.
-      let text;
-      if(this.tokenFile)try{text=await this.readFileImpl(this.tokenFile,'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
-      const textFromFile=text!==undefined;
-      text = (text ?? await this.credentials.get('antigravity') ?? '').trim();
-      const value = JSON.parse(text.startsWith('go-keyring-base64:') ? Buffer.from(text.slice(18), 'base64').toString() : text);
-      if (!value.token?.access_token) throw new Error();
-      return {value,fromFile:textFromFile};
-    } catch(error) { if(error.code?.startsWith('EKEYCHAIN_'))throw error;throw Object.assign(new Error('无法读取本机 AGY 登录凭证；这不代表上游账号已退出。'),{code:'EAGY_CREDENTIALS'}); }
+const AUTH='https://accounts.google.com/o/oauth2/v2/auth',TOKEN='https://oauth2.googleapis.com/token',USER='https://www.googleapis.com/oauth2/v2/userinfo?alt=json';
+const SCOPES=['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/userinfo.email','https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/cclog','https://www.googleapis.com/auth/experimentsandconfigs'];
+export class AgyAuth extends LoopbackOAuthAccount {
+ constructor({dataDir,callbackPort=51121,getOAuthClientImpl=loadOAuthClient,tokenFile=path.join(os.homedir(),'.gemini/antigravity-cli/antigravity-oauth-token'),readFileImpl=readFile,credentials=new Secrets({helperName:'DaylightAgyCredentials',timeoutMs:15000}),...options}={}){
+  super({id:'agy',name:'AGY',...options});Object.assign(this,{callbackPort,getOAuthClientImpl,tokenFile,readFileImpl,credentials});this.migrationFile=path.join(dataDir,'agy/auth.json');
+ }
+ async models(catalog){return discoverModels(catalog);}
+ async client(method='consumer',clientId){const client=await this.getOAuthClientImpl(method);if(!client||clientId&&client.client_id!==clientId)throw oauthError('AGY OAuth 客户端已变化，请重新网页登录');return client;}
+ async refreshFields(saved){return{client_secret:(await this.client(saved.method,saved.clientId)).client_secret};}
+ async profile(token,signal){const user=await this.request(USER,{token,signal});if(!user.id)throw oauthError('AGY 未返回有效账号');return{id:String(user.id),login:user.email||user.name||String(user.id)};}
+ async validateRefresh(next,saved){if((await this.profile(next.access_token)).id!==saved.account.id)throw oauthError('AGY 账号身份已变化，请重新网页登录');}
+ async login(){
+  const p=this.beginBrowserLogin();
+  try{
+   p.client=await this.client();if(p!==this.pending)return{status:'cancelled'};
+   await this.openCallback(p,{port:this.callbackPort,hostname:'localhost',pathname:'/oauth-callback'});
+   p.url=AUTH+'?'+new URLSearchParams({client_id:p.client.client_id,response_type:'code',redirect_uri:p.redirectUri,scope:SCOPES.join(' '),access_type:'offline',prompt:'consent',state:p.state,code_challenge_method:'S256',code_challenge:createHash('sha256').update(p.verifier).digest('base64url')});return this.publicLogin();
+  }catch(error){if(p===this.pending)this.cancelPending();throw error.code==='EADDRINUSE'?oauthError('AGY 登录回调端口被占用，请结束其他授权后重试'):error;}
+ }
+ async exchange(q,p){
+  const data=await this.request(TOKEN,{form:{grant_type:'authorization_code',client_id:p.client.client_id,client_secret:p.client.client_secret,code:q.get('code'),redirect_uri:p.redirectUri,code_verifier:p.verifier},signal:p.controller.signal});
+  if(data.error)throw oauthError('AGY 授权码交换失败，请重新网页登录');
+  return this.session(data,{clientId:p.client.client_id,method:'consumer',tokenEndpoint:TOKEN,account:await this.profile(data.access_token,p.controller.signal)});
+ }
+ // One-time compatibility import. Never rotate, modify or delete the CLI's original record.
+ async importLegacy(){
+  if(this.pending||await this.secrets.get(this.key)||((await readJson(this.migrationFile,{})).disabled))return;
+  const epoch=this.epoch;let text;
+  if(this.tokenFile)try{text=await this.readFileImpl(this.tokenFile,'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
+  text=(text??await this.credentials.get('antigravity')??'').trim();if(!text)return;
+  const value=JSON.parse(text.startsWith('go-keyring-base64:')?Buffer.from(text.slice(18),'base64').toString():text),method=value.auth_method||'consumer',client=await this.client(method);
+  if(!value.token?.access_token)throw oauthError('原 AGY 登录不可读取，请网页登录');
+  let session={access_token:value.token.access_token,refresh_token:value.token.refresh_token,expiresAt:Date.parse(value.token.expiry),clientId:client.client_id,method,tokenEndpoint:TOKEN};
+  if(!(session.expiresAt>this.now()+60000)){
+   const data=await this.request(TOKEN,{form:{grant_type:'refresh_token',client_id:client.client_id,client_secret:client.client_secret,refresh_token:session.refresh_token}});
+   if(data.error)throw oauthError('原 AGY 登录已失效，请网页登录');session=this.session(data,session);
   }
-  async read() { return (await this.profile()).value; }
-  async token() {
-    if (!this.pending) this.pending = this.load().finally(() => { this.pending = null; });
-    return this.pending;
-  }
-  async models(catalog) { return discoverModels(catalog); }
-  async refresh(profile) {
-    const {value,fromFile}=profile,token=value.token;
-    const method=value.auth_method||'consumer';
-    if(!['consumer','gcp'].includes(method))throw authError('AGY 当前登录方式不支持静默刷新；原登录已保留。');
-    if(!token.refresh_token)throw authError('AGY 登录缺少刷新令牌，需要重新授权；原登录已保留，未打开授权窗口。','EAGY_REAUTH_REQUIRED');
-    const client=await this.getOAuthClientImpl(method);
-    const key=createHash('sha256').update(JSON.stringify([value.auth_method,token.refresh_token,token.access_token])).digest('hex');
-    if(this.failure?.key===key&&this.now()-this.failure.at<30000)throw this.failure.error;
-    try {
-      const response=await this.fetchImpl('https://oauth2.googleapis.com/token',{method:'POST',redirect:'error',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({...client,grant_type:'refresh_token',refresh_token:token.refresh_token}),signal:AbortSignal.timeout(20000)});
-      let result;try{result=await response.json();}catch{throw authError('AGY 自动刷新返回无效响应；原登录已保留。');}
-      if(!response.ok)throw result.error==='invalid_grant'?authError('AGY 刷新令牌已失效，需要重新授权；原登录已保留，未打开授权窗口。','EAGY_REAUTH_REQUIRED'):authError(`AGY 自动刷新暂时失败（HTTP ${response.status}）；原登录已保留，将自动重试。`);
-      if(typeof result.access_token!=='string'||!result.access_token||!Number.isFinite(result.expires_in)||result.expires_in<=60)throw authError('AGY 自动刷新返回无效令牌；原登录已保留。');
-      const refreshed={...value,token:{...token,access_token:result.access_token,token_type:result.token_type||token.token_type||'Bearer',refresh_token:result.refresh_token||token.refresh_token,expiry:new Date(this.now()+result.expires_in*1000).toISOString()},...(result.id_token?{id_token:result.id_token}:{})};
-      // The CLI may refresh, change accounts or log out while the network request runs.
-      // Read again before the atomic write and never replace a changed profile.
-      let current;
-      try{current=fromFile?JSON.parse(await this.readFileImpl(this.tokenFile,'utf8')):await this.read();}
-      catch{throw authError('AGY 登录在刷新期间发生变化，请重试；未覆盖登录文件。','EAGY_PROFILE_CHANGED');}
-      if(JSON.stringify(current)!==JSON.stringify(value)) {
-        if(current.token?.access_token&&Date.parse(current.token.expiry)>this.now())return current;
-        throw authError('AGY 登录在刷新期间发生变化，请重试；未覆盖登录文件。','EAGY_PROFILE_CHANGED');
-      }
-      if(!this.tokenFile)throw authError('AGY 登录文件不可写；原登录已保留。');
-      try{await this.writeJsonImpl(this.tokenFile,refreshed);}catch{throw authError('AGY 新令牌保存失败，请稍后重试；未打开授权窗口。');}
-      this.failure=null;return refreshed;
-    } catch(error) {
-      const safe=error.code?.startsWith('EAGY_')?error:authError('AGY 自动刷新暂时无法连接 Google；原登录已保留，将自动重试。');
-      this.failure={key,at:this.now(),error:safe};throw safe;
-    }
-  }
-  async load() {
-    const profile = await this.profile();let {value}=profile;
-    if (!(Date.parse(value.token.expiry) > this.now()+60000)) {
-      try{value=await this.refresh(profile);}catch(error){if(!(Date.parse(value.token.expiry)>this.now())||error.code==='EAGY_PROFILE_CHANGED')throw error;}
-    }
-    this.identity = createHash('sha256').update(value.token.access_token).digest('hex');
-    return value.token.access_token;
-  }
+  session.account=await this.profile(session.access_token);await this.commit(session,epoch);this.accountChanged();
+ }
+ async token(force=false){
+  if(!this.migration)this.migration=this.importLegacy().catch(()=>{});
+  await this.migration;return(await this.getSession(force)).access_token;
+ }
+ async refresh(){await this.token(true);return{ok:true};}
+ async logout(){await writeJson(this.migrationFile,{disabled:true});return super.logout();}
 }

@@ -14,35 +14,6 @@ import { createProxyService } from '../proxy/service.js';
 
 const json = value => new Response(JSON.stringify(value));
 const model = id => ({ id, enabled: true, contextWindows: [], reasoningEfforts: [] });
-test('legacy keychain decoding shares one noninteractive read', async () => {
-  let reads=0;
-  const auth = new AgyAuth({tokenFile:null,credentials:{get:async()=>{
-    reads++;
-    const data = { token: { access_token: 'secret', expiry: new Date(Date.now() + 3600000).toISOString() } };
-    return 'go-keyring-base64:' + Buffer.from(JSON.stringify(data)).toString('base64');
-  }} });
-  assert.deepEqual(await Promise.all([auth.token(), auth.token()]), ['secret', 'secret']); assert.equal(reads, 1);
-});
-test('current CLI file login bypasses denied keychain and follows CLI token updates',async()=>{
- let access_token='current';const auth=new AgyAuth({readFileImpl:async()=>JSON.stringify({token:{access_token,expiry:new Date(Date.now()+3600000).toISOString()}}),credentials:{get:async()=>{throw Error('keychain must not run');}}});
- assert.equal(await auth.token(),'current');const identity=auth.identity;access_token='refreshed';assert.equal(await auth.token(),'refreshed');assert.notEqual(auth.identity,identity);
-});
-test('missing CLI file uses silent legacy reader, but malformed or expired files never switch accounts',async()=>{
- let reads=0;const credentials={get:async()=>{reads++;return JSON.stringify({token:{access_token:'legacy',expiry:new Date(Date.now()+3600000).toISOString()}});}};
- const missing=new AgyAuth({readFileImpl:async()=>{throw Object.assign(Error(),{code:'ENOENT'});},credentials});assert.equal(await missing.token(),'legacy');assert.equal(reads,1);
- for(const content of ['not json',JSON.stringify({token:{access_token:'expired',expiry:new Date(1).toISOString()}})]){
-  const auth=new AgyAuth({readFileImpl:async()=>content,credentials});
-  await assert.rejects(auth.token(),e=>['EAGY_CREDENTIALS','EAGY_REAUTH_REQUIRED'].includes(e.code));assert.equal(reads,1);
- }
- const expired=new AgyAuth({readFileImpl:async()=>JSON.stringify({token:{access_token:'expired',expiry:new Date(1).toISOString()}}),credentials});
- const provider=new AgyProvider({dataDir:'/unused',auth:expired});assert.match((await provider.status()).error,/未打开授权窗口/);provider.close();
-});
-test('AGY authorization failures remain explicit and never invoke an interactive security reader or CLI',async()=>{
- let calls=0;const error=Object.assign(new Error('钥匙串凭证需要系统授权，自动读取已停止（未弹出授权窗口）'),{code:'EKEYCHAIN_INTERACTION_REQUIRED'});
- const auth=new AgyAuth({tokenFile:null,execute:async()=>{calls++;throw Error('must not run');},credentials:{get:async()=>{throw error;}}});
- await assert.rejects(auth.token(),e=>e===error);assert.equal(calls,0);
- const provider=new AgyProvider({dataDir:'/unused',auth});assert.deepEqual(await provider.status(),{connected:false,error:error.message});provider.close();
-});
 test('router preserves names, tolerates one unavailable provider, and merges identical names', async () => {
   const a = { listModels: async () => [model('alpha')], async *stream() { yield { type: 'text', delta: 'qoder' }; } };
   const b = { listModels: async () => [model('beta')], async *stream() { yield { type: 'text', delta: 'agy' }; } };
@@ -137,7 +108,7 @@ test('AGY catalog preserves discovered aliases and metadata routes across cache 
 test('live upstream discovery preserves CLI public aliases and unified effort routes without CLI execution',async()=>{
  const {discoverModels,parseModels}=await import('../proxy/agy/models.js');
  const catalog={models:{'gemini-pro-agent':{displayName:'Gemini 3.1 Pro (High)',supportsThinking:true},'gemini-3.1-pro-high':{displayName:'Gemini 3.1 Pro (High)',supportsThinking:true},'gemini-3.1-pro-low':{displayName:'Gemini 3.1 Pro (Low)',supportsThinking:true},'internal-tab':{displayName:'internal'}},agentModelSorts:[{groups:[{modelIds:['gemini-pro-agent','gemini-3.1-pro-low','missing']}]}]};
- const auth=new AgyAuth({tokenFile:null,credentials:{get:async()=>{throw Error('must not read credentials for discovery');}}});
+ const auth=new AgyAuth({dataDir:os.tmpdir(),tokenFile:null,credentials:{get:async()=>{throw Error('must not read credentials for discovery');}}});
  assert.deepEqual(await auth.models(catalog),discoverModels(catalog));
  const models=parseModels(discoverModels(catalog),catalog);assert.equal(models.length,1);assert.equal(models[0].id,'gemini-3.1-pro');assert.deepEqual(models[0].reasoningEfforts,['low','high']);assert.equal(models[0].effortRoutes.high.upstreamId,'gemini-pro-agent');
  assert.throws(()=>discoverModels({models:{}}),/未返回可用模型/);

@@ -103,8 +103,8 @@ export async function createProxyService({ dataDir, fetchImpl = fetch, config: o
       for(const [id,rows] of router.catalogs){const next=metadata.enrich(id,rows);if(JSON.stringify(rows)!==JSON.stringify(next))router.setCatalog(id,next);}
       const definitions = await sources();
       const catalog = await (force ? router.listModels(true) : router.cachedModels());
-      const failedSources = definitions.filter(s => s.enabled && s.configured && router.errors[s.id]).map(s => ({ id:s.id, name:s.name, unconfigured:!router.catalogs.has(s.id) }));
-      return { failedSources, models: catalog.filter(m => m.enabled).map(m => ({
+      const failedSources = definitions.filter(s => s.enabled && router.errors[s.id]).map(s => ({ id:s.id, name:s.name, unconfigured:!router.catalogs.has(s.id) }));
+      return { failedSources, modelSources:Object.fromEntries([...(router.groups||[])].map(([id,models])=>[id,models.filter(m=>m.enabled).map(m=>m.provider)])), models: catalog.filter(m => m.enabled).map(m => ({
       id: m.id, name: m.displayName || m.id, source: m.provider,
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
       cost:m.cost,priceInfo:m.priceInfo,modelMetadata:m.modelMetadata,reasoningEffortsProvided:m.reasoningEffortsProvided,

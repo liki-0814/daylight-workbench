@@ -1,65 +1,59 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,writeFile,stat,readdir,rm} from 'node:fs/promises';
-import path from 'node:path';
-import os from 'node:os';
+import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
+import os from 'node:os';import path from 'node:path';
+import {agyFixture} from '../fixtures/agy-account/upstream.mjs';
 import {AgyAuth} from '../proxy/agy/auth.js';
+async function fixture(t,loggedIn=false,options={}){const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-agy-auth-'));const f=agyFixture({dataDir,loggedIn,...options});await f.ready;t.after(async()=>{f.provider.close();await rm(dataDir,{recursive:true,force:true});});return{...f,dataDir};}
 
-const fixtureClient=method=>['consumer','gcp'].includes(method)?{client_id:'fixture.apps.googleusercontent.com',client_secret:'fixture-secret'}:null;
-const profile=(expiry=1)=>({auth_method:'consumer',id_token:'identity',metadata:{keep:true},token:{access_token:'old-access',refresh_token:'old-refresh',token_type:'Bearer',expiry:new Date(expiry).toISOString()}});
-const json=(value,status=200)=>new Response(JSON.stringify(value),{status});
-const noKeychain={get:async()=>{throw Error('must not read keychain');}};
-
-test('expired AGY login refreshes once concurrently, atomically saves rotated tokens and survives restart',async t=>{
- const dir=await mkdtemp(path.join(os.tmpdir(),'agy-refresh-'));t.after(()=>rm(dir,{recursive:true,force:true}));const tokenFile=path.join(dir,'antigravity-oauth-token');
- await writeFile(tokenFile,JSON.stringify(profile()),{mode:0o600});let requests=0;
- const fetchImpl=async(url,options)=>{
-  requests++;assert.equal(url,'https://oauth2.googleapis.com/token');assert.equal(options.redirect,'error');assert.equal(options.method,'POST');assert.equal(options.body.get('grant_type'),'refresh_token');assert.equal(options.body.get('refresh_token'),'old-refresh');assert.match(options.body.get('client_id'),/\.apps\.googleusercontent\.com$/);assert.equal(options.signal.aborted,false);
-  return json({access_token:'new-access',refresh_token:'rotated-refresh',id_token:'new-identity',expires_in:3600,token_type:'Bearer'});
- };
- const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,tokenFile,fetchImpl,credentials:noKeychain});assert.deepEqual(await Promise.all([auth.token(),auth.token(),auth.token()]),['new-access','new-access','new-access']);assert.equal(requests,1);
- const stored=JSON.parse(await readFile(tokenFile,'utf8'));assert.equal(stored.token.refresh_token,'rotated-refresh');assert.equal(stored.id_token,'new-identity');assert.deepEqual(stored.metadata,{keep:true});assert.equal(stored.auth_method,'consumer');assert.ok(Date.parse(stored.token.expiry)>Date.now()+3500000);assert.equal((await stat(tokenFile)).mode&0o777,0o600);assert.deepEqual(await readdir(dir),['antigravity-oauth-token']);
- const restarted=new AgyAuth({getOAuthClientImpl:fixtureClient,tokenFile,fetchImpl,credentials:noKeychain});assert.equal(await restarted.token(),'new-access');assert.equal(requests,1);
+test('AGY browser OAuth shares callback validation and writes only its independent Keychain item',async t=>{
+ const f=await fixture(t),login=await f.auth.login(),url=new URL(login.url),p=f.auth.pending;
+ assert.equal(url.origin,'https://accounts.google.com');assert.equal(url.searchParams.get('code_challenge_method'),'S256');assert.equal(url.searchParams.get('access_type'),'offline');assert(!login.url.includes(f.client.client_secret));
+ for(const suffix of ['?code=x&state=wrong','?code=x&state='+p.state+'&state='+p.state])assert.equal((await fetch(p.redirectUri+suffix)).status,400);
+ assert.equal(f.keys.size,0);assert.equal((await f.complete()).status,200);assert.equal((await f.auth.poll()).authorized,true);assert.deepEqual([...f.keys.keys()],['agy-oauth']);assert.equal(await f.auth.token(),'synthetic-access-1');
+ const request=f.calls.find(x=>x.url.endsWith('/token'));const fields=new URLSearchParams(request.options.body);assert.equal(fields.get('code_verifier'),p.verifier);assert.equal(fields.get('client_secret'),f.client.client_secret);assert.equal(fields.get('redirect_uri'),p.redirectUri);
+ await f.provider.listModels();assert.equal(f.provider.snapshot().account.login,'agy-user@example.test');
+});
+test('AGY cancellation, denial, expiry and close keep the existing account and release callbacks',async t=>{
+ const f=await fixture(t,true),original=f.keys.get('agy-oauth');
+ await f.auth.login();await f.auth.cancel();assert.equal(f.auth.listener,null);assert.equal(f.keys.get('agy-oauth'),original);
+ await f.auth.login();let p=f.auth.pending;assert.equal((await fetch(p.redirectUri+'?'+new URLSearchParams({state:p.state,error:'access_denied'}))).status,400);assert.equal((await f.auth.poll()).status,'denied');
+ await f.auth.login();f.advance(300001);p=f.auth.pending;assert.equal((await fetch(p.redirectUri+'?'+new URLSearchParams({state:p.state,code:'expired'}))).status,400);await f.auth.cancel();
+ await f.auth.login();f.auth.close();assert.equal(f.auth.listener,null);await assert.rejects(f.auth.login(),/已关闭/);assert.equal(f.keys.get('agy-oauth'),original);
+});
+test('AGY independent refresh is deduplicated, rotates tokens and never reads or writes a CLI',async t=>{
+ const f=await fixture(t,true,{readFileImpl:async()=>{throw Error('must not read CLI');},credentials:{get:async()=>{throw Error('must not read legacy Keychain');}}});f.advance(3600000);
+ const result=await Promise.all([f.auth.token(),f.auth.token(),f.auth.token()]);assert.deepEqual(result,['synthetic-access-2','synthetic-access-2','synthetic-access-2']);assert.equal(f.calls.filter(c=>c.url.endsWith('/token')).length,1);assert.equal(JSON.parse(f.keys.get('agy-oauth')).refresh_token,'synthetic-refresh-2');
+ const restarted=new AgyAuth({dataDir:f.dataDir,secrets:f.secrets,getOAuthClientImpl:async()=>f.client,fetchImpl:f.fetchImpl,now:()=>Date.now()+3600000});t.after(()=>restarted.close());assert.equal(await restarted.token(),'synthetic-access-2');
+});
+test('failed refresh and identity mismatch retain old credentials without exposing provider responses',async t=>{
+ const f=await fixture(t,true),before=f.keys.get('agy-oauth');f.advance(3600000);f.auth.fetchImpl=async()=>Response.json({error:'invalid_grant',error_description:'SECRET'}, {status:400});await assert.rejects(f.auth.token(),e=>!e.message.includes('SECRET'));assert.equal(f.keys.get('agy-oauth'),before);
+ f.auth.fetchImpl=f.fetchImpl;f.switchAccount();await assert.rejects(f.auth.token(),/账号身份/);assert.equal(f.keys.get('agy-oauth'),before);
+});
+test('logout wins over refresh and clears catalog/signatures without resurrecting a legacy login',async t=>{
+ const f=await fixture(t,true);await f.provider.listModels();f.provider.signatures.set('old',{});const gate=Promise.withResolvers(),started=Promise.withResolvers(),fetchImpl=f.auth.fetchImpl;
+ f.advance(3600000);f.auth.fetchImpl=async(...args)=>{if(args[0].endsWith('/token')){started.resolve();await gate.promise;}return fetchImpl(...args);};const refresh=f.auth.token();await started.promise;await f.auth.logout();gate.resolve();await assert.rejects(refresh);assert(!f.keys.has('agy-oauth'));assert.equal(f.provider.cache,undefined);assert.equal(f.provider.signatures.size,0);assert.equal((await f.provider.status()).connected,false);
+});
+for(const kind of ['file','keychain'])test('one-time '+kind+' legacy import preserves the original bytes and remains independent after restart',async t=>{
+ const raw=JSON.stringify({auth_method:'consumer',metadata:{keep:true},token:{access_token:'old-access',refresh_token:'old-refresh',expiry:new Date(Date.now()+3600000).toISOString()}}),encoded='go-keyring-base64:'+Buffer.from(raw).toString('base64');let reads=0;
+ const f=await fixture(t,false,{tokenFile:kind==='file'?'/synthetic/token':null,readFileImpl:async()=>{reads++;return raw;},credentials:{get:async()=>{reads++;return encoded;}}});assert.equal(await f.auth.token(),'old-access');assert.equal(reads,1);assert.equal(JSON.parse(f.keys.get('agy-oauth')).account.id,'agy-user');assert.equal(raw,JSON.stringify(JSON.parse(raw)));
+ await f.auth.logout();await assert.rejects(f.auth.token());assert.equal(reads,1);
+ const restarted=new AgyAuth({dataDir:f.dataDir,secrets:f.secrets,tokenFile:null,credentials:{get:async()=>{throw Error('must not reimport');}}});t.after(()=>restarted.close());await assert.rejects(restarted.token());
+});
+test('unreadable legacy credentials do not prevent independent browser login',async t=>{
+ const f=await fixture(t,false,{credentials:{get:async()=>{throw Object.assign(Error('denied'),{code:'EKEYCHAIN_AUTH_FAILED'});}}});await assert.rejects(f.auth.token(),/网页登录/);await f.auth.login();assert.equal((await f.complete()).status,200);assert.equal(await f.auth.token(),'synthetic-access-1');
+});
+test('AGY 403 and missing project remain account failures while OAuth login stays saved',async t=>{
+ const f=await fixture(t,true);f.fail(403);assert.match((await f.provider.status(true)).error,/权限或资格/);assert(f.keys.has('agy-oauth'));
+ f.fail(0);f.provider.fetchImpl=async()=>Response.json({});assert.match((await f.provider.status(true)).error,/尚未完成开通/);assert(f.keys.has('agy-oauth'));
+});
+test('account change prevents a late AGY directory check from overwriting new state',async t=>{
+ const f=await fixture(t,true),gate=Promise.withResolvers(),started=Promise.withResolvers(),request=f.provider.fetchImpl;
+ f.provider.fetchImpl=async(...args)=>{if(args[0].endsWith('fetchAvailableModels')){started.resolve();await gate.promise;}return request(...args);};const check=f.provider.status();await started.promise;await f.auth.logout();gate.resolve();assert.equal((await check).connected,false);assert.equal(f.provider.cache,undefined);assert.equal(f.provider.lastError,null);
 });
 
-test('refresh preserves refresh token and identity when Google omits them',async()=>{
- let stored=profile(),writes=0;
- const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,readFileImpl:async()=>JSON.stringify(stored),credentials:noKeychain,writeJsonImpl:async(_,value)=>{stored=value;writes++;},fetchImpl:async()=>json({access_token:'new',expires_in:3600})});
- assert.equal(await auth.token(),'new');assert.equal(writes,1);assert.equal(stored.token.refresh_token,'old-refresh');assert.equal(stored.id_token,'identity');
-});
-
-test('temporary refresh errors retain valid near-expiry token, back off and retry after expiry without leaking responses',async()=>{
- let now=100000,stored=profile(now+45000),requests=0,writes=0;
- const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,now:()=>now,readFileImpl:async()=>JSON.stringify(stored),credentials:noKeychain,writeJsonImpl:async(_,v)=>{writes++;stored=v;},fetchImpl:async()=>{requests++;return requests===1?json({error_description:'old-refresh SECRET'},503):json({access_token:'recovered',expires_in:3600});}});
- assert.equal(await auth.token(),'old-access');assert.equal(await auth.token(),'old-access');assert.equal(requests,1);assert.equal(writes,0);now+=46000;assert.equal(await auth.token(),'recovered');assert.equal(requests,2);assert.equal(writes,1);
-});
-
-test('invalid refresh grants stop quietly, retain credentials and do not repeatedly call Google',async()=>{
- const stored=profile();let requests=0,writes=0;
- const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,readFileImpl:async()=>JSON.stringify(stored),credentials:noKeychain,writeJsonImpl:async()=>{writes++;},fetchImpl:async()=>{requests++;return json({error:'invalid_grant',error_description:'old-refresh SECRET'},400);}});
- for(let i=0;i<2;i++)await assert.rejects(auth.token(),e=>e.code==='EAGY_REAUTH_REQUIRED'&&!e.message.includes('SECRET')&&e.message.includes('未打开授权窗口'));
- assert.equal(requests,1);assert.equal(writes,0);assert.equal(stored.token.access_token,'old-access');
-});
-
-test('network failure and invalid refresh payload never overwrite the login file or expose credentials',async()=>{
- for(const fetchImpl of [async()=>{throw Error('old-refresh SECRET');},async()=>json({access_token:'bad',expires_in:0}),async()=>new Response('not json')]){
-  let writes=0;const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,readFileImpl:async()=>JSON.stringify(profile()),credentials:noKeychain,writeJsonImpl:async()=>{writes++;},fetchImpl});
-  await assert.rejects(auth.token(),e=>e.code==='EAGY_REFRESH_FAILED'&&!e.message.includes('SECRET'));assert.equal(writes,0);
- }
-});
-
-test('CLI account switch, concurrent refresh or logout wins over an in-flight refresh',async()=>{
- for(const change of ['refresh','switch','logout']){
-  let stored=profile(),writes=0;
-  const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,readFileImpl:async()=>{if(stored===null)throw Object.assign(Error(),{code:'ENOENT'});return JSON.stringify(stored);},credentials:noKeychain,writeJsonImpl:async()=>{writes++;},fetchImpl:async()=>{stored=change==='logout'?null:profile(Date.now()+3600000);if(stored)stored.token.access_token=change==='switch'?'different-account':'cli-renewed';return json({access_token:'stale-refresh',expires_in:3600});}});
-  if(change==='logout')await assert.rejects(auth.token(),{code:'EAGY_PROFILE_CHANGED'});else assert.equal(await auth.token(),stored?.token.access_token);
-  assert.equal(writes,0);
- }
-});
-
-test('save failure reports a private error and unknown auth methods never fall back to another OAuth client',async()=>{
- const auth=new AgyAuth({getOAuthClientImpl:fixtureClient,readFileImpl:async()=>JSON.stringify(profile()),credentials:noKeychain,writeJsonImpl:async()=>{throw Error('SECRET');},fetchImpl:async()=>json({access_token:'new',expires_in:3600})});
- await assert.rejects(auth.token(),e=>e.code==='EAGY_REFRESH_FAILED'&&e.message.includes('保存失败')&&!e.message.includes('SECRET'));
- let requests=0;const other={...profile(),auth_method:'wif'};const unsupported=new AgyAuth({getOAuthClientImpl:fixtureClient,readFileImpl:async()=>JSON.stringify(other),credentials:noKeychain,fetchImpl:async()=>{requests++;}});
- await assert.rejects(unsupported.token(),/不支持静默刷新/);assert.equal(requests,0);
+test('late AGY credential reads cannot send inference with a switched account',async t=>{
+ const f=await fixture(t,true);await f.provider.listModels();const token=f.auth.token.bind(f.auth);let reads=0,sends=0;
+ f.auth.token=async()=>{if(++reads===2)await f.auth.cancel();return token();};const fetchImpl=f.provider.fetchImpl;f.provider.fetchImpl=async(...args)=>{if(args[0].includes('streamGenerateContent'))sends++;return fetchImpl(...args);};
+ const events=await Array.fromAsync(f.provider.stream({model:'agy-fixture',messages:[{role:'user',content:'hello'}],options:{}},{}));assert.equal(events.at(-1).type,'error');assert.equal(sends,0);
 });

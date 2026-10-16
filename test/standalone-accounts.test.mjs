@@ -54,9 +54,9 @@ test('Codex public Responses preserves namespace tools and retries a 401 exactly
  await f.provider.forward({model:'codex-fixture',input:'Hi',tools:[{type:'function',name:'echo',parameters:{type:'object'}}]},'responses',{});assert.equal(sends,2);assert.equal(body.tools[0].type,'namespace');assert.equal(body.store,false);assert.equal(body.stream,true);
  await assert.rejects(f.provider.forward({model:'codex-fixture',input:'Hi',max_output_tokens:32},'responses',{}),/max_output_tokens/);
 });
-test('five account descriptions expose the shared login, refresh and logout operations',async t=>{
+test('six account descriptions expose the shared login, refresh and logout operations',async t=>{
  const {sourceDescription:qoder}=await import('../proxy/qoder/provider.js'),{sourceDescription:copilot}=await import('../proxy/copilot/provider.js');
- for(const source of [qoder,copilot,...await Promise.all(['kimi','grok','codex'].map(async id=>(await import('../proxy/'+id+'/provider.js')).sourceDescription))]){assert.equal(source.authentication.mode,'browser');for(const op of ['login','poll','cancel','refresh','logout'])assert(source.authentication.operations.includes(op));}
+ for(const source of [qoder,copilot,...await Promise.all(['agy','kimi','grok','codex'].map(async id=>(await import('../proxy/'+id+'/provider.js')).sourceDescription))]){assert.equal(source.authentication.mode,'browser');for(const op of ['login','poll','cancel','refresh','logout'])assert(source.authentication.operations.includes(op));}
 });
 
 test('cancel and logout supersede a pending UI login poll without restoring its result',async()=>{

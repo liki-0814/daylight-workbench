@@ -4,7 +4,7 @@
 
 标签栏右侧“显示来源”可勾选需要显示的来源，默认全部显示，保存后在本机持续生效。隐藏只影响来源页面，不会停用来源、退出账号、删除配置或改变模型路由，代理运行时也能修改。模型路由始终可见；当前来源被隐藏时切换到第一个可见页面。显示设置独立保存在 `qoder/view.json`，记录隐藏项而非固定的可见白名单，新增来源默认显示。
 
-除 AGY 外，Qoder、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，无需安装对应 CLI。来源页复用同一账号栏：未登录时提供网页登录，登录后显示账号、刷新登录和退出账号；“刷新登录”续期当前凭据并重新检测目录。Qoder 更换或退出账号前仍需停止代理。取消待完成的授权不删除已有账号，退出只清除 Daylight 保存的该来源凭据，不修改 CLI 登录文件。Kimi、Grok、Codex 和 Copilot 凭据保存在 macOS Keychain。
+Qoder、AGY、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，无需安装对应 CLI。来源页复用同一账号栏：未登录时提供网页登录，登录后显示账号、刷新登录和退出账号；“刷新登录”续期当前凭据并重新检测目录。Qoder 更换或退出账号前仍需停止代理。取消待完成的授权不删除已有账号，退出只清除 Daylight 保存的该来源凭据，不修改 CLI 登录文件。AGY、Kimi、Grok、Codex 和 Copilot 凭据保存在 macOS Keychain。
 
 独立认证仅用于反向代理。AI 对话的 Codex / Qoder 执行后端继续使用各自 CLI；AI 管理工具可以为所有上述来源生成登录、取消、刷新及退出草稿，由用户审阅应用。
 
@@ -12,8 +12,10 @@
 
 - 默认监听 `127.0.0.1:4319`，端口可配置。OpenAI Base URL 为 `http://127.0.0.1:4319/v1`，Anthropic Base URL 为 `http://127.0.0.1:4319`。
 - 提供 `/v1/models`、`/v1/chat/completions`、`/v1/responses`、`/v1/messages`，支持流式响应。客户端必须发送页面中的 API Key（Bearer 或 `x-api-key`）。
-- Qoder 使用 PKCE 浏览器授权，登录成功后自动保存并刷新令牌。AGY 优先复用当前 CLI 的 `~/.gemini/antigravity-cli/antigravity-oauth-token` 登录文件；仅文件不存在时静默读取旧版 macOS 钥匙串凭证。请求前令牌剩余不足一分钟时，使用原登录方式对应的 OAuth 客户端和已有 refresh token 直接向 Google 静默续期；并发合并为一次刷新，新令牌以 0600 权限原子写回同一文件，保留刷新令牌、账号信息和其他字段。刷新期间 CLI 已更新、切换或删除登录时不覆盖其变化。临时失败保留尚未到期的令牌，并在 30 秒后允许重试；只有刷新令牌失效或缺失时提示需要重新授权，始终不自动打开钥匙串或浏览器授权窗口。推理直接请求上游，不启动 Agent 对话。页面的连接测试检查鉴权和模型目录，不发送推理请求。
-- AGY 静默刷新使用本机 OAuth 客户端配置，默认路径为 `~/.config/daylight/agy-oauth-clients.json`，可用 `DAYLIGHT_AGY_OAUTH_CLIENTS_FILE` 指定其他路径。文件按登录方式 `consumer` / `gcp` 保存 `client_id` 和 `client_secret`，建议权限为 `0600`。源码和安装包不包含这些参数；现有登录令牌与刷新令牌仍复用 CLI 原文件。配置缺失时保留登录并提示配置，不打开授权窗口。
+- Qoder 使用 PKCE 浏览器授权，登录成功后自动保存并刷新令牌。AGY 通过 Google 官方 OAuth 网页独立登录，使用本机 `localhost:51121/oauth-callback` 回调、state 和 PKCE；回调服务只监听 `127.0.0.1`，取消、过期和关闭会释放端口。令牌存入 Daylight 自有的 `agy-oauth` Keychain 项，续期复用公共账号机制，不启动 CLI。
+- AGY 登录及续期使用本机 OAuth 客户端配置，默认路径为 `~/.config/daylight/agy-oauth-clients.json`，可用 `DAYLIGHT_AGY_OAUTH_CLIENTS_FILE` 指定其他路径。文件按 `consumer` / `gcp` 保存 `client_id` 和 `client_secret`，建议权限为 `0600`；网页登录使用 `consumer`。源码和安装包不包含这些参数。配置缺失时提示配置并保留已有登录。
+- 兼容升级时，没有 Daylight 独立凭据才尝试一次导入旧 CLI 登录文件或旧版 Keychain。可读取且有效的账号复制到 Daylight；原记录不修改、不删除。旧凭据不可读取不阻止新网页登录。退出会阻止以后重新导入，避免已退出的账号自动恢复。此后续期仅更新 Daylight 凭据，CLI 切换账号不会自动替换 Daylight 登录。
+- Google 授权成功后还要通过 AGY 项目和模型目录检查。未开通、账号权限/资格失败与登录失效分别提示，不把目录成功当作真实推理成功。推理直接请求上游，不启动 Agent 对话；页面连接检查不发推理请求。
 - 模型名不加来源前缀，后台按名称分发。同名模型对外只显示一次，在“模型路由”设置主用和备用顺序；可重试故障仅在输出开始前尝试备用。显式会话标识可绑定成功来源，没有会话标识时固定优先级。AGY 模型目录直接读取上游推荐模型及具体推理档位，保留上游提供的 CLI 公共别名和模型路由，缓存 5 分钟，点击刷新可立即重新发现；额度直接读取上游共享额度汇总，展示 Claude/GPT、Gemini 的 5 小时和 7 天周期。
 - AGY 支持文本、base64 图片、工具调用/结果回传、`tool_choice`、`temperature`、`top_p`、`top_k`、停止序列与输出长度。Claude 与 Gemini tiered 模型支持 `low/medium/high`：Chat 使用 `reasoning_effort`，Responses 使用 `reasoning.effort`，Messages 使用 `output_config.effort`；页面可保存默认强度，请求参数优先。Gemini 按通用规则合并：同一基础 ID 仅末尾 `low/medium/high/xhigh/max` 档位不同，且本机发现至少两档时，自动合为一个模型，无需逐版本配置。可选强度以实际发现档位为准；请求参数优先于页面默认值，自动默认取 medium（若无则 high）。Flash 使用 tiered 模型加思考档位；Pro 按档位选择各自的上游模型和上游提供的思考预算。3.1 Pro 仅 low/high，不提供 medium。
 - Claude 支持 `thinking: {type: "adaptive"}`、`{type: "enabled", budget_tokens: 1024}`（预算至少 1024 且小于 `max_tokens`）和 `{type: "disabled"}`；OpenAI 协议可使用 `reasoning_effort: "none"` / `reasoning.effort: "none"` 关闭。手动预算不与 effort 混用。Messages 流式/非流式保留思考块签名，可用于下一轮。工具签名仍在当前进程内保存，重启后应开启新工具会话。
@@ -21,7 +23,7 @@
 - 三种协议共用 token/cache usage 转换与请求记录。AGY 仅映射上游实际返回的缓存读取量，缺失计数不记为零；自动缓存由上游决定，显式缓存写入/TTL 未适配。不估算金额或 Credits，也不把账户共享配额当作单次请求费用。
 - 模型目录保留通用模型和企业模型，跳过团队自定义目录及名称标注“专属”的模型。Credits 用量图直接读取 Qoder 的个人额度和团队资源包，显示已用、剩余及总额度，包含其他客户端的使用；不以 Tokens 估算，也不将额度快照当作每日消费历史。
 - App 自动检测 PATH、Homebrew、nvm、mise、fnm 和 Volta 中的 Node，也可手动指定绝对路径。使用标准 Node API，无额外 npm 运行依赖，不打包 Node。
-- 共用服务配置和请求用量沿用 Daylight 数据目录的 `qoder/`，AGY 模型设置单独存放在 `agy/`；文件权限为 0600。用量只记录来源、模型、结果、耗时、重试和 token 数，保留最近 1,000 次请求，不记录 prompt 或工具参数。AGY 凭证不另存到数据目录。
+- 共用服务配置和请求用量沿用 Daylight 数据目录的 `qoder/`，AGY 模型设置单独存放在 `agy/`；文件权限为 0600。用量只记录来源、模型、结果、耗时、重试和 token 数，保留最近 1,000 次请求，不记录 prompt 或工具参数。AGY 令牌保存于 Keychain；`agy/auth.json` 只记录退出后禁止重新导入旧登录的标记。
 - 原生任务服务保持独立；代理与 AI 分别使用按需启动的 Node 子进程。Node 不可用或代理配置损坏时，任务管理继续工作。退出父进程后子进程自动停止。
 
 
@@ -88,7 +90,7 @@ Copilot 使用 GitHub 账号独立网页登录，无需安装、运行或读取�
 
 模型参考目录每 24 小时检查更新，可在页面主动刷新；在线同名条目优先于本地补充，失败时保留最近有效缓存。Grok 的隐式缓存建立计入普通输入：参考价表未单列缓存写入价时，Pi 的 `cacheWrite` 按对应基础档或长上下文档的输入单价映射。其他模型的未知价格保持为空，不按零计费；订阅渠道明确显示参考估算。
 
-Pi 自动同步遇到其他来源目录失败时，全量模型同步仍暂停；已接入且当前可用模型的完整参考价表可以独立更新。此路径只改价格，保留模型列表、能力参数、默认模型和个性化配置。AGY 登录项复用禁止系统交互的原生凭证助手读取，钥匙串认证失败与上游登录失效分别处理。
+Pi 按来源同步：目录正常的来源继续更新模型、容量和参考价表；目录失败的来源保留原有模型及配置，标记“暂不可用 · 已保留”，恢复后重新参与正常同步。`cli/pi-sync.json` 保存每个模型的来源集合；旧配置没有来源记录时，在部分来源失败期间保守保留归属未知的模型。保留模型不会清除当前默认值、个性化设置或私有请求头，也不会将私有请求头输出到页面/AI 预览。其他 providers、Pi 登录文件及默认思考设置不变。存在保留模型时，禁止更换全局协议、地址或 Key，避免原配置失效。写入仍使用版本校验、外部修改保护、自动备份和恢复。
 
 ## 来源状态与请求诊断
 
@@ -109,4 +111,6 @@ Pi 自动同步遇到其他来源目录失败时，全量模型同步仍暂停�
 
 认证参考：[Kimi Code 官方 OAuth 实现](https://github.com/MoonshotAI/kimi-code/tree/ef727e517923cb312cb48d42825c49dfacd528e7/packages/oauth)、[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)、[ChatGPT 开源接入](https://developers.openai.com/siwc/token-sharing-open-source)。这次没有引入这些项目作为运行时依赖。
 
-`test/standalone-accounts.test.mjs` 使用隔离凭据和模拟上游验证登录、续期、取消、退出、回调校验及账号隔离；`scripts/check-standalone-pi.mjs` 使用本机 Pi 验证三个独立来源的工具调用和多轮回传。模拟验证不代表真实账号已完成授权或推理。
+`test/standalone-accounts.test.mjs` 使用隔离凭据和模拟上游验证登录、续期、取消、退出、回调校验及账号隔离；`scripts/check-standalone-pi.mjs` 使用本机 Pi 验证 Kimi、Grok、Codex、AGY 四个独立来源的工具调用和多轮回传。模拟验证不代表真实账号已完成授权或推理。
+
+AGY 独立 OAuth 的端点、scope、回调和项目发现参考 [CLIProxyAPI 固定版本源码](https://github.com/router-for-me/CLIProxyAPI/tree/355fd10e76b82e03ba6625acc583b900286e4bf2/internal/auth/antigravity)。本次 AGY 授权、续期、退出及 Pi 检查使用隔离凭据和模拟上游；真实账号由用户登录后，再验证推理与工具续接。
