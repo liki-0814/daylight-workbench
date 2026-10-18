@@ -11,7 +11,7 @@ import {fixture,catalog} from '../fixtures/copilot/upstream.mjs';
 import {createWorkbench} from '../server.mjs';
 import {definitions} from '../ai/tools/definitions.mjs';
 import {createProxyState} from '../public/proxy/state.js';
-async function setup(t,loggedIn=false){const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-copilot-'));const f=fixture({dataDir,loggedIn});t.after(async()=>{f.p.close();await rm(dataDir,{recursive:true,force:true});});return{...f,dataDir};}
+async function setup(t,loggedIn=false){const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-copilot-'));const f={...fixture({dataDir,loggedIn}),dataDir};t.after(async()=>{await f.beforeCleanup?.();f.p.close();await rm(dataDir,{recursive:true,force:true,maxRetries:3});});return f;}
 const safe=value=>{for(const secret of ['synthetic-github-secret','synthetic-copilot-secret','synthetic-device-secret'])assert(!JSON.stringify(value).includes(secret));};
 
 test('independent GitHub device login throttles polls, stores only in Keychain, and returns safe metadata',async t=>{
@@ -91,11 +91,11 @@ test('saved GitHub login survives restart and token proxy-ep selects the validat
 });
 test('terminal browser authorization stays visible for cancellation and stops polling',async()=>{
  let polls=0;const state=createProxyState({request:async path=>path==='sources'?{sources:[]}:({}),source:async(id,op)=>op==='auth/login'?{status:'pending',url:'https://github.com/login/device',expiresAt:Date.now()+60000}:op==='auth/poll'?(polls++,{status:'denied'}):({status:'cancelled'})});
- await state.auth('copilot','login');await state.pollLogins();await state.pollLogins();assert.equal(polls,1);assert.equal(state.login('copilot').terminal,true);assert.match(state.login('copilot').error,/denied/);await state.auth('copilot','cancel');assert.equal(state.login('copilot'),undefined);state.dispose();
+ await state.auth('copilot','login');await state.pollLogins();await state.pollLogins();assert.equal(polls,1);assert.equal(state.login('copilot').terminal,true);assert.match(state.login('copilot').error,/授权已取消/);await state.auth('copilot','cancel');assert.equal(state.login('copilot'),undefined);state.dispose();
 });
 test('HTTP gateway, safe AI review, Pi sync, streaming tools and logout share the Copilot provider',async t=>{
  const f=await setup(t);const server=await createWorkbench({dataDir:f.dataDir,proxyOptions:{provider:{listModels:async()=>[]},copilotProvider:f.p,includeGateway:false,includeAgy:false,includeGrok:false,pricingOptions:{enabled:false},piOptions:{piDir:path.join(f.dataDir,'pi'),getInfo:async()=>({installed:true})}}});
- await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(async()=>{await server.closeProxy();server.closeAllConnections();await new Promise(r=>server.close(r));});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));f.beforeCleanup=async()=>{await server.closeProxy();server.closeAllConnections();await new Promise(r=>server.close(r));};
  const base='http://127.0.0.1:'+server.address().port,token=(await(await fetch(base+'/api/state')).json()).token;
  const api=async(route,body)=>{const r=await fetch(base+route,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','x-workbench-token':token},...(body===undefined?{}:{body:JSON.stringify(body)})});const value=await r.json();assert.equal(r.status,200,JSON.stringify(value));safe(value);return value;};
  const state=await api('/api/proxy-tools/state');const action={type:'auth.login',sourceId:'copilot'};

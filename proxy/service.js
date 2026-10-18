@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {networkFetch} from './shared/network.js';
 import path from 'node:path';
 import {randomBytes} from 'node:crypto';
 import {createPiConfig} from '../cli/pi-config.js';
@@ -14,8 +15,8 @@ import {createGateway,fail} from './gateway.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
-export async function createProxyService({ dataDir, fetchImpl = fetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
-  const metadata=createModelMetadata({dataDir,enabled:!injectedProvider,...pricingOptions});
+export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
+  const metadata=createModelMetadata({dataDir,fetchImpl,enabled:!injectedProvider,...pricingOptions});
   const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,customSources,metadata,getPort:()=>settings.port});
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');

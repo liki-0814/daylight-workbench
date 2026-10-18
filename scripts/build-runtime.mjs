@@ -12,7 +12,7 @@ const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const builtins = new Set(builtinModules.map(name => name.replace(/^node:/, '')));
 
 export async function buildRuntime(resources, root = project) {
-  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'extensions/config-document.mjs'];
+  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'extensions/config-document.mjs', 'proxy/shared/network.js'];
   const results = [], artifacts = [];
   for (const entry of entries) {
   const output = path.join(resources, entry);

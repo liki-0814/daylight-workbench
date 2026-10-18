@@ -71,7 +71,7 @@
 | Qoder | `quota.js` | Credits、团队包、按账号隔离的额度快照历史 |
 | AGY | `provider.js` | 认证、目录缓存、有效设置与上游执行编排 |
 | AGY | `auth.js` | 独立 Google OAuth、Keychain、静默续期及旧登录只读导入 |
-| AGY | `oauth-client.js` | 读取本机 OAuth 客户端配置，校验登录方式与必需字段 |
+| AGY | `oauth-client.js`、`client-discovery.js` | 优先读取本机 OAuth 配置，缺失时只读检测官方安装中的已知 consumer 客户端；校验登录方式和参数，不执行 CLI 或读取账号令牌 |
 | AGY | `protocol.js` | 生成请求、思考配置、图片、工具、响应与签名适配 |
 | AGY | `models.js` | CLI 别名与上游能力合并、Gemini 思考档位归并 |
 | AGY | `quota.js` | 共享额度分组与周期解析 |

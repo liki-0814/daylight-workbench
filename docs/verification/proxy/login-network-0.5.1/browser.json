@@ -1,0 +1,161 @@
+{
+  "rows": [
+    {
+      "width": 1280,
+      "id": "qoder",
+      "account": {
+        "x": 282,
+        "y": 817,
+        "width": 954,
+        "height": 73
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 1280,
+      "id": "agy",
+      "account": {
+        "x": 282,
+        "y": 817,
+        "width": 954,
+        "height": 73
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 1280,
+      "id": "grok",
+      "account": {
+        "x": 282,
+        "y": 817,
+        "width": 954,
+        "height": 73
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 1280,
+      "id": "codex",
+      "account": {
+        "x": 282,
+        "y": 817,
+        "width": 954,
+        "height": 73
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 1280,
+      "id": "kimi",
+      "account": {
+        "x": 282,
+        "y": 817,
+        "width": 954,
+        "height": 73
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 1280,
+      "id": "copilot",
+      "account": {
+        "x": 282,
+        "y": 817,
+        "width": 954,
+        "height": 73
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 720,
+      "id": "qoder",
+      "account": {
+        "x": 237,
+        "y": 808,
+        "width": 456,
+        "height": 81
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 720,
+      "id": "agy",
+      "account": {
+        "x": 237,
+        "y": 808,
+        "width": 456,
+        "height": 81
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 720,
+      "id": "grok",
+      "account": {
+        "x": 237,
+        "y": 808,
+        "width": 456,
+        "height": 81
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 720,
+      "id": "codex",
+      "account": {
+        "x": 237,
+        "y": 808,
+        "width": 456,
+        "height": 103
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 720,
+      "id": "kimi",
+      "account": {
+        "x": 237,
+        "y": 808,
+        "width": 456,
+        "height": 81
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    },
+    {
+      "width": 720,
+      "id": "copilot",
+      "account": {
+        "x": 237,
+        "y": 808,
+        "width": 456,
+        "height": 81
+      },
+      "keyboard": true,
+      "login": true,
+      "cancel": true
+    }
+  ],
+  "pageErrors": []
+}

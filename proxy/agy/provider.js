@@ -1,3 +1,4 @@
+import {operationError} from '../shared/operation-error.js';
 import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {agyQuota} from './quota.js';
@@ -53,7 +54,7 @@ export class AgyProvider {
     const { models } = await this.catalog(force), settings = await readJson(this.file, { disabled: [] });
     return applyCapacitySettings(models,settings).map(m => ({ ...m, enabled: !(settings.disabled||[]).includes(m.id) && !(m.variantIds?.every(id => (settings.disabled||[]).includes(id))), effort: settings.efforts?.[m.id] }));
   }
-  async status(force=false){return checkAccountCatalog(this,force,{error:e=>e.code?.startsWith('EAGY_')||e.status===401?e.message:'无法连接 AGY，请检查登录状态、账号资格或网络'});}
+  async status(force=false){return checkAccountCatalog(this,force,{error:e=>operationError(e,'无法连接 AGY，请检查登录状态、账号资格或网络')});}
   async quota() {
     const epoch=this.auth.epoch,{ project,identity } = await this.catalog();
     const data = await (await this.call('retrieveUserQuotaSummary', { project },undefined,{identity,epoch})).json();

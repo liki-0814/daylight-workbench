@@ -41,7 +41,7 @@ export function createProxyState(api){
    if(epoch!==(authEpochs.get(id)||0))return{status:'cancelled'};
    if(['login','refresh'].includes(operation)&&result?.url)logins.set(id,result);
    if(['cancel','logout'].includes(operation)||result?.authorized||result?.status==='authenticated')logins.delete(id);
-   if(operation==='poll'&&result?.status&&result.status!=='pending'&&result.status!=='authenticated')logins.set(id,{...logins.get(id),terminal:true,error:'登录未完成：'+result.status});
+   if(operation==='poll'&&result?.status&&result.status!=='pending'&&result.status!=='authenticated')logins.set(id,{...logins.get(id),terminal:true,error:result.error||({denied:'授权已取消，请重新登录',expired:'授权已过期，请重新登录',failed:'登录未完成，请重试'})[result.status]||'登录未完成，请重试'});
    if(operation!=='poll'||result?.authorized||result?.status==='authenticated'){invalidate(id);await refresh();}
    notify();return result;
   })();authTasks.set(id,task);try{return await task;}finally{if(authTasks.get(id)===task)authTasks.delete(id);}

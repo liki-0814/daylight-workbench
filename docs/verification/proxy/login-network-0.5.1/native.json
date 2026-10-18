@@ -1,0 +1,57 @@
+{
+  "version": "0.5.1",
+  "environment": "Native packaged app; no shell proxy or certificate variables; system HTTP/HTTPS proxy",
+  "node": "v23.11.0",
+  "realUpstreams": true,
+  "scope": "Authorization initiation, waiting poll and cancellation only. User consent, token exchange and inference require an account and are not claimed.",
+  "sources": [
+    {
+      "source": "copilot",
+      "loginHTTP": 200,
+      "verificationHost": "github.com",
+      "pollHTTP": 200,
+      "pollStatus": "pending",
+      "cancelHTTP": 200
+    },
+    {
+      "source": "grok",
+      "loginHTTP": 200,
+      "verificationHost": "accounts.x.ai",
+      "pollHTTP": 200,
+      "pollStatus": "pending",
+      "cancelHTTP": 200
+    },
+    {
+      "source": "kimi",
+      "loginHTTP": 200,
+      "verificationHost": "www.kimi.com",
+      "pollHTTP": 200,
+      "pollStatus": "pending",
+      "cancelHTTP": 200
+    },
+    {
+      "source": "codex",
+      "loginHTTP": 200,
+      "verificationHost": "auth.openai.com",
+      "pollHTTP": 200,
+      "pollStatus": "pending",
+      "cancelHTTP": 200
+    },
+    {
+      "source": "qoder",
+      "loginHTTP": 200,
+      "verificationHost": "qoder.com",
+      "pollHTTP": 200,
+      "pollStatus": "pending",
+      "cancelHTTP": 200
+    },
+    {
+      "source": "agy",
+      "loginHTTP": 200,
+      "verificationHost": "accounts.google.com",
+      "pollHTTP": 200,
+      "pollStatus": "pending",
+      "cancelHTTP": 200
+    }
+  ]
+}

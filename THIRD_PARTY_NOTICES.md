@@ -7,6 +7,7 @@ dependencies retain their own copyright notices and license terms.
 | --- | --- | --- | --- |
 | [Marked](https://github.com/markedjs/marked) | 18.0.14 | Vendored browser Markdown parser in `public/components/marked.js` | [MIT and included Markdown notice](licenses/marked-LICENSE) |
 | [DOMPurify](https://github.com/cure53/DOMPurify) | 3.4.16 | Vendored browser HTML sanitizer in `public/components/purify.js` | [Apache-2.0 OR MPL-2.0](licenses/dompurify-LICENSE) |
+| [Undici](https://github.com/nodejs/undici) | 7.30.1 | Shared HTTP/HTTPS proxy transport for source login and API requests | [MIT](licenses/undici-LICENSE) |
 | [Zod](https://github.com/colinhacks/zod) | 3.25.76 | npm dependency for schema validation | [MIT](licenses/zod-LICENSE) |
 | [Qoder Agent SDK](https://docs.qoder.com/cli) | 1.0.39 | npm dependency for the local Qoder adapter | [Qoder Product Service Terms](licenses/qoder-agent-sdk-LICENSE) |
 

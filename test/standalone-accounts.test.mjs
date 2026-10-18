@@ -83,3 +83,14 @@ test('ChatGPT identity-only consent is saved without allowing inference and can 
  await f.auth.login();await f.completeLogin();assert.equal((await f.auth.poll()).authorized,true);assert.equal(f.auth.account.id,'codex-user');await assert.rejects(f.auth.read(),/未授权套餐/);
  const login=await f.auth.refresh();assert.equal(login.status,'pending');assert.equal(new URL(login.url).searchParams.get('client_id'),'oaiapp_fixture');
 });
+
+test('ChatGPT callback and login polling retain a useful TLS error without exposing the authorization code',async t=>{
+ const f=await setup(t,'codex');await f.auth.login();
+ f.auth.exchange=async()=>{throw new TypeError('private-code',{cause:Object.assign(new Error('private-token'),{code:'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'})});};
+ const p=f.auth.pending;
+ const response=await fetch(p.redirectUri+'?'+new URLSearchParams({state:p.state,code:'private-code',client_id:'oaiapp_fixture'}));
+ assert.equal(response.status,400);assert.match(await response.text(),/TLS 证书/);
+ const result=await f.auth.poll();assert.equal(result.status,'failed');assert.match(result.error,/TLS 证书/);assert.doesNotMatch(JSON.stringify(result),/private-/);assert.equal(f.keys.size,0);
+ const store=createProxyState({request:async name=>name==='status'?{state:'stopped'}:{sources:[]},source:async(id,operation)=>operation==='auth/login'?{url:'https://auth.example.test',expiresAt:Date.now()+60000}:result});
+ await store.auth('codex','login');await store.pollLogins();assert.equal(store.login('codex').error,result.error);assert.equal(store.login('codex').terminal,true);store.dispose();
+});

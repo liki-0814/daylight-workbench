@@ -1,3 +1,4 @@
+import {operationError} from '../shared/operation-error.js';
 import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import path from 'node:path';
 import {CopilotAuth,copilotHeaders,authError} from './auth.js';
@@ -29,7 +30,7 @@ export class CopilotProvider {
   }});
   this.lastError=null;return modelCapabilities(applyModelSettings(cache.models,await this.settings.read()),['enabled','effort']);
  }
- async status(force=false){return checkAccountCatalog(this,force,{error:e=>e.status?e.message:'Copilot 检测失败，请检查网络或钥匙串后重试'});}
+ async status(force=false){return checkAccountCatalog(this,force,{error:e=>operationError(e,'Copilot 检测失败，请检查网络或钥匙串后重试')});}
  async quota(){const saved=await this.auth.read();return copilotQuota(await this.auth.request('https://api.github.com/copilot_internal/user',{token:saved.accessToken}));}
  async setModel(input){const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');await this.settings.save(model,input,{fields:['enabled','effort','contextWindow','maxOutputTokens'],invalid,error:'不支持的 Copilot 模型设置'});return this.listModels();}
  async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}

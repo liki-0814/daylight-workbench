@@ -1,3 +1,4 @@
+import {operationError} from '../shared/operation-error.js';
 import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {grokQuota} from './quota.js';
@@ -72,7 +73,7 @@ export class GrokProvider {
     const cache = await this.catalog(force), settings = await readJson(path.join(this.directory, 'settings.json'), { disabled: [] });
     return applyModelSettings(cache.models, settings);
   }
-  async status(force=false){return checkAccountCatalog(this,force,{success:()=>({discoveredAt:new Date(this.cache.at).toISOString(),authMode:'grok_oauth'}),error:e=>e.code==='source_auth_required'?e.message:'Grok 无法连接，请检查登录状态与网络'});}
+  async status(force=false){return checkAccountCatalog(this,force,{success:()=>({discoveredAt:new Date(this.cache.at).toISOString(),authMode:'grok_oauth'}),error:e=>operationError(e,'Grok 无法连接，请检查登录状态与网络')});}
   async quota() {
     const a=await this.auth.credential();
     const cached=await this.quotaCatalogCache.get({identity:a.identity,load:async()=>{

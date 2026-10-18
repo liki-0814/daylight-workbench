@@ -1,3 +1,4 @@
+import {operationError} from './shared/operation-error.js';
 import {validateModelSetting} from './shared/contracts.js';
 import {send,readBody,fail} from './gateway.js';
 import {RequestTrace} from './shared/request-records.js';
@@ -174,7 +175,7 @@ export function createManagement({registry,router,sourceState,records,viewSettin
  }
  async function handle(req,res){
   try{const input=req.method==='GET'?undefined:await readBody(req);if(input!==undefined&&(!input||typeof input!=='object'||Array.isArray(input)))fail('请求格式不正确');send(res,200,await call(req.url,input,req.method));}
-  catch(error){send(res,error.status||502,{error:error.status?error.message:'操作失败，请检查对应来源的登录状态、网络或本地配置'});}
+  catch(error){send(res,error.status||502,{error:operationError(error)});}
  }
  return{handle,call,listModels,discoverCustom,testCustom:(id,model)=>inferenceCheck('custom:'+id,model),syncSources};
 }

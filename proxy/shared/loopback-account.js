@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {operationError} from './operation-error.js';
 import {randomBytes} from 'node:crypto';
 import {OAuthAccount,oauthError} from './oauth-account.js';
 
@@ -26,7 +27,7 @@ export class LoopbackOAuthAccount extends OAuthAccount {
    const session=await this.exchange(q,p);await this.commit(session,p.epoch);
    if(p!==this.pending)throw oauthError('登录已取消');
    p.result={status:'authenticated',authorized:true};this.accountChanged();reply(200,'登录成功，请返回 Daylight。');
-  }catch{if(p===this.pending)p.result={status:'failed',error:`${this.name} 登录未完成，请检查授权后重试`};reply(400,'登录未完成，请返回 Daylight 重试。');}
+  }catch(error){const message=operationError(error,`${this.name} 登录未完成，请检查授权后重试`);if(p===this.pending)p.result={status:'failed',error:message};reply(400,message+'。请返回 Daylight 重试。');}
   finally{p.completing=false;this.stopListener(p);}
  }
  async poll(){const result=this.publicLogin();if(['authenticated','failed','denied','expired'].includes(result?.status))this.pending=null;return result;}

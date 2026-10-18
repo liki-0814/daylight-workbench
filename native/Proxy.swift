@@ -1,4 +1,5 @@
 import Foundation
+import CFNetwork
 
 /// Owns a Node helper (proxy or AI). Task persistence remains in WorkbenchServer.
 final class ProxyRuntime {
@@ -53,6 +54,29 @@ final class ProxyRuntime {
         guard text.hasPrefix("v"), let major = Int(text.dropFirst().split(separator: ".").first ?? ""), major >= 22 else { return nil }
         return text
     }
+    private func nodeArguments(_ entry: String) -> [String] {
+        // Homebrew Node can default to an OpenSSL CA file that no longer exists.
+        // Always retain Node's public roots, plus macOS trust on supported versions.
+        let parts = version.dropFirst().split(separator: ".").compactMap { Int($0) }
+        let supportsSystemCA = parts.count >= 2 && (parts[0] >= 24 || (parts[0] == 23 && parts[1] >= 9) || (parts[0] == 22 && parts[1] >= 19))
+        return ["--use-bundled-ca"] + (supportsSystemCA ? ["--use-system-ca"] : []) + [entry]
+    }
+    private func systemProxySettings() -> String {
+        guard let settings = CFNetworkCopySystemProxySettings()?.takeRetainedValue() as? [String: Any] else { return "{}" }
+        var result: [String: String] = [:]
+        for (prefix, key) in [("HTTP", "httpProxy"), ("HTTPS", "httpsProxy")] {
+            if (settings[prefix + "Enable"] as? NSNumber)?.boolValue == true,
+               let host = settings[prefix + "Proxy"] as? String,
+               let port = settings[prefix + "Port"] as? Int, port > 0, port <= 65535 {
+                var url = URLComponents(); url.scheme = "http"; url.host = host; url.port = port
+                result[key] = url.url?.absoluteString
+            }
+        }
+        if let exceptions = settings["ExceptionsList"] as? [String] {
+            result["noProxy"] = exceptions.filter { !$0.contains("/") && $0 != "<local>" }.joined(separator: ",")
+        }
+        return (try? JSONSerialization.data(withJSONObject: result)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    }
     private func boot() {
         stop()
         do {
@@ -69,9 +93,10 @@ final class ProxyRuntime {
             nodePath = selected.0; version = selected.1; token = try secureToken()
             let task = Process(), pipe = Pipe(), output = Pipe()
             task.executableURL = URL(fileURLWithPath: nodePath)
-            task.arguments = [resources.appendingPathComponent(helper == "ai" ? "ai/sidecar.mjs" : "proxy/sidecar.mjs").path]
+            task.arguments = nodeArguments(resources.appendingPathComponent(helper == "ai" ? "ai/sidecar.mjs" : "proxy/sidecar.mjs").path)
             var env = ProcessInfo.processInfo.environment
             env["WORKBENCH_DATA_DIR"] = directory.path; env[helper == "ai" ? "DAYLIGHT_AI_TOKEN" : "DAYLIGHT_QODER_TOKEN"] = token
+            env["DAYLIGHT_SYSTEM_PROXY"] = systemProxySettings()
             if let workbenchURL { env["DAYLIGHT_WORKBENCH_URL"] = workbenchURL }
             env.removeValue(forKey: "NODE_OPTIONS"); env.removeValue(forKey: "NODE_PATH")
             task.environment = env; task.standardInput = pipe; task.standardOutput = output; task.standardError = FileHandle.nullDevice

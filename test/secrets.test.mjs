@@ -54,7 +54,7 @@ test('timeout remains an error even if a helper exits successfully on SIGTERM',a
 });
 test('invalid output and unexpected stderr never expose credential data',async()=>{
  await assert.rejects(fixture("process.stdout.write('invalid fixture-value')").secrets.get('fixture-id'),/钥匙串返回无效/);
- await assert.rejects(fixture("process.stderr.write('private fixture-value');process.exit(1)").secrets.get('fixture-id'),error=>error.message==='钥匙串不可用或访问被拒绝');
+ await assert.rejects(fixture("process.stderr.write('private fixture-value');process.exit(1)").secrets.get('fixture-id'),error=>error.code==='EKEYCHAIN_UNAVAILABLE'&&error.message==='钥匙串不可用或访问被拒绝，请检查系统钥匙串授权');
 });
 test('missing helper fails without waiting for the timeout',async()=>{
  const secrets=new Secrets({spawnImpl:(_helper,args,options)=>spawn('/nonexistent/daylight-test-helper',args,options),timeoutMs:500});

@@ -1,3 +1,4 @@
+import {operationError} from '../shared/operation-error.js';
 import {bindAccountCatalog,checkAccountCatalog} from '../shared/account-catalog.js';
 import {parseModels} from './models.js';
 import {CatalogCache} from '../shared/catalog-cache.js';
@@ -27,7 +28,7 @@ export class CodexProvider {
       const models=parseModels(await response.json());if(epoch!==this.auth.epoch)throw Object.assign(Error('ChatGPT 账号已切换，请重试'),{status:401});return{models};
     }});this.lastError=null;return applyModelSettings(cached.models,await this.settings.read());
   }
-  async status(force=false){return checkAccountCatalog(this,force,{success:()=>({authMode:'chatgpt_oauth'}),error:e=>e.status?e.message:'ChatGPT 检测失败，请检查网络或钥匙串后重试'});}
+  async status(force=false){return checkAccountCatalog(this,force,{success:()=>({authMode:'chatgpt_oauth'}),error:e=>operationError(e,'ChatGPT 检测失败，请检查网络或钥匙串后重试')});}
   async setModel(input) {
     const model=(await this.listModels()).find(m=>m.id===input.id);if(!model)throw invalid('模型不存在');
     await this.settings.save(model,input,{fields:['contextWindow', 'maxOutputTokens', 'enabled', 'effort', 'serviceTier'],invalid,error:'不支持的模型设置'});return this.listModels();

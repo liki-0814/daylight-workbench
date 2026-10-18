@@ -16,7 +16,7 @@ export class AgyAuth extends LoopbackOAuthAccount {
   super({id:'agy',name:'AGY',...options});Object.assign(this,{callbackPort,getOAuthClientImpl,tokenFile,readFileImpl,credentials});this.migrationFile=path.join(dataDir,'agy/auth.json');
  }
  async models(catalog){return discoverModels(catalog);}
- async client(method='consumer',clientId){const client=await this.getOAuthClientImpl(method);if(!client||clientId&&client.client_id!==clientId)throw oauthError('AGY OAuth 客户端已变化，请重新网页登录');return client;}
+ async client(method='consumer',clientId,options){const client=await this.getOAuthClientImpl(method,options);if(!client||clientId&&client.client_id!==clientId)throw oauthError('AGY OAuth 客户端已变化，请重新网页登录');return client;}
  async refreshFields(saved){return{client_secret:(await this.client(saved.method,saved.clientId)).client_secret};}
  async profile(token,signal){const user=await this.request(USER,{token,signal});if(!user.id)throw oauthError('AGY 未返回有效账号');return{id:String(user.id),login:user.email||user.name||String(user.id)};}
  async validateRefresh(next,saved){if((await this.profile(next.access_token)).id!==saved.account.id)throw oauthError('AGY 账号身份已变化，请重新网页登录');}
@@ -39,7 +39,7 @@ export class AgyAuth extends LoopbackOAuthAccount {
   const epoch=this.epoch;let text;
   if(this.tokenFile)try{text=await this.readFileImpl(this.tokenFile,'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
   text=(text??await this.credentials.get('antigravity')??'').trim();if(!text)return;
-  const value=JSON.parse(text.startsWith('go-keyring-base64:')?Buffer.from(text.slice(18),'base64').toString():text),method=value.auth_method||'consumer',client=await this.client(method);
+  const value=JSON.parse(text.startsWith('go-keyring-base64:')?Buffer.from(text.slice(18),'base64').toString():text),method=value.auth_method||'consumer',client=await this.client(method,undefined,{autoDiscover:false});
   if(!value.token?.access_token)throw oauthError('原 AGY 登录不可读取，请网页登录');
   let session={access_token:value.token.access_token,refresh_token:value.token.refresh_token,expiresAt:Date.parse(value.token.expiry),clientId:client.client_id,method,tokenEndpoint:TOKEN};
   if(!(session.expiresAt>this.now()+60000)){

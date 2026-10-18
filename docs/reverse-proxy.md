@@ -8,12 +8,20 @@ Qoder、AGY、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，�
 
 独立认证仅用于反向代理。AI 对话的 Codex / Qoder 执行后端继续使用各自 CLI；AI 管理工具可以为所有上述来源生成登录、取消、刷新及退出草稿，由用户审阅应用。
 
+## macOS 安装包的网络与证书
+
+原生 App 启动 Node 时显式使用 Node 内置公共根证书；Node 22.19+、23.9+、24+ 同时加载系统信任证书，保留 `NODE_EXTRA_CA_CERTS`。这避免 Homebrew Node 默认 OpenSSL 证书路径缺失时，所有来源在授权请求阶段一起失败。TLS 校验保持启用。
+
+来源的授权、身份校验、续期、模型目录、额度和推理共用网络层。原生父进程读取 macOS 静态 HTTP/HTTPS 代理，终端显式设置的 `http_proxy` / `HTTP_PROXY`、`https_proxy` / `HTTPS_PROXY` 和 `no_proxy` / `NO_PROXY` 优先；本机 `127.0.0.1`、`localhost` 和 `::1` 始终直连。系统代理变更后重启 App。当前不解析 PAC 或 SOCKS 专用代理，请启用代理软件的系统 HTTP/HTTPS 代理。
+
+证书、连接超时、DNS 和钥匙串失败会显示明确原因，ChatGPT / AGY 回调错误会保留到页面；网络或证书失败不应要求退出已有账号。AGY 会自动检测本机官方客户端的 OAuth 参数，检测方式与手动覆盖见下文。
+
 ## 公共服务与 Qoder / AGY
 
 - 默认监听 `127.0.0.1:4319`，端口可配置。OpenAI Base URL 为 `http://127.0.0.1:4319/v1`，Anthropic Base URL 为 `http://127.0.0.1:4319`。
 - 提供 `/v1/models`、`/v1/chat/completions`、`/v1/responses`、`/v1/messages`，支持流式响应。客户端必须发送页面中的 API Key（Bearer 或 `x-api-key`）。
 - Qoder 使用 PKCE 浏览器授权，登录成功后自动保存并刷新令牌。AGY 通过 Google 官方 OAuth 网页独立登录，使用本机 `localhost:51121/oauth-callback` 回调、state 和 PKCE；回调服务只监听 `127.0.0.1`，取消、过期和关闭会释放端口。令牌存入 Daylight 自有的 `agy-oauth` Keychain 项，续期复用公共账号机制，不启动 CLI。
-- AGY 登录及续期使用本机 OAuth 客户端配置，默认路径为 `~/.config/daylight/agy-oauth-clients.json`，可用 `DAYLIGHT_AGY_OAUTH_CLIENTS_FILE` 指定其他路径。文件按 `consumer` / `gcp` 保存 `client_id` 和 `client_secret`，建议权限为 `0600`；网页登录使用 `consumer`。源码和安装包不包含这些参数。配置缺失时提示配置并保留已有登录。
+- AGY 登录及续期优先使用本机 OAuth 客户端配置，默认路径为 `~/.config/daylight/agy-oauth-clients.json`，可用 `DAYLIGHT_AGY_OAUTH_CLIENTS_FILE` 指定其他路径。默认文件不存在时，自动从 PATH、`~/.local/bin/agy`、Homebrew 路径或系统／用户 Applications 下的官方 Antigravity 安装中只读识别 consumer 客户端参数；仅接受已知公开客户端指纹对应的一对参数，不执行 CLI、不读取账号令牌、不写入原客户端配置。指纹不匹配时不会猜测其他 Google 客户端。手动文件按 `consumer` / `gcp` 保存 `client_id` 和 `client_secret`，建议权限为 `0600`；网页登录使用 `consumer`。显式指定但无效的配置仍报错，避免静默切换客户端。源码和安装包不包含这些参数；既无可识别安装也无配置时给出明确提示，原登录保留。
 - 兼容升级时，没有 Daylight 独立凭据才尝试一次导入旧 CLI 登录文件或旧版 Keychain。可读取且有效的账号复制到 Daylight；原记录不修改、不删除。旧凭据不可读取不阻止新网页登录。退出会阻止以后重新导入，避免已退出的账号自动恢复。此后续期仅更新 Daylight 凭据，CLI 切换账号不会自动替换 Daylight 登录。
 - Google 授权成功后还要通过 AGY 项目和模型目录检查。未开通、账号权限/资格失败与登录失效分别提示，不把目录成功当作真实推理成功。推理直接请求上游，不启动 Agent 对话；页面连接检查不发推理请求。
 - 模型名不加来源前缀，后台按名称分发。同名模型对外只显示一次，在“模型路由”设置主用和备用顺序；可重试故障仅在输出开始前尝试备用。显式会话标识可绑定成功来源，没有会话标识时固定优先级。AGY 模型目录直接读取上游推荐模型及具体推理档位，保留上游提供的 CLI 公共别名和模型路由，缓存 5 分钟，点击刷新可立即重新发现；额度直接读取上游共享额度汇总，展示 Claude/GPT、Gemini 的 5 小时和 7 天周期。
