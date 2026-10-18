@@ -2,14 +2,13 @@
 // remain external runtimes; no node_modules tree or hand-maintained package list
 // is shipped. esbuild resolves ESM/CJS exports and retains required code/assets.
 import { build } from 'esbuild';
-import { builtinModules } from 'node:module';
+import { isBuiltin } from 'node:module';
 import { mkdir, readFile, readdir, copyFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const builtins = new Set(builtinModules.map(name => name.replace(/^node:/, '')));
 
 export async function buildRuntime(resources, root = project) {
   const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'extensions/config-document.mjs', 'proxy/shared/network.js'];
@@ -36,7 +35,8 @@ export async function buildRuntime(resources, root = project) {
   if (result.warnings.length) throw new Error(result.warnings.map(w => w.text).join('\n'));
   for (const artifact of Object.values(result.metafile.outputs)) {
     for (const dependency of artifact.imports) {
-      if (dependency.external && !builtins.has(dependency.path.replace(/^node:/, ''))) {
+      // Node 22's list omits prefix-only builtins such as node:sqlite.
+      if (dependency.external && !isBuiltin(dependency.path)) {
         throw new Error(`Unbundled runtime dependency: ${dependency.path}`);
       }
     }

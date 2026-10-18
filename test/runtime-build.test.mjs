@@ -30,4 +30,8 @@ test('runtime is a deterministic, isolated bundle with complete dependency licen
   execFileSync(process.execPath, ['--input-type=module', '-e',
     'const a=await import(process.argv[1]); for(const n of ["discover","run","permissions"]) if(typeof a[n]!=="function") throw new Error(n); const p=a.permissions({ask:async()=>({}),approve:async()=>true}); if((await p("Read",{},{})).behavior!=="allow") throw new Error("permission adapter");', entry],
     { cwd: directory, env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' } });
+  const network = pathToFileURL(path.join(resources, 'proxy/shared/network.js')).href;
+  execFileSync(process.execPath, ['--input-type=module', '-e',
+    'const n=await import(process.argv[1]); if(typeof n.networkFetch!=="function") throw new Error("missing packaged network transport");', network],
+    { cwd: directory, env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' } });
 });
