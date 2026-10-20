@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Syntax-check every tracked JS/MJS source file, then run the domain contract checks.
+// Syntax-check every tracked and untracked (non-ignored) JS/MJS source file, then run the domain contract checks.
 // Files are discovered from git, so new modules are covered automatically.
 import { execFileSync, spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
@@ -11,14 +11,16 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const vendored = new Set(['public/components/purify.js', 'public/components/marked.js']);
 const excludedDirs = ['node_modules/', 'dist/', 'build/', '.local/', 'coverage/'];
 
-const files = execFileSync('git', ['ls-files', '-z', '--', '*.js', '*.mjs'], { cwd: root, encoding: 'utf8' })
+const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', '*.js', '*.mjs'], { cwd: root, encoding: 'utf8' })
   .split('\0').filter(Boolean)
+  .filter((file, index, all) => all.indexOf(file) === index)
   .filter(file => !vendored.has(file) && !excludedDirs.some(dir => file.startsWith(dir)));
 
 const run = (args, label) => new Promise(resolve => {
   const child = spawn(process.execPath, args, { cwd: root, stdio: ['ignore', 'inherit', 'pipe'] });
   let stderr = '';
   child.stderr.on('data', chunk => { stderr += chunk; });
+  child.on('error', error => { stderr += String(error); });
   child.on('close', code => resolve({ label, code, stderr }));
 });
 

@@ -2,9 +2,9 @@
 
 ## Node 版本 / Node version
 
-本地开发、`npm run check` 与 `npm test` 均需 Node 22（`.nvmrc`；CI 使用 `actions/setup-node` 的 `node-version: '22'`）。`.npmrc` 的 `engine-strict=true` 让旧版本 Node 在 `npm ci` 时即以 `EBADENGINE` 失败。若在 Node 20 上强行运行，测试会因 `Array.fromAsync` 等缺失 API 大量失败，残留句柄会使进程挂起；`npm test` 带 `--test-timeout=30000`，单个测试最多 30 秒即被终止，避免 CI 卡住数分钟。
+本地开发、`npm run check` 与 `npm test` 均需 Node 22（`.nvmrc`；CI 使用 `actions/setup-node` 的 `node-version: '22'`）。`.npmrc` 的 `engine-strict=true` 让旧版本 Node 在 `npm ci` 时即以 `EBADENGINE` 失败。
 
-Node 22 is required. Older Node fails `npm ci` with `EBADENGINE` (engine-strict); forcing tests on Node 20 yields failures such as missing `Array.fromAsync` and hangs, bounded by the 30 s per-test timeout.
+Node 22 is required. Older Node fails `npm ci` with `EBADENGINE` (engine-strict). CI uses `actions/setup-node` with `node-version: '22'`.
 
 Web 调试直接使用 `PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/web-dev" npm run dev`，不依赖 App 或 dist；前端修改刷新生效，后端由 Node watch 重启。`npm run dev:debug` 增加仅本机的 9229 断点入口。普通启动用 `npm run web` 自动打开浏览器。入口均复用 server.mjs 和本机 CLI 适配器，默认数据、CLI 登录和扩展主来源保持现有规则；隔离业务目录不自动隔离扩展写入。
 
