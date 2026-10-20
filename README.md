@@ -96,6 +96,12 @@ POST /v1/messages
 
 ## 开发
 
+开发与测试需要 **Node 22**（见 `.nvmrc`，可用 `nvm use`）。仓库的 `.npmrc` 启用了 `engine-strict=true`，在较旧的 Node（如 20）上 `npm ci` / `npm install` 会直接报 `EBADENGINE` 失败；若绕过安装直接运行，`npm test` 会因 `Array.fromAsync` 等 API 缺失而出现大量失败，部分测试可能挂起，直到 30 秒的单测超时（`--test-timeout=30000`）将其终止。
+
+Node 22 is required for development and tests (see `.nvmrc`). With `engine-strict=true`, `npm ci` fails fast with `EBADENGINE` on older Node; running tests on Node 20 anyway produces many failures (e.g. missing `Array.fromAsync`) and hangs that are cut off by the 30 s per-test timeout.
+
+`npm run check` 由 `scripts/check.mjs` 自动对所有受 git 跟踪的 JS/MJS 源文件（排除 `node_modules`、构建产物及 `public/components/{purify,marked}.js` 等第三方文件）执行 `node --check`，再运行各领域检查脚本；新增文件无需手动登记。启动 `createWorkbench` 的测试统一使用 `fixtures/workbench.mjs` 的 `closeWorkbench` 收尾，以关闭中转服务和保持连接。
+
 ```sh
 npm run check
 npm test
