@@ -29,6 +29,7 @@
   "/proxy.css": "proxy.css",
   "/": "index.html",
   "/app.js": "app.js",
+  "/app-helpers.js": "app-helpers.js",
   "/model.js": "model.js",
   "/design-system.css": "design-system.css",
   "/style.css": "style.css",
