@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { createWorkbench } from '../server.mjs';
+import { closeWorkbench } from '../fixtures/workbench.mjs';
 import { AIStore } from '../ai/store.mjs';
 import { createExtensionSubmissions, assertExtensionDraftAllowed } from '../ai/extensions-submissions.mjs';
 
@@ -33,7 +34,7 @@ async function fixture(t) {
     } finally { await client.close(); }
   } };
   const boot = async () => { server = await createWorkbench({ dataDir: directory, aiAdapters: { codex: adapter, qoder: adapter }, extensionsOptions: options }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); };
-  const stop = async () => { await server.closeProxy(); await new Promise(resolve => server.close(resolve)); };
+  const stop = () => closeWorkbench(server);
   await boot(); t.after(async () => { if (server?.listening) await stop(); await fs.rm(directory, { recursive: true, force: true }); });
   const api = async (route, input, auth = 'web', origin = true, method) => {
     const base = `http://127.0.0.1:${server.address().port}`, token = (await (await fetch(base + '/api/state')).json()).token, agent = (await fs.readFile(path.join(directory, 'agent-token'), 'utf8')).trim();

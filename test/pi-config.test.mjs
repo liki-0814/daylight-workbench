@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createPiConfig, piAPIs, modelConfig } from '../cli/pi-config.js';
 import { writeJson } from '../proxy/shared/store.js';
 import { createWorkbench } from '../server.mjs';
+import { closeWorkbench } from '../fixtures/workbench.mjs';
 
 async function fixture(t, options = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-pi-'));
@@ -236,7 +237,7 @@ test('authenticated Node HTTP endpoints expose Pi state and execute only in the 
   const provider = { listModels: async () => models, cache: {}, credits: async () => ({}) };
   const server = await createWorkbench({ dataDir: f.dataDir, proxyOptions: { provider, includeGateway: false, includeAgy: false, includeGrok: false, piOptions: { piDir: f.piDir, getInfo: async () => ({ installed: true, version: 'test' }) } } });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(async () => { await server.closeProxy(); await new Promise(resolve => server.close(resolve)); });
+  t.after(() => closeWorkbench(server));
   const base = 'http://127.0.0.1:' + server.address().port, token = (await (await fetch(base + '/api/state')).json()).token;
   const call = (route, body, headers = {}) => fetch(base + '/api/cli/pi/' + route, { method: body ? 'POST' : 'GET', headers: { 'x-workbench-token': token, 'Content-Type': 'application/json', ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
   assert.equal((await fetch(base + '/api/cli/pi/state')).status, 403);
