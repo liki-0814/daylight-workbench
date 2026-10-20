@@ -15,9 +15,18 @@ export function send(res, code, value) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
   res.end(JSON.stringify(value));
 }
-export async function readBody(req) {
+// Management writes retain the smaller default; inference includes history and images.
+const inferenceBodyLimit = 32_000_000;
+export async function readBody(req, maxBytes = 4_000_000) {
+  const tooLarge = (bytes, declared = false) => {
+    // Drain without buffering so HTTP clients can receive the 413 response.
+    req.resume();
+    throw Object.assign(new Error(`请求体超过 ${maxBytes / 1_000_000} MB 上限（${maxBytes} 字节），${declared ? '声明大小' : '已接收至少'} ${bytes} 字节；请缩减内容或附件后重试`), { status: 413 });
+  };
+  const declaredLength = Number(req.headers?.['content-length']);
+  if (declaredLength > maxBytes) tooLarge(declaredLength, true);
   const chunks = []; let length = 0;
-  for await (const chunk of req) { length += chunk.length; if (length > 4_000_000) throw Object.assign(new Error('请求超过 4 MB'), { status: 413 }); chunks.push(chunk); }
+  for await (const chunk of req.iterator({ destroyOnReturn: false })) { length += chunk.length; if (length > maxBytes) tooLarge(length); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); }
   catch { throw Object.assign(new Error('请求必须是有效 JSON'), { status: 400 }); }
 }
@@ -56,7 +65,7 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       if (route === '/models' && req.method === 'GET') return send(res, 200, renderModelList(await router.listModels()));
       const adapter = adapters[route];
       if (!adapter || req.method !== 'POST') return send(res, 404, { error: { message: '接口不存在' } });
-      const body = await readBody(req);
+      const body = await readBody(req, inferenceBodyLimit);
       if (!body || typeof body.model !== 'string' || !body.model.trim() || body.model.length > 200) fail('需要有效的 model');
       model = body.model;
       observe({ model, streaming: body.stream === true });
