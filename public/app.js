@@ -26,6 +26,7 @@ import { createTodaySummary } from './focus/today-summary.js';
 import { createTaskSummary } from './focus/task-summary.js';
 import { createStatisticsPage } from './focus/statistics-page.js';
 import { mountFocusSettings } from './focus/settings.js';
+import { pageViews, isPage, sectionFor, esc, empty } from './app-helpers.js';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
@@ -40,9 +41,6 @@ let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', q
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { busy = value; render(); dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, lastTaskView = 'all', sidebarMarkup = '';
-const pageViews = ['proxy', 'settings', 'ai', 'cli', 'focus', 'extensions'];
-const isPage = value => pageViews.includes(value);
-const sectionFor = value => isPage(value) ? value : 'task';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
 
 function writeTaskURL(replace = false) {
@@ -90,7 +88,6 @@ async function showRelated(scope) {
   } catch (e) { notify(e.message); }
 }
 
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const project = task => state.projects.find(p => p.id === task.projectId);
 const todayIds = () => state.plans[today] || [];
 const remaining = tasks => tasks.filter(t => t.status !== 'done');
@@ -194,16 +191,6 @@ function initializeFocus() {
 }
 
 
-function empty(kind) {
-  const content = {
-    today: ['sun', '今天暂无任务', '从已有任务中选择，或新建任务加入今天。', '<button class="primary" data-action="choose">从项目中选择' + icon('arrow') + '</button>'],
-    done: ['check', '暂无已完成任务', '已完成的任务会显示在这里，可恢复为待办。', ''],
-    inbox: ['inbox', '未归类为空', '未关联项目的任务显示在这里。', '<button class="primary" data-action="new">新建任务' + icon('plus') + '</button>'],
-    search: ['search', '没有找到匹配的任务', '试试其他关键词，或清空搜索。', '<button class="small-button" data-action="clear-search">清空搜索</button>'],
-    project: ['folder', '暂无任务', '点击“新建任务”添加任务。', '<button class="primary" data-action="new">新建任务' + icon('plus') + '</button>'],
-  }[kind];
-  return `<div class="empty"><h3>${content[1]}</h3><p>${content[2]}</p>${content[3]}</div>`;
-}
 
 function render() {
   if (!state) return;

@@ -9,6 +9,7 @@ import { createFocusSubmissions, assertFocusDraftAllowed } from '../ai/focus-sub
 import { createConversations } from '../ai/conversations.mjs';
 import { httpError } from '../ai/http.mjs';
 import { createWorkbench } from '../server.mjs';
+import { closeWorkbench } from '../fixtures/workbench.mjs';
 import { fixtureState } from './fixtures.mjs';
 
 const pending = () => ({ id: randomUUID(), type: 'focusChanges', requestId: randomUUID(), version: 12, taskVersion: 17, expiresAt: Date.now() + 600000, action: { type: 'focus.start', phase: 'work', taskId: 'task-1', durationSeconds: 1500 }, summary: '开始专注' });
@@ -89,7 +90,7 @@ for(const backend of ['codex','qoder']) test(`${backend}: real AI focus draft ap
     const result = await response.json(); finished++; emit({ type: 'delta', text: result.ok ? '已保存专注' : '需核对' });
   } };
   async function boot() { server = await createWorkbench({ dataDir, aiAdapters: { codex: adapter, qoder: adapter } }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); }
-  async function stop() { await server.closeProxy(); await new Promise(resolve => server.close(resolve)); }
+  async function stop() { await closeWorkbench(server); }
   await boot(); t.after(async () => { if (server.listening) await stop(); await rm(dataDir, { recursive: true, force: true }); });
   const api = async (route, body, origin = true) => {
     const base = `http://127.0.0.1:${server.address().port}`, token = (await (await fetch(base + '/api/state')).json()).token;

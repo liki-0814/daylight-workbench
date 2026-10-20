@@ -96,6 +96,12 @@ POST /v1/messages
 
 ## 开发
 
+开发与测试需要 **Node 22**（见 `.nvmrc`，可用 `nvm use`）。仓库的 `.npmrc` 启用了 `engine-strict=true`，在较旧的 Node（如 20）上 `npm ci` / `npm install` 会直接报 `EBADENGINE` 失败。CI 使用 `actions/setup-node` 的 `node-version: '22'`。
+
+Node 22 is required for development and tests (see `.nvmrc`). With `engine-strict=true`, `npm ci` fails fast with `EBADENGINE` on older Node. CI uses `actions/setup-node` with `node-version: '22'`.
+
+`npm run check` 由 `scripts/check.mjs` 自动对所有受 git 跟踪的 JS/MJS 源文件（排除 `node_modules`、构建产物及 `public/components/{purify,marked}.js` 等第三方文件）执行 `node --check`，再运行各领域检查脚本；新增文件无需手动登记。启动 `createWorkbench` 的测试统一使用 `fixtures/workbench.mjs` 的 `closeWorkbench` 收尾，以关闭中转服务和保持连接。
+
 ```sh
 npm run check
 npm test

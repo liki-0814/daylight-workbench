@@ -4,6 +4,7 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { createWorkbench } from '../server.mjs';
+import { closeWorkbench } from '../fixtures/workbench.mjs';
 import { fixtureState } from './fixtures.mjs';
 
 test('real HTTP focus/calendar Web and Agent auth, receipts, task hook and undo contracts', async () => {
@@ -33,5 +34,5 @@ test('real HTTP focus/calendar Web and Agent auth, receipts, task hook and undo 
     const capabilities = (await get('/api/v1/capabilities')).value; assert.equal(capabilities.taskPlanning.reschedule, true); assert.equal(capabilities.focus.taskStateMutation, false);
     assert.equal((await get('/api/v1/focus/sessions?limit=1&limit=2')).code, 400);
     assert.equal((await get('/api/v1/focus/export')).value.receipts, undefined);
-  } finally { await server.closeProxy(); if (server.listening) await new Promise(resolve => server.close(resolve)); await rm(dataDir, { recursive: true, force: true }); }
+  } finally { await closeWorkbench(server); await rm(dataDir, { recursive: true, force: true }); }
 });

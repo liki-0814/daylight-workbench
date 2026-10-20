@@ -6,6 +6,7 @@ import path from 'node:path';
 import {kimiQuota} from '../proxy/kimi/quota.js';
 import {KimiProvider} from '../proxy/kimi/provider.js';
 import {CodexProvider} from '../proxy/codex/provider.js';
+import { closeWorkbench } from '../fixtures/workbench.mjs';
 test('Kimi subscription quota preserves absent values and distinct windows',()=>{
  const k=kimiQuota({usage:{limit:"100",remaining:"30",resetAt:'2026-10-02T00:00:00Z'},limits:[{window:{duration:5,timeUnit:'TIME_UNIT_HOUR'},detail:{limit:20,used:0}},{detail:{limit:20}}]});
  assert.equal(k.buckets[0].usedPercent,70);assert.equal(k.buckets[1].remaining,20);assert.equal(k.buckets[1].usedPercent,0);assert.equal(k.buckets[2].usedPercent,undefined);assert.equal(k.buckets[2].remaining,undefined);
@@ -34,7 +35,7 @@ test('HTTP and AI configuration routes expose provider quota without authenticat
  const dir=await mkdtemp(path.join(os.tmpdir(),'daylight-quota-http-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const source=name=>({cache:{models:[]},listModels:async()=>[],status:async()=>({connected:true}),quota:async()=>({buckets:[{name,usedPercent:20}]})});
  const server=await createWorkbench({dataDir:dir,proxyOptions:{provider:{cache:{},listModels:async()=>[]},kimiProvider:source('Kimi'),codexProvider:source('Codex'),includeGateway:false,piOptions:{piDir:path.join(dir,'pi')}}});
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>closeWorkbench(server));
  const base=`http://127.0.0.1:${server.address().port}`,{token}=await(await fetch(base+'/api/state')).json();
  for(const name of ['kimi','codex']){
   const url=base+`/api/${name}-proxy/quota`;

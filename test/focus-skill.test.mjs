@@ -6,6 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { execFile as execute } from 'node:child_process';
 import { createWorkbench } from '../server.mjs';
+import { closeWorkbench } from '../fixtures/workbench.mjs';
 import { fixtureState } from './fixtures.mjs';
 const execFile=promisify(execute);
 
@@ -14,7 +15,7 @@ test('external focus CLI discovers capabilities, previews, applies original vers
   const state=fixtureState();state.plans['2026-10-06']=['task-1'];
   await writeFile(path.join(dataDir,'state.json'),JSON.stringify({version:0,state}));
   const server=await createWorkbench({dataDir});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(async()=>{await server.closeProxy();await new Promise(resolve=>server.close(resolve));server.closeAllConnections();await rm(dataDir,{recursive:true,force:true});});
+  t.after(async()=>{await closeWorkbench(server);await rm(dataDir,{recursive:true,force:true});});
   const url=`http://127.0.0.1:${server.address().port}`,token=(await readFile(path.join(dataDir,'agent-token'),'utf8')).trim();
   const cli=async(...args)=>{const {stdout,stderr}=await execFile('python3',['skills/daylight-workbench/scripts/workbench.py','--url',url,'--data-dir',dataDir,...args]);assert.ok(!stdout.includes(token)&&!stderr.includes(token));return JSON.parse(stdout);};
   assert.equal((await cli('calendar','--from','2026-10-06','--to','2026-10-06')).days[0].matchedCount,1);
