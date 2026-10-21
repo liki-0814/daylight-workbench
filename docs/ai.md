@@ -11,7 +11,7 @@ AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_
 规范化管理出口为 `GET /api/v1/proxy/state` 和 `POST /api/v1/proxy/{discover,test,prepare,apply,loginState,requests}`，沿用本地 Agent Bearer 认证。`prepare` 只校验公开 action；`apply` 需要 `requestId`、读取时的 `expectedVersion` 和 action，按配置快照拒绝过期变更并保留最近 100 个请求回执。支持 `source.save`、`source.enabled`、`source.delete`、`model.setting`、`route.save`、`auth.login`、`auth.cancel`、`auth.refresh`、`auth.logout`、`service.enabled`。`state.routes` 给出完整来源 ID/主备顺序；`route.save` 接受模型 id、完整 order 和 excluded，删除来源时同步清理路由引用。`source.save.keys` 仅含 id/enabled/models，`prepare.requiresKeys` 列出缺少凭据的 Key；用户在审阅框安全填写后通过 `apply.apiKeys`（Key id 到凭据的映射）送入凭据存储。发现模型返回各 Key 独立目录及合并目录，保存时覆盖旧目录。各来源授权启动只返回经安全过滤的登录链接、适用的用户码及状态，由用户完成后读取 `loginState` 确认；启动成功不表示登录完成。此出口不返回明文凭据，不替代供下游调用的 `/v1/chat/completions`、`/v1/responses`、`/v1/messages`。
 ## CLI 运行时与权限
 
-- Codex 使用本机 `codex app-server` 的 stdio 协议；Qoder 使用固定版本的官方 TypeScript SDK 驱动本机 `qodercli`。复用 CLI 登录，不复制认证文件，也不修改全局 CLI 配置。首次使用需在设置中检测 CLI；也可直接在新对话页选择发现的模型。
+- 普通 AI 对话中，Codex 使用本机 `codex app-server` 的 stdio 协议；Qoder 使用固定版本的官方 TypeScript SDK 驱动本机 `qodercli`。复用 CLI 登录，不复制认证文件，也不修改全局 CLI 配置。CLI 路径留空时自动查找本机安装，填写绝对路径时使用指定程序；也可直接在新对话页选择发现的模型。
 - Codex、Qoder 均保留原生工具、技能和本机配置，并额外挂载 Daylight MCP；Daylight 指令只约束工作台数据管理。Qoder 使用 qodercli 的原生系统提示，并追加 Daylight 指令。工作目录固定在各自 Daylight 专用目录。标准模式下 Codex 采用 workspace-write 和 on-request；Qoder 使用原生 default 权限模式，需要审批的工具在对话页显示确认卡片，仅允许本次，不写永久规则。设置中的完全访问模式为 Codex 启用 danger-full-access/never（每次恢复会话及发送均覆盖），为 Qoder 启用 bypassPermissions/allowDangerouslySkipPermissions；允许原生文件、命令和网络操作免确认。用户问题和 Daylight 变更草稿仍需用户处理。切回标准模式从下一次发送恢复审批。
 - 业务工具通过每轮临时的 stdio MCP 接入，只能访问对应运行的工具通道。读取走现有管理 API；写入先生成草稿，用户可以编辑标题、备注等并应用。应用时校验版本、使用固定请求 ID，整批操作原子执行；取消生成不会撤销已成功应用的操作。可让 AI 提出 undo 草稿，撤销最近一次全局写入。
 - 输入 `@` 或点击“引用对话”，可选择最多 3 段 Daylight 内的历史对话，支持跨 Codex/Qoder 引用。发送时保存消息快照及来源；引用不会修改源会话，也不会自动执行历史指令。总引用超过 120000 字符时明确拒绝，不静默截断。
@@ -19,6 +19,12 @@ AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_
 - Codex 未适配最大输出参数；Qoder 的最大输出使用 CLI 的 `--max-output-tokens`。CLI 返回的 32000 不当作上游模型硬上限。上下文参数不能扩大模型真实能力；Qoder 优先显示其返回的可配置档位。
 - AI 与反向代理独立，按需启动 Node AI 子进程。正常 CLI 账号不依赖中转开关；CLI 自身若配置了中转则仍依赖它。退出 App 会关闭子进程，重启后可继续保存的对话。运行中的请求最长 30 分钟，超时停止；中断后不自动重放写入。
 
+
+## 临时单轮问答
+
+⌥Space 快捷面板复用 AI 设置的后端、默认模型和推理参数，每次只发送一个问题。输入框为空时可直接用左右箭头切换 AI 问答与 Google，焦点留在输入框；有内容、输入法选字或使用修饰键时保留光标操作。回答完成后可阅读、复制，关闭面板清空；生成中关闭则取消请求。
+
+临时问答独立于普通会话存储，只在内存中传递问题与答案，不挂载工作台工具或关联数据。Codex 使用 ephemeral 线程，在隔离目录复制所需认证与配置；Qoder 关闭会话保存、只读复用原登录目录，并把诊断日志放进临时目录。两者均等待子进程退出后清理运行文件，服务端在交付回答后释放内容。面板失联超过 30 秒或运行超过 5 分钟也会取消清理。
 
 ## 项目、任务与对话协同
 

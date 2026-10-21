@@ -13,9 +13,9 @@ export function childEnv() {
   return env;
 }
 export class RPC {
-  constructor(bin, args, cwd) {
+  constructor(bin, args, cwd, env = childEnv()) {
     this.requests = new Map(); this.nextId = 0; this.buffer = ''; this.stderr = '';
-    this.child = spawn(bin, args, { cwd, env: childEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
+    this.child = spawn(bin, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
     this.child.stdout.setEncoding('utf8');
     this.child.stdout.on('data', chunk => {
       this.buffer += chunk;
@@ -42,5 +42,14 @@ export class RPC {
     return new Promise((resolve, reject) => { const timer = setTimeout(() => { this.requests.delete(id); reject(new Error(`${method} 超时`)); }, timeout); this.requests.set(id, { resolve, reject, timer }); this.send({ id, method, params }); });
   }
   async initialize() { await this.call('initialize', { clientInfo: { name: 'daylight', version: '0.3.0' }, capabilities: { experimentalApi: true } }); this.send({ method: 'initialized' }); }
-  close() { this.child.stdin.end(); this.child.kill('SIGTERM'); const timer = setTimeout(() => { if (this.child.exitCode === null) this.child.kill('SIGKILL'); }, 2000); timer.unref(); }
+  close() {
+    if (this.closed) return this.closed;
+    this.closed = new Promise(resolve => {
+      if (this.child.exitCode !== null || this.child.signalCode !== null) return resolve();
+      this.child.once('close', () => { clearTimeout(timer); resolve(); });
+      const timer = setTimeout(() => { this.child.kill('SIGKILL'); }, 2000); timer.unref();
+      this.child.stdin.end(); this.child.kill('SIGTERM');
+    });
+    return this.closed;
+  }
 }

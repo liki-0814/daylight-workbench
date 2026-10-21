@@ -8,6 +8,7 @@ import { createDrafts } from './drafts.mjs';
 import { createToolDispatch } from './tools/dispatch.mjs';
 import { createFocusSubmissions } from './focus-submissions.mjs';
 import { createExtensionSubmissions } from './extensions-submissions.mjs';
+import { createQuickAnswers } from './quick.mjs';
 export { validateSettings } from './conversations.mjs';
 export { validateAction } from './drafts.mjs';
 export { referenceSnapshots } from './context.mjs';
@@ -15,6 +16,7 @@ export { referenceSnapshots } from './context.mjs';
 export async function createAIService({ dataDir, endpoint, adapters } = {}) {
   const store = new AIStore(dataDir);
   const providers = adapters || { codex: await import('./adapters/codex.mjs'), qoder: await import('./adapters/qoder.mjs') };
+  const quick = createQuickAnswers({ store, providers });
   let closed = false, runtime, tool, focusSubmissions, extensionSubmissions;
   async function api(route, input, params) {
     const token = fs.readFileSync(path.join(dataDir, 'agent-token'), 'utf8').trim();
@@ -35,6 +37,10 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
       if (closed) throw httpError('AI 服务已停止', 503);
       const url = new URL(req.url, 'http://localhost'), route = url.pathname.replace('/api/ai', '');
       const input = req.method === 'POST' ? await body(req) : {};
+      if (route === '/quick' && req.method === 'POST') return send(res, 200, quick.start(input));
+      const quickMatch = route.match(/^\/quick\/([a-f0-9-]+)(\/cancel)?$/);
+      if (quickMatch && req.method === 'GET' && !quickMatch[2]) return send(res, 200, quick.get(quickMatch[1]));
+      if (quickMatch && req.method === 'POST' && quickMatch[2]) { quick.cancel(quickMatch[1]); return send(res, 200, { ok: true }); }
       if(route==='/state'&&req.method==='GET')return send(res,200,conversations.aiState());
       if(route==='/actions'&&req.method==='POST') {
         if(typeof input.requestId!=='string'||!/^[a-zA-Z0-9_-]{8,100}$/.test(input.requestId)||typeof input.expectedVersion!=='string')throw httpError('需要合法的 requestId 和 expectedVersion');
@@ -65,5 +71,5 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
       return send(res, 200, { conversation: c });
     } catch (e) { send(res, e.status || 400, { error: e.message, ...(e.code ? { code: e.code } : {}), ...(e.version !== undefined ? { version: e.version } : {}), ...(e.details ? { details: e.details } : {}) }); }
   }
-  return { handle, store, tool, async close() { closed = true; runtime.close(); } };
+  return { handle, store, tool, async close() { closed = true; runtime.close(); await quick.close(); } };
 }

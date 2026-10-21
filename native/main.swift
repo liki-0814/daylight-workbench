@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         appMenu.addItem(withTitle: "退出 Daylight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let file = NSMenuItem(title: "文件", action: nil, keyEquivalent: ""); let fm = NSMenu(); file.submenu = fm; menu.addItem(file)
         fm.addItem(item("新建任务", key: "n") { self.show("new") })
-        let quick = item("快速搜索…") { self.launcher.toggle() }; quick.keyEquivalent = " "; quick.keyEquivalentModifierMask = [.option]; fm.addItem(quick)
+        let quick = item("快捷问答与搜索…") { self.launcher.toggle() }; quick.keyEquivalent = " "; quick.keyEquivalentModifierMask = [.option]; fm.addItem(quick)
         fm.addItem(withTitle: "关闭窗口", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         let edit = NSMenuItem(title: "编辑", action: nil, keyEquivalent: ""); let em = NSMenu(); edit.submenu = em; menu.addItem(edit)
         for (title, selector, key) in [("撤销", "undo:", "z"), ("剪切", "cut:", "x"), ("复制", "copy:", "c"), ("粘贴", "paste:", "v"), ("全选", "selectAll:", "a")] { em.addItem(withTitle: title, action: Selector(selector), keyEquivalent: key) }
@@ -132,7 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             if group.count > 8 { menu.addItem(item("查看全部…") { self.show(title == "今日任务" ? "today" : "all") }) }
             menu.addItem(.separator())
         }
-        menu.addItem(item("新建任务…") { self.show("new") }); menu.addItem(item("快速搜索…") { self.launcher.toggle() }); menu.addItem(item("打开工作台") { self.show("today") })
+        menu.addItem(item("新建任务…") { self.show("new") }); menu.addItem(item("快捷问答与搜索…") { self.launcher.toggle() }); menu.addItem(item("打开工作台") { self.show("today") })
         menu.addItem(item("打开日历") { self.show("calendar") }); menu.addItem(item("查看专注统计") { self.show("focus") })
         menu.addItem(item("打开数据目录") { NSWorkspace.shared.open(self.server.directory) })
         menu.addItem(.separator()); menu.addItem(withTitle: "退出 Daylight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")

@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 import Carbon.HIToolbox
 
-/// 快速搜索：⌥Space 全局唤出无边框毛玻璃面板，输入内容后交给 Chrome 打开。
+/// ⌥Space 全局唤出临时 AI 问答与 Google 搜索面板。
 final class LauncherPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -42,7 +42,7 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     func stop() {
         if let hotKeyRef { UnregisterEventHotKey(hotKeyRef); self.hotKeyRef = nil }
         if let handlerRef { RemoveEventHandler(handlerRef); self.handlerRef = nil }
-        panel?.orderOut(nil)
+        dismiss()
     }
 
     func toggle() {
@@ -50,7 +50,7 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
         let now = Date()
         if now.timeIntervalSince(lastToggle) < 0.35 { return }
         lastToggle = now
-        if panel?.isVisible == true { panel?.orderOut(nil); return }
+        if panel?.isVisible == true { dismiss(); return }
         present()
     }
 
@@ -60,14 +60,37 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
             let area = screen.visibleFrame, size = panel.frame.size
             panel.setFrameOrigin(NSPoint(x: (area.midX - size.width / 2).rounded(), y: (area.maxY - area.height * 0.28 - size.height).rounded()))
         }
+        NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
-        if !panel.isKeyWindow { NSApp.activate(ignoringOtherApps: true); panel.makeKey() }
+        panel.makeKey()
         web?.evaluateJavaScript("window.quickReset && window.quickReset()")
+    }
+
+    private func dismiss() {
+        web?.evaluateJavaScript("window.quickDismiss && window.quickDismiss()")
+        panel?.orderOut(nil)
+    }
+
+    private func resize(height: Double) {
+        guard let panel, height.isFinite else { return }
+        let area = (panel.screen ?? NSScreen.main)?.visibleFrame ?? panel.frame
+        let size = NSSize(width: min(600, area.width - 40), height: min(max(110, height), max(110, area.height * 0.72 - 20)))
+        let top = panel.frame.maxY
+        panel.setFrame(NSRect(x: area.midX - size.width / 2, y: max(area.minY + 20, top - size.height), width: size.width, height: size.height), display: true)
+        if let background = panel.contentView?.subviews.first as? NSVisualEffectView { background.maskImage = mask(size: size) }
+    }
+
+    private func mask(size: NSSize) -> NSImage {
+        NSImage(size: size, flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 16, yRadius: 16).fill()
+            return true
+        }
     }
 
     private func build() -> LauncherPanel {
         if let panel { return panel }
-        let bounds = NSRect(x: 0, y: 0, width: 600, height: 104)
+        let bounds = NSRect(x: 0, y: 0, width: 600, height: 110)
         let surface = NSView(frame: bounds)
         surface.wantsLayer = true
         surface.layer?.backgroundColor = NSColor.clear.cgColor
@@ -82,11 +105,7 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
         background.autoresizingMask = [.width, .height]
         // Mask the native blur as well as the web layer: otherwise the compositor
         // can leave a rectangular rim outside the rounded panel.
-        background.maskImage = NSImage(size: bounds.size, flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: 16, yRadius: 16).fill()
-            return true
-        }
+        background.maskImage = mask(size: bounds.size)
         surface.addSubview(background)
 
         let configuration = WKWebViewConfiguration()
@@ -127,13 +146,14 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
         return panel
     }
 
-    @objc private func panelDidResignKey(_ notification: Notification) { (notification.object as? NSWindow)?.orderOut(nil) }
+    @objc private func panelDidResignKey(_ notification: Notification) { dismiss() }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "quick", let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
-        if type == "close" { panel?.orderOut(nil); return }
+        if type == "close" { dismiss(); return }
+        if type == "resize", let height = body["height"] as? Double { resize(height: height); return }
         guard type == "open", let text = body["url"] as? String, let url = URL(string: text) else { return }
-        panel?.orderOut(nil)
+        dismiss()
         if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") {
             NSWorkspace.shared.open([url], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration())
         } else {
