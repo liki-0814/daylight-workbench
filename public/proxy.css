@@ -394,8 +394,12 @@
   outline-offset: 3px;
 }
 
+.proxy-quota-panel {
+  --progress-track: color-mix(in srgb, var(--workbench-text) 8%, var(--paper));
+}
+
 .proxy-quota-panel > .ui-section-heading {
-  padding: var(--panel-block-inset) var(--proxy-panel-inset);
+  padding: var(--space-5) var(--proxy-panel-inset);
 }
 
 .proxy-quota-columns, .proxy-quota-account {
@@ -406,8 +410,8 @@
 }
 
 .proxy-quota-columns {
-  border-block: 1px solid var(--line);
-  background: var(--soft);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--line);
   color: var(--muted);
   font-size: var(--font-meta-size);
 }
