@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { initialState, change, validate } from '../public/model.js';
 import { createWorkbench } from '../server.mjs';
-import { closeWorkbench } from '../fixtures/workbench.mjs';
+import { createTaskWorkbench, closeWorkbench } from '../fixtures/workbench.mjs';
 
 const day = '2026-09-07';
 
@@ -54,7 +54,7 @@ test('HTTP: durable writes, restart, conflict detection, unauthorized and invali
   const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-test-'));
   let server;
   const boot = async () => {
-    server = await createWorkbench({ dataDir });
+    server = await createTaskWorkbench(dataDir);
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     return `http://127.0.0.1:${server.address().port}`;
   };
