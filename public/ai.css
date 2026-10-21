@@ -372,7 +372,6 @@
 
 .ai-settings form {
   width: 100%;
-  max-width: var(--form-reading-width);
   padding-bottom: 0;
 }
 

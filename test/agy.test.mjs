@@ -95,7 +95,7 @@ test('quota uses upstream pool windows; missing values are never rendered as ful
  p.catalog=async()=>({project:'p'});assert.equal((await p.quota()).groups[0].displayName,'actual pool');
  const {renderQuota}=await import('../public/proxy/quota-panel.js');
  p.call=async()=>json({groups:[{displayName:'Gemini Models',buckets:[{window:'5h',remainingFraction:0.993,resetTime:'2026-09-30T00:00:00Z'},{window:'weekly'}]}]});
- const quota=await p.quota(),html=renderQuota(quota);assert.ok(Math.abs(quota.buckets[0].usedPercent-0.7)<1e-9);assert.match(html,/0.7%/);assert.match(html,/5 小时/);assert.match(html,/7 天/);assert.match(html,/暂无占比/);assert.doesNotMatch(html,/100%/);
+ const quota=await p.quota(),html=renderQuota(quota);assert.ok(Math.abs(quota.buckets[0].usedPercent-0.7)<1e-9);assert.match(html,/99.3%/);assert.match(html,/5 小时/);assert.doesNotMatch(html,/7 天|暂无占比|100%/);
 });
 
 test('AGY catalog preserves discovered aliases and metadata routes across cache refreshes', async () => {

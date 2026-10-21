@@ -77,7 +77,15 @@ test('401 retries exactly once and refuses to replay after account switch',async
 });
 test('quota distinguishes unknown, unlimited, remaining requests and percentages',()=>{
  const q=copilotQuota({quota_snapshots:{premium_interactions:{entitlement:300,remaining:240,percent_remaining:80},chat:{unlimited:true},unknown:{}}});
- assert.equal(q.buckets[0].used,60);assert.equal(q.buckets[0].usedPercent,20);assert.equal(q.buckets[0].unit,'requests');assert.equal(q.buckets[1].limit,undefined);assert.equal(q.buckets[2].remaining,undefined);
+ assert.equal(q.buckets[0].used,60);assert.equal(q.buckets[0].usedPercent,20);assert.equal(q.buckets[0].unit,'requests');assert.deepEqual(q.buckets[1],{id:'chat',name:'对话',unlimited:true});assert.equal(q.buckets.length,2);
+});
+test('token-based Copilot quota uses AI Credits and precise balances; legacy remains requests',()=>{
+ const data={token_based_billing:true,quota_reset_date_utc:'2026-11-01T00:00:00Z',quota_snapshots:{premium_interactions:{entitlement:20000,remaining:19677,quota_remaining:19677.6,percent_remaining:98.3,quota_reset_at:0},chat:{unlimited:true}}};
+ const {buckets}=copilotQuota(data),[credits,chat]=buckets;
+ assert.equal(credits.name,'AI Credits');assert.equal(credits.unit,'credits');assert.equal(credits.remaining,19677.6);assert.ok(Math.abs(credits.usedPercent-1.612)<1e-9);assert.equal(credits.resetsAt,'2026-11-01T00:00:00.000Z');
+ assert.equal(chat.unlimited,true);assert.equal(chat.name,'对话');assert.equal(chat.resetsAt,undefined);
+ assert.equal(copilotQuota({...data,token_based_billing:false}).buckets[0].unit,'requests');
+ data.quota_snapshots.premium_interactions.token_based_billing=true;assert.equal(copilotQuota({...data,token_based_billing:false}).buckets[0].unit,'credits');
 });
 test('native Anthropic models retain thinking/signatures and a new user turn is user-initiated',async t=>{
  const f=await setup(t,true);f.setModels({data:[{...catalog.data[0],supported_endpoints:['/v1/messages']}]});

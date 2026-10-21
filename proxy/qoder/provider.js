@@ -11,6 +11,7 @@ import {refreshCredential,QoderAuth} from './auth.js';
 import {fetchModels} from './models.js';
 import {parseModelRef} from '../shared/llm/models.js';
 import {fetchCredits} from './quota.js';
+import {normalizeQuota} from '../shared/quota.js';
 import {loadSettings, saveSettings, applyModelsCommand, applySettings, resolveQueueRetry, queueRetryDelay} from './models.js';
 import {contextWindowRejection, effortRejection} from '../shared/llm/index.js';
 import {SessionStore} from './protocol.js';
@@ -66,7 +67,7 @@ export class QoderProvider {
     let next;try{next=applyModelsCommand(command,[body.id,value],settings,models).settings;}catch(error){fail(error.message);}
     await saveSettings(this.config.accountFile,next);return this.listModels();
   });}
-  async quota(){const result=await this.credits();return {...result,checkedAt:result.updatedAt,buckets:result.buckets.map(b=>({id:b.id,name:b.label,unit:'credits',limit:b.total,used:b.used,remaining:b.remaining})),message:'账户额度包含其他客户端使用；每小时保留一个快照，展示近 30 天变化。'};}
+  async quota(){const result=await this.credits();return normalizeQuota({...result,checkedAt:result.updatedAt,buckets:result.buckets.map(b=>({id:b.id,name:b.label,unit:'credits',limit:b.total,used:b.used,remaining:b.remaining})),message:'账户额度包含其他客户端使用；每小时保留一个快照，展示近 30 天变化。'});}
   close(){this.clear();}
   async credits() {
     const account = await this.ready();

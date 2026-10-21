@@ -38,6 +38,6 @@ export class CodexAuth extends LoopbackOAuthAccount {
  }
  async read(force=false){const s=await this.getSession(force);if(!s.scope?.split(' ').includes('chatgpt.tokens.use.direct'))throw oauthError('ChatGPT 账号未授权套餐调用，请刷新登录并授权');return{token:s.access_token,account:s.account.id,exp:s.expiresAt,identity:s.identity};}
  async refresh(){const saved=await this.readSession();if(!saved.scope?.split(' ').includes('chatgpt.tokens.use.direct'))return this.login();return super.refresh();}
- async quota(){await this.read();return{buckets:[],checkedAt:new Date().toISOString(),message:'ChatGPT 独立授权接口暂未提供可读取的额度；实际调用以账户套餐及上游返回为准。'};}
+ async quota(){await this.read();return{buckets:[],checkedAt:new Date().toISOString()};}
  async logout(){const result=await super.logout();await this.host(async()=>{const host=await readJson(this.hostFile,null);if(host){delete host.pendingClientId;await writeJson(this.hostFile,host);}});return result;}
 }

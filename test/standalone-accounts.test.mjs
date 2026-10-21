@@ -26,7 +26,7 @@ for(const id of ['kimi','grok','codex']){
  });
  test(id+' HTTP discovery errors retain credentials and unknown quota is not zero',async t=>{
   const f=await setup(t,id,true);await f.provider.listModels();f.failModels(true);assert.equal((await f.provider.status(true)).connected,false);assert.equal(f.keys.size,1);f.failModels(false);assert.equal((await f.provider.status(true)).connected,true);
-  const q=await f.provider.quota();safe(q);if(id==='codex'){assert.deepEqual(q.buckets,[]);assert.match(q.message,/暂未提供/);}else assert(q.buckets.length);
+  const q=await f.provider.quota();safe(q);if(id==='codex'){assert.deepEqual(q.buckets,[]);assert.equal(Object.hasOwn(q,'message'),false);}else assert(q.buckets.length);
  });
 }
 for(const id of ['kimi','grok'])test(id+' device polls respect pending, slowdown, denial and expiry',async t=>{

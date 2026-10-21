@@ -220,6 +220,7 @@ function render() {
   todaySummary?.setVisible(view === 'today' && !query);
   cliPage?.setVisible(view === 'cli');
   extensionsPage?.setVisible(view === 'extensions');
+  proxyPage?.setSettingsVisible(view === 'settings');
   if (view === 'extensions') {
     proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
     if (!extensionsPage) { extensionsPage = createExtensionsPage({ getToken: () => token, onDiscuss(options) { navigate('ai'); void aiPage.openExtension(options); } }); app.append(extensionsPage.element); }
@@ -251,14 +252,17 @@ function render() {
   }
   if (view === 'settings') {
     proxyPage?.setVisible(false);
+    if (!proxyPage) { proxyPage = createProxyPage({ getToken: () => token }); app.append(proxyPage.element); }
     if (!settingsRoot) {
       settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
       mountAISettings(settingsRoot, () => token);
       focusSettings=mountFocusSettings(settingsRoot.querySelector('.ui-panel-stack'),{controller:focusController,notify});
       appUpdatePanel = mountAppUpdate(settingsRoot.querySelector('.ui-panel-stack'), { getReport: () => appRelease, onRefresh: () => refreshAppRelease(true) });
+      settingsRoot.querySelector('.ui-panel-stack').prepend(proxyPage.settingsElement);
     }
     settingsRoot.hidden = false;
+    proxyPage.setSettingsVisible(true);
     if (releaseIsStale()) void refreshAppRelease();
     document.title = 'Daylight · 设置';
     return;

@@ -290,12 +290,6 @@
   display: none!important;
 }
 
-[data-local-id="proxy-confirm"] p {
-  font-size: var(--font-body-size);
-  line-height: var(--font-body-line);
-  margin: 0;
-}
-
 @media(max-width:650px) {
   .proxy-page {
     --proxy-panel-inset: var(--panel-inline-inset);
@@ -400,158 +394,94 @@
   outline-offset: 3px;
 }
 
-.proxy-credit-bucket {
-  display: flex;
-  align-items: center;
-  gap: 30px;
-  padding: 6px 0 var(--space-5);
+.proxy-quota-panel > .ui-section-heading {
+  padding: var(--panel-block-inset) var(--proxy-panel-inset);
 }
 
-.proxy-credit-bucket + .proxy-credit-bucket {
+.proxy-quota-columns, .proxy-quota-account {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2.5fr);
+  gap: var(--space-6);
+  padding: var(--panel-block-inset) var(--proxy-panel-inset);
+}
+
+.proxy-quota-columns {
+  border-block: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: var(--font-meta-size);
+}
+
+.proxy-quota-account + .proxy-quota-account {
   border-top: 1px solid var(--line);
-  padding-top: var(--space-6);
 }
 
-.proxy-credit-ring {
-  position: relative;
-  flex: 0 0 126px;
-  width: 126px;
-  height: 126px;
-}
+.proxy-quota-account[data-quota-source="qoder"] { --progress-accent: #96712e; }
+.proxy-quota-account[data-quota-source="agy"] { --progress-accent: #488582; }
+.proxy-quota-account[data-quota-source="grok"] { --progress-accent: #657181; }
+.proxy-quota-account[data-quota-source="codex"] { --progress-accent: var(--green); }
+.proxy-quota-account[data-quota-source="kimi"] { --progress-accent: #527bb4; }
+.proxy-quota-account[data-quota-source="copilot"] { --progress-accent: #8370ab; }
 
-.proxy-credit-ring svg {
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke-width: 9;
-}
-
-.proxy-credit-track {
-  stroke: var(--line);
-}
-
-.proxy-credit-progress {
-  stroke: var(--green);
-}
-
-.proxy-credit-ring > div {
-  position: absolute;
-  inset: 0;
+.proxy-quota-identity {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-self: center;
   gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.proxy-credit-ring strong {
-  font-size: var(--font-metric-size);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  line-height: var(--font-metric-line);
-}
-
-.proxy-credit-ring span {
+.proxy-quota-identity strong { font-weight: 500; }
+.proxy-quota-identity span, .proxy-quota-identity small {
   color: var(--muted);
   font-size: var(--font-meta-size);
   line-height: var(--font-meta-line);
 }
 
-.proxy-credit-data {
-  flex: 1;
+.proxy-quota-windows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  align-items: center;
+  gap: var(--space-5) var(--space-6);
   min-width: 0;
 }
 
-.proxy-credit-data h3 {
-  margin: 0 0 18px;
-  font-size: var(--font-body-size);
-  font-weight: 500;
-  line-height: var(--font-body-line);
-}
-
-.proxy-credit-data dl {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  margin: 0;
-}
-
-.proxy-credit-data dt {
+.proxy-quota-window { min-width: 0; }
+.proxy-quota-window:only-of-type { grid-column: 1 / -1; }
+.proxy-quota-window-heading, .proxy-quota-window-meta {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--font-meta-size);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   color: var(--muted);
+  font-size: var(--font-meta-size);
   line-height: var(--font-meta-line);
 }
 
-.proxy-credit-data dd {
-  margin: var(--space-2) 0 0;
-  font-size: var(--font-metric-size);
+.proxy-quota-window-heading { margin-bottom: var(--space-2); }
+.proxy-quota-window-heading strong {
+  color: var(--workbench-text);
+  font-size: var(--font-body-size);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-  line-height: var(--font-metric-line);
 }
 
-@media (max-width: 650px) {
-  .proxy-credit-bucket {
-    gap: 18px;
-    flex-wrap: wrap;
-  }
-  .proxy-credit-ring {
-    flex-basis: 104px;
-    width: 104px;
-    height: 104px;
-  }
-  .proxy-credit-data {
-    flex-basis: 220px;
-  }
-  .proxy-credit-data dl {
-    gap: 10px;
-  }
-  .proxy-credit-data dd {
-    font-size: var(--font-metric-size);
-    line-height: var(--font-metric-line);
-  }
-}
-
-.proxy-credit-trend figure {
-  margin: var(--space-6) 0 var(--space-3);
-}
-
-.proxy-credit-trend figcaption {
-  font-size: var(--font-label-size);
+.proxy-quota-window-meta { margin-top: var(--space-2); }
+.proxy-quota-window-meta span:last-child { margin-left: auto; }
+.proxy-quota-unlimited {
+  grid-column: 1 / -1;
+  margin: 0;
   color: var(--muted);
-  line-height: var(--font-label-line);
+  font-size: var(--font-meta-size);
+}
+.proxy-quota-empty { padding: var(--panel-block-inset) var(--proxy-panel-inset); color: var(--muted); }
+
+@media (max-width: 800px) {
+  .proxy-quota-columns { display: none; }
+  .proxy-quota-account { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 }
 
-.proxy-credit-trend svg {
-  display: block;
-  width: 100%;
-  max-height: 200px;
-  overflow: visible;
-}
-
-.proxy-trend-line {
-  fill: none;
-  stroke: #53785d;
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-}
-
-.proxy-credit-trend circle {
-  fill: #53785d;
-}
-
-.proxy-trend-labels {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  font-size: var(--font-label-size);
-  color: var(--muted);
-  line-height: var(--font-label-line);
-}
 
 .proxy-heading {
   padding-bottom: 0;
@@ -921,11 +851,10 @@
   padding-bottom: 0;
 }
 
-.proxy-footer {
-  max-width: none;
-  padding-top: 0;
-  padding-bottom: var(--space-6);
-}
+.proxy-global-settings { padding-bottom: var(--panel-block-inset); }
+.proxy-global-settings [hidden] { display: none!important; }
+.proxy-global-settings .ui-section-heading { margin-bottom: var(--space-4); }
+.proxy-global-settings #proxy-settings-error { color: var(--danger); }
 
 /* Provider and model routing editors share one right-hand drawer. */
 .proxy-drawer {

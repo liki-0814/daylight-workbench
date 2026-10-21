@@ -20,6 +20,7 @@ import {CustomProvider} from '../proxy/custom/provider.js';
 import {createProxyService} from '../proxy/service.js';
 import {createProxyState} from '../public/proxy/state.js';
 import {renderQuota} from '../public/proxy/quota-panel.js';
+import {normalizeQuota} from '../proxy/shared/quota.js';
 const temporary=async t=>{const dir=await mkdtemp(path.join(os.tmpdir(),'daylight-unified-'));t.after(()=>rm(dir,{recursive:true,force:true}));return dir;};
 const deferred=()=>Promise.withResolvers();
 
@@ -78,8 +79,8 @@ test('frontend reference catalog is shared, deduped and explicitly refreshed wit
  pending.reject(Error('offline'));await assert.rejects(refresh,/offline/);assert.strictEqual(await store.resource(null,'model-metadata'),snapshot);
  store.dispose();
 });
-test('shared quota rendering keeps missing values distinct from an explicit zero',()=>{
- const quota=renderQuota({buckets:[{id:'unknown',name:'unknown',unit:'unknown'},{id:'zero',name:'zero',unit:'percent',usedPercent:0}]});assert.match(quota,/暂无占比/);assert.match(quota,/上游未提供/);assert.match(quota,/0%/);
+test('shared quota rendering hides missing values and preserves an explicit zero used',()=>{
+ const snapshot=normalizeQuota({buckets:[{id:'invalid'},{id:'zero',name:'zero',unit:'percent',usedPercent:0}]}),quota=renderQuota(snapshot);assert.equal(snapshot.buckets.length,1);assert.doesNotMatch(quota,/invalid|暂无占比|未提供/);assert.match(quota,/100%/);
 });
 test('nested Qoder business errors distinguish transport 200, business 400 and client 502 without retaining messages',async()=>{
  const {QoderDeframer}=await import('../proxy/qoder/stream.js'),{RequestTrace}=await import('../proxy/shared/request-records.js');
