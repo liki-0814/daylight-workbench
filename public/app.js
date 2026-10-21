@@ -7,6 +7,7 @@ import { actionButton } from './components/button.js';
 import { sidebarContent } from './components/sidebar.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
 import { settingsPage } from './components/settings-page.js';
+import { mountAppUpdate } from './app-update.js';
 import { createProxyPage } from './proxy.js';
 import { createCLIPage } from './cli-config.js';
 import { createExtensionsPage } from './extensions/page.js';
@@ -40,7 +41,7 @@ let focusSelection = {};
 let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { busy = value; render(); dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
-let sidebarRoot, taskRoot, proxyPage, settingsRoot, lastTaskView = 'all', sidebarMarkup = '';
+let sidebarRoot, taskRoot, proxyPage, settingsRoot, appUpdatePanel, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
 
 function writeTaskURL(replace = false) {
@@ -200,7 +201,7 @@ function render() {
     taskRoot = document.createElement('main'); taskRoot.id = 'task-page';
     app.replaceChildren(sidebarRoot, taskRoot);
   }
-  const markup = sidebarContent({ state, day: today, view, busy, aiActivity });
+  const markup = sidebarContent({ state, day: today, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' });
   if (markup !== sidebarMarkup) {
     const scroll = sidebarRoot.scrollTop;
     sidebarRoot.innerHTML = markup; sidebarMarkup = markup;
@@ -255,8 +256,10 @@ function render() {
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
       mountAISettings(settingsRoot, () => token);
       focusSettings=mountFocusSettings(settingsRoot.querySelector('.ui-panel-stack'),{controller:focusController,notify});
+      appUpdatePanel = mountAppUpdate(settingsRoot.querySelector('.ui-panel-stack'), { getReport: () => appRelease, onRefresh: () => refreshAppRelease(true) });
     }
     settingsRoot.hidden = false;
+    if (releaseIsStale()) void refreshAppRelease();
     document.title = 'Daylight · 设置';
     return;
   }
@@ -435,6 +438,43 @@ setInterval(() => {
 }, 30000);
 
 // Keep external skill writes visible without replacing an in-progress form.
+const releaseIntervalMs = 6 * 60 * 60 * 1000;
+function syncUpdateBadge() {
+  const button = sidebarRoot?.querySelector('[data-view="settings"]');
+  if (!button) return;
+  const existing = button.querySelector('[data-app-update]');
+  if (appRelease?.status === 'available') {
+    if (existing) return;
+    const badge = document.createElement('small');
+    badge.dataset.appUpdate = '';
+    badge.textContent = '有更新';
+    button.append(badge);
+  } else existing?.remove();
+}
+function releaseIsStale() {
+  const checked = Date.parse(appRelease?.checkedAt || '');
+  if (!appRelease || Number.isNaN(checked)) return true;
+  return Date.now() - checked >= (appRelease.status === 'unavailable' ? 15 * 60 * 1000 : releaseIntervalMs);
+}
+async function refreshAppRelease(force = false) {
+  if (!token) return;
+  if (releaseCheck) return releaseCheck;
+  releaseCheck = (async () => {
+    try {
+      const response = await fetch(`/api/app/update${force ? '?refresh=1' : ''}`, { headers: { 'x-workbench-token': token }, signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error('暂时无法检查更新');
+      appRelease = await response.json();
+    } catch {
+      if (!appRelease) appRelease = { current: '', status: 'unavailable', latest: null, error: '暂时无法检查更新', checkedAt: new Date().toISOString() };
+    } finally { releaseCheck = null; }
+    syncUpdateBadge();
+    appUpdatePanel?.paint();
+  })();
+  return releaseCheck;
+}
+setInterval(() => { if (!document.hidden && releaseIsStale()) void refreshAppRelease(); }, 15 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && releaseIsStale()) void refreshAppRelease(); });
+
 async function refreshExternal() {
   if (!state || busy || dialog.open || refreshing || document.hidden) return;
   const beforeVersion = version;
@@ -488,6 +528,6 @@ window.addEventListener('popstate', openDesktopRoute);
 
 try {
   if (location.pathname === '/proxy.html') history.replaceState(null, '', `/${location.hash || '#proxy'}`);
-  await load(); initializeFocus(); await openDesktopRoute();
+  await load(); initializeFocus(); void refreshAppRelease(); await openDesktopRoute();
 }
 catch (error) { app.innerHTML = `<div class="load-error"><h1>暂时无法打开工作台</h1><p>${esc(error.message)}。请确认本地服务正在运行。</p><a href="/">重新连接</a></div>`; }

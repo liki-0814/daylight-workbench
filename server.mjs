@@ -8,6 +8,7 @@ import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { initialState, validate, localDate } from './public/model.js';
 import { taskQuery } from './public/task-view.js';
 import { resolveRoute, capabilities } from './core/contracts.js';
+import { interpretRelease, latestReleaseURL } from './core/app-update.js';
 import { prepareTaskWrite } from './core/task-write.js';
 import { calendarQuery } from './core/calendar-query.js';
 import { createFocusService } from './focus/service.mjs';
@@ -18,7 +19,7 @@ import { createProxyService } from './proxy/service.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {}, aiAdapters, focusOptions = {}, extensionsOptions = {} } = {}) {
+export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions = {}, aiAdapters, focusOptions = {}, extensionsOptions = {}, appVersion, releaseFetch } = {}) {
   if (path.resolve(dataDir) === path.resolve(defaultDataDir)) await migrateLegacyData(dataDir);
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
   const dataFile = path.join(dataDir, 'state.json');
@@ -72,6 +73,32 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   };
   const snapshot = () => ({ version: record.version, state: record.state });
+  const currentVersion = appVersion || JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
+  const requestRelease = releaseFetch || ((url, init) => fetch(url, init));
+  let releaseCache, releaseFlight;
+  const freshReleaseMs = 6 * 60 * 60 * 1000, failedReleaseMs = 15 * 60 * 1000;
+  const readAppRelease = refresh => {
+    if (!refresh && releaseCache && Date.now() < releaseCache.until) return Promise.resolve(releaseCache.value);
+    if (releaseFlight) return releaseFlight;
+    releaseFlight = (async () => {
+      const checkedAt = new Date().toISOString();
+      let value;
+      try {
+        const response = await requestRelease(latestReleaseURL(), {
+          headers: { Accept: 'application/vnd.github+json', 'User-Agent': `Daylight/${currentVersion}`, 'X-GitHub-Api-Version': '2022-11-28' },
+          signal: AbortSignal.timeout(10000),
+        });
+        let body = null;
+        try { body = await response.json(); } catch { body = null; }
+        value = { ...interpretRelease(currentVersion, response.status, body), checkedAt };
+      } catch {
+        value = { current: currentVersion, status: 'unavailable', latest: null, error: '暂时无法连接 GitHub 发布', checkedAt };
+      }
+      releaseCache = { value, until: Date.now() + (value.status === 'unavailable' ? failedReleaseMs : freshReleaseMs) };
+      return value;
+    })().finally(() => { releaseFlight = null; });
+    return releaseFlight;
+  };
   const server = http.createServer(async (req, res) => {
     const send = (code, value) => {
       res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -107,6 +134,7 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
         catch (error) { return send(error.status || 400, { error: error.message, ...(error.code ? { code: error.code } : {}) }); }
       }
       if (dispatch.handler === 'focus') return await focus.handle(req, res);
+      if (dispatch.handler === 'appUpdate') return send(200, await readAppRelease(new URL(req.url, `http://${expectedHost}`).searchParams.get('refresh') === '1'));
       if (dispatch.handler === 'state') return send(200, { ...snapshot(), localDate: localDate() });
       if (dispatch.handler === 'capabilities') return send(200, capabilities());
       if (dispatch.handler === 'missing') return send(404, { error: '接口不存在' });

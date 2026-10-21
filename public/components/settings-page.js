@@ -1,7 +1,7 @@
 export const settingsPage = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 设置</span></header>
     <div class="workspace settings-workspace">
-      <section class="page-heading"><div><h1>设置</h1><p>专注计时、AI 对话、快捷键与快速搜索</p></div></section>
+      <section class="page-heading"><div><h1>设置</h1><p>专注计时、AI 对话、快捷键、快速搜索与应用更新</p></div></section>
       <div class="ui-panel-grid settings-grid">
         <div class="ui-panel-stack">
           <section class="settings-panel" aria-labelledby="extensions-settings-heading"><div class="settings-heading"><h2 id="extensions-settings-heading">本地扩展</h2><p>主来源位于 ~/.agents。管理 Skills、MCP 与本机软件接入。</p></div><a class="text-button" href="#extensions">打开扩展管理</a></section>

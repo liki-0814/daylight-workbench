@@ -22,6 +22,8 @@ Web 调试直接使用 `PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/web-dev" npm r
 
 `core/web-assets.json` 是静态资源允许列表，网页与原生服务共同使用；新增页面资源只在这里登记。`core/contracts.js` 统一接口的方法、鉴权类别、AI/中转转发目标与 capabilities，运行时分别执行 HTTP 收发和鉴权，未知 Agent 路径也先鉴权再拒绝。
 
+`GET /api/app/update` 读取本仓库 GitHub Releases 的最新正式发布。版本比较在 `core/app-update.js`，并经 `native/core-entry.js` 进入 JavaScriptCore；Node 与 Swift 各自请求 GitHub，成功结果在进程内缓存 6 小时，失败缓存 15 分钟。
+
 `core/task-write.js` 统一任务写请求校验、版本检查、回执去重、撤销和业务变更判断，返回待保存的 state/receipt 或错误。Node 的写锁和异步文件写入、Swift 的串行队列和原子写入保留在各自服务中。请求指纹继续使用原请求的 JSON.stringify 文本与 SHA-256，保留旧回执兼容；读取上一版期间 Node 保持写锁。
 
 `native/core-entry.js` 声明 JavaScriptCore 所需导出，`scripts/build-native-core.mjs` 将它编译成安装包中的 `native-core.js`。UUID 由原生桥提供；不再通过删 import/export 文本拼接源码。任务管理仍无需 Node。新增原生共享函数时更新入口导出和调用端；Node-only 模块不能进入这个依赖图。

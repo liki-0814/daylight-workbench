@@ -12,6 +12,8 @@
 
 桌面版占用本机 4318 端口。开发网页服务与桌面应用不能同时占用该端口；如提示占用，先停止开发服务。`PORT` 和 `WORKBENCH_DATA_DIR` 可用于隔离验证。
 
+启动后会检查 [GitHub Releases](https://github.com/liki-0814/daylight-workbench/releases) 的最新正式发布（不含草稿和预发布）。当前版本来自 package.json；已安装 App 使用 Info.plist 的短版本号。设置页显示结果，有更新时侧栏「设置」标出「有更新」，并给出发布页和 Apple Silicon DMG 链接。检查不下载、不替换已安装的 App。窗口回到前台且距上次成功检查超过 6 小时会再查一次；接口受限或网络失败时 15 分钟后重试，设置页也可手动重新检查。
+
 
 原生服务通过构建生成的 `native-core.js` 加载共享业务与接口契约，不再改写源码的 import/export；具体职责见 [开发说明](development.md#网页与原生共享契约)。原生服务提供 `/api/v1/tasks` 并发布 capabilities.taskQuery，加载与网页相同的 task-view.js 选择器；routes.js 和 AI 上下文模块随资源打包。菜单中使用“未归类”名称。任务与链接契约见 [任务与导航](tasks.md)。重新打包和原生隔离测试不会自动替换 /Applications/Daylight.app。
 

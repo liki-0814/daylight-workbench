@@ -11,9 +11,11 @@ test('sidebar shows seven page tabs, without project lists or save-status labels
       assert.match(html, /data-view="extensions"/);
       assert.doesNotMatch(html, /本地工作空间|更改已保存到本机|正在保存…|local-badge|project-full|project-nav/);
       assert.match(html,/data-view="settings"/);
+      assert.doesNotMatch(html, /data-app-update/);
       if (view === 'settings') assert.match(html,/data-view="settings" aria-current="page"/);
       assert.match(html, /data-action="new"/);
       assert.match(html, /data-view="proxy"/);
     }
   }
+  assert.match(sidebarContent({ state: initialState(), view: 'all', updateAvailable: true }), /data-view="settings"[^>]*>[\s\S]*data-app-update>有更新/);
 });

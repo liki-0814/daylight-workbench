@@ -41,6 +41,10 @@ final class WorkbenchServer {
     var onFocusChange: (() -> Void)?
     var focus: Focus!
     private var requestStarted: TimeInterval?
+    private var releaseCache: [String: Any]?
+    private var releaseCachedUntil = Date.distantPast
+    private var releaseFlight = false
+    private var releaseWaiters: [([String: Any]) -> Void] = []
     var endpoint: String { "http://127.0.0.1:\(port)" }
     var version: Int { record["version"] as! Int }
     var state: [String: Any] { record["state"] as! [String: Any] }
@@ -58,7 +62,7 @@ final class WorkbenchServer {
         context.evaluateScript("function structuredClone(x){return JSON.parse(JSON.stringify(x))}; Object.hasOwn ||= ((o,k)=>Object.prototype.hasOwnProperty.call(o,k));")
         context.evaluateScript(try String(contentsOf: resources.appendingPathComponent("native-core.js"), encoding: .utf8))
         if let error = context.exception { throw Failure(message: error.toString()) }
-        context.evaluateScript("var {validate,initialState,localDate,change,taskQuery,taskQueryCapability,applyAction,operations,getTrayState,resolveRoute,capabilities,fingerprintText,prepareTaskWrite}=Daylight;")
+        context.evaluateScript("var {validate,initialState,localDate,change,taskQuery,taskQueryCapability,applyAction,operations,getTrayState,resolveRoute,capabilities,fingerprintText,prepareTaskWrite,interpretRelease,latestReleaseURL}=Daylight;")
         }
         let fm = FileManager.default
         let file = directory.appendingPathComponent("state.json")
@@ -226,6 +230,59 @@ final class WorkbenchServer {
     func handle(_ connection: NWConnection, method: String, path: String, headers: [String: String], body: Data, query: String = "") {
         autoreleasepool { handleRequest(connection, method: method, path: path, headers: headers, body: body, query: query) }
     }
+    private func serveAppUpdate(_ connection: NWConnection, refresh: Bool) {
+        dispatchPrecondition(condition: .onQueue(queue))
+        if !refresh, let cached = releaseCache, Date() < releaseCachedUntil { reply(connection, 200, cached); return }
+        if releaseFlight {
+            releaseWaiters.append { [weak self] value in self?.reply(connection, 200, value) }
+            return
+        }
+        releaseFlight = true
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let deliver: (Any) -> Void = { [weak self] value in
+            guard let self else { return }
+            let record = value as? [String: Any] ?? ["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布"]
+            self.releaseCache = record
+            self.releaseCachedUntil = Date().addingTimeInterval((record["status"] as? String) == "unavailable" ? 15 * 60 : 6 * 60 * 60)
+            self.releaseFlight = false
+            let waiters = self.releaseWaiters
+            self.releaseWaiters = []
+            self.reply(connection, 200, record)
+            waiters.forEach { $0(record) }
+        }
+        let urlText: String
+        do { urlText = try js("latestReleaseURL()") as! String }
+        catch { deliver(["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布", "checkedAt": formatter.string(from: Date())]); return }
+        guard let url = URL(string: urlText) else {
+            deliver(["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布", "checkedAt": formatter.string(from: Date())]); return
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("Daylight/\(version)", forHTTPHeaderField: "User-Agent")
+        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            self?.queue.async {
+                guard let self else { return }
+                let checkedAt = formatter.string(from: Date())
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                if error != nil && code == 0 {
+                    deliver(["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法连接 GitHub 发布", "checkedAt": checkedAt]); return
+                }
+                var payload: Any = NSNull()
+                if let data, let object = try? JSONSerialization.jsonObject(with: data) { payload = object }
+                do {
+                    var interpreted = try self.js("interpretRelease(\(try jsonText(version)),\(code),\(try jsonText(payload)))") as! [String: Any]
+                    interpreted["checkedAt"] = checkedAt
+                    deliver(interpreted)
+                } catch {
+                    deliver(["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布", "checkedAt": checkedAt])
+                }
+            }
+        }.resume()
+    }
     private func handleRequest(_ connection: NWConnection, method: String, path: String, headers: [String: String], body: Data, query: String) {
         requestStarted = ProcessInfo.processInfo.systemUptime
         guard headers["host"] == "127.0.0.1:\(port)" else { reply(connection, 403, ["error": "仅允许本机访问"]); return }
@@ -252,6 +309,10 @@ final class WorkbenchServer {
             if handler == "focus" {
                 let result = focus.handle(path: path, query: query, body: body)
                 reply(connection, result.0, result.1); return
+            }
+            if handler == "appUpdate" {
+                serveAppUpdate(connection, refresh: queryPairs(query).contains { $0.count == 2 && $0[0] == "refresh" && $0[1] == "1" })
+                return
             }
             if handler == "calendar" {
                 let params = queryPairs(query)

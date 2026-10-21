@@ -1591,6 +1591,31 @@ dialog::backdrop {
   line-height: var(--font-meta-line);
 }
 
+.nav-item [data-app-update] {
+  color: #8a6230;
+  font-weight: 600;
+}
+
+.app-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin: 0 0 var(--space-3);
+}
+
+.app-update-notes {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
+}
+
+.settings-facts dd[data-state="available"] {
+  color: #8a6230;
+  font-weight: 600;
+}
+
 /* Page-only navigation and project groups inside Tasks. */
 .page-navigation {
   display: flex;
