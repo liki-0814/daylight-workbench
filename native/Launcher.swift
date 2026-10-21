@@ -60,7 +60,7 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
             let area = screen.visibleFrame, size = panel.frame.size
             panel.setFrameOrigin(NSPoint(x: (area.midX - size.width / 2).rounded(), y: (area.maxY - area.height * 0.28 - size.height).rounded()))
         }
-        NSApp.activate(ignoringOtherApps: true)
+        // The nonactivating panel takes keyboard focus without raising the workbench.
         panel.makeKeyAndOrderFront(nil)
         panel.makeKey()
         web?.evaluateJavaScript("window.quickReset && window.quickReset()")
