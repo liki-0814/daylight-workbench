@@ -9,13 +9,15 @@ import { createToolDispatch } from './tools/dispatch.mjs';
 import { createFocusSubmissions } from './focus-submissions.mjs';
 import { createExtensionSubmissions } from './extensions-submissions.mjs';
 import { createQuickAnswers } from './quick.mjs';
+import { aiBackends } from '../core/ai-backends.js';
+import { executable } from './adapters/process.mjs';
 export { validateSettings } from './conversations.mjs';
 export { validateAction } from './drafts.mjs';
 export { referenceSnapshots } from './context.mjs';
 
 export async function createAIService({ dataDir, endpoint, adapters } = {}) {
   const store = new AIStore(dataDir);
-  const providers = adapters || { codex: await import('./adapters/codex.mjs'), qoder: await import('./adapters/qoder.mjs') };
+  const providers = adapters || { codex: await import('./adapters/codex.mjs'), qoder: await import('./adapters/qoder.mjs'), pi: await import('./adapters/pi.mjs') };
   const quick = createQuickAnswers({ store, providers });
   let closed = false, runtime, tool, focusSubmissions, extensionSubmissions;
   async function api(route, input, params) {
@@ -36,7 +38,11 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
     try {
       if (closed) throw httpError('AI 服务已停止', 503);
       const url = new URL(req.url, 'http://localhost'), route = url.pathname.replace('/api/ai', '');
-      const input = req.method === 'POST' ? await body(req) : {};
+      const input = req.method === 'POST' ? await body(req, route === '/quick' ? 4_000_000 : undefined) : {};
+      if (route === '/backends' && req.method === 'GET') return send(res, 200, { backends: aiBackends.map(item => {
+        try { return { ...item, available: !!providers[item.id], path: executable(item.id, store.settings[item.id]?.path), configured: !!store.settings[item.id]?.model }; }
+        catch (error) { return { ...item, available: false, configured: !!store.settings[item.id]?.model, error: error.message }; }
+      }) });
       if (route === '/quick' && req.method === 'POST') return send(res, 200, quick.start(input));
       const quickMatch = route.match(/^\/quick\/([a-f0-9-]+)(\/cancel)?$/);
       if (quickMatch && req.method === 'GET' && !quickMatch[2]) return send(res, 200, quick.get(quickMatch[1]));
@@ -49,7 +55,7 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
       }
       if (route === '/settings') return send(res, 200, conversations.settings(req.method === 'POST' ? input : undefined));
       if (route === '/discover' && req.method === 'POST') {
-        if (!providers[input.backend]) throw httpError('不支持的后端');
+        if (!aiBackends.some(item => item.id === input.backend) || !providers[input.backend]) throw httpError('不支持的后端');
         return send(res, 200, await conversations.discover(input.backend, { ...store.settings[input.backend], path: input.path || '' }, input.force === true));
       }
       if (route === '/conversations') {

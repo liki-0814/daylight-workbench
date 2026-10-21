@@ -6,6 +6,7 @@ export class AIStore {
     this.root = path.join(dataDir, 'ai');
     fs.mkdirSync(path.join(this.root, 'conversations'), { recursive: true, mode: 0o700 });
     this.settings = this.read('settings.json', { backend: 'codex', codex: { path: '', model: '', effort: '', contextWindow: null }, qoder: { path: '', model: '', effort: '', contextWindow: null, maxOutputTokens: null } });
+    this.settings.pi ||= { path: '', model: '', effort: '', contextWindow: null, accessMode: 'standard' };
     this.conversations = new Map();
     for (const file of fs.readdirSync(path.join(this.root, 'conversations'))) {
       if (!/^[a-f0-9-]+\.json$/.test(file)) continue;

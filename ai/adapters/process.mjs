@@ -2,8 +2,10 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { executableCandidates } from '../../core/local-executables.mjs';
+import { aiBackends } from '../../core/ai-backends.js';
 export function executable(backend, custom = '') {
-  const name = backend === 'codex' ? 'codex' : 'qodercli';
+  const name = aiBackends.find(item => item.id === backend)?.command;
+  if (!name) throw new Error('不支持的 AI 后端');
   for (const p of executableCandidates(name, { custom })) { try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {} }
   throw new Error(`未找到 ${name}，请在设置中指定本机 CLI 的绝对路径。`);
 }
@@ -24,7 +26,7 @@ export class RPC {
       while ((at = this.buffer.indexOf('\n')) >= 0) {
         const line = this.buffer.slice(0, at); this.buffer = this.buffer.slice(at + 1);
         try {
-          const r = JSON.parse(line);
+          const r = this.decode ? this.decode(JSON.parse(line)) : JSON.parse(line);
           if (r.method) Promise.resolve(this.onMessage?.(r)).catch(() => { if (r.id !== undefined) this.send({ id: r.id, error: { code: -32603, message: '客户端处理失败' } }); });
           else if (this.requests.has(r.id)) { const p = this.requests.get(r.id); this.requests.delete(r.id); clearTimeout(p.timer); r.error ? p.reject(new Error(r.error.message)) : p.resolve(r.result); }
         } catch {}

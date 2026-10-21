@@ -31,11 +31,14 @@ export async function discover(settings, cwd) {
     return { path: executable('qoder', settings.path), version: init.qodercli_version, skills: (init.skills || []).map(s => ({ name: s.name, path: `qoder:${s.name}`, description: s.description || '', enabled: true })), models: models.map(m => ({ id: m.modelId || m.id || m.value || m.model, name: m.displayName || m.modelName || m.name || m.label || m.id, efforts: m.efforts || [], contextWindows: m.availableContextWindows || [], maxInputTokens: m.maxInputTokens, maxOutputTokens: m.maxOutputTokens })).filter(m => m.id) };
   } finally { release(); q.close(); }
 }
-export async function run({ conversation: c, cwd, mcp, text, skills = [], emit, signal, setSession, ask, approve, ephemeral = false }) {
+export function promptContent(text, images = []) {
+  return images.length ? [{ type: 'text', text }, ...images.map(image => ({ type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.data } }))] : text;
+}
+export async function run({ conversation: c, cwd, mcp, text, images = [], skills = [], emit, signal, setSession, ask, approve, ephemeral = false }) {
   let release, stopped = Promise.resolve();
   const wait = new Promise(r => { release = r; });
   const content = skills.length ? `用户明确选择了以下本机技能，请通过原生 Skill 工具使用：${JSON.stringify(skills.map(s => s.name))}\n\n${text}` : text;
-  async function* input() { yield { type: 'user', message: { role: 'user', content }, parent_tool_use_id: null, session_id: c.sessionId || '' }; await wait; }
+  async function* input() { yield { type: 'user', message: { role: 'user', content: promptContent(content, images) }, parent_tool_use_id: null, session_id: c.sessionId || '' }; await wait; }
   const extraArgs = {};
   if (c.config.effort) extraArgs['reasoning-effort'] = c.config.effort;
   if (c.config.contextWindow) extraArgs['context-window'] = String(c.config.contextWindow);

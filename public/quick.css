@@ -27,7 +27,7 @@ html:not(.embedded) body { padding: 20px; background: #e7ebf1; }
 }
 html:not(.embedded) .quick-shell {
   max-width: var(--quick-panel-width);
-  height: 110px;
+  height: var(--quick-height, 110px);
   background: rgba(250, 252, 255, .82);
   box-shadow: 0 18px 48px -12px rgba(25, 39, 62, .25), inset 0 0 0 1px rgba(255, 255, 255, .7);
   -webkit-backdrop-filter: blur(24px);
@@ -112,7 +112,9 @@ html:not(.embedded) .quick-shell:has(.quick-result:not([hidden])) { height: min(
 .quick-answer pre { white-space: pre-wrap; }
 #quick-mode { flex-shrink: 0; }
 .quick-footer .ui-segmented { --compact-control-height: 30px; }
+.quick-images { height: 80px; padding: 0 22px 12px; }
 @media (max-width: 420px) {
+  .quick-images { padding-inline: 16px; }
   .quick-result { padding-inline: 16px; }
   .quick-footer { gap: 8px; }
   .quick-action { min-width: 0; }

@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 // independent entry points. Dynamic MCP startup must be retained explicitly.
 const nativeAssets = ['native-core.js'];
 const htmlEntries = ['index.html', 'quick.html'];
-const nodeEntries = ['proxy/sidecar.mjs', 'ai/sidecar.mjs', 'ai/mcp-server.mjs', 'agent-api.mjs', 'tray-model.mjs'];
+const nodeEntries = ['proxy/sidecar.mjs', 'ai/sidecar.mjs', 'ai/mcp-server.mjs', 'ai/adapters/pi-extension.mjs', 'agent-api.mjs', 'tray-model.mjs'];
 
 async function minimizeWeb(publicDir, files) {
   const report = { files: [], beforeBytes: 0, afterBytes: 0 };

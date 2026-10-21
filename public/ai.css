@@ -248,9 +248,11 @@
 
 .ai-model-holder {
   min-width: 0;
-  max-width: calc(100% - 60px);
+  flex: 1;
 }
 
+.ai-backend-holder { flex: 0 0 110px; min-width: 0; }
+.ai-backend-holder .select-trigger,
 .ai-model-holder .select-trigger {
   border: 0;
   background: transparent;

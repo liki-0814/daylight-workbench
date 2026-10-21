@@ -3,6 +3,8 @@ import { segmentedControl, mountSegmentedControl } from './components/segmented-
 import { actionButton } from './components/button.js';
 import { markdown } from './components/ai-message.js';
 import { icon } from './components/icons.js';
+import { backendName } from '../core/ai-backends.js';
+import { mountImageInput } from './components/image-input.js';
 
 const $ = selector => document.querySelector(selector);
 const form = $('#quick-form'), input = $('#quick-input'), action = $('#quick-action');
@@ -10,33 +12,40 @@ const result = $('#quick-result'), answer = $('#quick-answer'), status = $('#qui
 const bridge = globalThis.webkit?.messageHandlers?.quick;
 document.documentElement.classList.toggle('embedded', Boolean(bridge) || new URLSearchParams(location.search).has('embed'));
 let mode = 'ai', generation = 0, jobId = null, timer, used = false, text = '', tokenPromise;
+let previewOpen = false;
+const imageInput = mountImageInput($('#quick-images'), { onChange: () => resize(), onPreviewChange(open) { previewOpen = open; resize(); if (!open) input.focus(); }, onError(error) { result.hidden = false; status.textContent = error.message; resize(); } });
+document.addEventListener('paste', event => { if (mode === 'ai' && !used && !previewOpen) void imageInput.paste(event); });
+$('#quick-images').addEventListener('image-removed', () => input.focus());
 
 $('#quick-mode').innerHTML = segmentedControl({ id: 'quick-mode-control', label: '快捷面板模式', value: mode, options: [{ value: 'ai', label: 'AI 问答' }, { value: 'search', label: 'Google' }] });
 $('#quick-buttons').innerHTML = actionButton({ label: '复制回答', attrs: { id: 'quick-copy', disabled: true }, variant: 'text' });
 mountSegmentedControl($('#quick-mode-control'), { onChange(value) { clear(); mode = value; update(); input.focus(); } });
 
-async function api(route, data) {
+async function service(route, data) {
   tokenPromise ||= fetch('/api/state', { cache: 'no-store' }).then(async response => {
     if (!response.ok) throw new Error('无法连接工作台，请重新打开面板');
     return (await response.json()).token;
   }).catch(error => { tokenPromise = null; throw error; });
   const token = await tokenPromise;
-  const response = await fetch('/api/ai/quick' + route, { method: data ? 'POST' : 'GET', cache: 'no-store', headers: { 'X-Workbench-Token': token, 'Content-Type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) });
+  const response = await fetch('/api/ai' + route, { method: data ? 'POST' : 'GET', cache: 'no-store', headers: { 'X-Workbench-Token': token, 'Content-Type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) });
   const value = await response.json();
   if (!response.ok) throw new Error(value.error || '临时问答失败，请重试');
   return value;
 }
+const api = (route, data) => service('/quick' + route, data);
 function resize() {
   const first = answer.firstElementChild, last = answer.lastElementChild;
   const contentHeight = first ? last.getBoundingClientRect().bottom - first.getBoundingClientRect().top : 0;
-  const height = result.hidden ? 110 : Math.min(480, Math.ceil(204 + contentHeight));
+  const extra = $('#quick-images').hidden ? 0 : 80;
+  const height = previewOpen ? Math.min(720, screen.availHeight * .7) : result.hidden ? 110 + extra : Math.min(480, Math.ceil(204 + extra + contentHeight));
   $('#quick').style.setProperty('--quick-height', `${height}px`);
-  bridge?.postMessage({ type: 'resize', height });
+  bridge?.postMessage({ type: 'resize', height, width: previewOpen ? 1000 : 600 });
 }
 function update() {
   const ai = mode === 'ai';
   $('.quick-glyph').innerHTML = icon(ai ? 'chat' : 'search');
-  input.placeholder = ai ? '问一个问题，关闭即清空' : '搜索 Google，或输入网址';
+  imageInput.disabled = used;
+  input.placeholder = ai ? '问一个问题，⌘V 粘贴图片' : '搜索 Google，或输入网址';
   input.setAttribute('aria-label', ai ? '临时问答' : '快速搜索');
   action.textContent = ai ? used ? '单轮问答 · 关闭即清空' : '向 AI 提问 · 不保存记录' : resolveQuickInput(input.value).kind === 'url' ? '打开网址' : '用 Google 搜索';
   resize();
@@ -46,6 +55,7 @@ function clear() {
   const id = jobId; jobId = null;
   if (id) void api(`/${id}/cancel`, {}).catch(() => {});
   used = false; text = ''; input.value = ''; input.readOnly = false;
+  imageInput.clear();
   result.hidden = true; answer.replaceChildren(); status.textContent = ''; $('#quick-model').textContent = '';
   $('#quick-copy').disabled = true; $('#quick-copy').textContent = '复制回答';
 }
@@ -78,15 +88,15 @@ async function submit() {
     else window.open(url, '_blank', 'noopener');
     return;
   }
-  if (used || !input.value.trim()) return;
+  if (used || imageInput.pending || !input.value.trim() && !imageInput.images.length) return;
   used = true; input.readOnly = true; result.hidden = false;
   status.textContent = '正在连接 AI…'; update();
   const current = generation;
   try {
-    const started = await api('', { text: input.value });
+    const started = await api('', { text: input.value, images: imageInput.images });
     if (current !== generation) { void api(`/${started.id}/cancel`, {}).catch(() => {}); return; }
     jobId = started.id;
-    $('#quick-model').textContent = `${started.backend === 'qoder' ? 'Qoder' : 'Codex'} · ${started.model}`;
+    $('#quick-model').textContent = `${backendName(started.backend)} · ${started.model}`;
     void poll(jobId, current);
   } catch (error) { if (current === generation) status.textContent = error.message; }
 }
@@ -106,7 +116,7 @@ $('#quick-copy').addEventListener('click', async () => {
   catch { if (current === generation) status.textContent = '请选中回答后按 ⌘C 复制'; }
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); close(); }
+  if (event.key === 'Escape' && !event.isComposing && !document.querySelector('dialog[open]')) { event.preventDefault(); close(); }
 });
 window.addEventListener('pagehide', clear);
 // Native dismissal includes Esc, shortcut toggle, loss of focus, and App shutdown.

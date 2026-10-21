@@ -5,6 +5,7 @@ import { isActive } from './run-manager.mjs';
 import { httpError } from './http.mjs';
 import { hasUnresolvedFocusSubmission } from './focus-submissions.mjs';
 import { hasUnresolvedExtensionSubmission } from './extensions-submissions.mjs';
+import { aiBackends } from '../core/ai-backends.js';
 
 export function createConversations({ store, providers, api, isRunning, isFocusApplying = () => false, isExtensionApplying = () => false }) {
   const catalogs = store.read('catalogs.json', {}), discoveries = new Map();
@@ -31,7 +32,9 @@ export function createConversations({ store, providers, api, isRunning, isFocusA
     return{version,settings,conversations};
   }
   async function newConversation(input={}) {
-    const backend=store.settings.backend,config=structuredClone(store.settings[backend]);
+    const backend=input.backend || store.settings.backend;
+    if (!aiBackends.some(item => item.id === backend) || !providers[backend] || !store.settings[backend]) throw httpError('不支持的 AI 后端');
+    const config=structuredClone(store.settings[backend]);
     if(input.model&&input.model!==config.model){config.model=input.model;config.effort='';config.contextWindow=null;}
     if(!config.model)throw httpError('请先在设置中选择并保存 AI 模型');
     const catalog=await discover(backend,config),model=catalog.models.find(m=>m.id===config.model);
@@ -128,15 +131,16 @@ export function createConversations({ store, providers, api, isRunning, isFocusA
 }
 
 export function validateSettings(input) {
-  if (!['codex', 'qoder'].includes(input.backend)) throw httpError('请选择 Codex 或 Qoder');
+  if (!aiBackends.some(item => item.id === input.backend)) throw httpError('请选择 Codex、Qoder 或 Pi');
   const next = { backend: input.backend };
-  for (const backend of ['codex', 'qoder']) {
+  for (const { id: backend } of aiBackends) {
     const s = input[backend] || {};
     if (s.path && (!path.isAbsolute(s.path) || /[\r\n]/.test(s.path))) throw httpError('CLI 路径必须为绝对路径');
-    if (typeof s.model !== 'string' || s.model.length > 200) throw httpError('模型名称无效');
+    if (typeof (s.model ?? (backend === 'pi' ? '' : undefined)) !== 'string' || (s.model || '').length > 200) throw httpError('模型名称无效');
     if (s.effort && !['none', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(s.effort)) throw httpError('思考强度无效');
     if (s.accessMode !== undefined && !['standard', 'full'].includes(s.accessMode)) throw httpError('访问模式无效');
-    next[backend] = { path: s.path || '', model: s.model.trim(), effort: s.effort || '', contextWindow: positive(s.contextWindow), accessMode: s.accessMode || 'standard' };
+    next[backend] = { path: s.path || '', model: (s.model || '').trim(), effort: s.effort || '', contextWindow: positive(s.contextWindow), accessMode: s.accessMode || 'standard' };
+    if (backend === 'pi' && next[backend].contextWindow) throw httpError('Pi 使用模型原生上下文窗口');
     if (backend === 'qoder') next[backend].maxOutputTokens = positive(s.maxOutputTokens);
   }
   return next;

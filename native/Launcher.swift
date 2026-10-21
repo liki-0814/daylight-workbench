@@ -71,10 +71,10 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
         panel?.orderOut(nil)
     }
 
-    private func resize(height: Double) {
-        guard let panel, height.isFinite else { return }
+    private func resize(height: Double, width: Double = 600) {
+        guard let panel, height.isFinite, width.isFinite else { return }
         let area = (panel.screen ?? NSScreen.main)?.visibleFrame ?? panel.frame
-        let size = NSSize(width: min(600, area.width - 40), height: min(max(110, height), max(110, area.height * 0.72 - 20)))
+        let size = NSSize(width: min(max(400, min(1000, width)), area.width - 40), height: min(max(110, height), max(110, area.height * 0.72 - 20)))
         let top = panel.frame.maxY
         panel.setFrame(NSRect(x: area.midX - size.width / 2, y: max(area.minY + 20, top - size.height), width: size.width, height: size.height), display: true)
         if let background = panel.contentView?.subviews.first as? NSVisualEffectView { background.maskImage = mask(size: size) }
@@ -151,7 +151,7 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "quick", let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
         if type == "close" { dismiss(); return }
-        if type == "resize", let height = body["height"] as? Double { resize(height: height); return }
+        if type == "resize", let height = body["height"] as? Double { resize(height: height, width: body["width"] as? Double ?? 600); return }
         guard type == "open", let text = body["url"] as? String, let url = URL(string: text) else { return }
         dismiss()
         if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") {

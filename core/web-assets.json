@@ -1,4 +1,9 @@
 {
+  "/core/ai-images.js": "../core/ai-images.js",
+  "/components/image-input.js": "components/image-input.js",
+  "/components/image-input.css": "components/image-input.css",
+  "/core/ai-backends.js": "../core/ai-backends.js",
+  "/components/ai-backend.js": "components/ai-backend.js",
   "/proxy/api.js": "proxy/api.js",
   "/proxy/state.js": "proxy/state.js",
   "/proxy/service-panel.js": "proxy/service-panel.js",

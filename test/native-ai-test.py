@@ -18,7 +18,9 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-ai-') as tmp:
         token=state['token']
         assert request('/api/ai/settings')[0]==403
         status,result=request('/api/ai/settings',token=token);assert status==200,result
-        for backend in ['codex','qoder']:
+        status, detected=request('/api/ai/backends',token=token)
+        assert status==200 and {item['id'] for item in detected['backends']}=={'codex','qoder','pi'},detected
+        for backend in ['codex','qoder','pi']:
             status,result=request('/api/ai/discover',{'backend':backend,'path':''},token)
             assert status==200 and result['models'],result
             print(f'PASS: native {backend} discovery ({len(result["models"])} models)')

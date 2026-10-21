@@ -10,7 +10,7 @@ async function waitFor(condition) {
   assert.fail('AI lifecycle did not settle');
 }
 
-for (const backend of ['codex','qoder']) test(`${backend}: waiting approval blocks other runs; cancel and close settle pending waiters`, async t => {
+for (const backend of ['codex','qoder','pi']) test(`${backend}: waiting approval blocks other runs; cancel and close settle pending waiters`, async t => {
   const c=conversation(backend),other=conversation(backend);other.id+='-other';
   const conversations=new Map([[c.id,c],[other.id,other]]),answers=[];
   const store={conversations,settings:{[backend]:{accessMode:'standard'}},save:()=>{},workspace:()=>'/tmp/fake-workspace'};
