@@ -1,6 +1,7 @@
 // Shared source identity and presentation. Each page keeps its own ordering.
 export const proxySources=Object.freeze([
  {id:'qoder',name:'Qoder',label:'Qoder',kind:'provider',mark:'Q',tone:'codex',piOrder:4},
+ {id:'qwenwork',name:'千问办公',label:'千问办公',kind:'provider',mark:'问',tone:'kimi',piOrder:7},
  {id:'agy',name:'AGY',label:'AGY',kind:'provider',mark:'A',tone:'kimi',piOrder:5},
  {id:'grok',name:'Grok',label:'Grok',kind:'provider',mark:'G',tone:'grok',piOrder:3},
  {id:'codex',name:'Codex',label:'Codex',kind:'provider',mark:'C',tone:'codex',piOrder:0},

@@ -15,9 +15,9 @@ import {createGateway,fail} from './gateway.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
-export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
+export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, qwenworkProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
   const metadata=createModelMetadata({dataDir,fetchImpl,enabled:!injectedProvider,...pricingOptions});
-  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,customSources,metadata,getPort:()=>settings.port});
+  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,customSources,metadata,getPort:()=>settings.port});
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');
   const sourceState = new SourceState();
@@ -143,7 +143,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   const initialize = () => {
     const startup = settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();
     // These accounts need a probe before their saved login/catalog is visible.
-    const discovery = !settings.autoStart ? Promise.allSettled(['codex','copilot','kimi','grok'].filter(id=>providers[id]).map(id=>listModels(id))) : Promise.resolve();
+    const discovery = !settings.autoStart ? Promise.allSettled(['codex','copilot','kimi','grok','qwenwork'].filter(id=>providers[id]).map(id=>listModels(id))) : Promise.resolve();
     return Promise.all([startup, discovery]).then(() => {});
   };
   return { handle, close, initialize, status, accounts };
