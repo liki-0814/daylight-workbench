@@ -10,8 +10,10 @@
 - **日历与专注**：按日期安排与改期、工作/短休息计时、暂停恢复、任务累计和按日/项目专注统计。
 - **macOS 桌面**：菜单栏任务入口、窗口关闭后驻留，以及 `⌥Space` 快速搜索。
 - **扩展管理**：维护 ~/.agents 下的 Skills、MCP 与 Codex/Qoder/Pi 接入，支持 AI 管理草稿、归档与回执恢复。
-- **AI 对话**：连接本机 Codex 或 Qoder CLI，支持流式回答、历史会话、项目/任务关联与引用、可编辑变更草稿。
+- **AI 对话**：自动识别并连接本机 Codex、Qoder 或 Pi CLI，支持流式回答、历史会话、项目/任务关联与引用、可编辑变更草稿。
 - **模型中转**：Qoder、AGY、Grok、Codex、Kimi、GitHub Copilot 与自定义上游共用接入地址、API Key 和服务开关，以及模型/额度组件。
+- **快捷问答**：`⌥Space` 面板中的临时单轮 AI 问答，支持粘贴剪贴板图片。
+- **检查更新**：对照 GitHub Releases 的正式发布提示新版本，不自动安装。
 - **请求诊断**：统一查看来源状态、请求结果、阶段耗时、模型映射及上游实际返回的用量。
 
 ## 快速启动
@@ -29,7 +31,7 @@ npm run web
 
 安装依赖时跳过 SDK 的下载脚本；AI 使用已经安装并登录的本机 CLI。只使用任务管理时无需配置模型账号。
 
-进入「设置 → AI 对话」，选择 Codex 或 Qoder，点击「刷新模型与技能」并保存模型，即可在浏览器中与本机 CLI 对话。「扩展管理」维护 `~/.agents`；「CLI 配置」继续提供 Pi 与模型中转的联动。AI 对话认证复用本机 CLI 登录。反向代理中各内置来源支持 Daylight 独立网页登录，统一提供刷新登录与退出账号；详见 [反向代理说明](docs/reverse-proxy.md)。
+进入「设置 → AI 对话」，选择 Codex、Qoder 或 Pi，点击「刷新模型与技能」并保存模型，即可在浏览器中与本机 CLI 对话。「扩展管理」维护 `~/.agents`；「CLI 配置」继续提供 Pi 与模型中转的联动。AI 对话认证复用本机 CLI 登录。反向代理中各内置来源支持 Daylight 独立网页登录，统一提供刷新登录与退出账号；详见 [反向代理说明](docs/reverse-proxy.md)。
 
 只启动服务、稍后手动打开页面可用 `npm start`，或 `npm run web -- --no-open`。网页与桌面版共用默认数据目录和端口，切换模式先退出正在运行的实例；端口冲突时不会自动换端口启动第二份服务。菜单栏、全局快捷键和 macOS 系统提醒由原生 App 提供。
 
@@ -85,6 +87,29 @@ POST /v1/messages
 ```
 
 不同来源支持的参数与协议有差异；无法表示的跨协议字段会明确报错。同名模型通过模型路由设置主用/备用，也可使用别名分别调用。上下文默认使用模型最高容量，可选择受上限约束的档位；最大输出独立选择，Fast 与思考强度按真实能力显示，Pi 使用同一份目录。请求记录只保存诊断元数据，缺失用量显示为“未提供”。详见 [反向代理说明](docs/reverse-proxy.md)。
+
+### 快捷问答、图片与后端识别 / Quick answer, images and backend detection
+
+- **后端自动识别**：设置页与对话页读取 `GET /api/ai/backends`，按 CLI 路径设置或 `PATH`、`~/.npm-global/bin`、`~/.local/bin`、`~/.volta/bin`、`/opt/homebrew/bin`、`/usr/local/bin` 查找 `codex`、`qodercli`、`pi`；找不到的后端标为「未检测到」，不会自动切换已保存的后端。
+- **快捷问答**：`⌥Space` 面板（或菜单「快捷问答与搜索…」）使用设置中的默认后端、模型与思考强度，单轮回答、不写入对话历史，也不接入工作台工具。
+- **粘贴图片**：在 AI 模式下发送前可粘贴剪贴板图片，最多 4 张，合计不超过 2 MB（2,000,000 字节），仅支持 PNG、JPEG、WebP。单张超过 2 MB 时会在浏览器内缩放到最长边 2048 像素并转为 JPEG（原图上限 20 MB）；服务端还会校验 Base64 编码与文件头。只有图片没有文字时，默认提问「请描述并分析这些图片。」
+
+- **Backend detection**: Settings and the AI page call `GET /api/ai/backends`, resolving `codex`, `qodercli` and `pi` from the configured CLI path, or from `PATH`, `~/.npm-global/bin`, `~/.local/bin`, `~/.volta/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Missing backends are labelled “未检测到” (not detected); the saved backend is never switched automatically.
+- **Quick answer**: the `⌥Space` panel (or the “快捷问答与搜索…” menu item) uses the default backend, model and effort from Settings, answers a single turn, is not saved to conversation history and has no workbench tools.
+- **Image paste**: in AI mode, before sending, paste up to 4 clipboard images, 2 MB (2,000,000 bytes) in total, PNG/JPEG/WebP only. An image over 2 MB is downscaled in the browser to 2048 px on the long edge and re-encoded as JPEG (originals up to 20 MB); the server also validates Base64 and file signatures. Images without text are sent with the prompt “请描述并分析这些图片。”
+
+### 检查更新 / Check for updates
+
+启动后读取 GitHub Releases 的最新正式发布（`/repos/liki-0814/daylight-workbench/releases/latest`，忽略草稿与预发布），在「设置 → 应用更新」显示结果并提供发布页和 DMG 链接，优先选择文件名含 `arm64` 的 `.dmg`，没有时使用第一个 `.dmg`。成功结果缓存 6 小时；接口受限或网络失败的结果缓存 15 分钟后重试；「重新检查」会跳过缓存。只检查，不下载或替换 App。
+
+On startup Daylight reads the latest published GitHub Release (drafts and prereleases ignored) and shows it under Settings → 应用更新 with release-page and DMG links, preferring a `.dmg` whose name contains `arm64` and otherwise the first `.dmg`. Successful results are cached for 6 hours; rate-limited or failed checks are cached for 15 minutes and then retried; “重新检查” (check again) bypasses the cache. It never downloads or replaces the app.
+
+### 常见问题 / Troubleshooting
+
+- **「图片格式无效，请粘贴 PNG、JPEG 或 WebP 图片」**：图片类型不是 PNG/JPEG/WebP，或 Base64 数据损坏、单张编码后超限。请重新复制或另存为 PNG/JPEG 后粘贴。「图片内容与格式不符」表示文件头与声明类型不一致；「图片总大小不能超过 2 MB」请减少图片。
+  **“Invalid image format”** (`图片格式无效…`): the image is not PNG/JPEG/WebP, or its Base64 payload is malformed or too large. Copy the image again or save it as PNG/JPEG first. “图片内容与格式不符” means the file signature does not match its type; “图片总大小不能超过 2 MB” means remove some images.
+- **「GitHub 发布接口暂时受限，请稍后再试」**：GitHub 返回 403/429（通常是未登录 API 的速率限制）。15 分钟后自动重试，或稍后点「重新检查」；「暂时无法连接 GitHub 发布」表示网络失败，同样 15 分钟后重试。
+  **“GitHub release API rate-limited”** (`GitHub 发布接口暂时受限…`): GitHub answered 403/429, usually the unauthenticated rate limit. Daylight retries after 15 minutes, or click “重新检查” later; “暂时无法连接 GitHub 发布” indicates a network failure and is retried the same way.
 
 ## 数据与本地接口
 
