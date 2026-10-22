@@ -12,9 +12,10 @@ import { CustomSources } from '../proxy/custom/sources.js';
 import { createWorkbench } from '../server.mjs';
 import { writeJson } from '../proxy/shared/store.js';
 
-async function directory(t) {
+const removeDir = dir => rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+async function directory(t, { cleanup = true } = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'daylight-diagnostics-'));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  if (cleanup) t.after(() => removeDir(dir));
   return dir;
 }
 const model = id => ({ id, enabled: true, displayName: id, contextWindows: [], reasoningEfforts: [] });
@@ -43,7 +44,7 @@ test('enabled custom routes retain failed connection badges across restart and r
     const response = await fetch(base + route, { method: input ? 'POST' : 'GET', headers: { 'X-Workbench-Token': token, 'Content-Type': 'application/json' }, ...(input ? { body: JSON.stringify(input) } : {}) });
     return { status: response.status, data: await response.json() };
   };
-  t.after(async () => { if (server.listening) await stop(); await rm(dir, { recursive: true, force: true }); });
+  t.after(async () => { if (server.listening) await stop(); await removeDir(dir); });
   await boot();
   assert.equal((await api('/api/custom-proxy/test', { id: saved.id })).status, 502);
   await stop(); await boot();
@@ -126,7 +127,8 @@ test('source snapshots separate configured catalogs from verification and invali
 });
 
 test('authenticated public diagnostics preserve wire responses and capture both execution paths', async t => {
-  const dir = await directory(t); let discoveries = 0;
+  // Cleanup is registered after the workbench teardown so the proxy stops writing first.
+  const dir = await directory(t, { cleanup: false }); let discoveries = 0;
   const vault = new Map();
   const custom = new CustomSources({ dataDir: dir, secrets: { get: async id => vault.get(id), set: async (id, value) => vault.set(id, value), delete: async id => vault.delete(id) }, fetchImpl: async (_url, options) => {
     if (!options.body) { discoveries++; return Response.json({ data: [{ id: 'private-model' }] }); }
@@ -147,9 +149,9 @@ test('authenticated public diagnostics preserve wire responses and capture both 
       signal.throwIfAborted();
     }),
   };
-  const app = await createWorkbench({ dataDir: dir, proxyOptions: { provider: q, includeAgy: false, includeGrok: false, includeGateway: false, customSources: custom } });
+  const app = await createWorkbench({ dataDir: dir, proxyOptions: { provider: q, includeAgy: false, includeGrok: false, includeGateway: false, customSources: custom, pricingOptions: { enabled: false }, piOptions: { piDir: path.join(dir, 'pi') } } });
   app.listen(0, '127.0.0.1'); await once(app, 'listening');
-  t.after(async () => { await app.closeProxy(); app.closeAllConnections(); await new Promise(resolve => app.close(resolve)); });
+  t.after(async () => { await app.closeProxy(); app.closeAllConnections(); await new Promise(resolve => app.close(resolve)); await removeDir(dir); });
   const base = `http://127.0.0.1:${app.address().port}`, token = (await (await fetch(base + '/api/state')).json()).token;
   const api = async (route, body) => { const response = await fetch(base + route, { method: body ? 'POST' : 'GET', headers: { 'x-workbench-token': token, 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) }); assert.equal(response.status, 200); return response.json(); };
   assert.equal((await fetch(base + '/api/proxy/sources')).status, 403);
