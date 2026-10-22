@@ -24,8 +24,18 @@ export class ModelRouter {
     }
     let changed = false;
     for (const [id, models] of groups) {
-      if (!Object.hasOwn(this.preferences,id)) { Object.defineProperty(this.preferences,id,{value:{order:[],excluded:[]},enumerable:true,writable:true,configurable:true}); changed = true; }
-      for (const model of models) if (!this.preferences[id].order.includes(model.provider)) { this.preferences[id].order.push(model.provider); changed = true; }
+      if (!Object.hasOwn(this.preferences,id)) {
+        // Carry forward route choices saved under the native catalog keys.
+        const prior = models.flatMap(model => (model.aliases || []).flatMap(alias => Object.hasOwn(this.preferences,alias) ? [this.preferences[alias]] : []));
+        Object.defineProperty(this.preferences,id,{value:{order:[...new Set(prior.flatMap(p=>p.order))],excluded:[...new Set(prior.flatMap(p=>p.excluded))]},enumerable:true,writable:true,configurable:true}); changed = true;
+      }
+      for (const model of models) if (!this.preferences[id].order.includes(model.provider)) {
+        this.preferences[id].order.push(model.provider);
+        // Sources may recover after the new group was first published. Import
+        // their prior exclusion once, when they first join the renamed route.
+        if ((model.aliases || []).some(alias=>Object.hasOwn(this.preferences,alias) && this.preferences[alias].excluded.includes(model.provider)) && !this.preferences[id].excluded.includes(model.provider)) this.preferences[id].excluded.push(model.provider);
+        changed = true;
+      }
     }
     if (changed && this.routesFile) await writeJson(this.routesFile,this.preferences);
     return this.preferences;
@@ -88,7 +98,8 @@ export class ModelRouter {
         const pref = this.preferences[id];
         const eligible = models.filter(m => m.enabled && this.available.has(m.provider) && !pref.excluded.includes(m.provider));
         eligible.sort((a,b) => pref.order.indexOf(a.provider) - pref.order.indexOf(b.provider));
-        const base = eligible[0] || models[0];
+        const aliases = [...new Set(models.flatMap(m=>m.aliases || []))];
+        const base = {...(eligible[0] || models[0]), ...(aliases.length ? {aliases} : {})};
         if (eligible.length < 2) return {...base,id,enabled:!!eligible.length,contextWindows:base.contextWindows || [],reasoningEfforts:base.reasoningEfforts || []};
         const merged = {...base,...mergeModelCapabilities(eligible),...mergeModelPrices(eligible),id,enabled:true,contextWindows:[]};
         merged.contextWindows = common(eligible.map(m=>(m.contextWindows || []).map(w=>w.length))).map(length=>({length,isDefault:length===merged.contextWindow}));
@@ -156,15 +167,22 @@ export class ModelRouter {
     });
   }
   sessionKey(model,conversationId) { return conversationId ? createHash('sha256').update(model+'\0'+conversationId).digest('hex') : null; }
+  matches(model, requested) {
+    const id = model.provider === 'qoder' ? parseModelRef(requested).id : requested;
+    return model.id === id || model.aliases?.includes(id);
+  }
+  groupId(requested) {
+    return this.groups.has(requested) ? requested : [...this.groups].find(([,models])=>models.some(model=>this.matches(model,requested)))?.[0];
+  }
   async candidates(request, {conversationId,stateful=false}={}) {
     const hadCatalog = !!this.routeModels;
     if (!hadCatalog) await this.cachedModels();
-    const cached = this.routeModels?.some(m=>m.id===request.model || m.provider==='qoder' && m.id===parseModelRef(request.model).id);
+    const cached = this.groupId(request.model) !== undefined;
     if (!cached || hadCatalog && Date.now()-this.discoveredAt >= this.cacheRoutesMs) await this.listModels();
-    const id = this.groups.has(request.model) ? request.model : parseModelRef(request.model).id;
+    const id = this.groupId(request.model);
     const pref = this.preferences[id], models = this.groups.get(id);
     if (!pref || !models) throw Object.assign(new Error('模型不存在、已停用或来源不可用'),{code:'model_not_found',status:400});
-    let candidates = pref.order.map(p=>models.find(m=>m.provider===p)).filter(m=>m?.enabled && this.available.has(m.provider) && !pref.excluded.includes(m.provider) && (request.model===m.id || m.provider==='qoder'));
+    let candidates = pref.order.map(p=>models.find(m=>m.provider===p)).filter(m=>m?.enabled && this.available.has(m.provider) && !pref.excluded.includes(m.provider) && this.matches(m,request.model));
     const key = this.sessionKey(id,conversationId), pin = key && this.sessions.get(key);
     if (pin && Date.now()-pin.at >= 86400000) this.sessions.delete(key);
     const pinned = key && this.sessions.get(key)?.provider;

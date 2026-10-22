@@ -128,14 +128,17 @@ test('manual lifecycle, PKCE login, key protection, overlay, non-streaming and s
   assert.equal((await f.client('models', null, { Origin: 'https://example.com' })).status, 403);
   const wrongHost = await new Promise((resolve, reject) => { const req = http.get({ host: '127.0.0.1', port: f.port, path: '/v1/models', headers: { Host: 'evil.test', Authorization: `Bearer ${f.key}` } }, res => { res.resume(); resolve(res.statusCode); }); req.on('error', reject); });
   assert.equal(wrongHost, 403);
-  assert.deepEqual((await f.api('models')).body.models.map(m => m.id), ['test-model', enterpriseModel.key]);
+  assert.deepEqual((await f.api('models')).body.models.map(m => m.id), ['test-model', 'qwen3.8-max-dogfooding']);
   const clientModels = await f.client('models'); assert.equal(clientModels.status, 200);
-  assert.deepEqual((await clientModels.json()).data.map(m => m.id), ['test-model', enterpriseModel.key]);
+  assert.deepEqual((await clientModels.json()).data.map(m => m.id), ['test-model', 'qwen3.8-max-dogfooding']);
   assert.equal((await f.client('responses', { model: teamModel.key, input: 'hi' })).status, 400);
   assert.equal((await f.client('responses', { model: teamDogfood.key, input: 'hi' })).status, 400);
   assert.equal(f.fake.calls.length, 0);
   const dogfoodResponse = await f.client('responses', { model: enterpriseModel.key, input: 'hi' });
   assert.equal(dogfoodResponse.status, 200); await dogfoodResponse.json();
+  const namedResponse = await f.client('responses', { model: 'qwen3.8-max-dogfooding', input: 'hi' });
+  assert.equal(namedResponse.status, 200); await namedResponse.json();
+  assert.equal(f.fake.calls.at(-1).body.model_config.key, enterpriseModel.key);
   assert.equal((await f.api('settings', { port: 5000, autoStart: false })).status, 409);
   assert.equal((await f.api('test', {})).status, 200);
   assert.equal((await f.api('models/setting', { id: 'test-model', field: 'effort', value: 'high' })).status, 200);
@@ -148,7 +151,7 @@ test('manual lifecycle, PKCE login, key protection, overlay, non-streaming and s
   assert.equal((await f.client('chat/completions', { model: 'test-model', messages: [], reasoning_effort: 'invalid' })).status, 400);
   assert.equal((await f.api('models/setting', { id: 'test-model', field: 'context', value: 123 })).status, 400);
   assert.equal((await f.api('models/setting', { id: 'test-model', field: 'enabled', value: false })).status, 200);
-  assert.deepEqual((await (await f.client('models')).json()).data.map(m => m.id), [enterpriseModel.key]);
+  assert.deepEqual((await (await f.client('models')).json()).data.map(m => m.id), ['qwen3.8-max-dogfooding']);
   assert.equal((await f.client('responses', { model: 'test-model', input: 'hi' })).status, 400);
   const usage = JSON.stringify((await f.api('usage')).body); assert.ok(!usage.includes('private-prompt')); assert.ok(!usage.includes('private-access')); assert.ok(usage.includes('12'));
   assert.equal((await f.api('service', { enabled: false })).body.state, 'stopped');

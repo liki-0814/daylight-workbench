@@ -14,6 +14,8 @@ const hash = value => createHash('sha256').update(JSON.stringify(value) ?? 'unde
 const encode = value => JSON.stringify(value, null, 2) + '\n';
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const filenames = ['models.json', 'settings.json'];
+const matchesModel = (model, id) => model.id === id || model.aliases?.includes(id);
+const savedOverride = (model, overrides = {}) => overrides[model.id] ?? (model.aliases || []).map(id=>overrides[id]).find(value=>value !== undefined);
 export const piAPIs = ['openai-responses', 'openai-completions', 'anthropic-messages'];
 function unavailableReason(model, api) {
   return typeof model.pi?.[api] === 'string' ? model.pi[api] : '';
@@ -120,15 +122,15 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
     const failedIds=new Set(failed.map(s=>s.id));
     const healthy=catalog.filter(m=>!failedIds.has(m.source));
     // Older installations have no per-model ownership. Keep unknown rows on a partial failure.
-    const retained=(provider.models||[]).filter(m=>!healthy.some(row=>row.id===m.id)&&failed.length&&(!sync.modelSources?.[m.id]?.length||sync.modelSources[m.id].some(id=>failedIds.has(id))));
+    const retained=(provider.models||[]).filter(m=>!healthy.some(row=>matchesModel(row,m.id))&&failed.length&&(!sync.modelSources?.[m.id]?.length||sync.modelSources[m.id].some(id=>failedIds.has(id))));
     const catalogWarning=failed.length?`来源 ${failed.map(s=>s.name).join('、')} 的目录读取失败；健康来源继续同步，${retained.length} 个已有模型保留配置。`:'';
     const catalogError=retained.length&&(provider.api!==api||provider.baseUrl!==gateway.baseUrl||provider.apiKey!==gateway.apiKey)?'存在目录不可用的保留模型，请等待来源恢复后再更换 Pi 接口、地址或 Key。':'';
     const modelSources=Object.fromEntries([...healthy.map(m=>[m.id,result.modelSources?.[m.id]||[m.source]]),...retained.filter(m=>sync.modelSources?.[m.id]).map(m=>[m.id,sync.modelSources[m.id]])]);
     const version = hash({ files, catalog:healthy, modelSources, retained, catalogError, catalogWarning, api, modelOverrides: sync.modelOverrides, baseUrl: gateway.baseUrl, apiKey: gateway.apiKey });
     const rows = healthy.map(model => {
-      const prior = provider.models?.find(m => m.id === model.id), desired = modelConfig(model, {}, api, sync.modelOverrides?.[model.id]);
+      const prior = provider.models?.find(m => matchesModel(model,m.id)), desired = modelConfig(model, {}, api, savedOverride(model,sync.modelOverrides));
       const same = prior && hash(prior) === hash(desired) && provider.baseUrl === gateway.baseUrl && provider.apiKey === gateway.apiKey;
-      return { ...model, state: !prior ? 'new' : same ? 'connected' : 'update', unavailableReason: unavailableReason(model, api), configuration: desired, overrides: sync.modelOverrides?.[model.id] || {} };
+      return { ...model, state: !prior ? 'new' : same ? 'connected' : 'update', unavailableReason: unavailableReason(model, api), configuration: desired, overrides: savedOverride(model,sync.modelOverrides) || {} };
     });
     for(const model of retained){
       const source=sync.modelSources?.[model.id]?.find(id=>failedIds.has(id))||sync.modelSources?.[model.id]?.[0]||'unknown';
@@ -153,13 +155,18 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
     if (input.ids !== undefined && (!Array.isArray(input.ids) || input.ids.length !== selected.length || new Set(input.ids).size !== selected.length || selected.some(m => !input.ids.includes(m.id)))) fail('现在使用全量同步，请刷新后同步全部中转模型', 409);
     if (selected.some(m => m.unavailableReason)) fail(selected.find(m => m.unavailableReason).unavailableReason);
     if (input.defaultModel !== undefined && !selected.some(m => m.id === input.defaultModel)) fail('默认模型需属于当前中转目录');
-    const modelOverrides = input.modelOverrides === undefined ? Object.fromEntries(Object.entries(sync.modelOverrides || {}).filter(([id])=>selected.some(m=>m.id===id))) : validateOverrides(input.modelOverrides, selected);
+    const modelOverrides = input.modelOverrides === undefined ? Object.fromEntries(selected.flatMap(model=>{const value=savedOverride(model,sync.modelOverrides);return value===undefined?[]:[[model.id,value]];})) : validateOverrides(input.modelOverrides, selected);
     const next = structuredClone(s.models), provider = { ...s.models.providers?.daylight, baseUrl: s.gateway.baseUrl, api: s.public.api, apiKey: s.gateway.apiKey, models: selected.map(m => m.retained?s.retained.find(old=>old.id===m.id):modelConfig(m, {}, s.public.api, modelOverrides[m.id])) };
     next.providers = { ...next.providers, daylight: provider };
     const settings = { ...s.settings };
     let defaultChanged = false;
     if (input.defaultModel !== undefined) { settings.defaultProvider = 'daylight'; settings.defaultModel = input.defaultModel; defaultChanged = true; }
-    else if (settings.defaultProvider === 'daylight' && !selected.some(m => m.id === settings.defaultModel)) { delete settings.defaultProvider; delete settings.defaultModel; defaultChanged = true; }
+    else if (settings.defaultProvider === 'daylight' && !selected.some(m => m.id === settings.defaultModel)) {
+      const renamed = selected.find(m=>matchesModel(m,settings.defaultModel));
+      if(renamed) settings.defaultModel = renamed.id;
+      else { delete settings.defaultProvider; delete settings.defaultModel; }
+      defaultChanged = true;
+    }
     const after = [hash(s.models.providers?.daylight) === hash(provider) ? s.files[0] : encode(next), hash(settings) === hash(s.settings) ? s.files[1] : encode(settings)];
     return { after, modelOverrides, public: { version: s.public.version, api: s.public.api, ids: selected.map(m => m.id), defaultChanged, changes: [...selected.map(m => ({ id: m.id, name: m.name, state: m.state })), ...s.public.obsolete], config: { providers: { daylight: { baseUrl:provider.baseUrl,api:provider.api,apiKey:'<本地代理 Key>',models:selected.map(m=>m.retained?m.configuration:modelConfig(m,{},s.public.api,modelOverrides[m.id])) } } }, ...(defaultChanged ? { settings: { defaultProvider: settings.defaultProvider || null, defaultModel: settings.defaultModel || null } } : {}) } };
   }
@@ -205,7 +212,7 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
       }
       await remember(s, plan.after, plan.modelOverrides);
       const removed = s.public.obsolete.length;
-      return { ok: true, count, removed, retained:s.retained.length,partial:!!s.failedSources.length,backupPath, message: `已同步 ${count} 个模型，移除 ${removed} 个旧模型。${s.public.catalogWarning}${plan.public.defaultChanged ? input.defaultModel === undefined ? '失效的默认模型已清除。' : '已更新 Pi 默认模型。' : '默认模型未修改。'}` };
+      return { ok: true, count, removed, retained:s.retained.length,partial:!!s.failedSources.length,backupPath, message: `已同步 ${count} 个模型，移除 ${removed} 个旧模型。${s.public.catalogWarning}${plan.public.defaultChanged ? '已更新 Pi 默认模型配置。' : '默认模型未修改。'}` };
   }
   const service = {
     start: async () => {
