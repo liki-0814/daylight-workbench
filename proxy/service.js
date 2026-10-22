@@ -106,7 +106,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       const catalog = await (force ? router.listModels(true) : router.cachedModels());
       const failedSources = definitions.filter(s => s.enabled && router.errors[s.id]).map(s => ({ id:s.id, name:s.name, unconfigured:!router.catalogs.has(s.id) }));
       return { failedSources, modelSources:Object.fromEntries([...(router.groups||[])].map(([id,models])=>[id,models.filter(m=>m.enabled).map(m=>m.provider)])), models: catalog.filter(m => m.enabled).map(m => ({
-      id: m.id, name: m.displayName || m.id, source: m.provider,
+      id: m.id, name: m.displayName || m.id, source: m.provider, ...(m.aliases?.length ? {aliases:m.aliases} : {}),
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
       cost:m.cost,priceInfo:m.priceInfo,modelMetadata:m.modelMetadata,reasoningEffortsProvided:m.reasoningEffortsProvided,
       pi:{...registry.snapshot(m.provider)?.capabilities?.pi,...m.pi},

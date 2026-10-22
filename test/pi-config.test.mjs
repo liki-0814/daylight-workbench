@@ -24,6 +24,20 @@ async function fixture(t, options = {}) {
 }
 async function apply(pi, input, requestId = 'apply-one') { const state = await pi.state(input.api); return pi.apply({ ...input, expectedVersion: state.version, requestId }); }
 
+test('readable model IDs migrate the existing default and overrides without changing thinking or other providers', async t => {
+  const f=await fixture(t);
+  f.setCatalog([{id:'a',name:'A',source:'qoder'}]);
+  await apply(f.pi,{defaultModel:'a',modelOverrides:{a:{maxTokens:1234}}},'initial');
+  f.setCatalog([{id:'qwen3.8-flash',name:'Qwen3.8-Flash',aliases:['a'],source:'qoder'}]);
+  const preview=await f.pi.prepare({});
+  assert.equal(preview.settings.defaultModel,'qwen3.8-flash');
+  await apply(f.pi,{},'rename');
+  assert.deepEqual(await f.json('settings'),{...f.settings,defaultProvider:'daylight',defaultModel:'qwen3.8-flash'});
+  assert.deepEqual((await f.json('models')).providers.daylight.models.map(m=>[m.id,m.maxTokens]),[['qwen3.8-flash',1234]]);
+  const sync=JSON.parse(await readFile(path.join(f.dataDir,'cli/pi-sync.json')));
+  assert.deepEqual(sync.modelOverrides,{'qwen3.8-flash':{maxTokens:1234}});
+});
+
 test('Pi Messages uses the SDK root base URL while OpenAI retains /v1',async t=>{
  const f=await fixture(t);f.setCatalog([{id:'native',name:'Native',source:'copilot'}]);
  await apply(f.pi,{api:'anthropic-messages'},'messages-base');assert.equal((await f.json('models')).providers.daylight.baseUrl,'http://127.0.0.1:4319');

@@ -22,7 +22,7 @@ const SECRETS = [OFFICE, REFRESH, MAAS, 'synthetic-maas-token-2', 'synthetic-off
 function jwt(payload) { return `e30.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.sig`; }
 function challengeOf(verifier) { return createHash('sha256').update(verifier).digest('base64url'); }
 const catalog = () => ({schema_version: 2, catalog: [
-  {key: 'mode-chat', harness: 'oc', format: 'openai/chat-completions', i18n: {display_name: {zh: '对话模型'}}, max_input_tokens: 128000, max_output_tokens: 8192, is_reasoning: true, thinking_config: {efforts: ['low', 'high']}, model_id: 'qwen-real-chat', tools: true},
+  {key: 'mode-chat', harness: 'oc', format: 'openai/chat-completions', i18n: {display_name: {zh: 'Qwen3.8-Flash'}}, max_input_tokens: 128000, max_output_tokens: 8192, is_reasoning: true, thinking_config: {efforts: ['low', 'high']}, model_id: 'qwen-real-chat', tools: true},
   {key: 'mode-responses', harness: 'oc', format: 'openai/responses', execution: {preferred_harness: 'opencode', routes: {opencode: {modelId: 'qwen-real-responses', apiProtocol: 'openai_responses', enabled: true, limits: {context_window: 200000, max_output_tokens: 16000}}}}},
   {key: 'mode-off', enable: false, format: 'openai/chat-completions'},
 ]});
@@ -152,7 +152,7 @@ test('personal and team refresh targets stay distinct and a changed identity is 
 test('chat-modes map a mode key to the upstream model and protocol', () => {
   const models = adaptChatModes(catalog());
   assert.deepEqual(models.map(model => [model.id, model.upstreamId, model.nativeProtocols[0], model.displayName]), [
-    ['mode-chat', 'qwen-real-chat', 'chat', '对话模型'],
+    ['mode-chat', 'qwen-real-chat', 'chat', 'Qwen3.8-Flash'],
     ['mode-responses', 'qwen-real-responses', 'responses', 'mode-responses'],
   ]);
   assert.deepEqual(models[0].reasoningEfforts, ['low', 'high']);
@@ -339,6 +339,12 @@ test('management login, public streaming and tool calls share the provider witho
   await api('/api/proxy/settings', {port, autoStart: false});
   await api('/api/proxy/service', {enabled: true});
   const key = (await api('/api/proxy/key')).apiKey;
+  const catalog = await (await fetch(`http://127.0.0.1:${port}/v1/models`, {headers:{Authorization:`Bearer ${key}`}})).json();
+  assert.ok(catalog.data.some(model=>model.id==='qwen3.8-flash'));
+  assert.ok(!catalog.data.some(model=>model.id==='mode-chat'));
+  const namedResponse = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:'qwen3.8-flash',stream:true,messages:[{role:'user',content:'Hi'}]})});
+  assert.equal(namedResponse.status,200);await namedResponse.text();
+  assert.equal(JSON.parse(f.state.calls.filter(call=>call.path==='/v1/chat/completions').at(-1).init.body).model,'qwen-real-chat');
   const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {method: 'POST', headers: {Authorization: `Bearer ${key}`, 'Content-Type': 'application/json'}, body: JSON.stringify({model: 'mode-chat', stream: true, messages: [{role: 'user', content: 'Hi'}], tools: [{type: 'function', function: {name: 'echo', parameters: {type: 'object'}}}]})});
   assert.equal(response.status, 200, await response.clone().text());
   assert.match(await response.text(), /echo/);
