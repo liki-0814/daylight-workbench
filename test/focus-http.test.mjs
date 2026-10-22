@@ -3,15 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { createWorkbench } from '../server.mjs';
-import { closeWorkbench } from '../fixtures/workbench.mjs';
+import { createTaskWorkbench, closeWorkbench } from '../fixtures/workbench.mjs';
 import { fixtureState } from './fixtures.mjs';
 
 test('real HTTP focus/calendar Web and Agent auth, receipts, task hook and undo contracts', async () => {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'daylight-focus-http-'));
   const state = fixtureState(); state.plans['2026-10-06'] = ['task-1'];
   await writeFile(path.join(dataDir, 'state.json'), JSON.stringify({ version: 0, state }));
-  const server = await createWorkbench({ dataDir });
+  const server = await createTaskWorkbench(dataDir);
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${server.address().port}`, initial = await (await fetch(`${base}/api/state`)).json(), agent = (await readFile(path.join(dataDir, 'agent-token'), 'utf8')).trim();
@@ -34,5 +33,5 @@ test('real HTTP focus/calendar Web and Agent auth, receipts, task hook and undo 
     const capabilities = (await get('/api/v1/capabilities')).value; assert.equal(capabilities.taskPlanning.reschedule, true); assert.equal(capabilities.focus.taskStateMutation, false);
     assert.equal((await get('/api/v1/focus/sessions?limit=1&limit=2')).code, 400);
     assert.equal((await get('/api/v1/focus/export')).value.receipts, undefined);
-  } finally { await closeWorkbench(server); await rm(dataDir, { recursive: true, force: true }); }
+  } finally { await closeWorkbench(server); await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
 });

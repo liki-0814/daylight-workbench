@@ -12,8 +12,7 @@ import { signCosy } from '../proxy/qoder/transport.js';
 import { decodeBody, aesDecryptInfo } from '../fixtures/qoder/wire.mjs';
 import { parseModelList } from '../proxy/qoder/models.js';
 import { QoderHttp, sessionFromAccount } from '../proxy/qoder/transport.js';
-import { createWorkbench } from '../server.mjs';
-import { closeWorkbench } from '../fixtures/workbench.mjs';
+import { createTaskWorkbench, closeWorkbench } from '../fixtures/workbench.mjs';
 
 const teamModel = { key: 'team-model', display_name: 'Qwen3.8-Max（采供线专属）', source: 'byokTeams', format: 'openai' };
 const enterpriseModel = { key: 'mode-24b28efaa85443a5bf7eac4de15190f5', display_name: 'Qwen3.8-Max-DogFooding', source: 'organization', format: 'openai', context_config: [{ token_count: 1000000, is_default: true }], thinking_config: { enabled: { efforts: { high: {} } } } };
@@ -61,7 +60,7 @@ async function fixture(t, seed = true) {
   const port = await freePort(); await api('settings', { port, autoStart: false });
   const key = (await api('key')).body.apiKey;
   const client = (route, body, headers = {}) => fetch(`http://127.0.0.1:${port}/v1/${route}`, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
-  t.after(async () => { await bridge.close(); management.closeAllConnections(); await new Promise(r => management.close(r)); await rm(dataDir, { recursive: true, force: true }); });
+  t.after(async () => { await bridge.close(); management.closeAllConnections(); await new Promise(r => management.close(r)); await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); });
   return { dataDir, fake, bridge, api, port, key, client };
 }
 
@@ -227,7 +226,7 @@ test('auto-start persists; corrupt proxy configuration leaves task APIs availabl
   await reloaded.initialize(); assert.equal((await reloaded.status()).state, 'running'); await reloaded.close();
   const state = await readFile(path.join(f.dataDir, 'qoder/service.json'), 'utf8'); assert.ok(!state.includes('private-access'));
   await writeFile(path.join(f.dataDir, 'qoder/service.json'), '{broken');
-  const workbench = await createWorkbench({ dataDir: f.dataDir }); workbench.listen(0, '127.0.0.1'); await once(workbench, 'listening');
+  const workbench = await createTaskWorkbench(f.dataDir); workbench.listen(0, '127.0.0.1'); await once(workbench, 'listening');
   t.after(() => closeWorkbench(workbench));
   const url = `http://127.0.0.1:${workbench.address().port}`;
   const snapshot = await (await fetch(url + '/api/state')).json(); assert.deepEqual(snapshot.state.tasks, []);

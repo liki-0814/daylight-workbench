@@ -8,14 +8,13 @@ import { AIStore } from '../ai/store.mjs';
 import { createFocusSubmissions, assertFocusDraftAllowed } from '../ai/focus-submissions.mjs';
 import { createConversations } from '../ai/conversations.mjs';
 import { httpError } from '../ai/http.mjs';
-import { createWorkbench } from '../server.mjs';
-import { closeWorkbench } from '../fixtures/workbench.mjs';
+import { createTaskWorkbench, closeWorkbench } from '../fixtures/workbench.mjs';
 import { fixtureState } from './fixtures.mjs';
 
 const pending = () => ({ id: randomUUID(), type: 'focusChanges', requestId: randomUUID(), version: 12, taskVersion: 17, expiresAt: Date.now() + 600000, action: { type: 'focus.start', phase: 'work', taskId: 'task-1', durationSeconds: 1500 }, summary: '开始专注' });
 const applied = { ok: true, version: 13, appliedVersion: 13, current: { id: 'actual-session', taskId: 'task-1' }, lastOutcome: null, actionResult: { sessionId: 'actual-session' }, replayed: false };
 async function context(t) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'daylight-focus-ai-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const dir = await mkdtemp(path.join(tmpdir(), 'daylight-focus-ai-')); t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }));
   const store = new AIStore(dir), p = pending(), c = { id: randomUUID(), title: '测试会话', backend: 'codex', config: {}, status: 'waiting', messages: [], pending: p, updatedAt: new Date().toISOString() }; store.save(c);
   return { dir, store, p, c };
 }
@@ -89,9 +88,9 @@ for(const backend of ['codex','qoder']) test(`${backend}: real AI focus draft ap
     const response = await fetch(mcp.env.DAYLIGHT_TOOL_URL, { method: 'POST', headers: { Authorization: `Bearer ${mcp.env.DAYLIGHT_TOOL_TOKEN}` }, body: JSON.stringify({ name: 'daylight_propose_focus_changes', arguments: { summary: '开始专注', action: { type: 'focus.start', phase: 'work', taskId: 'task-1' } } }) });
     const result = await response.json(); finished++; emit({ type: 'delta', text: result.ok ? '已保存专注' : '需核对' });
   } };
-  async function boot() { server = await createWorkbench({ dataDir, aiAdapters: { codex: adapter, qoder: adapter } }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); }
+  async function boot() { server = await createTaskWorkbench(dataDir, { aiAdapters: { codex: adapter, qoder: adapter } }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); }
   async function stop() { await closeWorkbench(server); }
-  await boot(); t.after(async () => { if (server.listening) await stop(); await rm(dataDir, { recursive: true, force: true }); });
+  await boot(); t.after(async () => { if (server.listening) await stop(); await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); });
   const api = async (route, body, origin = true) => {
     const base = `http://127.0.0.1:${server.address().port}`, token = (await (await fetch(base + '/api/state')).json()).token;
     const response = await fetch(base + '/api/ai/' + route, { method: body ? 'POST' : 'GET', headers: { 'X-Workbench-Token': token, ...(origin ? { Origin: base } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
