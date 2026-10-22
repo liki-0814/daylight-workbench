@@ -52,7 +52,7 @@ async function setup(t) {
     }
     if (parsed.pathname === '/api/v1/deviceToken/refresh') return json({device_token: 'synthetic-office-next', refresh_token: 'synthetic-office-refresh-2', expires_in: 3600});
     if (parsed.pathname.startsWith('/api/v1/adapter/user/account-context')) return json(contextFor(state.identity));
-    if (parsed.pathname === '/api/desktop/chat-modes') return json(catalog());
+    if (parsed.pathname === '/api/desktop/chat-modes') return json(state.catalog || catalog());
     if (parsed.pathname === '/api/desktop-sessions') {
       state.minted++;
       const requested = JSON.parse(init.body || '{}').session_id;
@@ -178,6 +178,69 @@ test('chat-modes map a mode key to the upstream model and protocol', () => {
     ['legacy-chat', 'legacy-upstream', true],
     ['legacy-key-only', 'legacy-key-only', true],
   ]);
+});
+
+test('managed MaaS chat modes expose verified effort levels despite the catalog reasoning flag', () => {
+  const mode = {key: 'mode-managed', source: 'system', format: 'openai', is_reasoning: false};
+  const expected = ['low', 'medium', 'high', 'xhigh', 'max'];
+  const [model] = adaptChatModes({catalog: [mode]});
+  assert.equal(model.isReasoning, true);
+  assert.deepEqual(model.reasoningEfforts, expected);
+  assert.equal(model.reasoningEffortsProvided, false);
+  for (const override of [{is_reasoning: undefined}, {thinking_config: null}]) {
+    assert.deepEqual(adaptChatModes({catalog: [{...mode, ...override}]})[0].reasoningEfforts, expected);
+  }
+  // Explicit declarations remain authoritative, including an empty list.
+  for (const efforts of [[], ['medium'], ['low', 'high']]) {
+    const [declared] = adaptChatModes({catalog: [{...mode, thinking_config: {efforts}}]});
+    assert.deepEqual(declared.reasoningEfforts, efforts);
+    assert.equal(declared.reasoningEffortsProvided, true);
+  }
+  for (const override of [{source: 'enterprise'}, {key: 'custom-model'}, {model_id: 'byok-upstream'}, {format: 'openai/responses'}, {format: 'anthropic/messages'}]) {
+    const [unverified] = adaptChatModes({catalog: [{...mode, ...override}]});
+    assert.equal(unverified.isReasoning, false);
+    assert.deepEqual(unverified.reasoningEfforts, []);
+  }
+});
+
+test('managed effort settings and all client protocols forward exact levels without changing the default', async t => {
+  const {provider, state} = await setup(t);
+  state.catalog = {catalog: [{key: 'mode-managed', source: 'system', format: 'openai', is_reasoning: false}]};
+  await provider.auth.login();
+  assert.equal((await provider.auth.poll()).authorized, true);
+  const [model] = await provider.listModels();
+  assert.ok(model.settingFields.includes('effort'));
+  const raw = {model: model.id, messages: [{role: 'user', content: 'Hi'}], stream: true};
+  await provider.forward(raw, 'chat');
+  assert.equal(JSON.parse(state.calls.at(-1).init.body).reasoning_effort, undefined);
+  for (const effort of ['low', 'medium', 'high', 'xhigh', 'max']) {
+    await provider.setModel({id: model.id, field: 'effort', value: effort});
+    await provider.forward(raw, 'chat');
+    assert.equal(JSON.parse(state.calls.at(-1).init.body).reasoning_effort, effort);
+    for (const [protocol, request] of [
+      ['chat', {...raw, reasoning_effort: effort}],
+      ['responses', {model: model.id, input: 'Hi', reasoning: {effort}, stream: true}],
+      ['messages', {...raw, max_tokens: 64, thinking: {type: 'adaptive'}, output_config: {effort}}],
+    ]) {
+      const before = structuredClone(request);
+      await provider.forward(request, protocol);
+      const call = state.calls.at(-1);
+      const body = JSON.parse(call.init.body);
+      assert.equal(call.path, '/v1/chat/completions');
+      assert.equal(body.reasoning_effort, effort);
+      assert.equal(body.model, model.id);
+      assert.deepEqual(request, before);
+    }
+  }
+  await provider.forward({...raw, reasoning_effort: 'low'}, 'chat');
+  assert.equal(JSON.parse(state.calls.at(-1).init.body).reasoning_effort, 'low');
+  const count = state.calls.length;
+  await assert.rejects(provider.forward({...raw, reasoning_effort: 'invalid'}, 'chat'), /思考强度/);
+  await assert.rejects(provider.setModel({id: model.id, field: 'effort', value: 'invalid'}), /思考强度/);
+  assert.equal(state.calls.length, count);
+  await provider.setModel({id: model.id, field: 'effort', value: 'auto'});
+  await provider.forward(raw, 'chat');
+  assert.equal(JSON.parse(state.calls.at(-1).init.body).reasoning_effort, undefined);
 });
 
 test('auth clock helpers use a function as the default now', () => {

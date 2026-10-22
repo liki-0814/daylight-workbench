@@ -12,6 +12,7 @@ const API_NAME = {
   anthropic: 'anthropic', 'anthropic/messages': 'anthropic',
 };
 const PROTOCOL = {openai: 'chat', openai_responses: 'responses', anthropic: 'messages'};
+const MAAS_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 const text = value => typeof value === 'string' && value.trim() ? value.trim() : undefined;
 const positive = value => positiveCapacity(typeof value === 'string' ? Number(value) : value);
@@ -43,10 +44,17 @@ function displayName(raw, key) {
   return text(raw.display_name) || text(raw.displayName) || text(raw.name) || key;
 }
 
-function reasoningOf(raw) {
+function reasoningOf(raw, {protocol, modelId, key}) {
   const thinking = raw.thinking_config || raw.thinkingConfig;
   const declared = thinking?.efforts || thinking?.supported_efforts || thinking?.levels || raw.reasoning_efforts || raw.reasoningEfforts;
   const supported = booleanCapability(raw.is_reasoning ?? raw.isReasoning ?? thinking?.enabled);
+  // System mode flags describe the desktop catalog, not the MaaS request contract.
+  // Live probes verified all five levels (and rejected an invalid value) for the
+  // hosted chat modes. Do not extend this fallback to BYOK or other protocols;
+  // an explicit catalog list, including [], remains authoritative.
+  if (declared == null && protocol === 'chat' && raw.source === 'system' && modelId === key && key.startsWith('mode-')) {
+    return {...reasoningCapabilities(true, MAAS_REASONING_EFFORTS), reasoningEffortsProvided: false};
+  }
   return reasoningCapabilities(supported, Array.isArray(declared) ? declared : undefined);
 }
 
@@ -98,7 +106,7 @@ export function adaptMode(raw) {
     contextWindow: contextWindowOf(raw, limits),
     maxOutputTokens: positive(limits.maxOutputTokens ?? limits.max_output_tokens ?? raw.max_output_tokens ?? raw.maxOutputTokens),
     contextWindows: [],
-    ...reasoningOf(raw),
+    ...reasoningOf(raw, {protocol, modelId, key}),
     isVL: vision,
     capabilities: {nativeChat: protocol === 'chat', ...(booleanCapability(raw.tools ?? raw.tool_call ?? raw.supports_tools) !== undefined ? {tools: booleanCapability(raw.tools ?? raw.tool_call ?? raw.supports_tools)} : {})},
   };
