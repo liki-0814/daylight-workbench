@@ -83,7 +83,68 @@ test('external symlinks and same-name entities are preserved; path traversal is 
   await assert.rejects(f.service.apply({ requestId: 'conflict-test', expectedVersion: plan.expectedVersion, planId: plan.planId, action: plan.normalizedAction }), /存在其他内容/);
   assert.equal(await fs.readFile(path.join(f.clientRoots.qoder, 'skills', 'example', 'mine.txt'), 'utf8'), 'untouched'); assert.equal(await fs.readFile(outside, 'utf8'), 'private');
   await fs.symlink(f.temp, path.join(f.agentsRoot, 'skills', 'external'));
-  assert.ok((await f.service.state(true)).diagnostics.some(d => d.code === 'EXTERNAL_SOURCE'));
+  const external = await f.service.state(true);
+  assert.ok(external.diagnostics.some(d => d.code === 'EXTERNAL_SOURCE'));
+  assert.equal(external.skills.some(skill => skill.relativePath === 'external'), false);
+});
+
+test('one real skill directory stays one source when shared and client links point at it', async t => {
+  const f = await fixture(t);
+  const outside = path.join(f.temp, 'vendor', 'ego-browser');
+  await fs.mkdir(outside, { recursive: true });
+  await fs.writeFile(path.join(outside, 'SKILL.md'), content('ego-browser', 'vendor'));
+  const shared = path.join(f.agentsRoot, 'skills', 'ego-browser');
+  await fs.mkdir(path.dirname(shared), { recursive: true });
+  await fs.symlink(outside, shared);
+  const links = {
+    codex: path.join(f.clientRoots.codex, 'skills', 'ego-browser'),
+    qoder: path.join(f.clientRoots.qoder, 'skills', 'ego-browser'),
+    pi: path.join(f.clientRoots.pi, 'agent/skills', 'ego-browser'),
+  };
+  for (const [clientId, link] of Object.entries(links)) {
+    await fs.mkdir(path.dirname(link), { recursive: true });
+    await fs.symlink(clientId === 'pi' ? path.relative(path.dirname(link), shared) : shared, link);
+  }
+  const state = await f.service.state(true);
+  const found = state.skills.filter(skill => skill.relativePath === 'ego-browser');
+  assert.equal(found.length, 1);
+  const skill = found[0];
+  assert.equal(skill.scope, 'shared');
+  assert.equal(skill.sourcePath, shared);
+  assert.equal(skill.realPath, await fs.realpath(outside));
+  assert.equal(skill.readOnly, true);
+  assert.equal(skill.valid, true);
+  assert.deepEqual(skill.bindings.map(binding => [binding.clientId, binding.state]), [['codex', 'existing'], ['qoder', 'existing'], ['pi', 'existing']]);
+  assert.equal(state.diagnostics.some(item => item.id === skill.id && item.code === 'BINDING_CONFLICT'), false);
+  assert.equal((await f.service.detail(skill.id)).content, null);
+  await assert.rejects(f.service.prepare({ type: 'skill.update', id: skill.id, content: content('ego-browser', 'nope') }), /软链接/);
+  assert.equal(await fs.readFile(path.join(outside, 'SKILL.md'), 'utf8'), content('ego-browser', 'vendor'));
+  const removal = { type: 'binding.disconnect', id: skill.id, clientId: 'codex', includeExisting: true };
+  assert.equal((await f.service.prepare(removal)).conflicts.length, 0);
+  await f.apply(removal);
+  await assert.rejects(fs.lstat(links.codex), { code: 'ENOENT' });
+  await f.apply({ type: 'binding.connect', id: skill.id, clientId: 'codex' });
+  assert.equal(await fs.readlink(links.codex), shared);
+  assert.equal(await fs.realpath(links.codex), await fs.realpath(outside));
+  assert.equal((await f.service.state(true)).skills.find(item => item.id === skill.id).bindings.find(binding => binding.clientId === 'codex').state, 'managed');
+  await fs.unlink(links.qoder);
+  await fs.symlink(f.temp, links.qoder);
+  assert.equal((await f.service.state(true)).skills.find(item => item.id === skill.id).bindings.find(binding => binding.clientId === 'qoder').state, 'conflict');
+  const elsewhere = path.join(f.temp, 'vendor', 'shared-copy');
+  await fs.mkdir(path.join(elsewhere, 'nested'), { recursive: true });
+  await fs.writeFile(path.join(elsewhere, 'SKILL.md'), content('copied', 'same bytes'));
+  await fs.mkdir(path.join(f.clientRoots.codex, 'skills'), { recursive: true });
+  const codexOnly = path.join(f.clientRoots.codex, 'skills', 'copied');
+  const qoderOnly = path.join(f.clientRoots.qoder, 'skills', 'copied');
+  await fs.symlink(elsewhere, codexOnly);
+  await fs.mkdir(path.dirname(qoderOnly), { recursive: true });
+  await fs.symlink(elsewhere, qoderOnly);
+  const copies = (await f.service.state(true)).skills.filter(item => item.relativePath === 'copied');
+  assert.equal(copies.length, 1);
+  assert.equal(copies[0].scope, 'client');
+  assert.equal(copies[0].clientId, 'codex');
+  assert.equal(copies[0].bindings.find(binding => binding.clientId === 'codex').state, 'local');
+  assert.equal(copies[0].bindings.find(binding => binding.clientId === 'qoder').state, 'existing');
 });
 
 test('Skill archive removes owned links, preserves unowned links and restores from the operation with drift checks', async t => {

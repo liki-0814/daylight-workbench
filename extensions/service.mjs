@@ -86,8 +86,11 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
     const binding = async (skill, client, type) => {
       if (!manifest) throw error('接入记录损坏，请修复 bindings.json 后操作', 409);
       const source = skill.sourcePath, target = path.join(client.skillsRoot, path.basename(skill.relativePath));
-      await safePath(skill.scope === 'client' ? getClient(state, skill.clientId).skillsRoot : root, source); await assertTarget(target);
-      const actual = await snapshot(target), matches = actual.kind === 'link' && await fs.realpath(target).catch(() => null) === source;
+      const identity = skill.realPath || (skill.linked ? null : source);
+      if (skill.linked) { if (!identity) throw error('链接失效，不能作为接入来源'); }
+      else await safePath(skill.scope === 'client' ? getClient(state, skill.clientId).skillsRoot : root, source);
+      await assertTarget(target);
+      const actual = await snapshot(target), matches = actual.kind === 'link' && !!identity && await fs.realpath(target).catch(() => null) === identity;
       const owned = manifest.bindings.find(item => item.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(item.clientId) && item.target === target && item.source === source);
       if (type === 'binding.connect') {
         if (!skill.valid) throw error('请先修复 Skill 元数据再接入');

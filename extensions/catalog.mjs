@@ -9,50 +9,69 @@ import { normalizeServers } from './mcp-server.mjs';
 export function createCatalog({ root, clients, loadClients, environment = process.env, cacheMs = 1000 }) {
   let cache, scannedAt = 0, scanning, generation = 0;
   async function scan() {
-    const skills = [], diagnostics = [], signatures = [], pendingLinks = [];
+    const skills = [], diagnostics = [], signatures = [];
     const registration = loadClients ? await loadClients() : { clients, config: { schemaVersion: 1, clients: [] }, raw: null, valid: true };
     const registry = registration.clients;
     const connected = registry.filter(client => client.selected);
     if (!registration.valid) diagnostics.push({ code: 'CLIENTS_FORMAT', message: registration.message });
-    async function scanSkills(base, client = null) {
+    // A skill is one real directory. Links that resolve to it are bindings, not more skills.
+    async function listEntries(base, client = null) {
       try {
         await safePath(client ? client.root : root, base);
         const entries = await fs.readdir(base, { withFileTypes: true }).catch(failure => { if (failure.code === 'ENOENT') return []; throw failure; });
         if (entries.length > 5000) diagnostics.push({ code: 'SCAN_LIMIT', reason: 'directories', limit: 5000, skippedBranches: entries.length - 5000, path: client ? base : 'skills/' + entries[5000]?.name, message: 'Skills 目录超过 5000 项，剩余目录未读取。' });
+        const found = [];
         for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 5000)) {
           if (entry.name.startsWith('.') || entry.name === 'node_modules' || !entry.isDirectory() && !entry.isSymbolicLink()) continue;
-          const sourcePath = path.join(base, entry.name), real = await fs.realpath(sourcePath).catch(() => null);
-          if (client && entry.isSymbolicLink()) { pendingLinks.push({ client, sourcePath, real, name: entry.name }); continue; }
-          const id = client ? skillId([client.id, sourcePath]) : skillId(entry.name);
-          const readable = real && within(base, real) && !entry.isSymbolicLink();
-          if (!readable) {
-            signatures.push([sourcePath, real, (await stat(sourcePath))?.mtimeMs]);
-            diagnostics.push({ id, clientId: client?.id, code: 'EXTERNAL_SOURCE', message: '外部或失效 Skill 链接未读取：' + sourcePath, path: sourcePath });
-            continue;
-          }
-          if (!(await stat(path.join(sourcePath, 'SKILL.md')))) continue;
-          const common = { id, kind: 'skill', scope: client ? 'client' : 'shared', ...(client ? { clientId: client.id } : {}), relativePath: entry.name, sourcePath };
-          try {
-            await safePath(base, path.join(sourcePath, 'SKILL.md'));
-            const content = await readText(path.join(sourcePath, 'SKILL.md')), meta = metadata(content);
-            signatures.push([sourcePath, hash(content)]);
-            skills.push({ ...common, ...meta, valid: true, revision: hash(content) });
-          } catch (failure) {
-            signatures.push([sourcePath, (await stat(path.join(sourcePath, 'SKILL.md')))?.mtimeMs]);
-            skills.push({ ...common, name: entry.name, description: '', dependencies: null, valid: false, problem: failure.message });
-            diagnostics.push({ id, code: failure.code || 'SKILL_FORMAT', message: failure.message });
-          }
+          const sourcePath = path.join(base, entry.name);
+          found.push({ client, base, name: entry.name, sourcePath, link: entry.isSymbolicLink(), real: await fs.realpath(sourcePath).catch(() => null) });
         }
-      } catch (failure) { diagnostics.push({ clientId: client?.id, code: failure.code || 'SOURCE_UNREADABLE', message: failure.message, path: base }); }
+        return found;
+      } catch (failure) { diagnostics.push({ clientId: client?.id, code: failure.code || 'SOURCE_UNREADABLE', message: failure.message, path: base }); return []; }
     }
-    await scanSkills(path.join(root, 'skills'));
-    for (const client of connected) await scanSkills(client.skillsRoot, client);
-    for (const { client, sourcePath, real, name } of pendingLinks) {
-      if (real && skills.some(skill => skill.sourcePath === real)) continue;
-      const id = skillId([client.id, sourcePath]);
-      signatures.push([sourcePath, real, (await stat(sourcePath))?.mtimeMs]);
-      diagnostics.push({ id, clientId: client.id, code: 'EXTERNAL_SOURCE', message: '外部或失效 Skill 链接未读取：' + sourcePath, path: sourcePath });
-      skills.push({ id, kind: 'skill', scope: 'client', clientId: client.id, relativePath: name, sourcePath, linked: true, readOnly: true, name, description: '外部或失效链接；可移除链接，保留其源文件', dependencies: null, valid: false });
+    const discovered = await listEntries(path.join(root, 'skills'));
+    for (const client of connected) discovered.push(...await listEntries(client.skillsRoot, client));
+    const claimed = new Set();
+    const entryId = entry => entry.client ? skillId([entry.client.id, entry.sourcePath]) : skillId(entry.name);
+    function noteUnresolved(entry) {
+      diagnostics.push({ id: entryId(entry), clientId: entry.client?.id, code: 'EXTERNAL_SOURCE', message: '外部或失效 Skill 链接未读取：' + entry.sourcePath, path: entry.sourcePath });
+    }
+    async function hasSkillDocument(real) {
+      try { return (await fs.stat(path.join(real, 'SKILL.md'))).isFile(); } catch { return false; }
+    }
+    for (const entry of discovered) {
+      if (entry.link) continue;
+      if (!entry.real || !within(entry.base, entry.real)) { signatures.push([entry.sourcePath, entry.real, (await stat(entry.sourcePath))?.mtimeMs]); noteUnresolved(entry); continue; }
+      if (claimed.has(entry.real) || !(await stat(path.join(entry.sourcePath, 'SKILL.md')))) continue;
+      claimed.add(entry.real);
+      const id = entryId(entry);
+      const common = { id, kind: 'skill', scope: entry.client ? 'client' : 'shared', ...(entry.client ? { clientId: entry.client.id } : {}), relativePath: entry.name, sourcePath: entry.sourcePath, realPath: entry.real };
+      try {
+        await safePath(entry.base, path.join(entry.sourcePath, 'SKILL.md'));
+        const content = await readText(path.join(entry.sourcePath, 'SKILL.md')), meta = metadata(content);
+        signatures.push([entry.sourcePath, hash(content)]);
+        skills.push({ ...common, ...meta, valid: true, revision: hash(content) });
+      } catch (failure) {
+        signatures.push([entry.sourcePath, (await stat(path.join(entry.sourcePath, 'SKILL.md')))?.mtimeMs]);
+        skills.push({ ...common, name: entry.name, description: '', dependencies: null, valid: false, problem: failure.message });
+        diagnostics.push({ id, code: failure.code || 'SKILL_FORMAT', message: failure.message });
+      }
+    }
+    for (const entry of discovered) {
+      if (!entry.link || entry.real && claimed.has(entry.real)) continue;
+      const recognized = !!entry.real && await hasSkillDocument(entry.real);
+      signatures.push([entry.sourcePath, entry.real, (await stat(entry.sourcePath))?.mtimeMs]);
+      if (!entry.client && !recognized) { noteUnresolved(entry); continue; }
+      const key = entry.real || entry.sourcePath;
+      if (claimed.has(key)) continue;
+      claimed.add(key);
+      if (!recognized) noteUnresolved(entry);
+      skills.push({
+        id: entryId(entry), kind: 'skill', scope: entry.client ? 'client' : 'shared', ...(entry.client ? { clientId: entry.client.id } : {}),
+        relativePath: entry.name, sourcePath: entry.sourcePath, realPath: entry.real, linked: true, readOnly: true, name: entry.name,
+        description: recognized ? '管理目录之外的 Skill 链接，不改写源文件。' : '外部或失效链接；可移除链接，保留其源文件',
+        dependencies: null, valid: recognized,
+      });
     }
     let servers = [], mcpValid = true, mcpRaw = null, manifest = { schemaVersion: 1, bindings: [] };
     try {
@@ -70,7 +89,7 @@ export function createCatalog({ root, clients, loadClients, environment = proces
       for (const client of connected) {
         const target = path.join(client.skillsRoot, path.basename(skill.relativePath)), info = await stat(target);
         let link = null, matches = false;
-        if (info?.isSymbolicLink()) { link = await fs.readlink(target); matches = await fs.realpath(target).catch(() => null) === skill.sourcePath; }
+        if (info?.isSymbolicLink()) { link = await fs.readlink(target); const identity = skill.realPath || (skill.linked ? null : skill.sourcePath); matches = !!identity && await fs.realpath(target).catch(() => null) === identity; }
         const owned = manifest?.bindings.some(binding => binding.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(binding.clientId) && binding.target === target && binding.source === skill.sourcePath && binding.linkTarget === link);
         const state = skill.scope === 'client' && skill.clientId === client.id ? 'local' : info ? matches ? owned ? 'managed' : 'existing' : 'conflict' : 'not_connected';
         skill.bindings.push({ clientId: client.id, state, owned: !!owned, target, runtimeVerified: false });
