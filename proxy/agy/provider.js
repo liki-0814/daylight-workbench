@@ -10,6 +10,7 @@ import { compileRequest, agyUsage } from './protocol.js';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AgyAuth } from './auth.js';
+import { headerDeadline } from '../shared/header-deadline.js';
 import { readJson } from '../shared/store.js';
 import { SseParser } from '../shared/llm/sse.js';
 const invalid = message => Object.assign(new Error(message), { status: 400, code: 'invalid_request' });
@@ -33,7 +34,10 @@ export class AgyProvider {
     // version selects the generation routing contract, including public preset IDs.
     const generating = method.startsWith('streamGenerateContent');
     const host = generating ? 'daily-cloudcode-pa.googleapis.com' : 'cloudcode-pa.googleapis.com';
-    const response = await this.fetchImpl(`https://${host}/v1internal:${method}`, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'antigravity/hub/2.8.0' }, body: JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(300000)]) : AbortSignal.timeout(45000) });
+    const deadline = headerDeadline(signal, generating ? 300000 : 45000);
+    let response;
+    try { response = await this.fetchImpl(`https://${host}/v1internal:${method}`, { method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'antigravity/hub/2.8.0' }, body: JSON.stringify(body), signal: deadline.signal }); }
+    finally { deadline.settle(); }
     if (!response.ok) { await response.body?.cancel(); throw Object.assign(new Error(response.status===403?'AGY 账号权限或资格检查未通过，请在官方页面核验账号':`AGY 上游请求失败（${response.status}）`), { code: response.status===403?'EAGY_PERMISSION':String(response.status),status:response.status }); }
     return response;
   }

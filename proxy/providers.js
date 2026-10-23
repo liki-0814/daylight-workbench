@@ -9,13 +9,14 @@ import {CopilotProvider,sourceDescription as copilotDescription} from './copilot
 import {QwenWorkProvider,sourceDescription as qwenWorkDescription} from './qwenwork/provider.js';
 import {CustomSources} from './custom/sources.js';
 import {sourceSnapshot} from './shared/contracts.js';
+import {headerDeadline} from './shared/header-deadline.js';
 import {withModelNames} from './shared/model-names.js';
 
 // These descriptions also keep injected test providers on the public contract.
 const builtins={qoder:qoderDescription,agy:agyDescription,grok:grokDescription,codex:codexDescription,kimi:kimiDescription,copilot:copilotDescription,qwenwork:qwenWorkDescription};
 export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort,metadata}){
  const config={...loadConfig(dataDir),...overrides},accounts=new AccountStore(config.accountFile);
- const transport=(url,options={})=>fetchImpl(url,{...options,redirect:'error',signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(300000)]):AbortSignal.timeout(30000)});
+ const transport=(url,options={})=>{const deadline=headerDeadline(options.signal,options.signal?300000:30000);return fetchImpl(url,{...options,redirect:'error',signal:deadline.signal}).finally(()=>deadline.settle());};
  const qoder=provider||new QoderProvider(config,new QoderHttp(config,transport),accounts);
  const custom=customSources||(includeGateway?new CustomSources({dataDir,fetchImpl,getPort}):null);
  const providers={

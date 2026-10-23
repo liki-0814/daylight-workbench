@@ -5,6 +5,7 @@ import {bindAccountCatalog, checkAccountCatalog} from '../shared/account-catalog
 import {modelSettings, applyModelSettings} from '../shared/model-settings.js';
 import {operationError} from '../shared/operation-error.js';
 import {invalid, convertRequest} from '../shared/protocol.js';
+import {headerDeadline} from '../shared/header-deadline.js';
 import {AccountStore, QwenWorkAuth, CLIENT_ID, authError, allowedAuthHost, httpsOrigin, qwenWorkHeaders, officeRequest, assertEnvironment} from './auth.js';
 import {adaptChatModes} from './models.js';
 import {MaasCredentials, conversationScope, inferenceUrl, normalizeMaasBase} from './credentials.js';
@@ -149,6 +150,7 @@ export class QwenWorkProvider {
     return {response, protocol: target, streaming: body.stream === true, model: model.id, upstreamModel: model.upstreamId};
   }
   send(protocol, body, credential, signal) {
+    const deadline = headerDeadline(signal, 300_000);
     return this.fetchImpl(inferenceUrl(credential.baseUrl, protocol), {
       method: 'POST', redirect: 'error',
       headers: {
@@ -159,8 +161,8 @@ export class QwenWorkProvider {
         ...(protocol === 'messages' ? {'anthropic-version': '2023-06-01'} : {}),
       },
       body: JSON.stringify(body),
-      signal: this.signal(signal, 300_000),
-    });
+      signal: deadline.signal,
+    }).finally(() => deadline.settle());
   }
   close() { this.catalogCache.invalidate(); this.credentials.clear(); }
 }

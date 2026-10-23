@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readWithIdle } from '../proxy/shared/protocol.js';
+import { headerDeadline } from '../proxy/shared/header-deadline.js';
 
 function hangingReader() {
   return new ReadableStream({ start() {} }).getReader();
@@ -20,6 +21,17 @@ test('an abandoned upstream read does not become an unhandled rejection', async 
   } finally {
     process.off('unhandledRejection', onRejection);
   }
+});
+
+test('a header deadline ends a silent connect and leaves a started response alone', async () => {
+  const silent = headerDeadline(undefined, 20);
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(silent.signal.aborted, true);
+  assert.equal(silent.signal.reason?.name, 'TimeoutError');
+  const started = headerDeadline(undefined, 20);
+  started.settle();
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(started.signal.aborted, false);
 });
 
 test('waiting on an idle upstream read still fails', async () => {

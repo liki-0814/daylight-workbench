@@ -3,6 +3,7 @@ import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
 import {omitKimiTemperature,isOfficialKimiUrl} from '../shared/request-parameters.js';
 import {createHash} from 'node:crypto';
 import {invalid,convertRequest} from '../shared/protocol.js';
+import {headerDeadline} from '../shared/header-deadline.js';
 const paths={chat:'chat/completions',responses:'responses',messages:'messages'};
 export class CustomProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'maxTokens']);}
@@ -40,7 +41,9 @@ export class CustomProvider {
    observe({stage:'authentication'});let response;
    try{
     const headers=await owner.headers(s,{key});observe({stage:'upstream'});
-    response=await owner.fetchImpl(owner.url(s,s.endpoint||paths[s.protocol]),{method:'POST',redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000),headers,body:JSON.stringify(body)});
+    const deadline=headerDeadline(signal);
+    try{response=await owner.fetchImpl(owner.url(s,s.endpoint||paths[s.protocol]),{method:'POST',redirect:'error',signal:deadline.signal,headers,body:JSON.stringify(body)});}
+    finally{deadline.settle();}
    }catch(error){if(signal?.aborted)throw error;
     if(!(error.status===401||error.name==='TimeoutError'||error instanceof TypeError||['ECONNRESET','ECONNREFUSED','ENOTFOUND','EAI_AGAIN','ETIMEDOUT'].includes(error.code||error.cause?.code)))throw error;
     lastError=error;owner.cooldowns.set(`${s.id}:${key.id}`,Date.now()+30000);if(stateful)throw error;continue;

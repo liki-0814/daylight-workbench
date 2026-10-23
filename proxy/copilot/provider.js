@@ -8,6 +8,7 @@ import {CatalogCache} from '../shared/catalog-cache.js';
 import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
 import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import {invalid,convertRequest} from '../shared/protocol.js';
+import {headerDeadline} from '../shared/header-deadline.js';
 
 export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat','responses','messages']};
 const hasImages=parts=>Array.isArray(parts)&&parts.some(p=>['image_url','input_image','image'].includes(p.type)||p.type==='tool_result'&&hasImages(p.content));
@@ -17,7 +18,7 @@ export class CopilotProvider {
  snapshot(){return{...sourceSnapshot({...sourceDescription,configured:!!this.auth.account,identityKey:this.auth.token?.identity,connected:!!this.cache&&this.cache.identity===this.auth.token?.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
  async request(endpoint,options={},credential){
   const a=credential||await this.auth.credential(),epoch=this.auth.epoch;
-  const call=token=>this.fetchImpl(token.baseUrl+endpoint,{...options,redirect:'error',headers:{...copilotHeaders(token.token),...options.headers},signal:options.signal?AbortSignal.any([options.signal,AbortSignal.timeout(300000)]):AbortSignal.timeout(30000)});
+  const call=async token=>{const deadline=headerDeadline(options.signal,options.signal?300000:30000);try{return await this.fetchImpl(token.baseUrl+endpoint,{...options,redirect:'error',headers:{...copilotHeaders(token.token),...options.headers},signal:deadline.signal});}finally{deadline.settle();}};
   let response=await call(a);
   if(response.status===401){await response.body?.cancel();const fresh=await this.auth.credential(true);if(fresh.identity!==a.identity||epoch!==this.auth.epoch)throw authError('Copilot 账号已切换，请重新请求');response=await call(fresh);}
   return response;
