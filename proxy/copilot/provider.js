@@ -10,6 +10,7 @@ import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import {invalid,convertRequest} from '../shared/protocol.js';
 
 export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat','responses','messages']};
+const hasImages=parts=>Array.isArray(parts)&&parts.some(p=>['image_url','input_image','image'].includes(p.type)||p.type==='tool_result'&&hasImages(p.content));
 export class CopilotProvider {
  constructor({dataDir,fetchImpl=fetch,auth=new CopilotAuth({fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'copilot-proxy/settings.json'));bindAccountCatalog(this);}
  get cache(){return this.catalogCache.value;}
@@ -41,9 +42,12 @@ export class CopilotProvider {
   observe({stage:'conversion'});const body=protocol===target?structuredClone(raw):convertRequest(raw,protocol,target);
   const effort=(target==='responses'?body.reasoning?.effort:target==='messages'?body.output_config?.effort:body.reasoning_effort)??model.effort;
   if(effort!==undefined){if(!model.reasoningEfforts.includes(effort))throw invalid('该 Copilot 模型未提供此思考强度');if(target==='responses')body.reasoning={...body.reasoning,effort};else if(target==='messages')body.output_config={...body.output_config,effort};else body.reasoning_effort=effort;}
-  const messages=target!=='responses'?body.messages:Array.isArray(body.input)?body.input:[];
+  // Conversion may append a synthetic user image turn. Billing/initiator semantics
+  // belong to the caller's original history, not that transport representation.
+  const messages=protocol!=='responses'?raw.messages:Array.isArray(raw.input)?raw.input:[];
   const last=messages?.at(-1),agent=last&&(last.role!==undefined?last.role!=='user'||Array.isArray(last.content)&&last.content.some(c=>c.type==='tool_result'):['function_call','function_call_output'].includes(last.type));
-  const vision=messages?.some(m=>Array.isArray(m.content)&&m.content.some(c=>['image_url','input_image','image'].includes(c.type)));
+  const wireMessages=target!=='responses'?body.messages:Array.isArray(body.input)?body.input:[];
+  const vision=wireMessages?.some(m=>hasImages(m.content)||hasImages(m.output));
   observe({stage:'authentication'});const credential=await this.auth.credential();if(credential.identity!==identity||epoch!==this.auth.epoch)throw authError('Copilot 账号已切换，请重新请求');
   observe({stage:'upstream'});const response=await this.request(({chat:'/chat/completions',responses:'/responses',messages:'/v1/messages'})[target],{method:'POST',signal,headers:{'X-Initiator':agent?'agent':'user',...(target==='messages'?{'anthropic-version':'2023-06-01'}:{}),...(vision?{'copilot-vision-request':'true'}:{})},body:JSON.stringify(body)},credential);
   return{response,protocol:target,streaming:body.stream===true,model:model.id,upstreamModel:model.id};

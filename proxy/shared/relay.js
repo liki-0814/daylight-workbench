@@ -3,17 +3,18 @@ import {events,observeResponse} from './protocol.js';
 import {renderChatStream,renderChatResponse} from './protocols/openai-chat.js';
 import {renderResponsesStream,renderResponsesResponse} from './protocols/openai-responses.js';
 import {renderMessagesStream,renderMessagesResponse} from './protocols/anthropic-messages.js';
+import {readUpstreamError,upstreamError} from './upstream-error.js';
 const renderers={chat:[renderChatStream,renderChatResponse],responses:[renderResponsesStream,renderResponsesResponse],messages:[renderMessagesStream,renderMessagesResponse]};
 export async function relayResult(result,raw,protocol,res,signal,observe,options={}){
  const {response,model,upstreamModel,requestedTier}=result;observe({upstreamModel,requestedTier,upstreamStatus:response.status,upstreamProtocol:result.protocol,execution:protocol===result.protocol?'native':'converted',stage:'response'});
- if(!response.ok){await response.body?.cancel();throw Object.assign(new Error(`上游请求失败（${response.status}）`),{status:response.status>=400&&response.status<600?response.status:502});}
+ if(!response.ok)throw await readUpstreamError(response);
  options.onAccepted?.();
  const json=v=>{res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(v));};
  const native=protocol===result.protocol;
  if(!result.streaming&&!response.headers.get('content-type')?.includes('text/event-stream')){
   if(!native||raw.stream){await response.body?.cancel();throw new Error('上游未按请求返回流式响应');}
   const body=await response.json();observeResponse(body,protocol,observe);
-  if(body.error||body.status==='failed')observe({error:{code:body.error?.code}});
+  if(body.error||body.status==='failed'){const error=upstreamError(body,502,response.headers);observe({error});throw error;}
   else observe({finish:body.status==='incomplete'||body.choices?.[0]?.finish_reason==='length'||body.stop_reason==='max_tokens'?'length':'stop'});
   if(body.model)body.model=model;json(body);return;
  }

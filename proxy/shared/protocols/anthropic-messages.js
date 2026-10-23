@@ -57,7 +57,11 @@ export function decodeMessagesRequest(req) {
                     break;
                 case "tool_result":
                     {
-                        const text = typeof block.content === "string" ? block.content : (block.content ?? []).map((c)=>c.type === "text" ? c.text ?? "" : JSON.stringify(c)).join("\n");
+                        const text = typeof block.content === "string" ? block.content : (block.content ?? []).map((c)=> {
+                            if (c.type === "text") return { type: "text", text: c.text ?? "" };
+                            if (c.type === "image") return { type: "image", url: c.source?.url ?? `data:${c.source?.media_type ?? "image/png"};base64,${c.source?.data ?? ""}` };
+                            throw new Error("Unsupported tool result content");
+                        });
                         messages.push({
                             role: "tool",
                             content: text,

@@ -4,6 +4,8 @@ import {decodeMessagesRequest} from './protocols/anthropic-messages.js';
 import {decodeResponsesRequest} from './protocols/openai-responses.js';
 import {SseParser} from './llm/sse.js';
 import {parseUsage,mergeUsage} from './llm/usage.js';
+import {toolTurns} from './tool-turns.js';
+import {upstreamError} from './upstream-error.js';
 export const invalid=(message,param)=>Object.assign(new Error(message),{status:400,code:'invalid_request',param});
 const decoders={chat:decodeChatRequest,messages:decodeMessagesRequest,responses:decodeResponsesRequest};
 // Decode only when an event adapter needs canonical messages; native relays retain raw fields.
@@ -41,12 +43,13 @@ export function convertRequest(raw,from,to){
  if(raw.output_config&&Object.keys(raw.output_config).some(k=>k!=='effort'))throw invalid('该 output_config 需使用原生协议');
  if(Array.isArray(seq)&&seq.some(m=>m.reasoning_content||Array.isArray(m.content)&&m.content.some(b=>b.type==='tool_result')&&m.content.some(b=>b.type!=='tool_result')))throw invalid('混合工具结果或推理历史需使用原生协议');
  const c=decoders[from](raw),out={model:raw.model,stream:true};
+ const param=from==='responses'?'input':'messages',turns=toolTurns(c.messages,param);
  const max=outputBudget(raw);
  const effort=reasoningEffort(raw);
  if(raw.thinking&&raw.thinking.type!=='adaptive')throw invalid('手动 thinking 预算请使用原生协议');
  const texts=x=>typeof x==='string'?[{type:'text',text:x}]:x||[];
  const image=(url,target)=>{if(target==='messages'){const m=/^data:([^;]+);base64,(.*)$/s.exec(url);return{type:'image',source:m?{type:'base64',media_type:m[1],data:m[2]}:{type:'url',url}};}return target==='chat'?{type:'image_url',image_url:{url}}:{type:'input_image',image_url:url};};
- const content=(x,role)=>texts(x).map(p=>p.type==='image'?image(p.url,to):{type:to==='responses'?(role==='assistant'?'output_text':'input_text'):'text',text:p.text}).filter(p=>p.type==='image'||typeof p.text==='string'&&p.text.length>0);
+ const content=(x,role)=>texts(x).map(p=>p.type==='image'?image(p.url,to):{type:to==='responses'?(role==='assistant'?'output_text':'input_text'):'text',text:p.text}).filter(p=>['image','image_url','input_image'].includes(p.type)||typeof p.text==='string'&&p.text.length>0);
  // Chat-completions upstreams expect assistant history as a plain string; block arrays leak into replies.
  const chatContent=(x,role)=>{const parts=content(x,role);if(parts.every(p=>p.type==='text'))return parts.map(p=>p.text).join('');return parts;};
  // Tool results follow each protocol's wire shape: Chat is text-only (images move to their own user
@@ -54,19 +57,28 @@ export function convertRequest(raw,from,to){
  const toolParts=x=>texts(x),toolImages=x=>toolParts(x).filter(p=>p.type==='image'&&p.url);
  const toolText=x=>{const parts=toolParts(x),text=parts.filter(p=>p.type==='text'&&p.text).map(p=>p.text).join('\n');return text||(toolImages(x).length?'(see attached image)':'(no tool output)');};
  const toolOutput=x=>{const images=toolImages(x),text=toolText(x);return images.length?[{type:'input_text',text},...images.map(p=>({type:'input_image',detail:'auto',image_url:p.url}))]:text;};
- const imageTurn=images=>images.length?[{role:'user',content:[{type:'text',text:'Attached image(s) from tool result:'},...images.map(p=>({type:'image_url',image_url:{url:p.url}}))]}]:[];
+ const imageTurn=results=>{
+  const parts=results.flatMap(m=>{const images=toolImages(m.content);return images.length?[{type:'text',text:`Images from tool call ${m.toolCallId}:`},...images.map(p=>image(p.url,'chat'))]:[];});
+  return parts.length?[{role:'user',content:parts}]:[];
+ };
  const toolResultBlocks=x=>{const blocks=toolParts(x).map(p=>p.type==='image'?image(p.url,'messages'):{type:'text',text:p.text}).filter(b=>b.type==='image'||b.text);return blocks.length?blocks:[{type:'text',text:toolText(x)}];};
  if(to==='responses'){
   if(c.system)out.instructions=c.system;
   out.input=c.messages.flatMap(m=>m.role==='tool'?[{type:'function_call_output',call_id:m.toolCallId,output:toolOutput(m.content)}]:[...(texts(m.content).length?[{role:m.role,content:content(m.content,m.role)}]:[]),...(m.toolCalls||[]).map(t=>({type:'function_call',call_id:t.id,name:t.name,arguments:t.arguments}))]);
   if(max!==undefined)out.max_output_tokens=max;if(effort)out.reasoning={effort};
  }else if(to==='chat'){
-  out.messages=[...(c.system?[{role:'system',content:c.system}]:[]),...c.messages.flatMap(m=>m.role==='tool'?[{role:'tool',tool_call_id:m.toolCallId,content:toolText(m.content)},...imageTurn(toolImages(m.content))]:[{role:m.role,content:m.role==='assistant'?chatContent(m.content,m.role):content(m.content,m.role),...(m.toolCalls?.length?{tool_calls:m.toolCalls.map(t=>({id:t.id,type:'function',function:{name:t.name,arguments:t.arguments}}))}:{})}])];
+  out.messages=[...(c.system?[{role:'system',content:c.system}]:[]),...turns.flatMap(({message:m,results})=>[
+   {role:m.role,content:m.role==='assistant'?chatContent(m.content,m.role):content(m.content,m.role),...(m.toolCalls?.length?{tool_calls:m.toolCalls.map(t=>({id:t.id,type:'function',function:{name:t.name,arguments:t.arguments}}))}:{})},
+   ...results.map(r=>({role:'tool',tool_call_id:r.toolCallId,content:toolText(r.content)})),...imageTurn(results),
+  ])];
   if(max!==undefined)out.max_tokens=max;if(effort)out.reasoning_effort=effort;
  }else{
   if(max===undefined)throw invalid('转换为 Messages 需要显式 max_tokens 或模型默认输出预算');
   out.max_tokens=max;if(c.system)out.system=c.system;
-  out.messages=c.messages.map(m=>m.role==='tool'?{role:'user',content:[{type:'tool_result',tool_use_id:m.toolCallId,content:toolResultBlocks(m.content)}]}:{role:m.role,content:[...content(m.content,m.role),...(m.toolCalls||[]).map(t=>({type:'tool_use',id:t.id,name:t.name,input:JSON.parse(t.arguments)}))]});
+  out.messages=turns.flatMap(({message:m,results})=>[
+   {role:m.role,content:[...content(m.content,m.role),...(m.toolCalls||[]).map(t=>({type:'tool_use',id:t.id,name:t.name,input:JSON.parse(t.arguments)}))]},
+   ...(results.length?[{role:'user',content:results.map(r=>({type:'tool_result',tool_use_id:r.toolCallId,content:toolResultBlocks(r.content)}))}]:[]),
+  ]);
   if(effort){out.thinking={type:'adaptive'};out.output_config={effort};}
  }
  if(c.tools)out.tools=c.tools.map(t=>{const {name,description}=t;
@@ -79,6 +91,8 @@ export function convertRequest(raw,from,to){
  if(raw.parallel_tool_calls!==undefined){if(to==='messages')out.tool_choice={...(out.tool_choice||{type:'auto'}),disable_parallel_tool_use:!raw.parallel_tool_calls};else out.parallel_tool_calls=raw.parallel_tool_calls;}
  if(raw.tool_choice?.disable_parallel_tool_use!==undefined&&to!=='messages')out.parallel_tool_calls=!raw.tool_choice.disable_parallel_tool_use;
  if(raw.service_tier!==undefined)out.service_tier=raw.service_tier;
+ // Re-decode the generated wire shape to catch any converter that breaks batch structure.
+ toolTurns(decoders[to](out).messages,to==='responses'?'input':'messages');
  return out;
 }
 export function usageOf(u,protocol){
@@ -105,7 +119,7 @@ export async function* events(response,protocol,model,observe=()=>{}){
  const reader=response.body.getReader(),decoder=new TextDecoder(),parser=new SseParser();let terminal=false,usage,finish='stop',read;const toolArgs=new Map(),outputItems=new Map();
  try{while(true){read=readWithIdle(reader,300000,'上游响应空闲超时');const part=await read;
   for(const f of part.done?parser.flush():parser.push(decoder.decode(part.value,{stream:true}))){if(!f.data)continue;if(f.data==='[DONE]'){terminal=true;continue;}if(f.data.length>4000000)throw new Error('上游事件过大');const e=JSON.parse(f.data);
-   if(e.error||e.type==='error'||e.type==='response.failed'){observe({error:{code:e.error?.code||e.response?.error?.code,status:502}});throw Object.assign(new Error('上游返回错误'),{status:502});}
+   if(e.error||e.type==='error'||e.type==='response.failed'){const error=upstreamError(e,502,response.headers);observe({error});throw error;}
    observeResponse(e,protocol,observe);
    if(e.model)e.model=model;if(e.response?.model)e.response.model=model;if(e.message?.model)e.message.model=model;
    const u=usageOf(e.usage||e.response?.usage||e.message?.usage,protocol);if(u)usage=mergeUsage(usage,u);

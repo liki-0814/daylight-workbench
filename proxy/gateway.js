@@ -3,7 +3,7 @@ import {once} from 'node:events';
 import {relayResult} from './shared/relay.js';
 import {retryableRouteError} from './shared/router.js';
 import {RequestTrace} from './shared/request-records.js';
-import {protocolFor} from './shared/contracts.js';
+import {protocolFor,diagnosticError} from './shared/contracts.js';
 import {normalizeEffort} from './shared/llm/index.js';
 import {renderChatStream,renderChatResponse} from './shared/protocols/openai-chat.js';
 import {renderResponsesStream,renderResponsesResponse} from './shared/protocols/openai-responses.js';
@@ -135,9 +135,10 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       if (trace) trace.fail(error, controller.signal.aborted ? 'cancelled' : deadline.signal.aborted || error.name === 'TimeoutError' || error.name === 'AbortError' ? 'timeout' : 'failed');
       code = controller.signal.aborted ? 499 : error.status || (error.code ? errorStatus(error.code) : 502);
       const message = error.status ? error.message : controller.signal.aborted ? '请求已取消' : '代理请求失败，请检查账号与网络后重试';
+      const detail = {message,type:'proxy_error',...diagnosticError(error),request_id:trace?.entry.id};
       try {
-        if (!res.headersSent) send(res, code, { error: { message, type: 'proxy_error' } });
-        else if (!res.destroyed) { res.write(`event: error\ndata: ${JSON.stringify({ error: { message, type: 'proxy_error' } })}\n\n`); res.end(); }
+        if (!res.headersSent) send(res, code, { error: detail });
+        else if (!res.destroyed) { res.write(`event: error\ndata: ${JSON.stringify({ error: detail })}\n\n`); res.end(); }
       } catch { /* the client already closed the socket */ }
     } finally {
       clearTimeout(deadlineTimer);

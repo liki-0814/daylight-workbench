@@ -5,7 +5,7 @@ import { parseModelRef } from './llm/models.js';
 import { readJson, writeJson, serial } from './store.js';
 import { createHash } from 'node:crypto';
 
-export const retryableRouteError = error => [401,403,404,408,429].includes(Number(error.status || error.code)) || Number(error.status || error.code) >= 500 && Number(error.status || error.code) <= 599 || ['upstream_error','10605','ECONNRESET','ECONNREFUSED','ETIMEDOUT'].includes(error.code) || ['TypeError','TimeoutError'].includes(error.name);
+export const retryableRouteError = error => error.retryable !== false && ([401,403,404,408,429].includes(Number(error.status || error.code)) || Number(error.status || error.code) >= 500 && Number(error.status || error.code) <= 599 || ['upstream_error','10605','ECONNRESET','ECONNREFUSED','ETIMEDOUT'].includes(error.code) || ['TypeError','TimeoutError'].includes(error.name));
 const bad = message => Object.assign(new Error(message), {status:400,code:'invalid_request'});
 const common = lists => (lists[0] || []).filter(v => lists.every(list => (list || []).includes(v)));
 

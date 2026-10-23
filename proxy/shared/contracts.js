@@ -1,4 +1,5 @@
 import {capacityLimit,positiveCapacity} from '../../core/model-capabilities.js';
+import {safeErrorDetails} from './upstream-error.js';
 /** Diagnostics are metadata only; never pass an upstream body or error message. */
 export const protocolFor = endpoint => ({ '/chat/completions': 'chat', '/responses': 'responses', '/messages': 'messages' })[endpoint];
 
@@ -26,9 +27,10 @@ const errorHints = {
 
 export function diagnosticError(error) {
   const upstreamCode = error.code ?? error.cause?.code;
-  const category = classifyError({ code: upstreamCode, status: error.status, name: error.name });
+  const details = safeErrorDetails(error);
+  const category = details.reason || upstreamCode === 'invalid_tool_sequence' ? 'parameters' : classifyError({ code: upstreamCode, status: error.status, name: error.name });
   const code = typeof upstreamCode === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(upstreamCode) ? upstreamCode : undefined;
-  return { category, code, status: error.status, hint: errorHints[category] };
+  return { category, code, status: error.status, hint: details.summary || (upstreamCode === 'invalid_tool_sequence' ? '请修复工具调用历史；直接重试相同历史无法恢复' : errorHints[category]), ...details };
 }
 
 /** Public metadata: no credential, transport or mutable settings object escapes. */
