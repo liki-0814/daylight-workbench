@@ -5,7 +5,8 @@ import {DeviceOAuthAccount} from '../shared/oauth-account.js';
 const CLIENT_ID='Iv1.b507a08c87ecfe98';
 export const authError=message=>Object.assign(new Error(message),{status:401,code:'authentication_error'});
 export const githubHeaders=token=>({Accept:'application/json','Content-Type':'application/json','User-Agent':'GitHubCopilotChat/0.26.7','editor-version':'vscode/1.104.3','editor-plugin-version':'copilot-chat/0.26.7',...(token?{Authorization:`token ${token}`}:{})});
-export const copilotHeaders=token=>({...githubHeaders(),Authorization:`Bearer ${token}`,'copilot-integration-id':'vscode-chat','openai-intent':'conversation-panel','x-github-api-version':'2025-04-01','x-request-id':randomUUID()});
+// Older API versions hide the extended-context tiers even for entitled accounts.
+export const copilotHeaders=token=>({...githubHeaders(),Authorization:`Bearer ${token}`,'copilot-integration-id':'vscode-chat','openai-intent':'conversation-panel','x-github-api-version':'2026-08-01','x-request-id':randomUUID()});
 export function copilotEndpoint(value='https://api.githubcopilot.com'){
  const url=new URL(value);
  if(url.protocol!=='https:'||url.username||url.password||url.port||url.search||url.hash||url.pathname!=='/'||!(url.hostname==='api.githubcopilot.com'||/^api\.[a-z0-9-]+\.githubcopilot\.com$/.test(url.hostname)))throw Error('Copilot 返回了无效的 API 地址');

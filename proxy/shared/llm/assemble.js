@@ -19,6 +19,7 @@ export class ToolCallAccumulator {
         if (id !== undefined) slot.id = id;
         if (name !== undefined) slot.name = name;
         slot.args += argsDelta;
+        return slot;
     }
     build() {
         return this.calls.filter((s)=>s.name !== undefined).map((s, i)=>({

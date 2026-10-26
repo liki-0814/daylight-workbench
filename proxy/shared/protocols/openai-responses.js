@@ -133,6 +133,7 @@ function buildResponseObject(id, model, res, ids) {
         created_at: created(),
         model,
         status: statusFromFinish(res.finishReason),
+        ...(res.finishReason === 'length' ? { incomplete_details: { reason: 'max_output_tokens' } } : {}),
         output,
         usage: responsesUsage(res.usage)
     };
@@ -169,10 +170,13 @@ export async function* renderResponsesStream(events, model) {
     });
     let outputIndex = 0;
     const tools = new ToolCallAccumulator();
+    const toolStates = new Map();
+    const outputOrder = new Map();
     let reasoningItemId = null;
     let reasoningIndex = -1;
     let reasoningText = "";
     let reasoningClosed = false;
+    const reasoningItems = [];
     let textItemId = null;
     let textIndex = -1;
     const closeReasoning = function*() {
@@ -212,14 +216,17 @@ export async function* renderResponsesStream(events, model) {
             }
         });
         reasoningClosed = true;
+        reasoningItems.push({type:'reasoning',id:reasoningItemId,summary:[{type:'summary_text',text:reasoningText}]});
     };
     for await (const e of events){
         asm.push(e);
         if (e.type === "reasoning") {
-            if (e.delta === "" || reasoningClosed) continue;
+            if (e.delta === "") continue;
+            if (reasoningClosed) { reasoningItemId = null; reasoningText = ''; reasoningClosed = false; }
             if (reasoningItemId === null) {
                 reasoningItemId = createId("rs_daylight");
                 reasoningIndex = outputIndex++;
+                outputOrder.set(reasoningItemId, reasoningIndex);
                 yield ev({
                     type: "response.output_item.added",
                     sequence_number: next(),
@@ -257,6 +264,7 @@ export async function* renderResponsesStream(events, model) {
             if (textItemId === null) {
                 textItemId = createId("msg");
                 textIndex = outputIndex++;
+                outputOrder.set(textItemId, textIndex);
                 yield ev({
                     type: "response.output_item.added",
                     sequence_number: next(),
@@ -291,7 +299,19 @@ export async function* renderResponsesStream(events, model) {
                 delta: e.delta
             });
         } else if (e.type === "tool_call") {
-            tools.add(e.index, e.id, e.name, e.argumentsDelta);
+            yield* closeReasoning();
+            const call = tools.add(e.index, e.id, e.name, e.argumentsDelta);
+            let state = toolStates.get(call);
+            if (!state && call.id !== undefined && call.name !== undefined) {
+                state = { itemId: createId('fc'), index: outputIndex++, sent: 0 };
+                toolStates.set(call, state);
+                outputOrder.set(state.itemId, state.index);
+                yield ev({type:'response.output_item.added',sequence_number:next(),output_index:state.index,item:{type:'function_call',id:state.itemId,call_id:call.id,name:call.name,arguments:'',status:'in_progress'}});
+            }
+            if (state && call.args.length > state.sent) {
+                yield ev({type:'response.function_call_arguments.delta',sequence_number:next(),item_id:state.itemId,output_index:state.index,delta:call.args.slice(state.sent)});
+                state.sent = call.args.length;
+            }
         } else if (e.type === "error") {
             yield ev({
                 type: "response.failed",
@@ -350,11 +370,15 @@ export async function* renderResponsesStream(events, model) {
         });
     }
     const functionCallIds = [];
-    for (const tc of tools.build()){
-        const index = outputIndex++;
-        const itemId = createId("fc");
+    const calls = tools.calls.filter(call=>call.name !== undefined);
+    for (const [i, tc] of tools.build().entries()){
+        const call = calls[i];
+        const state = toolStates.get(call);
+        const index = state?.index ?? outputIndex++;
+        const itemId = state?.itemId ?? createId("fc");
+        outputOrder.set(itemId, index);
         functionCallIds.push(itemId);
-        yield ev({
+        if (!state) yield ev({
             type: "response.output_item.added",
             sequence_number: next(),
             output_index: index,
@@ -367,7 +391,7 @@ export async function* renderResponsesStream(events, model) {
                 status: "in_progress"
             }
         });
-        if (tc.arguments) {
+        if (tc.arguments && !state) {
             yield ev({
                 type: "response.function_call_arguments.delta",
                 sequence_number: next(),
@@ -403,8 +427,9 @@ export async function* renderResponsesStream(events, model) {
         messageId: textItemId ?? undefined,
         functionCallIds
     });
+    finalResponse.output = [...finalResponse.output.filter(item=>item.type!=='reasoning'),...reasoningItems].sort((a,b)=>outputOrder.get(a.id)-outputOrder.get(b.id));
     yield ev({
-        type: "response.completed",
+        type: finalResponse.status === 'incomplete' ? 'response.incomplete' : 'response.completed',
         sequence_number: next(),
         response: finalResponse
     });

@@ -32,6 +32,9 @@ export function responsesUsage(u) {
 }
 export function messagesUsage(u) {
   if (!u) return {};
+  const outputDetails = clean({ ...u.outputDetails, thinking_tokens: u.outputDetails?.thinking_tokens ?? u.outputDetails?.reasoning_tokens });
+  delete outputDetails.reasoning_tokens;
   return clean({ input_tokens: u.inputTokens === undefined ? undefined : Math.max(0, u.inputTokens - (u.cacheReadTokens ?? 0) - (u.cacheWriteTokens ?? 0)),
-    output_tokens: u.outputTokens, cache_read_input_tokens: u.cacheReadTokens, cache_creation_input_tokens: u.cacheWriteTokens, cost_in_usd_ticks: u.costUsdTicks });
+    output_tokens: u.outputTokens, output_tokens_details: Object.keys(outputDetails).length ? outputDetails : undefined,
+    cache_read_input_tokens: u.cacheReadTokens, cache_creation_input_tokens: u.cacheWriteTokens, cost_in_usd_ticks: u.costUsdTicks });
 }

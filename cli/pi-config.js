@@ -82,6 +82,7 @@ export function modelConfig(model, previous = {}, api = 'openai-responses', over
   if (typeof model.isVL === 'boolean') next.input = model.isVL ? ['text', 'image'] : ['text'];
 
   next.compat = { ...previous.compat, supportsLongCacheRetention: false };
+  if (api === 'anthropic-messages' && typeof model.supportsAdaptiveThinking === 'boolean') next.compat.forceAdaptiveThinking = model.supportsAdaptiveThinking;
   if (api === 'openai-responses') {
     next.compat.supportsStrictMode = false;
     if (model.requestOutputBudget===false) next.compat.supportsMaxOutputTokens = false;

@@ -4,7 +4,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import {CopilotAuth,copilotEndpoint} from '../proxy/copilot/auth.js';
+import {CopilotAuth,copilotEndpoint,copilotHeaders} from '../proxy/copilot/auth.js';
 import {parseModels} from '../proxy/copilot/models.js';
 import {copilotQuota} from '../proxy/copilot/quota.js';
 import {fixture,catalog} from '../fixtures/copilot/upstream.mjs';
@@ -53,6 +53,27 @@ test('Copilot token renewals are single-flight and cannot survive logout',async 
 test('model discovery uses declared endpoints, limits and capabilities without model-name guesses',()=>{
  const models=parseModels({data:[...catalog.data,{id:'embedding',capabilities:{type:'embeddings'}},{...catalog.data[0],id:'disabled',policy:{state:'disabled'}},{...catalog.data[0],id:'messages-only',supported_endpoints:['/embeddings']},{id:'unknown-chat',capabilities:{type:'chat'}}]});
  assert.deepEqual(models.map(m=>m.id),['copilot-chat-fixture','copilot-responses-fixture','unknown-chat']);assert.deepEqual(models[0].reasoningEfforts,['low','high']);assert.equal(models[0].contextWindow,128000);assert.equal(models[2].isReasoning,undefined);assert.equal(models[2].isVL,undefined);assert.equal(models[2].maxOutputTokens,undefined);
+});
+test('Copilot negotiates extended context and reads adaptive thinking from the live catalog shape',()=>{
+ assert.equal(copilotHeaders('test')['x-github-api-version'],'2026-08-01');
+ const [model]=parseModels({data:[{...catalog.data[0],capabilities:{type:'chat',limits:{max_context_window_tokens:1000000,max_prompt_tokens:936000,max_output_tokens:128000},supports:{adaptive_thinking:true,reasoning_effort:['low','medium','high','xhigh','max']}}}]});
+ assert.equal(model.contextWindow,1000000);assert.equal(model.maxInputTokens,936000);
+ assert.equal(model.supportsAdaptiveThinking,true);assert.equal(model.isReasoning,true);
+ assert.deepEqual(model.reasoningEfforts,['low','medium','high','xhigh','max']);
+});
+test('Responses uses native Messages for adaptive thinking and preserves long history without mutation',async t=>{
+ const f=await setup(t,true);f.setModels({data:[{...catalog.data[0],supported_endpoints:['/chat/completions','/v1/messages'],capabilities:{...catalog.data[0].capabilities,supports:{adaptive_thinking:true,reasoning_effort:['low','high']}}}]});
+ const raw={model:'copilot-chat-fixture',instructions:'Keep the sentinel.',input:[{role:'user',content:'sentinel-BEGIN '+ 'context '.repeat(60000)},{role:'assistant',content:'remembered'},{role:'user',content:'sentinel-END'}],stream:true,reasoning:{effort:'high',summary:'auto'}};
+ const before=structuredClone(raw),result=await f.p.forward(raw,'responses'),call=f.calls.at(-1),body=JSON.parse(call.init.body);
+ assert.equal(result.protocol,'messages');assert(call.url.endsWith('/v1/messages'));
+ assert.deepEqual(body.thinking,{type:'adaptive',display:'summarized'});assert.equal(body.output_config.effort,'high');assert.equal(body.max_tokens,8192);
+ assert.equal(body.system,raw.instructions);assert.equal(body.messages[0].content[0].text,raw.input[0].content);assert.equal(body.messages.at(-1).content[0].text,'sentinel-END');assert.deepEqual(raw,before);
+});
+test('explicit disabled native thinking is not overridden by a saved effort',async t=>{
+ const f=await setup(t,true);f.setModels({data:[{...catalog.data[0],supported_endpoints:['/v1/messages']}]});
+ await f.p.setModel({id:'copilot-chat-fixture',field:'effort',value:'high'});
+ await f.p.forward({model:'copilot-chat-fixture',messages:[],max_tokens:32,thinking:{type:'disabled'}},'messages');
+ assert.equal(JSON.parse(f.calls.at(-1).init.body).output_config,undefined);
 });
 test('Copilot preserves native request fields and converts Responses and Messages through shared adapters',async t=>{
  const f=await setup(t,true);const raw={model:'copilot-chat-fixture',messages:[{role:'user',content:[{type:'image_url',image_url:{url:'data:image/png;base64,AAAA'}}]}],temperature:.4,stream:false,custom_field:'native'};

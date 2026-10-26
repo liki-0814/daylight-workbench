@@ -108,7 +108,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       return { failedSources, modelSources:Object.fromEntries([...(router.groups||[])].map(([id,models])=>[id,models.filter(m=>m.enabled).map(m=>m.provider)])), models: catalog.filter(m => m.enabled).map(m => ({
       id: m.id, name: m.displayName || m.id, source: m.provider, ...(m.aliases?.length ? {aliases:m.aliases} : {}),
       sourceName: registry.snapshot(m.provider)?.name || m.provider,
-      cost:m.cost,priceInfo:m.priceInfo,modelMetadata:m.modelMetadata,reasoningEffortsProvided:m.reasoningEffortsProvided,
+      cost:m.cost,priceInfo:m.priceInfo,modelMetadata:m.modelMetadata,reasoningEffortsProvided:m.reasoningEffortsProvided,supportsAdaptiveThinking:m.supportsAdaptiveThinking,
       pi:{...registry.snapshot(m.provider)?.capabilities?.pi,...m.pi},
       requestOutputBudget:registry.snapshot(m.provider)?.capabilities?.piOutputBudget??registry.snapshot(m.provider)?.capabilities?.requestOutputBudget,
       ...(providers[m.provider]?.source?.protocol ? {nativeProtocol:providers[m.provider].source.protocol} : {}),

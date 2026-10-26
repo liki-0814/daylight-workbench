@@ -337,3 +337,12 @@ test('partial sync removes confirmed healthy stale models but keeps failed and s
  f.setCatalog({models:[{id:'new',source:'grok'}],failedSources:[{id:'agy',name:'AGY'}]});const state=await restarted.state();assert.deepEqual(state.obsolete.map(m=>m.id),['a']);assert.deepEqual(state.models.filter(m=>m.retained).map(m=>m.id),['b','shared']);
  await apply(restarted,{},'partial-shared');assert.deepEqual((await f.json('models')).providers.daylight.models.map(m=>m.id),['new','b','shared']);
 });
+
+test('Pi uses catalog-declared adaptive thinking with the extended context ceiling',async()=>{
+ const {modelConfig}=await import('../cli/pi-config.js');
+ const input={id:'future-claude',name:'Future Claude',contextWindow:1000000,maxOutputTokens:128000,isReasoning:true,supportsAdaptiveThinking:true,reasoningEfforts:['low','high','max']};
+ const native=modelConfig(input,{},'anthropic-messages');
+ assert.equal(native.contextWindow,1000000);assert.equal(native.compat.forceAdaptiveThinking,true);assert.equal(native.thinkingLevelMap.high,'high');
+ assert.equal(modelConfig({...input,supportsAdaptiveThinking:false},native,'anthropic-messages').compat.forceAdaptiveThinking,false);
+ assert.equal(modelConfig(input,{},'openai-responses').compat.forceAdaptiveThinking,undefined);
+});

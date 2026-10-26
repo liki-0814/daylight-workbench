@@ -7,6 +7,8 @@ import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { GrokProvider } from '../proxy/grok/provider.js';
+import { parseModels } from '../proxy/grok/models.js';
+import { modelConfig } from '../cli/pi-config.js';
 import { compileRequest, decodeStream, parseUsage } from '../proxy/grok/protocol.js';
 import { createProxyService } from '../proxy/service.js';
 const model={id:'grok-test',enabled:true,reasoningEfforts:['low','high'],defaultEffort:'high',contextWindows:[]};
@@ -23,6 +25,25 @@ const events=[
 ];
 function sse(items=events){const bytes=Buffer.from(items.map(e=>`event: ${e.type}\r\ndata: ${JSON.stringify(e)}\r\n\r\n`).join(''));let i=0;return new Response(new ReadableStream({pull(c){if(i===bytes.length)return c.close();const end=Math.min(i+7,bytes.length);c.enqueue(bytes.subarray(i,end));i=end;}}));}
 const request=(raw,p='chat')=>({model:'grok-test',raw:{model:'grok-test',...raw},options:{protocol:p}});
+test('Grok exports the largest declared context tier instead of the smaller default',()=>{
+ const [m]=parseModels({data:[{id:'grok-future',api_backend:'responses',context_window:256000,context_windows:[500000,256000,500000,-1,0,'1000000',null,1.5],max_completion_tokens:64000}]});
+ assert.equal(m.contextWindow,500000);assert.deepEqual(m.contextWindows,[{length:256000,isDefault:false},{length:500000,isDefault:true}]);
+ assert.equal(m.maxOutputTokens,64000);assert.equal(modelConfig(m).contextWindow,500000);
+ const [legacy,unknown]=parseModels({data:[{id:'legacy',api_backend:'responses',context_window:256000},{id:'unknown',api_backend:'responses',context_window:-1,context_windows:['500000',null]}]});
+ assert.equal(legacy.contextWindow,256000);assert.equal(unknown.contextWindow,undefined);assert.equal(unknown.maxOutputTokens,undefined);assert.deepEqual(unknown.contextWindows,[]);
+});
+test('Grok refreshes an old parsed disk catalog and preserves saved lower capacity choices',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'grok-tiers-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ await mkdir(path.join(dir,'grok'),{recursive:true});
+ await writeFile(path.join(dir,'grok/catalog.json'),JSON.stringify({schemaVersion:1,identity:'account-a',at:Date.now(),models:[{id:'grok-test',contextWindow:256000,contextWindows:[]}]}));
+ let calls=0;
+ const p=new GrokProvider({dataDir:dir,auth,fetchImpl:async()=>{calls++;return Response.json({data:[{id:'grok-test',api_backend:'responses',context_window:256000,context_windows:[256000,500000]}]});}});
+ t.after(()=>p.close());
+ let [m]=await p.listModels();assert.equal(calls,1);assert.equal(m.contextWindow,500000);assert.equal(m.contextLimit,500000);
+ [m]=await p.setModel({id:m.id,field:'contextWindow',value:256000});assert.equal(m.contextWindow,256000);assert.equal(m.contextLimit,500000);
+ [m]=await p.setModel({id:m.id,field:'contextWindow',value:500000});assert.equal(m.contextWindow,500000);
+ assert.equal(JSON.parse(await readFile(path.join(dir,'grok/catalog.json'),'utf8')).schemaVersion,2);
+});
 test('Grok preserves role order, schema, tool ids and explicit parameters; rejects lossy options',()=>{
  const r=compileRequest(request({messages:[{role:'system',content:'A'},{role:'user',content:'B'},{role:'developer',content:'C'}],max_tokens:100,reasoning_effort:'low',tools:[{type:'function',function:{name:'echo',strict:true,parameters:{type:'object',additionalProperties:false}}}],tool_choice:{type:'function',function:{name:'echo'}},parallel_tool_calls:false}),model);
  assert.deepEqual(r.input.map(m=>m.role),['system','user','developer']);assert.equal(r.reasoning.effort,'low');assert.equal(r.tools[0].strict,true);assert.equal(r.parallel_tool_calls,false);assert.equal(r.max_output_tokens,100);assert.equal(r.store,false);

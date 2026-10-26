@@ -9,6 +9,7 @@ import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
 import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import {invalid,convertRequest} from '../shared/protocol.js';
 import {headerDeadline} from '../shared/header-deadline.js';
+import {outputBudget} from '../shared/request-parameters.js';
 
 export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat','responses','messages']};
 const hasImages=parts=>Array.isArray(parts)&&parts.some(p=>['image_url','input_image','image'].includes(p.type)||p.type==='tool_result'&&hasImages(p.content));
@@ -39,10 +40,17 @@ export class CopilotProvider {
  async forward(raw,protocol,{signal,observe=()=>{}}={}){
   const epoch=this.auth.epoch;
   observe({stage:'discovery'});const model=(await this.listModels()).find(m=>m.id===raw.model&&m.enabled),identity=this.cache?.identity;if(!model)throw invalid('Copilot 模型已停用或不存在');
-  const target=model.nativeProtocols.includes(protocol)?protocol:model.nativeProtocols[0];
-  observe({stage:'conversion'});const body=protocol===target?structuredClone(raw):convertRequest(raw,protocol,target);
-  const effort=(target==='responses'?body.reasoning?.effort:target==='messages'?body.output_config?.effort:body.reasoning_effort)??model.effort;
+  // Claude's Chat endpoint omits thinking blocks. Translate Responses through
+  // native Messages when the catalog declares adaptive thinking support.
+  const target=model.nativeProtocols.includes(protocol)?protocol:model.supportsAdaptiveThinking&&model.nativeProtocols.includes('messages')?'messages':model.nativeProtocols[0];
+  const input=target==='messages'&&protocol!==target&&outputBudget(raw)===undefined?{...raw,...(protocol==='responses'?{max_output_tokens:model.defaultMaxTokens??model.maxOutputTokens}:{max_tokens:model.defaultMaxTokens??model.maxOutputTokens})}:raw;
+  observe({stage:'conversion'});const body=protocol===target?structuredClone(raw):convertRequest(input,protocol,target);
+  const effort=(target==='responses'?body.reasoning?.effort:target==='messages'?body.output_config?.effort:body.reasoning_effort)??(body.thinking?.type==='disabled'?undefined:model.effort);
   if(effort!==undefined){if(!model.reasoningEfforts.includes(effort))throw invalid('该 Copilot 模型未提供此思考强度');if(target==='responses')body.reasoning={...body.reasoning,effort};else if(target==='messages')body.output_config={...body.output_config,effort};else body.reasoning_effort=effort;}
+  if(target==='messages'&&model.supportsAdaptiveThinking){
+   if(effort!==undefined&&body.thinking===undefined)body.thinking={type:'adaptive',display:'summarized'};
+   if(protocol!==target&&body.thinking?.type==='adaptive')body.thinking.display='summarized';
+  }
   // Conversion may append a synthetic user image turn. Billing/initiator semantics
   // belong to the caller's original history, not that transport representation.
   const messages=protocol!=='responses'?raw.messages:Array.isArray(raw.input)?raw.input:[];

@@ -34,7 +34,7 @@ export function capacityLimit(model,field){
 export function mergeModelCapabilities(models){
  const merged={};
  for(const field of ['contextWindow','maxInputTokens','maxOutputTokens','defaultMaxTokens','contextLimit','outputLimit'])merged[field]=models.every(m=>positiveCapacity(m[field]))?Math.min(...models.map(m=>m[field])):undefined;
- for(const field of ['isVL','isReasoning','supportsFast'])merged[field]=models.every(m=>typeof m[field]==='boolean')?models.every(m=>m[field]):undefined;
+ for(const field of ['isVL','isReasoning','supportsFast','supportsAdaptiveThinking'])merged[field]=models.every(m=>typeof m[field]==='boolean')?models.every(m=>m[field]):undefined;
  merged.reasoningEfforts=models.every(m=>Array.isArray(m.reasoningEfforts))?models[0].reasoningEfforts.filter(e=>models.every(m=>m.reasoningEfforts.includes(e))):undefined;
  return merged;
 }

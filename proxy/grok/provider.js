@@ -13,6 +13,7 @@ import { compileRequest, decodeStream, invalid,renderNativeStream,renderNativeRe
 import { readJson, writeJson } from '../shared/store.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
+const catalogSchemaVersion=2;
 export const sourceDescription = {id:'grok',name:'Grok',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Grok 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,piOutputBudget:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['responses']};
 
 export class GrokProvider {
@@ -57,13 +58,13 @@ export class GrokProvider {
     const a = await this.auth.credential();
     if(!this.cache||this.cache.identity!==a.identity){
       const cached=await readJson(path.join(this.directory,'catalog.json'),null);
-      if(cached?.schemaVersion===1&&cached.identity===a.identity&&Array.isArray(cached.models))this.catalogCache.seed(cached,a.identity);
+      if(cached?.schemaVersion===catalogSchemaVersion&&cached.identity===a.identity&&Array.isArray(cached.models))this.catalogCache.seed(cached,a.identity);
     }
     return this.catalogCache.get({identity:a.identity,refresh:force,load:async()=>{
         const data = await (await this.call('models', undefined, undefined, a)).json();
         const models=parseModels(data);
         if((await this.auth.credential()).identity!==a.identity)throw authError();
-        return {schemaVersion:1,models};
+        return {schemaVersion:catalogSchemaVersion,models};
       },commit:async cache=>{
         if((await this.auth.credential()).identity!==a.identity)throw authError();
         await writeJson(path.join(this.directory,'catalog.json'),cache);

@@ -8,6 +8,8 @@ export function parseModels(data){
   const protocols=Object.keys(nativeEndpoints).filter(p=>endpoints.includes(nativeEndpoints[p]));
   if(!protocols.length)return[];
   const {limits={},supports={}}=m.capabilities;
-  return[{id:m.id,displayName:m.name||m.id,provider:'copilot',source:'copilot',enabled:true,nativeProtocols:protocols,pi:protocols.includes('messages')?{}:{'anthropic-messages':'此 Copilot 模型未提供原生 Messages，Pi 的 thinking 预算与缓存字段需使用 Responses 或 Chat Completions'},contextWindow:positiveCapacity(limits.max_context_window_tokens),maxInputTokens:positiveCapacity(limits.max_prompt_tokens),maxOutputTokens:positiveCapacity(limits.max_output_tokens),contextWindows:[],...reasoningCapabilities(supports.reasoning,m.capabilities.reasoning_effort?.supported_values),isVL:booleanCapability(supports.vision),capabilities:{nativeChat:protocols.includes('chat'),tools:booleanCapability(supports.tool_calls)}}];
+  const adaptive=booleanCapability(supports.adaptive_thinking);
+  const efforts=Array.isArray(supports.reasoning_effort)?supports.reasoning_effort:m.capabilities.reasoning_effort?.supported_values;
+  return[{id:m.id,displayName:m.name||m.id,provider:'copilot',source:'copilot',enabled:true,nativeProtocols:protocols,pi:protocols.includes('messages')?{}:{'anthropic-messages':'此 Copilot 模型未提供原生 Messages，Pi 的 thinking 预算与缓存字段需使用 Responses 或 Chat Completions'},contextWindow:positiveCapacity(limits.max_context_window_tokens),maxInputTokens:positiveCapacity(limits.max_prompt_tokens),maxOutputTokens:positiveCapacity(limits.max_output_tokens),contextWindows:[],...reasoningCapabilities(supports.reasoning??(adaptive===true?true:undefined),efforts),supportsAdaptiveThinking:adaptive,isVL:booleanCapability(supports.vision),capabilities:{nativeChat:protocols.includes('chat'),tools:booleanCapability(supports.tool_calls)}}];
  });
 }

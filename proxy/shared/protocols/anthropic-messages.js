@@ -138,6 +138,8 @@ export async function* renderMessagesStream(events, model) {
     let blockIndex = -1;
     let openKind = null;
     const tools = new ToolCallAccumulator();
+    const toolStates = new Map();
+    let activeTool;
     let finish;
     let usage;
     function* close() {
@@ -147,6 +149,7 @@ export async function* renderMessagesStream(events, model) {
                 index: blockIndex
             });
             openKind = null;
+            if (activeTool) { activeTool.closed = true; activeTool = undefined; }
         }
     }
     function* openText(kind) {
@@ -165,8 +168,31 @@ export async function* renderMessagesStream(events, model) {
             content_block: contentBlock
         });
     }
+    function* openTool(call, state) {
+        yield* close();
+        blockIndex++;
+        openKind = 'tool';
+        activeTool = state;
+        yield sseEvent('content_block_start', {type:'content_block_start',index:blockIndex,content_block:{type:'tool_use',id:call.id,name:call.name,input:{}}});
+    }
+    function* sendTool(call, state) {
+        if (call.args.length > state.sent) {
+            yield sseEvent('content_block_delta', {type:'content_block_delta',index:blockIndex,delta:{type:'input_json_delta',partial_json:call.args.slice(state.sent)}});
+            state.sent = call.args.length;
+        }
+    }
+    function* flushTools() {
+        yield* close();
+        for (const [call, state] of toolStates) if (!state.closed && call.name !== undefined) {
+            call.id ??= `call_${[...toolStates.keys()].indexOf(call)}`;
+            yield* openTool(call, state);
+            yield* sendTool(call, state);
+            yield* close();
+        }
+    }
     for await (const e of events){
         if (e.type === "text") {
+            if ([...toolStates.values()].some(state=>!state.closed)) yield* flushTools();
             if (openKind !== "text") {
                 yield* close();
                 yield* openText("text");
@@ -180,6 +206,7 @@ export async function* renderMessagesStream(events, model) {
                 }
             });
         } else if (e.type === "reasoning") {
+            if ([...toolStates.values()].some(state=>!state.closed)) yield* flushTools();
             if (openKind !== "thinking") {
                 yield* close();
                 yield* openText("thinking");
@@ -198,7 +225,11 @@ export async function* renderMessagesStream(events, model) {
                 yield* close();
             }
         } else if (e.type === "tool_call") {
-            tools.add(e.index, e.id, e.name, e.argumentsDelta);
+            const call = tools.add(e.index, e.id, e.name, e.argumentsDelta);
+            let state = toolStates.get(call);
+            if (!state) { state = { sent: 0, closed: false }; toolStates.set(call, state); }
+            if (!activeTool && call.id !== undefined && call.name !== undefined) yield* openTool(call, state);
+            if (activeTool === state) yield* sendTool(call, state);
         } else if (e.type === "usage") {
             usage = mergeUsage(usage, e.usage);
         } else if (e.type === "finish") {
@@ -215,35 +246,8 @@ export async function* renderMessagesStream(events, model) {
             return;
         }
     }
-    yield* close();
+    yield* flushTools();
     const toolCalls = tools.build();
-    for (const tc of toolCalls){
-        blockIndex++;
-        yield sseEvent("content_block_start", {
-            type: "content_block_start",
-            index: blockIndex,
-            content_block: {
-                type: "tool_use",
-                id: tc.id,
-                name: tc.name,
-                input: {}
-            }
-        });
-        if (tc.arguments) {
-            yield sseEvent("content_block_delta", {
-                type: "content_block_delta",
-                index: blockIndex,
-                delta: {
-                    type: "input_json_delta",
-                    partial_json: tc.arguments
-                }
-            });
-        }
-        yield sseEvent("content_block_stop", {
-            type: "content_block_stop",
-            index: blockIndex
-        });
-    }
     yield sseEvent("message_delta", {
         type: "message_delta",
         delta: {

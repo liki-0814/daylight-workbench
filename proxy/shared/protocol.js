@@ -99,7 +99,7 @@ export function usageOf(u,protocol){
  if(!u)return;
  if(protocol==='chat')return parseUsage(u);
  if(protocol==='responses')return{inputTokens:u.input_tokens,outputTokens:u.output_tokens,totalTokens:u.total_tokens,cacheReadTokens:u.input_tokens_details?.cached_tokens,outputDetails:u.output_tokens_details,costUsdTicks:u.cost_in_usd_ticks};
- return{inputTokens:u.input_tokens===undefined?undefined:u.input_tokens+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0),outputTokens:u.output_tokens,cacheReadTokens:u.cache_read_input_tokens,cacheWriteTokens:u.cache_creation_input_tokens};
+ return{inputTokens:u.input_tokens===undefined?undefined:u.input_tokens+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0),outputTokens:u.output_tokens,cacheReadTokens:u.cache_read_input_tokens,cacheWriteTokens:u.cache_creation_input_tokens,...(u.output_tokens_details?{outputDetails:{...u.output_tokens_details,...(u.output_tokens_details.thinking_tokens!==undefined?{reasoning_tokens:u.output_tokens_details.thinking_tokens}:{})}}:{})};
 }
 export function observeResponse(body, protocol, observe) {
  const response=body.response||body.message||body;
@@ -116,7 +116,7 @@ export function readWithIdle(reader,ms,message){
  idle.catch(()=>{});const raced=Promise.race([reader.read(),idle]).finally(()=>clearTimeout(timer));raced.catch(()=>{});raced.cancel=()=>clearTimeout(timer);return raced;
 }
 export async function* events(response,protocol,model,observe=()=>{}){
- const reader=response.body.getReader(),decoder=new TextDecoder(),parser=new SseParser();let terminal=false,usage,finish='stop',read;const toolArgs=new Map(),outputItems=new Map();
+ const reader=response.body.getReader(),decoder=new TextDecoder(),parser=new SseParser();let terminal=false,usage,finish='stop',read;const toolArgs=new Map(),outputItems=new Map(),thoughtSignatures=new Map();
  try{while(true){read=readWithIdle(reader,300000,'上游响应空闲超时');const part=await read;
   for(const f of part.done?parser.flush():parser.push(decoder.decode(part.value,{stream:true}))){if(!f.data)continue;if(f.data==='[DONE]'){terminal=true;continue;}if(f.data.length>4000000)throw new Error('上游事件过大');const e=JSON.parse(f.data);
    if(e.error||e.type==='error'||e.type==='response.failed'){const error=upstreamError(e,502,response.headers);observe({error});throw error;}
@@ -130,12 +130,19 @@ export async function* events(response,protocol,model,observe=()=>{}){
    }
    yield{type:'native',event:e,name:f.event||e.type};
    if(protocol==='chat'){
-    const c=e.choices?.[0];if(c?.delta?.content)yield{type:'text',delta:c.delta.content};if(c?.delta?.reasoning_content)yield{type:'reasoning',delta:c.delta.reasoning_content};
+    const c=e.choices?.[0];if(c?.delta?.content)yield{type:'text',delta:c.delta.content};const thought=c?.delta?.reasoning_content??c?.delta?.reasoning;if(thought)yield{type:'reasoning',delta:thought};
     for(const t of c?.delta?.tool_calls||[])yield{type:'tool_call',index:t.index,id:t.id,name:t.function?.name,argumentsDelta:t.function?.arguments||''};
     if(c?.finish_reason)finish=c.finish_reason;
    }else if(protocol==='messages'){
+    if(e.type==='content_block_start'){
+     if(e.content_block.type==='text'&&e.content_block.text)yield{type:'text',delta:e.content_block.text};
+     if(e.content_block.type==='thinking'&&e.content_block.thinking)yield{type:'reasoning',delta:e.content_block.thinking};
+     if(e.content_block.type==='thinking'&&e.content_block.signature)thoughtSignatures.set(e.index,e.content_block.signature);
+    }
     if(e.type==='content_block_start'&&e.content_block.type==='tool_use')yield{type:'tool_call',index:e.index,id:e.content_block.id,name:e.content_block.name,argumentsDelta:Object.keys(e.content_block.input||{}).length?JSON.stringify(e.content_block.input):''};
     if(e.delta?.type==='text_delta')yield{type:'text',delta:e.delta.text};if(e.delta?.type==='thinking_delta')yield{type:'reasoning',delta:e.delta.thinking};if(e.delta?.type==='input_json_delta')yield{type:'tool_call',index:e.index,argumentsDelta:e.delta.partial_json};
+    if(e.delta?.type==='signature_delta')thoughtSignatures.set(e.index,(thoughtSignatures.get(e.index)||'')+e.delta.signature);
+    if(e.type==='content_block_stop'&&thoughtSignatures.has(e.index)){yield{type:'reasoning_signature',signature:thoughtSignatures.get(e.index)};thoughtSignatures.delete(e.index);}
     if(e.delta?.stop_reason)finish=e.delta.stop_reason==='tool_use'?'tool_calls':e.delta.stop_reason==='max_tokens'?'length':'stop';if(e.type==='message_stop')terminal=true;
    }else{
     if(e.type==='response.output_text.delta')yield{type:'text',delta:e.delta};if(e.type==='response.reasoning_summary_text.delta')yield{type:'reasoning',delta:e.delta};
