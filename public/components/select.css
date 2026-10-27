@@ -21,12 +21,12 @@ workbench-select {
   gap: var(--space-3);
   width: 100%;
   text-align: left;
-  border: 1px solid #dce4d3;
+  border: 1px solid var(--control-border);
   border-radius: var(--button-radius);
   min-height: var(--form-control-height);
   padding: var(--form-control-padding);
-  background: #fcfdfb;
-  color: #374c2e;
+  background: var(--control-background);
+  color: var(--control-text);
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
 }
@@ -48,8 +48,8 @@ workbench-select {
 }
 
 .select-trigger[aria-expanded="true"] {
-  border-color: #7d9671;
-  background: #f8faf5;
+  border-color: var(--green);
+  background: var(--workbench-background);
 }
 
 .select-trigger[aria-expanded="true"] svg {
@@ -64,10 +64,11 @@ workbench-select {
   padding: 5px;
   max-height: 200px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   list-style: none;
-  border: 1px solid #dce4d3;
-  border-radius: 7px;
-  background: #fff;
+  border: 1px solid var(--control-border);
+  border-radius: var(--button-radius);
+  background: var(--paper);
   box-shadow: 0 3px 10px #20382008;
 }
 
@@ -99,12 +100,12 @@ workbench-select {
 }
 
 .select-option[aria-selected="true"] {
-  color: #365740;
+  color: var(--green);
   font-weight: 550;
 }
 
 .select-option.is-highlighted, .select-option:hover {
-  background: #eef3e8;
+  background: var(--selection-background);
 }
 
 .select-compact {

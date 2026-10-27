@@ -20,11 +20,51 @@ export function selectField({ name, label, value = '', options, disabled = false
   </div>`;
 }
 
+const fields = new WeakMap();
+/** Update a dynamic field without replacing a menu the user is operating. */
+export function updateSelectField(container, config) {
+  let owned = fields.get(container);
+  if (!owned) { owned = new Map(); fields.set(container, owned); }
+  let saved = owned.get(config.name);
+  const options = config.options.map(option => ({...option,value:String(option.value)}));
+  const key = JSON.stringify([config.id,config.label,options,!!config.compact,!!config.hideLabel]);
+  let field = saved?.element;
+  if (!field || !container.contains(field)) {
+    field = [...container.querySelectorAll('.select-field')].find(element=>element.querySelector('input')?.name===config.name);
+    saved = undefined;
+  }
+  let select = field?.querySelector('workbench-select');
+  if (!saved || saved.key !== key) {
+    const focused = select?.contains(document.activeElement), open = select && !select.querySelector('.select-options').hidden;
+    const active = select?.options?.[select.activeIndex]?.dataset.value, scroll = select?.list?.scrollTop || 0;
+    const template = document.createElement('template');
+    template.innerHTML = selectField({...config,options,id:config.id || select?.id});
+    const next = template.content.firstElementChild;
+    if (field) field.replaceWith(next); else container.append(next);
+    customElements.upgrade(next);
+    field = next; select = field.querySelector('workbench-select');
+    owned.set(config.name,{key,element:field});
+    if (focused) select.trigger.focus({preventScroll:true});
+    if (open && !select.disabled) {
+      select.setOpen(true);
+      select.list.scrollTop = scroll;
+      const index = select.options.findIndex(option=>option.dataset.value===active);
+      select.highlight(index >= 0 ? index : select.activeIndex);
+    }
+  }
+  const value = options.find(option=>option.value===String(config.value ?? ''))?.value ?? options[0]?.value;
+  if (value !== undefined && select.value !== value) select.value = value;
+  if (select.disabled !== !!config.disabled) select.disabled = !!config.disabled;
+  if (select.list && !select.list.hidden) select.positionList();
+  return select;
+}
+
 class WorkbenchSelect extends HTMLElement {
   static openSelect;
-  get value() { return this.input?.value || ''; }
+  get value() { return (this.input || this.querySelector('input'))?.value || ''; }
   set value(value) {
-    const index = this.options?.findIndex(option => option.dataset.value === String(value));
+    const options = this.options || [...this.querySelectorAll('[role="option"]')];
+    const index = options.findIndex(option => option.dataset.value === String(value));
     if (index >= 0) this.updateValue(index);
   }
   get disabled() { return this.hasAttribute('disabled'); }
@@ -116,10 +156,10 @@ class WorkbenchSelect extends HTMLElement {
   }
 
   updateValue(index) {
-    const option = this.options[index];
+    const options = this.options || [...this.querySelectorAll('[role="option"]')], option = options[index];
     if (!option) return;
-    this.options.forEach(item => item.setAttribute('aria-selected', String(item === option)));
-    this.input.value = option.dataset.value;
+    options.forEach(item => item.setAttribute('aria-selected', String(item === option)));
+    (this.input || this.querySelector('input')).value = option.dataset.value;
     this.querySelector('.select-value').textContent = option.querySelector('span').textContent;
   }
 

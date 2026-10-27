@@ -25,10 +25,10 @@ export class TokenCalibration {
     const key = keyOf(context);
     return {factor:this.rows.get(key)?.factor ?? 1, observe:sample => this.observe(key,sample)};
   }
-  async observe(key,{estimated,actual,reasoningVisible,reasoningTokens}) {
+  async observe(key,{estimated,actual,reasoningVisible,reasoningSummary,reasoningTokens}) {
     if (!this.writable || !Number.isFinite(estimated) || !Number.isFinite(actual) || estimated < 40 || actual < 40) return;
     // A hidden thought budget cannot be inferred from the visible answer.
-    if (reasoningTokens > 0 && !reasoningVisible) return;
+    if (reasoningTokens > 0 && (!reasoningVisible || reasoningSummary)) return;
     const ratio = actual / estimated, previous = this.rows.get(key);
     if (ratio < 0.25 || ratio > 4 || previous?.samples >= 3 && (ratio / previous.factor < 1/3 || ratio / previous.factor > 3)) return;
     const alpha = previous ? 0.2 : 1;

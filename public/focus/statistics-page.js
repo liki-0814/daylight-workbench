@@ -1,7 +1,7 @@
 import { isCivilDate, addCivilDays } from '../../core/date.js';
 import { focusRoute } from '../routes.js';
 import { actionButton, escapeButtonText as esc } from '../components/button.js';
-import { selectField } from '../components/select.js';
+import { updateSelectField } from '../components/select.js';
 import { createDateRange } from '../components/date-range.js';
 import { metricCard } from '../components/metric-card.js';
 import { createBarChart } from '../components/bar-chart.js';
@@ -20,12 +20,13 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
   function query() { return { from: range.from, to: range.to, ...(filters.projectId ? { projectId: filters.projectId } : filters.unassigned ? { unassigned: '1' } : {}), ...(filters.taskId ? { taskId: filters.taskId } : {}) }; }
   function changed() { cursor = null; pageNumber = 1; onRoute(focusRoute(query()), { replace: true }); void refresh(); }
   function renderFilters() {
-    if (element.querySelector('.focus-statistics-filters').contains(document.activeElement)) return;
     const { state } = getTaskSnapshot(), projects = new Map(state.projects.map(project => [project.id, project.name]));
     for (const project of report?.projects || []) if (project.projectId && !projects.has(project.projectId)) projects.set(project.projectId, project.name + '（已删除）');
     const tasks = state.tasks.map(task => ({ value: task.id, label: task.title })); if (filters.taskId && !tasks.some(task => task.value === filters.taskId)) tasks.push({ value: filters.taskId, label: '已删除任务 · ' + filters.taskId });
-    element.querySelector('.focus-statistics-filters').innerHTML = selectField({ name: 'focus-project-filter', label: '项目', value: filters.projectId ? 'project:' + filters.projectId : filters.unassigned ? 'unassigned' : '', compact: true, options: [{ value: '', label: '所有项目' }, { value: 'unassigned', label: '未归类' }, ...[...projects].map(([id, name]) => ({ value: 'project:' + id, label: name }))] }) + selectField({ name: 'focus-task-filter', label: '任务', value: filters.taskId || '', compact: true, options: [{ value: '', label: '所有任务' }, ...tasks] });
-    element.querySelector('[data-statistics-phase]').innerHTML = selectField({ name: 'focus-phase-filter', label: '会话阶段', value: phase, compact: true, options: [{ value: 'work', label: '工作记录' }, { value: 'shortBreak', label: '短休息记录（不计入工作指标）' }] });
+    const container = element.querySelector('.focus-statistics-filters');
+    updateSelectField(container, { name: 'focus-project-filter', label: '项目', value: filters.projectId ? 'project:' + filters.projectId : filters.unassigned ? 'unassigned' : '', compact: true, options: [{ value: '', label: '所有项目' }, { value: 'unassigned', label: '未归类' }, ...[...projects].map(([id, name]) => ({ value: 'project:' + id, label: name }))] });
+    updateSelectField(container, { name: 'focus-task-filter', label: '任务', value: filters.taskId || '', compact: true, options: [{ value: '', label: '所有任务' }, ...tasks] });
+    updateSelectField(element.querySelector('[data-statistics-phase]'), { name: 'focus-phase-filter', label: '会话阶段', value: phase, compact: true, options: [{ value: 'work', label: '工作记录' }, { value: 'shortBreak', label: '短休息记录（不计入工作指标）' }] });
   }
   function renderReport() {
     renderFilters();

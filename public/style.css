@@ -762,12 +762,12 @@ dialog::backdrop {
 .form-body input:not([type=checkbox]),.form-body textarea,.form-body select {
   display: block;
   width: 100%;
-  border: 1px solid #dce4d3;
-  border-radius: 6px;
-  background: #fcfdfb;
+  border: 1px solid var(--control-border);
+  border-radius: var(--button-radius);
+  background: var(--control-background);
   padding: var(--form-control-padding);
   margin-top: var(--field-label-gap);
-  color: #374c2e;
+  color: var(--control-text);
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
 }

@@ -104,6 +104,9 @@
   --panel-inline-inset: 26px;
   --dialog-inline-inset: 28px;
   --form-control-height: 44px;
+  --control-border: #dce4d3;
+  --control-background: #fcfdfb;
+  --control-text: #374c2e;
   --form-control-line-height: var(--font-control-line);
   --compact-control-height: 36px;
   --form-control-padding-block: calc((var(--form-control-height) - var(--font-control-line) - 2px) / 2);
@@ -166,7 +169,7 @@ input[type="checkbox"], input[type="radio"] {
 .ui-setting-row > span { min-width: 0; }
 .ui-setting-title { display: block; font-size: var(--font-body-size); line-height: var(--font-body-line); font-weight: 500; }
 .ui-setting-description { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
-.ui-input { width: 100%; box-sizing: border-box; min-height: var(--form-control-height); border: 1px solid var(--line); border-radius: 8px; padding: var(--form-control-padding); color: var(--workbench-text); background: var(--paper); font: inherit; font-size: var(--font-control-size); line-height: var(--font-control-line); }
+.ui-input { width: 100%; box-sizing: border-box; min-height: var(--form-control-height); border: 1px solid var(--control-border); border-radius: var(--button-radius); padding: var(--form-control-padding); color: var(--control-text); background: var(--control-background); font: inherit; font-size: var(--font-control-size); line-height: var(--font-control-line); }
 .ui-input:focus-visible,.ui-setting-row input:focus-visible{outline:2px solid var(--green);outline-offset:3px}
 
 .ui-feedback {

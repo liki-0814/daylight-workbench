@@ -2,7 +2,7 @@ import {piSourceTypes} from '../core/proxy-sources.js';
 import {modelPriceLabel} from '../core/model-metadata.js';
 import { icon } from './components/icons.js';
 import { refreshButton, setRefreshState } from './components/section.js';
-import { selectField } from './components/select.js';
+import { selectField, updateSelectField } from './components/select.js';
 import { createProxyDrawer } from './components/proxy-drawer.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -68,7 +68,7 @@ export function createCLIPage({ getToken }) {
     picker.hidden = !defaultEnabled;
     if (defaultEnabled) {
       if (!chosen.some(m => m.id === defaultModel)) defaultModel = chosen[0]?.id || '';
-      picker.innerHTML = selectField({ id: 'cli-default-model', label: '默认模型', hideLabel: true, compact: true, disabled: busy, options: chosen.map(m => ({ value: m.id, label: m.name })), value: defaultModel });
+      updateSelectField(picker, { name:'defaultModel', id: 'cli-default-model', label: '默认模型', hideLabel: true, compact: true, disabled: busy, options: chosen.map(m => ({ value: m.id, label: m.name })), value: defaultModel });
     }
   }
   function render() {

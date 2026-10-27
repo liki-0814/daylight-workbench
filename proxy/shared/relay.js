@@ -20,7 +20,8 @@ export async function relayResult(result,raw,protocol,res,signal,observe,options
   else observe({finish:body.status==='incomplete'||body.choices?.[0]?.finish_reason==='length'||body.stop_reason==='max_tokens'?'length':'stop'});
   if(body.model)body.model=model;json(body);return;
  }
- const stream=events(response,result.protocol,model,observe);
+ async function* observedEvents(){for await(const event of events(response,result.protocol,model,observe)){options.onEvent?.(event);yield event;}}
+ const stream=observedEvents();
  if(native){
   if(raw.stream){res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-store','X-Accel-Buffering':'no'});
    const counter=new StreamingUsage(options);let finish;

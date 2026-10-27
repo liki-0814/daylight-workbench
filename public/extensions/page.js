@@ -6,7 +6,7 @@ import { escapeButtonText as esc, actionButton } from '../components/button.js';
 import { sectionHeading, refreshButton, setRefreshState } from '../components/section.js';
 import { segmentedControl, mountSegmentedControl } from '../components/segmented-control.js';
 import { createDialogShell } from '../components/dialog-shell.js';
-import { selectField } from '../components/select.js';
+import { selectField, updateSelectField } from '../components/select.js';
 
 const categories = [
   { value: 'skills', label: 'Skills', collection: 'skills', title: 'Skills 来源', action: '新建 Skill' },
@@ -24,7 +24,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
   element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar"><label class="extension-search"><span class="sr-only">搜索扩展</span><input type="search" placeholder="搜索名称、用途或路径" aria-label="搜索扩展"></label><div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" hidden></aside></div></div>`;
   const $ = selector => element.querySelector(selector);
-  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', softwareKey = '', submitting = false, bindingPreviewing = false, selectionPreviewing = false;
+  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, submitting = false, bindingPreviewing = false, selectionPreviewing = false;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
   function bindingControl(skill, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);
@@ -76,22 +76,18 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   function renderTabs() {
     const restoreFocus=$('#extensions-tabs')?.contains(document.activeElement); tabsDispose?.(); $('.extension-tabs').innerHTML = segmentedControl({ id: 'extensions-tabs', label: '扩展分类', value: route.tab, options: categories });
     tabsDispose = mountSegmentedControl($('#extensions-tabs'), { onChange: tab => changeRoute({ tab, id: null, operation: null, file: null }) });
-    if(restoreFocus)$('#extensions-tabs [aria-checked="true"]').focus();
+    if(restoreFocus)$('#extensions-tabs [aria-checked="true"]').focus({preventScroll:true});
     $('[data-create]').textContent = category().action;
     $('#extensions-client-filter').value = route.client || ''; $('[data-problems]').checked = !!route.problems; $('.extension-search input').value = route.query || '';
   }
   function renderClientFilter() {
     if (!state) return;
-    const options = [{ value: '', label: '全部软件' }, ...state.clients.filter(client => route.tab === 'clients' || client.selected).map(client => ({ value: client.id, label: client.name }))], key = JSON.stringify(options);
-    if (key === softwareKey) return;
-    const focused = $('.extension-software-filter').contains(document.activeElement);
+    const options = [{ value: '', label: '全部软件' }, ...state.clients.filter(client => route.tab === 'clients' || client.selected).map(client => ({ value: client.id, label: client.name }))];
     if (route.client && !options.some(option => option.value === route.client)) { route.client = null; history.replaceState(null, '', '/' + extensionsRoute(route)); }
-    $('.extension-software-filter').innerHTML = `<span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, value: route.client || '', options })}`;
-    softwareKey = key;
-    if (focused) $('#extensions-client-filter .select-trigger')?.focus();
+    updateSelectField($('.extension-software-filter'), { id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, value: route.client || '', options });
   }
   function renderList() {
-    if (!state) { $('.extension-list').innerHTML = `<p class="extension-empty">${readFailure ? '扩展来源读取失败。请重新扫描后再试。' : '正在读取扩展来源…'}</p>`; return; }
+    if (!state) { listMarkup = undefined; $('.extension-list').innerHTML = `<p class="extension-empty">${readFailure ? '扩展来源读取失败。请重新扫描后再试。' : '正在读取扩展来源…'}</p>`; return; }
     const needle = (route.query || '').toLowerCase();
     const focus = $('.extension-list').contains(document.activeElement) ? document.activeElement?.dataset : null;
     const list = state[category().collection];
@@ -103,13 +99,17 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       const matchesProblems = !route.problems || item.valid === false || route.tab === 'clients' && item.selected && !item.installed || item.bindings?.some(binding => binding.state === 'conflict') || state.diagnostics.some(problem => problem.id === item.id);
       return matchesText && matchesSoftware && matchesProblems;
     });
-    $('.extension-list').innerHTML = `<div class="extension-list-heading"><h2>${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
+    const markup = `<div class="extension-list-heading"><h2>${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
       const active = item.id === route.id;
       const summary = route.tab === 'skills' ? item.valid ? item.description : item.problem : route.tab === 'mcp' ? (item.enabled ? '配置启用' : '配置禁用') + ' · ' + item.transport : item.note;
       return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' · 本地配置' : '共享来源')}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? `<span>${item.lastProbe?.stale ? "配置已变更 · 上次" : ""}${({succeeded:'握手成功',failed:'检测失败',running:'正在检测',cancelled:'已取消',timed_out:'检测超时'})[item.lastProbe?.status] || (item.scope === 'client' ? '用户级配置' : '尚未检测')}</span>` : `<label class="extension-binding-control"><input type="checkbox" data-cli-selection data-client="${esc(item.id)}" aria-label="${esc(item.name + ' · 接入扩展管理')}" ${item.selected ? 'checked' : ''} ${selectionPreviewing ? 'disabled' : ''}><span>${item.selected ? '已接入' : '选择接入'}<small>${item.installed ? '已发现命令' : '未找到命令'}</small></span></label>`}</div></div>`;
     }).join('')}${!filtered.length ? '<p class="extension-empty">没有匹配项。可调整搜索或筛选。</p>' : ''}${state.diagnostics.length ? `<details class="extension-static-diagnostics"><summary>静态问题 ${state.diagnostics.length} 项</summary>${state.diagnostics.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
-    if (focus?.bindingToggle !== undefined) findBindingControl(focus, 'list')?.focus();
-    else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus();
+    if (markup === listMarkup) return;
+    const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
+    $('.extension-list').innerHTML = markup; listMarkup = markup;
+    [...$('.extension-list').querySelectorAll('details')].forEach((details,index)=>{if(disclosures[index]!==undefined)details.open=disclosures[index];});
+    if (focus?.bindingToggle !== undefined) findBindingControl(focus, 'list')?.focus({preventScroll:true});
+    else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
   }
   async function loadDetail() {
     const id = route.operation || route.id;
@@ -248,5 +248,5 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     } catch (error) { setError(error); } finally { button.disabled = false; }
   });
   renderTabs();
-  return { element, controller, updateRoute(value) { route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); element.remove(); } };
+  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); element.remove(); } };
 }

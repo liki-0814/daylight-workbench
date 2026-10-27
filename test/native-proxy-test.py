@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 
 root = pathlib.Path(__file__).resolve().parent.parent
-binary = root / 'dist/native/Daylight.app/Contents/MacOS/Daylight'
+binary = pathlib.Path(os.environ.get('DAYLIGHT_NATIVE_TEST_BINARY', str(root / 'dist/native/Daylight.app/Contents/MacOS/Daylight')))
 
 def free_port():
     with socket.socket() as sock:
@@ -27,8 +27,10 @@ class Upstream(http.server.BaseHTTPRequestHandler):
         self.send_response(200); self.send_header('Content-Length', str(len(data))); self.end_headers(); self.wfile.write(data)
     def do_POST(self):
         self.rfile.read(int(self.headers.get('Content-Length', '0')))
-        data = ('data: ' + json.dumps({'body': json.dumps({'choices': [{'delta': {'content': 'native-ok'}, 'finish_reason': 'stop'}]})}) + '\n\nevent: finish\ndata: {}\n\n').encode()
-        self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.send_header('Content-Length', str(len(data))); self.end_headers(); self.wfile.write(data)
+        first = ('data: ' + json.dumps({'body': json.dumps({'choices': [{'delta': {'reasoning_content': '思' * 20}}]})}) + '\n\n').encode()
+        last = ('data: ' + json.dumps({'body': json.dumps({'choices': [{'delta': {'content': 'native-ok' + '中' * 80}}], 'usage': {'prompt_tokens': 10, 'completion_tokens': 50}})}) + '\n\nevent: finish\ndata: {}\n\n').encode()
+        self.send_response(200); self.send_header('Content-Type', 'text/event-stream'); self.send_header('Content-Length', str(len(first) + len(last))); self.end_headers()
+        self.wfile.write(first); self.wfile.flush(); time.sleep(.3); self.wfile.write(last)
 
 upstream = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Upstream)
 threading.Thread(target=upstream.serve_forever, daemon=True).start()
@@ -92,6 +94,13 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         with urllib.request.urlopen(req) as res: assert 'native-ok' in res.read().decode()
         rows = request('/api/proxy/requests')[1]['records']
         assert rows[0]['outcome'] == 'completed' and rows[0]['httpStatus'] == 200
+        measurement = rows[0]['generationSpeed']
+        assert measurement['outputTokens'] == 50 and not measurement['estimated'] and measurement['timing'] == 'stream'
+        assert measurement['tokensPerSecond'] > 0 and measurement['durationMs'] >= 250
+        sources = request('/api/proxy/sources')[1]['sources']
+        speeds = next(source for source in sources if source['id'] == 'qoder')['performance']
+        assert len(speeds) == 1 and speeds[0]['model'] == 'test-model' and speeds[0]['samples'] == 1
+        assert '思' not in json.dumps(rows, ensure_ascii=False) and 'native-ok' not in json.dumps(rows)
         assert request('/api/qoder/test', {})[0] == 200
         stop(); boot()
         assert request('/api/proxy/view')[1] == {'version': 1, 'hiddenSources': ['agy', 'kimi']}
@@ -99,6 +108,8 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
             if request('/api/qoder/status')[1]['state'] == 'running': break
             time.sleep(.1)
         assert request('/api/qoder/status')[1]['state'] == 'running'
+        speeds = next(source for source in request('/api/proxy/sources')[1]['sources'] if source['id'] == 'qoder')['performance']
+        assert len(speeds) == 1 and speeds[0]['samples'] == 1
         assert request('/api/qoder/service', {'enabled': False})[0] == 200
         assert request('/api/qoder/settings', {'port': proxy_port, 'autoStart': False})[0] == 200
         assert request('/api/qoder/runtime', {'nodePath': '/missing/node'})[0] == 400
@@ -106,6 +117,6 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         assert request('/api/qoder/status')[1]['runtimeError']
         assert request('/api/qoder/runtime', {'nodePath': ''})[0] == 200
         assert request('/api/qoder/status')[1]['state'] == 'stopped'
-        print('Native proxy PASS: Node discovery, lifecycle, auth, streaming, auto-start, parent cleanup, missing-Node recovery, task isolation')
+        print('Native proxy PASS: Node discovery, lifecycle, auth, streaming, passive TPS with Chinese usage and restart persistence, auto-start, parent cleanup, missing-Node recovery, task isolation')
     finally:
         stop(); upstream.shutdown()

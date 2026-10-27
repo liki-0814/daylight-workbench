@@ -4,6 +4,16 @@ import {capacityLimit,capacityOptions,fastSetting} from './model-options.js';
 import {selectField} from '../components/select.js';
 import {disclosureSection,mountDisclosures,refreshButton,setRefreshState} from '../components/section.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function renderModelSpeed(model){return `<p class="proxy-hint" data-model-speed="${esc(model.id)}" data-speed-upstream="${esc(model.upstreamId||model.id)}">生成速度：等待实际请求</p>`;}
+export function updateModelSpeeds(root,stats=[],{stale=false}={}){
+ for(const element of root.querySelectorAll('[data-model-speed]')){
+  const groups=stats.filter(row=>(row.model===element.dataset.modelSpeed||row.upstreamModel===element.dataset.speedUpstream||row.model===element.dataset.speedUpstream)&&Number.isFinite(row.tokensPerSecond)&&row.samples>0),latest=groups[0];
+  if(!latest){element.textContent=stale?'生成速度：统计暂时不可用':'生成速度：等待实际请求';element.removeAttribute('title');continue;}
+  const label=row=>`${row.tokensPerSecond.toLocaleString(undefined,{maximumFractionDigits:1})} tok/s · 最近 ${row.samples} 次${row.effort&&row.effort!=='auto'?' · '+row.effort:''}${row.tier&&row.tier!=='auto'?' · '+row.tier:''}${row.estimated?' · 估算':''}${row.timing==='upstream'?' · 含首包等待':''}`;
+  element.textContent='生成速度：'+label(latest)+(stale?' · 暂未更新':'');
+  element.title=groups.map(row=>label(row)+' · '+new Date(row.updatedAt).toLocaleString()+' · 最近一次 '+row.lastTokensPerSecond.toFixed(1)+' tok/s').join('\n');
+ }
+}
 export function modelGroups(models,row,{open=false,selected=m=>m.enabled!==false}={}) {
   const enabled=models.map((m,i)=>({m,i})).filter(({m})=>selected(m));
   const disabled=models.map((m,i)=>({m,i})).filter(({m})=>!selected(m));
@@ -14,7 +24,7 @@ function modelSummary(m){
  const context=m.contextWindow||m.contextWindows?.find(w=>w.isDefault)?.length;
  const quantity=value=>Number.isFinite(value)&&value>0?Number(value).toLocaleString():'未提供（Pi 默认）';
  const reasoning=reasoningCapabilityLabel(m);
- return `<div data-model-summary><p class="proxy-hint">上下文 ${quantity(context)} · 最大输出 ${quantity(m.maxOutputTokens)}</p><p class="proxy-hint">默认推理强度：${esc(m.effort||m.defaultEffort||'未提供')}${m.thinkingType==='only'?' · 不支持关闭思考':''}</p><p class="proxy-hint">支持的推理强度：${esc(reasoning)}</p><p class="proxy-hint">${esc(modelPriceLabel(m))}</p>${m.modelMetadata?.matchedId?`<p class="proxy-hint">${m.priceInfo?.basis==='official-reference'?'官方价表（本地补充）':'参考目录'}：${esc(m.modelMetadata.matchedId)} · ${esc(m.modelMetadata.updatedAt)} · 仅补全上游未提供的字段</p>`:''}</div>`;
+ return `<div data-model-summary><p class="proxy-hint">上下文 ${quantity(context)} · 最大输出 ${quantity(m.maxOutputTokens)}</p><p class="proxy-hint">默认推理强度：${esc(m.effort||m.defaultEffort||'未提供')}${m.thinkingType==='only'?' · 不支持关闭思考':''}</p><p class="proxy-hint">支持的推理强度：${esc(reasoning)}</p><p class="proxy-hint">${esc(modelPriceLabel(m))}</p>${renderModelSpeed(m)}${m.modelMetadata?.matchedId?`<p class="proxy-hint">${m.priceInfo?.basis==='official-reference'?'官方价表（本地补充）':'参考目录'}：${esc(m.modelMetadata.matchedId)} · ${esc(m.modelMetadata.updatedAt)} · 仅补全上游未提供的字段</p>`:''}</div>`;
 }
 export function updateModelSummary(row,model){
  row.querySelector('[data-model-summary]').outerHTML=modelSummary(model);
@@ -41,7 +51,9 @@ export function renderModelRow(m,references=[]){
 export function createModelList({store,source}){
  const element=document.createElement('div');element.innerHTML=disclosureSection({id:source+'-models-details',className:'proxy-disclosure',title:'模型设置',description:'启用与默认参数',actions:refreshButton({ariaLabel:'刷新模型',attrs:{'data-refresh-models':true}}),content:'<div data-models-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-message></p>'});mountDisclosures(element);
  const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],references=[],referenceSnapshot,loaded=false,loading=false,version=0,visible=false;
- function paint(){const open=list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,m=>renderModelRow(m,references),{open});}
+ function paintSpeeds(){updateModelSpeeds(list,store.source(source)?.performance,{stale:!!store.error});}
+ function paint(){const open=list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,m=>renderModelRow(m,references),{open});paintSpeeds();}
+ const unsubscribe=store.subscribe(paintSpeeds);
  async function load(force=false){
   if(loading||!force&&loaded&&models===store.cachedResource(source,'models')&&referenceSnapshot&&referenceSnapshot===store.cachedResource(null,'model-metadata'))return;
   loading=true;const current=version;let retry=false;message.textContent=loaded?'正在刷新模型…':'正在获取模型…';setRefreshState(refresh,{loading:true});
@@ -62,10 +74,10 @@ export function createModelList({store,source}){
   const original=models.find(m=>m.id===model),current=version,restoreFocus=input.closest('workbench-select')?.contains(document.activeElement);input.disabled=true;
   try{const value=input.type==='checkbox'?input.dataset.fastTier?input.checked?input.dataset.fastTier:'auto':input.checked:['context','contextWindow','maxOutputTokens'].includes(field)?Number(input.value):input.value;const result=field==='referenceId'?(await store.api.request('model-metadata',{source,id:original.upstreamId||original.id,referenceId:value})).models:await store.setModel(source,{id:model,field,value});if(field==='referenceId')store.invalidate(source);if(current!==version)return;models=result;message.textContent='已保存';if(['enabled','referenceId'].includes(field)){paint();if(restoreFocus)list.querySelector(`[data-model="${CSS.escape(model)}"][data-field="${field}"] .select-trigger`)?.focus({preventScroll:true});}else if(['contextWindow','maxOutputTokens','effort'].includes(field)){const updated=models.find(m=>m.id===model),row=input.closest('.proxy-model');updateModelSummary(row,updated);}}
   catch(e){if(current!==version)return;message.textContent=e.message;if(input.type==='checkbox')input.checked=field==='enabled'?original.enabled:field==='serviceTier'?['priority','fast'].includes(original.serviceTier):original.fast;else if(field==='referenceId')input.value=original.modelMetadata?.referenceId||'';else input.value=['contextWindow','maxOutputTokens'].includes(field)?original[field]??'':field==='context'?original.contextWindows.find(w=>w.isDefault)?.length:field==='serviceTier'?original.serviceTier||'auto':field==='fast'?original.fast?'fast':'default':original.effort||'auto';}
-  finally{input.disabled=false;}
+  finally{input.disabled=false;paintSpeeds();}
  };
  details.ontoggle=()=>{if(details.open&&visible)void load();};refresh.onclick=()=>{void load(true);};
- return{element,load,refreshIfOpen(force=false){if(details.open)void load(force);},getModel:()=>models.find(m=>m.enabled)?.id,setVisible(value){visible=value;if(value&&details.open)void load();},reset(){version++;loading=false;loaded=false;referenceSnapshot=undefined;models=[];list.replaceChildren();message.textContent='';setRefreshState(refresh);},dispose(){version++;}};
+ return{element,load,refreshIfOpen(force=false){if(details.open)void load(force);},getModel:()=>models.find(m=>m.enabled)?.id,setVisible(value){visible=value;if(value&&details.open)void load();},reset(){version++;loading=false;loaded=false;referenceSnapshot=undefined;models=[];list.replaceChildren();message.textContent='';setRefreshState(refresh);},dispose(){version++;unsubscribe();}};
 }
 
 // Draft mode keeps edits in the Custom transaction; the same module owns all model rows.

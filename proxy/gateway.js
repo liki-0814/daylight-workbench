@@ -80,11 +80,16 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       const stateful=!!(body.previous_response_id || body.conversation);
       const candidates=await router.candidates({model},{conversationId,stateful});
       let iterator, firstStep, output, routedModel;
-      const streamOptions = () => ({calibration:calibration?.begin({provider:sourceId,model:output.upstreamModel || trace.entry.upstreamModel || model,protocol:protocolFor(route),upstreamProtocol:output.protocol || 'events',effort:effort ?? routedModel?.effort ?? routedModel?.defaultEffort})});
+      const streamOptions = () => {
+        const sample=calibration?.begin({provider:sourceId,model:output.upstreamModel || trace.entry.upstreamModel || model,protocol:protocolFor(route),upstreamProtocol:output.protocol || 'events',effort:effort ?? routedModel?.effort ?? routedModel?.defaultEffort});
+        trace.generation.counter.factor=sample?.factor ?? 1;
+        return {calibration:sample,onEvent:event=>trace.event(event)};
+      };
       for(const [index,routed] of candidates.entries()) {
         routedModel=routed;
         sourceId=routed.provider;routedProvider=providers[sourceId];
-        observe({provider:sourceId,sourceRevision:sourceState.revision(sourceId,routedProvider),upstreamModel:routed.upstreamId || routed.id});
+        trace.startGeneration({provider:sourceId,sourceRevision:sourceState.revision(sourceId,routedProvider),sourceModel:routed.id,upstreamModel:routed.upstreamId || routed.id,
+          effort:effort ?? routed.effort ?? routed.defaultEffort ?? 'auto',requestedTier:body.service_tier ?? routed.serviceTier ?? (routed.fast?'fast':'auto')});
         let accepted=false;
         try {
           observe({stage:'conversion'});
@@ -125,9 +130,10 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       const renderResponse = output.renderers?.[protocolFor(route)]?.[1] || adapter[1];
       if (first.value?.type === 'error') { await events.return(); return send(res, code, { error: { message: first.value.message, code: first.value.code, param: first.value.param, type: first.value.code === 'invalid_request' ? 'invalid_request_error' : 'upstream_error' } }); }
       async function* replay() { try { if (!first.done) yield first.value; yield* events; } finally { await events.return(); } }
+      const options = streamOptions();
       if (body.stream) {
         res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
-        for await (const chunk of renderStream(replay(), model, streamOptions())) {
+        for await (const chunk of renderStream(replay(), model, options)) {
           controller.signal.throwIfAborted();
           if (!res.write(chunk)) await once(res, 'drain', { signal: controller.signal });
         }

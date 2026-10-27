@@ -1,6 +1,6 @@
 import {mergeUsage} from './usage.js';
 
-// Display-only estimates. Never feed them into the assembler or request records.
+// Display-only estimates. Never feed them into the assembler or authoritative usage.
 // Count visible text, reasoning summaries and tool arguments; hidden reasoning,
 // images and prompt serialization cannot be inferred from output deltas.
 export class StreamingUsage {
@@ -36,7 +36,7 @@ export class StreamingUsage {
   }
   async complete(finish) {
     if (!['stop','tool_calls'].includes(finish) || !Number.isFinite(this.usage?.outputTokens) || this.usage.estimated || this.baseline !== this.weight || this.missingFinalUsage) return;
-    try { await this.calibration?.observe({estimated:this.weight,actual:this.usage.outputTokens,reasoningVisible:this.reasoningVisible,reasoningTokens:this.usage.outputDetails?.reasoning_tokens}); }
+    try { await this.calibration?.observe({estimated:this.weight,actual:this.usage.outputTokens,reasoningVisible:this.reasoningVisible,reasoningSummary:this.reasoningSummary,reasoningTokens:this.usage.outputDetails?.reasoning_tokens}); }
     catch { /* Display calibration must not fail a completed response. */ }
   }
 }
@@ -45,6 +45,7 @@ export async function* withStreamingUsage(events, options) {
   const counter = new StreamingUsage(options);
   let finish, failed = false;
   for await (const event of events) {
+    if (['native','native_response'].includes(event.type) && event.event?.type === 'response.reasoning_summary_text.delta') counter.reasoningSummary = true;
     if (['native','native_response'].includes(event.type) && ['response.completed','response.incomplete'].includes(event.event?.type) && !Number.isFinite(event.event.response?.usage?.output_tokens)) counter.missingFinalUsage = true;
     if (event.type === 'usage') counter.observe(event.usage);
     if (event.type === 'reasoning' && event.delta) counter.reasoningVisible = true;
@@ -62,12 +63,16 @@ export async function* withStreamingUsage(events, options) {
 // Native wire events keep their identity and opaque payloads. usage on delta
 // events is a Daylight extension; terminal usage remains upstream-authoritative.
 export function nativeStreamingUsage(event, protocol, counter, usage) {
+  if (protocol === 'responses' && event.type === 'response.reasoning_summary_text.delta') counter.reasoningSummary = true;
+  if (protocol === 'messages' && (event.content_block?.type === 'thinking' || event.delta?.type === 'thinking_delta')) counter.reasoningVisible = true;
   if (protocol === 'chat' && event.choices?.some(c => c.delta?.reasoning_content || c.delta?.reasoning) || protocol === 'responses' && ['response.reasoning_text.delta','response.reasoning_summary_text.delta'].includes(event.type) && event.delta) counter.reasoningVisible = true;
   if (protocol === 'responses' && ['response.completed','response.incomplete'].includes(event.type)) counter.missingFinalUsage = !Number.isFinite(usage?.outputTokens);
   const texts = protocol === 'chat'
     ? (event.choices || []).filter(c => c.index === undefined || c.index === 0).flatMap(c => [c.delta?.content, c.delta?.reasoning_content ?? c.delta?.reasoning, ...(c.delta?.tool_calls || []).map(t => t.function?.arguments)])
-    : protocol === 'responses' && ['response.output_text.delta', 'response.refusal.delta', 'response.reasoning_text.delta', 'response.reasoning_summary_text.delta', 'response.function_call_arguments.delta', 'response.custom_tool_call_input.delta'].includes(event.type) ? [event.delta] : [];
+    : protocol === 'responses' && ['response.output_text.delta', 'response.refusal.delta', 'response.reasoning_text.delta', 'response.reasoning_summary_text.delta', 'response.function_call_arguments.delta', 'response.custom_tool_call_input.delta'].includes(event.type) ? [event.delta]
+    : protocol === 'messages' && event.type === 'content_block_delta' ? [event.delta?.text,event.delta?.thinking,event.delta?.partial_json]
+    : protocol === 'messages' && event.type === 'content_block_start' ? [event.content_block?.text,event.content_block?.thinking,...(event.content_block?.type === 'tool_use' && Object.keys(event.content_block.input || {}).length ? [JSON.stringify(event.content_block.input)] : [])] : [];
   for (const text of texts) if (typeof text === 'string') counter.add(text);
   if (usage) counter.observe(usage);
-  return texts.some(text => typeof text === 'string' && text.length) ? counter.snapshot() : undefined;
+  return protocol !== 'messages' && texts.some(text => typeof text === 'string' && text.length) ? counter.snapshot() : undefined;
 }

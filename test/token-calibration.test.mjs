@@ -70,6 +70,15 @@ test('small, outlier, hidden reasoning and invalid samples do not pollute learne
   assert.equal(calibration.begin(context).factor,0.5);
 });
 
+test('reasoning summaries cannot train a visible-text factor using hidden thought tokens',async t=>{
+  const {calibration}=await setup(t);
+  const wire=[{type:'response.reasoning_summary_text.delta',delta:'摘'.repeat(50)},
+    {type:'response.output_text.delta',delta:'文'.repeat(50)},
+    {type:'response.completed',response:{usage:{output_tokens:200,output_tokens_details:{reasoning_tokens:150}}}}].map(e=>'data: '+JSON.stringify(e)+'\n\n').join('');
+  await relayResult({response:new Response(wire),streaming:true,model:'model',protocol:'responses'},{stream:true},'responses',{writeHead(){},write(){return true;},end(){}},undefined,()=>{},{calibration:calibration.begin(context)});
+  assert.equal(calibration.begin(context).factor,1);
+});
+
 test('errors, truncated, missing, stale or estimated usage and cancelled streams never train',async t => {
   const {calibration} = await setup(t);
   const cases = [

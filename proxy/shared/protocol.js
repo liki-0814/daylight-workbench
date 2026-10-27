@@ -147,7 +147,7 @@ export async function* events(response,protocol,model,observe=()=>{}){
     if(e.type==='content_block_stop'&&thoughtSignatures.has(e.index)){yield{type:'reasoning_signature',signature:thoughtSignatures.get(e.index)};thoughtSignatures.delete(e.index);}
     if(e.delta?.stop_reason)finish=e.delta.stop_reason==='tool_use'?'tool_calls':e.delta.stop_reason==='max_tokens'?'length':'stop';if(e.type==='message_stop')terminal=true;
    }else{
-    if(e.type==='response.output_text.delta')yield{type:'text',delta:e.delta};if(e.type==='response.reasoning_summary_text.delta')yield{type:'reasoning',delta:e.delta};
+    if(e.type==='response.output_text.delta')yield{type:'text',delta:e.delta};if(['response.reasoning_summary_text.delta','response.reasoning_text.delta'].includes(e.type))yield{type:'reasoning',delta:e.delta};
     if(e.type==='response.output_item.added'&&e.item.type==='function_call'){toolArgs.set(e.output_index,!!e.item.arguments);yield{type:'tool_call',index:e.output_index,id:e.item.call_id,name:e.item.name,argumentsDelta:e.item.arguments||''};finish='tool_calls';}
     if(e.type==='response.function_call_arguments.delta'){toolArgs.set(e.output_index,true);yield{type:'tool_call',index:e.output_index,argumentsDelta:e.delta};}
     if(e.type==='response.output_item.done'&&e.item.type==='function_call'&&!toolArgs.get(e.output_index)){yield{type:'tool_call',index:e.output_index,id:e.item.call_id,name:e.item.name,argumentsDelta:e.item.arguments||''};finish='tool_calls';}

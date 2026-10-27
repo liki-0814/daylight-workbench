@@ -11,7 +11,7 @@ export function createProxyState(api){
    try{
     const [statusResult,sourcesResult]=await Promise.allSettled([api.request('status'),api.request('sources')]);
     if(disposed)return;if(statusResult.status==='rejected')throw statusResult.reason;
-    const next=statusResult.value,definitions=sourcesResult.status==='fulfilled'?sourcesResult.value:{sources:[]};
+    const next=statusResult.value,definitions=sourcesResult.status==='fulfilled'?sourcesResult.value:{sources};
     for(const item of definitions.sources){const previous=source(item.id);if(previous&&(previous.identityKey!==item.identityKey||previous.revision!==item.revision))invalidate(item.id);}
     status=next;sources=definitions.sources;error=sourcesResult.status==='rejected'?sourcesResult.reason.message:'';
     for(const item of sources)if(item.authentication?.operations.includes('poll')&&next.login&&item.authentication.requiresStoppedService&&!logins.has(item.id))logins.set(item.id,next.login);

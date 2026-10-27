@@ -9,6 +9,6 @@ export function createDialogShell({ title, description = '', onClose = () => {} 
   const close = () => { if (!busy && element.open) element.close(); };
   element.addEventListener('cancel', event => { if (busy) event.preventDefault(); }, { signal: abort.signal });
   element.addEventListener('click', event => { if (event.target.closest('[data-dialog-close]')) close(); if (event.target === element) { const rect = element.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close(); } }, { signal: abort.signal });
-  element.addEventListener('close', () => { trigger?.focus(); onClose(); }, { signal: abort.signal });
+  element.addEventListener('close', () => { trigger?.focus({preventScroll:true}); onClose(); }, { signal: abort.signal });
   return { element, open() { if (document.querySelector('dialog[open]')) return false; trigger = document.activeElement; if (!element.isConnected) document.body.append(element); element.showModal(); return true; }, close, setBusy(value) { busy = value; element.querySelector('[data-dialog-close]').disabled = value; }, setContent(content) { typeof content === 'string' ? body.innerHTML = content : body.replaceChildren(content); }, dispose() { busy = false; close(); abort.abort(); element.remove(); } };
 }
