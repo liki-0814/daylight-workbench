@@ -3,17 +3,9 @@ import {reasoningCapabilityLabel} from '../../core/model-capabilities.js';
 import {capacityLimit,capacityOptions,fastSetting} from './model-options.js';
 import {selectField} from '../components/select.js';
 import {disclosureSection,mountDisclosures,refreshButton,setRefreshState} from '../components/section.js';
+import {renderModelSpeed,updateModelSpeeds} from '../components/model-speed.js';
+export {renderModelSpeed,updateModelSpeeds} from '../components/model-speed.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function renderModelSpeed(model){return `<p class="proxy-hint" data-model-speed="${esc(model.id)}" data-speed-upstream="${esc(model.upstreamId||model.id)}">生成速度：等待实际请求</p>`;}
-export function updateModelSpeeds(root,stats=[],{stale=false}={}){
- for(const element of root.querySelectorAll('[data-model-speed]')){
-  const groups=stats.filter(row=>(row.model===element.dataset.modelSpeed||row.upstreamModel===element.dataset.speedUpstream||row.model===element.dataset.speedUpstream)&&Number.isFinite(row.tokensPerSecond)&&row.samples>0),latest=groups[0];
-  if(!latest){element.textContent=stale?'生成速度：统计暂时不可用':'生成速度：等待实际请求';element.removeAttribute('title');continue;}
-  const label=row=>`${row.tokensPerSecond.toLocaleString(undefined,{maximumFractionDigits:1})} tok/s · 最近 ${row.samples} 次${row.effort&&row.effort!=='auto'?' · '+row.effort:''}${row.tier&&row.tier!=='auto'?' · '+row.tier:''}${row.estimated?' · 估算':''}${row.timing==='upstream'?' · 含首包等待':''}`;
-  element.textContent='生成速度：'+label(latest)+(stale?' · 暂未更新':'');
-  element.title=groups.map(row=>label(row)+' · '+new Date(row.updatedAt).toLocaleString()+' · 最近一次 '+row.lastTokensPerSecond.toFixed(1)+' tok/s').join('\n');
- }
-}
 export function modelGroups(models,row,{open=false,selected=m=>m.enabled!==false}={}) {
   const enabled=models.map((m,i)=>({m,i})).filter(({m})=>selected(m));
   const disabled=models.map((m,i)=>({m,i})).filter(({m})=>!selected(m));

@@ -4,6 +4,8 @@ import { icon } from './components/icons.js';
 import { refreshButton, setRefreshState } from './components/section.js';
 import { selectField, updateSelectField } from './components/select.js';
 import { createProxyDrawer } from './components/proxy-drawer.js';
+import {createProxyApi} from './proxy/api.js';
+import {renderModelSpeed,updateModelSpeeds,createModelSpeedFeed} from './components/model-speed.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const apis = [{ value: 'openai-responses', label: 'Responses' }, { value: 'openai-completions', label: 'Chat Completions' }, { value: 'anthropic-messages', label: 'Messages' }];
@@ -38,6 +40,8 @@ export function createCLIPage({ getToken }) {
     </div>`;
   const drawer = createProxyDrawer(root), rows = root.querySelector('[data-models]'), sourceNav = root.querySelector('.cli-source-nav');
   const picker = root.querySelector('[data-default-picker]');
+  const speeds=createModelSpeedFeed({api:createProxyApi(getToken),onChange:paintSpeeds});
+  function paintSpeeds(){for(const row of rows.querySelectorAll('[data-speed-source]'))updateModelSpeeds(row,speeds.get(row.dataset.speedSource),{loading:speeds.loading,stale:speeds.stale});}
   const catalog = () => snapshot?.models || [];
   const filtered = () => catalog().filter(m => (source === 'all' || sourceType(m) === source) && (!onlyPending || m.state !== 'connected') && `${m.name} ${m.id} ${m.sourceName}`.toLowerCase().includes(query.toLowerCase()));
   const feedback = (message, error = false) => { const node = root.querySelector('[data-feedback]'); node.textContent = message; node.classList.toggle('is-error', error); };
@@ -92,9 +96,9 @@ export function createCLIPage({ getToken }) {
     }
     rows.innerHTML = visible.length ? visible.map(m => {
       const tone = sourceTypes.find(s => s.id === sourceType(m))?.tone || 'custom';
-      return `<div class="cli-model-row"><div class="cli-model-choice"><span class="cli-model-text"><strong>${esc(m.name)}</strong><span>${esc(m.id)}</span><small><span class="cli-source-dot ${tone}"></span>${esc(m.sourceName)}<span class="cli-meta-separator">·</span>${context({...m,contextWindow:m.configuration.contextWindow})}<span class="cli-meta-separator">·</span>${m.configuration.maxTokens ? Number(m.configuration.maxTokens).toLocaleString()+' 最大输出' : '最大输出未提供'}${Object.keys(modelOverrides[m.id] || {}).length ? '<span class="cli-meta-separator">·</span>个性化配置' : ''}</small><small>${esc(modelPriceLabel(modelOverrides[m.id]?.cost?{...m,cost:modelOverrides[m.id].cost,priceInfo:{...m.priceInfo,basis:'manual'}}:m))}</small>${m.unavailableReason ? `<small class="cli-incompatible">${esc(m.unavailableReason)}</small>` : ''}</span></div><span class="cli-model-state ui-first-line-slot ${m.state}">${!m.unavailableReason && m.state === 'connected' ? icon('check') : ''}${m.unavailableReason ? '不兼容' : { connected: '已接入', update: '需要更新', new: '未接入',retained:'暂不可用 · 已保留' }[m.state]}</span><div class="ui-first-line-slot"><button type="button" class="icon-button" data-model-config="${esc(m.id)}" ${m.retained?'disabled':''} title="配置 ${esc(m.name)}" aria-label="配置 ${esc(m.name)}">${icon('gear')}</button></div></div>`;
+      return `<div class="cli-model-row" data-speed-source="${esc(m.source)}"><div class="cli-model-choice"><div class="cli-model-text"><strong>${esc(m.name)}</strong><span>${esc(m.id)}</span><small><span class="cli-source-dot ${tone}"></span>${esc(m.sourceName)}<span class="cli-meta-separator">·</span>${context({...m,contextWindow:m.configuration.contextWindow})}<span class="cli-meta-separator">·</span>${m.configuration.maxTokens ? Number(m.configuration.maxTokens).toLocaleString()+' 最大输出' : '最大输出未提供'}${Object.keys(modelOverrides[m.id] || {}).length ? '<span class="cli-meta-separator">·</span>个性化配置' : ''}</small><small>${esc(modelPriceLabel(modelOverrides[m.id]?.cost?{...m,cost:modelOverrides[m.id].cost,priceInfo:{...m.priceInfo,basis:'manual'}}:m))}</small>${m.unavailableReason ? `<small class="cli-incompatible">${esc(m.unavailableReason)}</small>` : ''}${renderModelSpeed(m)}</div></div><span class="cli-model-state ui-first-line-slot ${m.state}">${!m.unavailableReason && m.state === 'connected' ? icon('check') : ''}${m.unavailableReason ? '不兼容' : { connected: '已接入', update: '需要更新', new: '未接入',retained:'暂不可用 · 已保留' }[m.state]}</span><div class="ui-first-line-slot"><button type="button" class="icon-button" data-model-config="${esc(m.id)}" ${m.retained?'disabled':''} title="配置 ${esc(m.name)}" aria-label="配置 ${esc(m.name)}">${icon('gear')}</button></div></div>`;
     }).join('') : `<div class="cli-empty">${icon('search')}<strong>${!snapshot ? '模型目录尚未加载' : catalog().length ? '没有匹配的模型' : '暂无已启用的代理模型'}</strong><button type="button" class="text-button" ${catalog().length ? 'data-reset' : 'data-view="proxy"'}>${catalog().length ? '清除筛选' : '查看反向代理'}</button></div>`;
-    renderActions();
+    renderActions();paintSpeeds();
     if (focusSource) sourceNav.querySelector(`[data-source="${focusSource}"]`)?.focus({ preventScroll: true });
   }
   function adoptOverrides() { if (!overridesDirty) modelOverrides = Object.fromEntries(catalog().map(m=>[m.id,m.overrides || {}])); }
@@ -176,6 +180,7 @@ export function createCLIPage({ getToken }) {
     });
     if (target.hasAttribute('data-restore')) void operate(async () => { const result = await request('restore', {}); await load(); feedback(result.message); });
     if (target.hasAttribute('data-refresh')) void operate(async () => {
+      void speeds.refresh();
       setRefreshState(target, {loading:true});
       try { await load(); showStatus('已重新读取 Pi 配置与反向代理目录；未强制刷新上游。'); }
       finally { setRefreshState(target); }
@@ -202,7 +207,7 @@ export function createCLIPage({ getToken }) {
   render();
   return { element: root, setVisible(value) {
     const opening = root.hidden && value; root.hidden = !value;
-    clearInterval(poll);
+    clearInterval(poll);speeds.setVisible(value);
     if (!value) { drawer.close(); root.querySelectorAll('workbench-select').forEach(select => select.setOpen(false)); }
     else {
       if (opening && Date.now() - loadedAt > 5000) void operate(async () => { await load(); showStatus(snapshot.service.state === 'running' ? '配置已读取。' : '代理已停止；同步后需启动代理才能调用。'); });
@@ -210,5 +215,5 @@ export function createCLIPage({ getToken }) {
         if (!busy && !drawer.element.open && !defaultEnabled && !root.contains(document.activeElement)) void refreshBackground();
       }, 15000);
     }
-  } };
+  },dispose(){clearInterval(poll);speeds.dispose();drawer.close();root.remove();} };
 }

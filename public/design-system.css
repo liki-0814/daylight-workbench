@@ -154,6 +154,7 @@
 
 /* Explicit paragraph rhythm removes browser-default 1em margins. */
 p { margin: 0; }
+.ui-model-speed { color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); overflow-wrap: anywhere; }
 p + p { margin-top: var(--paragraph-gap); }
 small { font-size: var(--font-meta-size); line-height: var(--font-meta-line); }
 input[type="checkbox"], input[type="radio"] {

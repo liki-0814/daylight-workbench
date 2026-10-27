@@ -76,6 +76,8 @@ API 只管理工作台数据，不执行关联目录中的代码或部署。不�
 
 Pi 个性化配置：POST /api/cli/pi/configuration 接收 api、expectedVersion、modelOverrides，使用版本保护持久保存，不直接写 Pi 文件。每模型支持 contextWindow、maxTokens、reasoning、input 和 thinkingLevelMap；缺失映射使用目录/Pi 默认，null 表示不支持。GET state 返回 configuration（有效值）及 overrides（用户覆盖）；prepare/apply 可接受覆盖，自动同步复用持久覆盖。
 
+CLI 配置的每条模型显示当前所列来源的被动生成 TPS、首次输出耗时和最近样本数，并注明估算、服务/思考档位及包含首包等待的计时口径。与反向代理模型列表共用 `public/components/model-speed.js`；悬停可查看各组结果和更新时间。统计从已有 `/api/proxy/sources` 单独读取，每 3 秒刷新文字，不进入 Pi 模型配置、版本计算或同步文件。隐藏页面/窗口时暂停并取消请求，重新显示时恢复；失败保留旧值并标记暂未更新，没有样本时等待实际请求，不主动发起测速。
+
 ## 日历与专注维护
 
 `public/task-client.js` 管理旧整体 PUT 的快照撤销与新 action 的服务端撤销，任何成功写入只保留对应的最近撤销来源。结果未知的 action 固定原请求重试；旧 PUT 通过读回确认，不能自动重放旧快照。`plan.reschedule` 原子完成移出/加入，各 action 可带独立 day，日历 remove 显式设置 preserveExecution，move 原本即保留执行状态。
