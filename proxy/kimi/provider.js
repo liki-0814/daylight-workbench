@@ -49,6 +49,7 @@ export class KimiProvider {
   observe({stage:'authentication'});const token=await this.credential(),identity=this.identity;const input=structuredClone(raw);
   omitKimiTemperature(input,model.id,observe);
   const body=protocol==='chat'?input:convertRequest(input,protocol,'chat');
+  if(body.stream)body.stream_options={include_usage:true,...body.stream_options};
   const effort=body.reasoning_effort ?? model.effort;
   if(effort!==undefined){
    if(model.reasoningEfforts.length&&!model.reasoningEfforts.includes(effort)||model.thinkingType==='only'&&['none','off'].includes(effort))throw invalid('该 Kimi 模型不支持此思考强度','reasoning_effort');

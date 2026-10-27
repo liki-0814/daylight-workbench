@@ -1,5 +1,6 @@
 import { additionalOptions } from "./request-options.js";
 import { chatUsage, mergeUsage } from "../llm/usage.js";
+import { withStreamingUsage } from "../llm/streaming-usage.js";
 import { ResponseAssembler, normalizeEffort, normalizeInstructions, resolveFinishReason } from "../llm/index.js";
 import { createId, created, deriveConversationId, sseData } from "./shared.js";
 function decodeContent(content) {
@@ -70,7 +71,7 @@ export function decodeChatRequest(req) {
 function finishToOpenAi(reason) {
     return reason === "error" ? "stop" : reason;
 }
-export async function* renderChatStream(events, model) {
+export async function* renderChatStream(events, model, options) {
     let usage;
     const id = createId("chatcmpl");
     const ts = created();
@@ -94,11 +95,12 @@ export async function* renderChatStream(events, model) {
     });
     let reported;
     let sawToolCall = false;
-    for await (const e of events){
+    for await (const e of withStreamingUsage(events, options)){
         switch(e.type){
             case "text":
                 yield sseData({
                     ...base,
+                    usage: chatUsage(e.streamUsage),
                     choices: [
                         {
                             index: 0,
@@ -113,6 +115,7 @@ export async function* renderChatStream(events, model) {
             case "reasoning":
                 yield sseData({
                     ...base,
+                    usage: chatUsage(e.streamUsage),
                     choices: [
                         {
                             index: 0,
@@ -128,6 +131,7 @@ export async function* renderChatStream(events, model) {
                 sawToolCall = true;
                 yield sseData({
                     ...base,
+                    usage: chatUsage(e.streamUsage),
                     choices: [
                         {
                             index: 0,

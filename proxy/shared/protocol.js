@@ -67,6 +67,8 @@ export function convertRequest(raw,from,to){
   out.input=c.messages.flatMap(m=>m.role==='tool'?[{type:'function_call_output',call_id:m.toolCallId,output:toolOutput(m.content)}]:[...(texts(m.content).length?[{role:m.role,content:content(m.content,m.role)}]:[]),...(m.toolCalls||[]).map(t=>({type:'function_call',call_id:t.id,name:t.name,arguments:t.arguments}))]);
   if(max!==undefined)out.max_output_tokens=max;if(effort)out.reasoning={effort};
  }else if(to==='chat'){
+  // Chat upstreams usually omit final counters unless explicitly requested.
+  out.stream_options={include_usage:true};
   out.messages=[...(c.system?[{role:'system',content:c.system}]:[]),...turns.flatMap(({message:m,results})=>[
    {role:m.role,content:m.role==='assistant'?chatContent(m.content,m.role):content(m.content,m.role),...(m.toolCalls?.length?{tool_calls:m.toolCalls.map(t=>({id:t.id,type:'function',function:{name:t.name,arguments:t.arguments}}))}:{})},
    ...results.map(r=>({role:'tool',tool_call_id:r.toolCallId,content:toolText(r.content)})),...imageTurn(results),
@@ -98,7 +100,7 @@ export function convertRequest(raw,from,to){
 export function usageOf(u,protocol){
  if(!u)return;
  if(protocol==='chat')return parseUsage(u);
- if(protocol==='responses')return{inputTokens:u.input_tokens,outputTokens:u.output_tokens,totalTokens:u.total_tokens,cacheReadTokens:u.input_tokens_details?.cached_tokens,outputDetails:u.output_tokens_details,costUsdTicks:u.cost_in_usd_ticks};
+ if(protocol==='responses')return{inputTokens:u.input_tokens,outputTokens:u.output_tokens,totalTokens:u.total_tokens,cacheReadTokens:u.input_tokens_details?.cached_tokens,outputDetails:u.output_tokens_details,costUsdTicks:u.cost_in_usd_ticks,...(u.estimated?{estimated:true}:{})};
  return{inputTokens:u.input_tokens===undefined?undefined:u.input_tokens+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0),outputTokens:u.output_tokens,cacheReadTokens:u.cache_read_input_tokens,cacheWriteTokens:u.cache_creation_input_tokens,...(u.output_tokens_details?{outputDetails:{...u.output_tokens_details,...(u.output_tokens_details.thinking_tokens!==undefined?{reasoning_tokens:u.output_tokens_details.thinking_tokens}:{})}}:{})};
 }
 export function observeResponse(body, protocol, observe) {
@@ -151,9 +153,10 @@ export async function* events(response,protocol,model,observe=()=>{}){
     if(e.type==='response.output_item.done'&&e.item.type==='function_call'&&!toolArgs.get(e.output_index)){yield{type:'tool_call',index:e.output_index,id:e.item.call_id,name:e.item.name,argumentsDelta:e.item.arguments||''};finish='tool_calls';}
     if(['response.completed','response.incomplete'].includes(e.type)){terminal=true;if(e.type==='response.incomplete')finish='length';}
    }
+   if(u)yield{type:'usage',usage};
   }
   if(terminal||part.done)break;
  }
- if(!terminal){observe({error:{code:'incomplete_stream'}});throw new Error('上游连接提前结束');}if(usage)yield{type:'usage',usage};observe({finish});yield{type:'finish',reason:finish};
+ if(!terminal){observe({error:{code:'incomplete_stream'}});throw new Error('上游连接提前结束');}observe({finish});yield{type:'finish',reason:finish};
  }finally{read?.cancel();await reader.cancel().catch(()=>{});reader.releaseLock();}
 }

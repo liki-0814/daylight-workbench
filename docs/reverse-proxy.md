@@ -113,6 +113,26 @@ Pi 按来源同步：目录正常的来源继续更新模型、容量和参考�
 `GET /api/proxy/requests` 统一查询原生转发和协议转换，按来源、模型与结果筛选，包含阶段耗时、实际 HTTP 状态、上游模型与已返回用量。记录沿用 `qoder/usage.json`，保留最近 1000 条并兼容历史格式；只保存诊断元数据，不保存提示词、响应正文、工具参数或凭据。状态与记录查询不触发上游探测或推理。并行工具历史的 502 根因与回归记录见 [中转架构](proxy-architecture.md#问题记录并行工具历史导致-qoder-502)。
 
 
+## 流式 token 计数与 Pi
+
+Chat Completions 和 Responses 的正文、可见推理及工具参数增量附带累计 `usage`。上游尚未提供真实输出计数时，Daylight 按可见输出估算（拉丁文本约 4 个 UTF-8 字节/token，中日韩字符约 1 字/token），标记 `usage.estimated: true`；收到真实计数后从该快照继续累计。估算无法覆盖隐藏推理、图片或完整提示词，不代表计费数据。Responses 增量上的 `usage` 是 Daylight 扩展字段，客户端需要显式读取。
+
+最终完成/截断事件继续保留上游真实 usage，允许校准为更小值；上游未提供时保持缺失。非流式响应和请求记录只使用上游实际用量。Messages 暂不添加输出估算，但协议转换会即时传递已经收到的真实 usage 给内部转换层。
+
+每次正常完成且提供真实输出用量的流式请求，会用“真实输出 token / 原始可见输出估算”学习下一次请求的系数。系数按来源、实际上游模型、客户端/上游协议和思考档位隔离，保存在数据目录 `proxy/token-estimates.json`，重启后继续使用。首个可靠样本建立系数，之后以 20% 新样本权重平滑更新；一次请求使用固定系数，中间真实 usage 不乘系数。只保存聚合系数、样本数和更新时间，不保存正文或提示词。
+
+转换到 Chat Completions 的上游请求会显式携带 `stream_options.include_usage: true`，Kimi 原生流式请求也默认请求该字段，确保上游可在结束时提供学习所需的计数；Kimi 原生请求显式指定 `false` 时保留客户端选择。
+
+不足 40 token 的样本、比例超出 0.25–4 倍的异常样本、失败/取消/截断、缺失最终计数及仅有上游估算的请求不参与学习。上游声明隐藏推理用量而流中未见推理文本时也跳过，避免把隐藏思考预算误当作正文分词差异。不同语言、工具密度和思考内容仍会造成误差，学习目标是降低同类请求的系统偏差，不能保证每条请求都更准。Pi 的代理 usage 已应用校准，`tps-cjk` 直接读取该值，避免再乘本地系数。
+
+`useProviderTokens` 是 `pi-token-speed` 的设置，不是通用 API 参数。Pi 1.4 的 Responses 适配器只在终止事件读取 usage，需要加载仓库内的 `integrations/pi/daylight-streaming-usage.js` 扩展，将中间 usage 写入 Pi 的实时消息。该扩展仅作用于 `daylight` provider 的 `openai-responses`，不替换 Pi 适配器或更改模型协议；Pi 自带逻辑处理最终真实计数。可复制到 `~/.pi/agent/extensions/daylight-streaming-usage.js`，在 `tokenSpeed.providerOverrides.daylight` 中设置 `useProviderTokens: true`，然后在 Pi 中执行 `/reload`。Chat Completions 适配器可直接读取每个增量上的 usage。
+
+验证本机 Pi 适配器和 agent 事件链路（合成流，不发真实请求、不修改个人配置）：
+
+```sh
+node scripts/check-streaming-usage-pi.mjs /path/to/node_modules/@earendil-works/pi-coding-agent
+```
+
 ## 公共管理入口
 
 页面统一使用 `/api/proxy/status`、`/service`、`/settings`、`/key`、`/check`；来源操作位于 `/api/proxy/sources/{id}/status`、`/models`、`/models/setting`、`/quota`、`/auth/{operation}`、`/check`。来源 ID 按 URL 编码。来源检查 POST body 使用 `kind: catalog` 或 `kind: inference`，后者才发实际生成请求。支持的认证操作、模型设置字段和原生协议由来源描述返回。

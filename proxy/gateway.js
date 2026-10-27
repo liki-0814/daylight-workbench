@@ -38,7 +38,7 @@ const adapters = {
 };
 const errorStatus = code => code === '429' ? 429 : ['10605', '503'].includes(code) ? 503 : ['model_not_found', 'invalid_request'].includes(code) ? 400 : 502;
 
-export function createGateway({getSettings,router,registry,sourceState,records,active,finishing}) {
+export function createGateway({getSettings,router,registry,sourceState,records,active,finishing,calibration}) {
   const providers=registry.providers;
   return async function gateway(req, res) {
     const settings=getSettings();
@@ -79,8 +79,10 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       if(conversationId!==undefined&&(typeof conversationId!=='string'||!conversationId.trim()||conversationId.length>200))fail('对话标识需为 1–200 个字符');
       const stateful=!!(body.previous_response_id || body.conversation);
       const candidates=await router.candidates({model},{conversationId,stateful});
-      let iterator, firstStep, output;
+      let iterator, firstStep, output, routedModel;
+      const streamOptions = () => ({calibration:calibration?.begin({provider:sourceId,model:output.upstreamModel || trace.entry.upstreamModel || model,protocol:protocolFor(route),upstreamProtocol:output.protocol || 'events',effort:effort ?? routedModel?.effort ?? routedModel?.defaultEffort})});
       for(const [index,routed] of candidates.entries()) {
+        routedModel=routed;
         sourceId=routed.provider;routedProvider=providers[sourceId];
         observe({provider:sourceId,sourceRevision:sourceState.revision(sourceId,routedProvider),upstreamModel:routed.upstreamId || routed.id});
         let accepted=false;
@@ -89,7 +91,7 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
           output=await registry.execute(sourceId,{raw:body,protocol:protocolFor(route),model:routed,conversationId,stateful},{signal:AbortSignal.any([controller.signal,deadline.signal]),observe,conversationId:sourceId.startsWith('custom:')?conversationId:undefined});
           if(output.kind==='response'){
             clearTimeout(deadlineTimer);
-            await relayResult(output,body,protocolFor(route),res,controller.signal,observe,{onAccepted:()=>{accepted=true;}});
+            await relayResult(output,body,protocolFor(route),res,controller.signal,observe,{...streamOptions(),onAccepted:()=>{accepted=true;}});
             router.success(routed,conversationId);return;
           }
           observe({execution:'adapted'});
@@ -125,7 +127,7 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
       async function* replay() { try { if (!first.done) yield first.value; yield* events; } finally { await events.return(); } }
       if (body.stream) {
         res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
-        for await (const chunk of renderStream(replay(), model)) {
+        for await (const chunk of renderStream(replay(), model, streamOptions())) {
           controller.signal.throwIfAborted();
           if (!res.write(chunk)) await once(res, 'drain', { signal: controller.signal });
         }

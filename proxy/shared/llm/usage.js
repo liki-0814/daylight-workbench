@@ -16,6 +16,7 @@ export function parseUsage(raw) {
     cacheReadTokens: count(raw.prompt_tokens_details?.cached_tokens ?? raw.cache_read_input_tokens ?? raw.prompt_cache_hit_tokens ?? raw.cached_tokens),
     cacheWriteTokens: count(raw.prompt_tokens_details?.cache_write_tokens ?? raw.cache_creation_input_tokens),
     inputDetails: details(raw.prompt_tokens_details), outputDetails: details(raw.completion_tokens_details),
+    ...(raw.estimated ? {estimated:true} : {}),
   }));
 }
 export function chatUsage(u) {
@@ -23,12 +24,12 @@ export function chatUsage(u) {
   const input = clean({ ...u.inputDetails, cached_tokens: u.cacheReadTokens, cache_write_tokens: u.cacheWriteTokens });
   return clean({ prompt_tokens: u.inputTokens, completion_tokens: u.outputTokens, total_tokens: u.totalTokens ?? (u.inputTokens !== undefined && u.outputTokens !== undefined ? u.inputTokens + u.outputTokens : undefined),
     prompt_tokens_details: Object.keys(input).length ? input : undefined, completion_tokens_details: u.outputDetails,
-    cost_in_usd_ticks: u.costUsdTicks });
+    cost_in_usd_ticks: u.costUsdTicks, ...(u.estimated ? {estimated: true} : {}) });
 }
 export function responsesUsage(u) {
   const chat = chatUsage(u);
   return chat && clean({ input_tokens: chat.prompt_tokens, output_tokens: chat.completion_tokens, total_tokens: chat.total_tokens,
-    input_tokens_details: chat.prompt_tokens_details, output_tokens_details: chat.completion_tokens_details, cost_in_usd_ticks: u.costUsdTicks });
+    input_tokens_details: chat.prompt_tokens_details, output_tokens_details: chat.completion_tokens_details, cost_in_usd_ticks: u.costUsdTicks, ...(u.estimated ? {estimated: true} : {}) });
 }
 export function messagesUsage(u) {
   if (!u) return {};

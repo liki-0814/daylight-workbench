@@ -6,6 +6,7 @@ import {createPiConfig} from '../cli/pi-config.js';
 import {createProxyTools} from './shared/tools.js';
 import {ModelRouter} from './shared/router.js';
 import {RequestRecords} from './shared/request-records.js';
+import {TokenCalibration} from './shared/token-calibration.js';
 import {createViewSettings} from './shared/view-settings.js';
 import {SourceState} from './shared/source-state.js';
 import {readJson,writeJson,serial} from './shared/store.js';
@@ -58,7 +59,8 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   };
   let listener, state = 'stopped', startedAt = null, lastError = '';
   const mutate = serial(), active = new Set(), finishing = new Set();
-  const gateway=createGateway({getSettings:()=>settings,router,registry,sourceState,records,active,finishing});
+  const calibration=await TokenCalibration.load(path.join(dataDir,'proxy/token-estimates.json'));
+  const gateway=createGateway({getSettings:()=>settings,router,registry,sourceState,records,active,finishing,calibration});
   const status = async () => {
     const account = await accounts.load();
     return { state, startedAt, activeRequests: active.size, port: settings.port, autoStart: settings.autoStart,

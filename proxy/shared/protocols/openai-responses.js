@@ -1,5 +1,6 @@
 import { additionalOptions } from "./request-options.js";
 import { responsesUsage, mergeUsage } from "../llm/usage.js";
+import { withStreamingUsage } from "../llm/streaming-usage.js";
 import { ResponseAssembler, ToolCallAccumulator, normalizeEffort, normalizeInstructions } from "../llm/index.js";
 import { createId, created, deriveConversationId, sseEvent } from "./shared.js";
 function decodeParts(content) {
@@ -144,7 +145,7 @@ export async function renderResponsesResponse(events, model) {
     const res = asm.build();
     return buildResponseObject(createId("resp"), model, res);
 }
-export async function* renderResponsesStream(events, model) {
+export async function* renderResponsesStream(events, model, options) {
     const responseId = createId("resp");
     const asm = new ResponseAssembler(model);
     let seq = 0;
@@ -218,7 +219,7 @@ export async function* renderResponsesStream(events, model) {
         reasoningClosed = true;
         reasoningItems.push({type:'reasoning',id:reasoningItemId,summary:[{type:'summary_text',text:reasoningText}]});
     };
-    for await (const e of events){
+    for await (const e of withStreamingUsage(events, options)){
         asm.push(e);
         if (e.type === "reasoning") {
             if (e.delta === "") continue;
@@ -252,6 +253,7 @@ export async function* renderResponsesStream(events, model) {
             reasoningText += e.delta;
             yield ev({
                 type: "response.reasoning_summary_text.delta",
+                usage: responsesUsage(e.streamUsage),
                 sequence_number: next(),
                 item_id: reasoningItemId,
                 output_index: reasoningIndex,
@@ -292,6 +294,7 @@ export async function* renderResponsesStream(events, model) {
             }
             yield ev({
                 type: "response.output_text.delta",
+                usage: responsesUsage(e.streamUsage),
                 sequence_number: next(),
                 item_id: textItemId,
                 output_index: textIndex,
@@ -309,9 +312,11 @@ export async function* renderResponsesStream(events, model) {
                 yield ev({type:'response.output_item.added',sequence_number:next(),output_index:state.index,item:{type:'function_call',id:state.itemId,call_id:call.id,name:call.name,arguments:'',status:'in_progress'}});
             }
             if (state && call.args.length > state.sent) {
-                yield ev({type:'response.function_call_arguments.delta',sequence_number:next(),item_id:state.itemId,output_index:state.index,delta:call.args.slice(state.sent)});
+                yield ev({type:'response.function_call_arguments.delta',usage:responsesUsage(e.streamUsage),sequence_number:next(),item_id:state.itemId,output_index:state.index,delta:call.args.slice(state.sent)});
                 state.sent = call.args.length;
             }
+        } else if (e.type === "usage") {
+            yield ev({type:'response.in_progress',sequence_number:next(),response:{...skeleton,usage:responsesUsage(asm.usage)}});
         } else if (e.type === "error") {
             yield ev({
                 type: "response.failed",

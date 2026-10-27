@@ -2,6 +2,8 @@ import {reasoningEffort,outputBudget,conflictingChatBudgets,validOutputBudget,va
 import { LLMError } from '../shared/llm/canonical.js';
 import { SseParser } from '../shared/llm/sse.js';
 import { readWithIdle } from '../shared/protocol.js';
+import {StreamingUsage,nativeStreamingUsage} from '../shared/llm/streaming-usage.js';
+import {responsesUsage} from '../shared/llm/usage.js';
 
 export const invalid = (message, param) => Object.assign(new Error(message), { status: 400, code: 'invalid_request', param });
 const allowed = {
@@ -132,7 +134,7 @@ export function parseUsage(u) {
   if (!u) return undefined;
   return { inputTokens: count(u.input_tokens), outputTokens: count(u.output_tokens), totalTokens: count(u.total_tokens), cacheReadTokens: count(u.input_tokens_details?.cached_tokens),
     outputDetails: u.output_tokens_details?.reasoning_tokens === undefined ? undefined : { reasoning_tokens: count(u.output_tokens_details.reasoning_tokens) },
-    costUsdTicks: count(u.cost_in_usd_ticks) };
+    costUsdTicks: count(u.cost_in_usd_ticks), ...(u.estimated ? {estimated:true} : {}) };
 }
 export async function* decodeStream(response, model, signal, idleTimeoutMs = 300000, observe = () => {}) {
   const reader = response.body.getReader(), decoder = new TextDecoder(), parser = new SseParser();
@@ -166,9 +168,9 @@ export async function* decodeStream(response, model, signal, idleTimeoutMs = 300
           calls.set(e.output_index, { streamed: true });
           yield { type: 'tool_call', index: e.output_index, id: e.item.call_id, name: e.item.name, argumentsDelta: e.item.arguments || '' };
         }
+        if (e.usage || e.response?.usage) yield {type:'usage',usage:parseUsage(e.usage || e.response.usage)};
         if (['response.completed', 'response.incomplete'].includes(e.type)) {
           finished = true;
-          if (e.response?.usage) yield { type: 'usage', usage: parseUsage(e.response.usage) };
           yield { type: 'finish', reason: e.type === 'response.incomplete' ? 'length' : calls.size ? 'tool_calls' : 'stop' };
         }
       }
@@ -177,11 +179,19 @@ export async function* decodeStream(response, model, signal, idleTimeoutMs = 300
     if (!finished) yield { type: 'error', code: 'incomplete_stream', message: 'Grok 上游连接提前结束' };
   } finally { read?.cancel(); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
-export async function* renderNativeStream(events) {
+export async function* renderNativeStream(events, model, options) {
+  const counter = new StreamingUsage(options);
+  let finish;
   for await (const e of events) {
-    if (e.type === 'native_response') yield `event: ${e.event.type}\ndata: ${JSON.stringify(e.event)}\n\n`;
+    if (e.type === 'native_response') {
+      const usage = nativeStreamingUsage(e.event,'responses',counter,parseUsage(e.event.usage || e.event.response?.usage));
+      const event = usage ? {...e.event,usage:responsesUsage(usage)} : e.event;
+      yield `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+    }
     if (e.type === 'error') { yield `event: error\ndata: ${JSON.stringify({ type: 'error', code: e.code, message: e.message })}\n\n`; return; }
+    if (e.type === 'finish') finish = e.reason;
   }
+  await counter.complete(finish);
 }
 export async function renderNativeResponse(events) {
   let response;
