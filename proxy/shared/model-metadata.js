@@ -48,7 +48,13 @@ export function createModelMetadata({dataDir,fetchImpl=fetch,enabled=true,ttlMs=
    return fillModelMetadata(model,reference,{referenceId,version:info?.data_version||'',updatedAt:reference?.checked_at||info?.updated_at||'',subscription:!source.startsWith('custom:'),manualFallback:source.startsWith('custom:'),cacheWriteIncluded:source==='grok'&&reference?.billing?.cached_input_type==='implicit'});
   });
  }
- return{refresh,enrich,async read(force=false){await refresh(force);return{models:entries(),meta:meta(),fetchedAt:cache?.fetchedAt||null,error:[error,supplementError].filter(Boolean).join('；')};},bind:input=>run(async()=>{
+ function referencePricing(source,model){
+  const reference=entries().find(entry=>entry.id===(model.modelMetadata?.matchedId||model.priceInfo?.referenceId));
+  if(!reference)return;
+  const priced=fillModelMetadata({id:model.id},reference,{version:meta()?.data_version||'',updatedAt:reference.checked_at||meta()?.updated_at||'',cacheWriteIncluded:source==='grok'&&reference.billing?.cached_input_type==='implicit'});
+  return{cost:priced.cost,info:priced.priceInfo};
+ }
+ return{refresh,enrich,referencePricing,async read(force=false){await refresh(force);return{models:entries(),meta:meta(),fetchedAt:cache?.fetchedAt||null,error:[error,supplementError].filter(Boolean).join('；')};},bind:input=>run(async()=>{
   await load();if(!input||typeof input.source!=='string'||typeof input.id!=='string'||typeof input.referenceId!=='string')throw bad('模型关联无效');
   if(input.referenceId&&!entries().some(m=>m.id===input.referenceId))throw bad('参考模型不存在，请刷新参考目录');
   const next={...bindings};if(input.referenceId)next[key(input.source,input.id)]=input.referenceId;else delete next[key(input.source,input.id)];

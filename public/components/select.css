@@ -147,3 +147,6 @@ workbench-select {
 :root[data-input-mode="pointer"] :is(button,a,input,textarea,select,summary):focus {
   outline: none;
 }
+
+/* Filters use container gap for spacing rather than form-field bottom margins. */
+.ui-filter-fields > .select-field { margin-bottom: 0; }

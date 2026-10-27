@@ -99,5 +99,10 @@
   "/core/model-capabilities.js": "../core/model-capabilities.js",
   "/proxy/source-navigation.js": "proxy/source-navigation.js",
   "/core/model-metadata.js": "../core/model-metadata.js",
-  "/core/proxy-sources.js": "../core/proxy-sources.js"
+  "/core/proxy-sources.js": "../core/proxy-sources.js",
+  "/proxy/statistics-page.js": "proxy/statistics-page.js",
+  "/proxy/statistics.css": "proxy/statistics.css",
+  "/components/distribution-list.js": "components/distribution-list.js",
+  "/components/distribution-list.css": "components/distribution-list.css",
+  "/components/format-number.js": "components/format-number.js"
 }

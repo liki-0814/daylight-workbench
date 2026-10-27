@@ -11,8 +11,8 @@ test('display exclusions share tab registration and preserve utilities and futur
  const tabs=[...proxyTabs,{id:'future',name:'Future',kind:'provider'}];
  const visible=visibleTabs(tabs,['agy','kimi','routes']);assert.equal(visible.some(tab=>tab.id==='agy'),false);assert.equal(visible.some(tab=>tab.id==='future'),true);assert.equal(visible.some(tab=>tab.id==='routes'),true);
  assert.equal(resolveTab(visible,'kimi'),'qoder');assert.equal(resolveTab(visible,'grok'),'grok');
- assert.equal(keyboardTab(visible,'qoder','ArrowRight'),'qwenwork');assert.equal(keyboardTab(visible,'qwenwork','ArrowRight'),'grok');assert.equal(keyboardTab(visible,'custom','ArrowRight'),'routes');assert.equal(keyboardTab(visible,'routes','ArrowRight'),'quota');assert.equal(keyboardTab(visible,'quota','ArrowRight'),'future');assert.equal(keyboardTab(visible,'qoder','ArrowLeft'),'future');assert.equal(keyboardTab(visible,'grok','End'),'future');assert.equal(keyboardTab(visible,'grok','Home'),'qoder');
- const utilities=visibleTabs(proxyTabs,proxyTabs.map(tab=>tab.id));assert.deepEqual(utilities.map(tab=>tab.id),['routes','quota']);assert.equal(resolveTab(utilities,'qoder'),'routes');
+ assert.equal(keyboardTab(visible,'qoder','ArrowRight'),'qwenwork');assert.equal(keyboardTab(visible,'qwenwork','ArrowRight'),'grok');assert.equal(keyboardTab(visible,'custom','ArrowRight'),'routes');assert.equal(keyboardTab(visible,'routes','ArrowRight'),'quota');assert.equal(keyboardTab(visible,'quota','ArrowRight'),'statistics');assert.equal(keyboardTab(visible,'qoder','ArrowLeft'),'future');assert.equal(keyboardTab(visible,'grok','End'),'future');assert.equal(keyboardTab(visible,'grok','Home'),'qoder');
+ const utilities=visibleTabs(proxyTabs,proxyTabs.map(tab=>tab.id));assert.deepEqual(utilities.map(tab=>tab.id),['routes','quota','statistics']);assert.equal(resolveTab(utilities,'qoder'),'routes');
 });
 
 test('display preferences persist atomically, default without writes, reject invalid or stale updates',async t=>{

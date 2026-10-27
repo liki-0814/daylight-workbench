@@ -4,6 +4,7 @@ import {createServicePanel} from './proxy/service-panel.js';
 import {createSourcePage} from './proxy/source-page.js';
 import {createCustomPage} from './proxy/custom-sources.js';
 import {createRoutesPage} from './model-routes.js';
+import {createStatisticsPage} from './proxy/statistics-page.js';
 import {createQuotaPage} from './proxy/quota-panel.js';
 import {createSourceNavigation,proxyTabs} from './proxy/source-navigation.js';
 
@@ -14,7 +15,7 @@ export function createProxyPage({getToken}){
  const service=createServicePanel({store,getExampleModel:()=>pages[selected].getModel?.()});
  const pages=Object.fromEntries(proxyTabs.filter(tab=>tab.kind==='provider').map(({id:source,name})=>[source,createSourcePage({store,source,name,confirmAction:service.confirmAction})]));
  pages.custom=createCustomPage({store,onRoutes:()=>select('routes')});pages.routes=createRoutesPage({api});
- pages.quota=createQuotaPage({store});
+ pages.quota=createQuotaPage({store});pages.statistics=createStatisticsPage({api,store});
  const navigation=createSourceNavigation({api,onChange({selected:source,ready}){selected=source;for(const [name,page] of Object.entries(pages))page.setVisible(visible&&ready&&name===source);}});
  root.querySelector('.proxy-heading').append(service.element,navigation.element);for(const page of Object.values(pages))root.append(page.element);
  async function refresh(){if(disposed||!(visible||settingsVisible)||document.hidden||!getToken())return;await store.refresh();await store.pollLogins();}

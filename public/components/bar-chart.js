@@ -1,6 +1,6 @@
 import { actionButton } from './button.js';
 const ns = 'http://www.w3.org/2000/svg';
-export function createBarChart({ label, onSelect = () => {} }) {
+export function createBarChart({ label, onSelect = () => {}, valueLabel = '专注计时' }) {
   const element = document.createElement('section'); element.className = 'ui-bar-chart'; element.setAttribute('aria-label', label);
   const scroller = document.createElement('div'); scroller.className = 'ui-bar-chart-scroll';
   const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('role', 'group'); svg.setAttribute('aria-label', label); scroller.append(svg);
@@ -9,20 +9,23 @@ export function createBarChart({ label, onSelect = () => {} }) {
   element.append(scroller, toggle, table); const abort = new AbortController();
   toggle.addEventListener('click', () => { table.hidden = !table.hidden; const button = toggle.querySelector('button'); button.setAttribute('aria-expanded', String(!table.hidden)); button.textContent = table.hidden ? '查看数据表' : '收起数据表'; }, { signal: abort.signal });
   function update(data) {
+    const focused=svg.contains(document.activeElement),activeKey=document.activeElement?.closest?.('[data-chart-key]')?.dataset.chartKey;
     svg.replaceChildren(); table.replaceChildren();
-    const width = Math.max(560, data.length * 36), height = 210, max = Math.max(1, ...data.map(item => item.value));
+    const width = Math.max(560, data.length * 36), height = 210, max = Math.max(1, ...data.map(item => Number.isFinite(item.value) ? item.value : 0));
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.setAttribute('width', String(width)); svg.setAttribute('height', String(height));
     const caption = document.createElement('caption'); caption.textContent = label; table.append(caption);
-    const head = document.createElement('tr'); for (const title of ['日期', '专注计时']) { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = title; head.append(cell); } table.append(head);
+    const head = document.createElement('tr'); for (const title of ['日期', valueLabel]) { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = title; head.append(cell); } table.append(head);
     data.forEach((item, index) => {
-      const step = width / Math.max(1, data.length), barWidth = Math.min(26, step - 6), barHeight = item.value / max * 160;
+      const missing = !Number.isFinite(item.value);
+      const step = width / Math.max(1, data.length), barWidth = Math.min(26, step - 6), barHeight = (missing ? 0 : item.value) / max * 160;
       const group = document.createElementNS(ns, 'g'); group.setAttribute('role', 'button'); group.setAttribute('tabindex', '0'); group.setAttribute('aria-label', `${item.label}，${item.valueText}`); group.dataset.chartKey = item.key;
       const title = document.createElementNS(ns, 'title'); title.textContent = `${item.label} · ${item.valueText}`;
       const rect = document.createElementNS(ns, 'rect'); for (const [key, value] of Object.entries({ x: index * step + (step - barWidth) / 2, y: 176 - barHeight, width: barWidth, height: Math.max(2, barHeight), rx: 3 })) rect.setAttribute(key, String(value));
       const text = document.createElementNS(ns, 'text'); text.setAttribute('x', String(index * step + step / 2)); text.setAttribute('y', '198'); text.setAttribute('text-anchor', 'middle'); text.textContent = item.label;
-      group.append(title, rect, text); svg.append(group);
+      if(missing){group.classList.add('is-missing');const marker=document.createElementNS(ns,'text');marker.setAttribute('x',String(index*step+step/2));marker.setAttribute('y','170');marker.setAttribute('text-anchor','middle');marker.textContent='—';group.append(title,marker,text);}else group.append(title, rect, text); svg.append(group);
       const row = document.createElement('tr'); for (const value of [item.label, item.valueText]) { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); } table.append(row);
     });
+    if(focused){const groups=[...svg.querySelectorAll('[data-chart-key]')];(groups.find(group=>group.dataset.chartKey===activeKey)||groups[0])?.focus({preventScroll:true});}
   }
   svg.addEventListener('click', event => { const group = event.target.closest('[data-chart-key]'); if (group) onSelect(group.dataset.chartKey); }, { signal: abort.signal });
   svg.addEventListener('keydown', event => { const group = event.target.closest('[data-chart-key]'); if (!group) return; if (['Enter', ' '].includes(event.key)) { event.preventDefault(); onSelect(group.dataset.chartKey); } if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); const groups = [...svg.querySelectorAll('[data-chart-key]')], index = groups.indexOf(group); groups[Math.max(0, Math.min(groups.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)))].focus(); } }, { signal: abort.signal });

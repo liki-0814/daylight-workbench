@@ -197,3 +197,9 @@ test('published Grok prices replace the local supplement and update Pi rates wit
  const other=metadata.enrich('custom:example',[saved])[0];assert.equal(other.cost.cacheWrite,null);assert.equal(modelConfig(other).cost,undefined);
  current=payload({...published,pricing:{...published.pricing,input:null}},'public-v3');clock+=101;await metadata.refresh();model=metadata.enrich('grok',[model])[0];assert.equal(model.cost.cacheWrite,null);assert.equal(modelConfig(model).cost,undefined);
 });
+
+test('statistics reference pricing uses published reference rates rather than manual or upstream account prices',async t=>{
+ const dataDir=await fixture(t),metadata=createModelMetadata({dataDir,fetchImpl:async()=>Response.json(payload({...reference,price_basis:{type:'official',sources:['https://example.invalid/api-prices']}}))});
+ await metadata.refresh();const model=metadata.enrich('custom:one',[{id:'reference',cost:{input:999,output:999,cacheRead:999,cacheWrite:999}}])[0];
+ assert.equal(model.cost.input,999);const priced=metadata.referencePricing('custom:one',model);assert.equal(priced.cost.input,2);assert.equal(priced.cost.output,10);assert.deepEqual(priced.info.sources,['https://example.invalid/api-prices']);
+});
