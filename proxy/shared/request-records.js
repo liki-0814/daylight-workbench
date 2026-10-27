@@ -96,6 +96,16 @@ export class RequestRecords {
     return { records: filtered.slice(-limit).reverse(), retained: this.rows.length, matched: filtered.length, error: this.error };
   }
   speeds(source, revision) { return summarizeSpeeds(this.rows, source, revision); }
+  frequencies(source, revision) {
+    const models = new Map();
+    for (const row of this.rows) {
+      if (row.provider !== source || row.sourceRevision !== revision || row.origin === 'test') continue;
+      const model = row.sourceModel || row.upstreamModel || row.model;
+      if (!model) continue;
+      models.set(model, (models.get(model) || 0) + 1);
+    }
+    return [...models].map(([model, requests]) => ({model, requests}));
+  }
   legacy() {
     return { ...this.query(), today: this.rows.filter(row => new Date(row.time).toDateString() === new Date().toDateString()) };
   }

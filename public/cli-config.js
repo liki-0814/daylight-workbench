@@ -5,7 +5,7 @@ import { refreshButton, setRefreshState } from './components/section.js';
 import { selectField, updateSelectField } from './components/select.js';
 import { createProxyDrawer } from './components/proxy-drawer.js';
 import {createProxyApi} from './proxy/api.js';
-import {renderModelSpeed,updateModelSpeeds,createModelSpeedFeed} from './components/model-speed.js';
+import {renderModelSpeed,updateModelSpeeds,createModelSpeedFeed,sortModelsByFrequency} from './components/model-speed.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const apis = [{ value: 'openai-responses', label: 'Responses' }, { value: 'openai-completions', label: 'Chat Completions' }, { value: 'anthropic-messages', label: 'Messages' }];
@@ -80,8 +80,9 @@ export function createCLIPage({ getToken }) {
     const sources = sourceTypes.filter(s => s.id === 'all' || catalog().some(m => sourceType(m) === s.id));
     if (!sources.some(s => s.id === source)) source = 'all';
     sourceNav.innerHTML = sources.map(s => `<button type="button" class="cli-source ${source === s.id ? 'selected' : ''}" data-source="${s.id}" aria-pressed="${source === s.id}">${s.mark ? `<span class="cli-source-mark ${s.tone}">${s.mark}</span>` : icon('grid')}<span>${s.name}</span><small>${catalog().filter(m => s.id === 'all' || sourceType(m) === s.id).length}</small></button>`).join('');
-    const visible = filtered();
-    root.querySelector('[data-catalog-count]').textContent = `${visible.length} / ${catalog().length} 个模型`;
+    const visible = sortModelsByFrequency(filtered(),speeds.getUsage);
+    root.querySelector('[data-catalog-count]').textContent = `${visible.length} / ${catalog().length} 个模型 · 按调用频次排序`;
+    root.querySelector('[data-catalog-count]').title = '按近期代理请求中的调用次数降序；成功和失败均计入，手动测试不计入。';
     root.querySelector('[data-imported-count]').textContent = snapshot ? `${snapshot.pi.importedCount} 个模型` : '—';
     root.querySelector('[data-obsolete-count]').textContent = snapshot?.obsolete.length ? `待移除 ${snapshot.obsolete.length} 个` : '';
     const current = snapshot?.pi.defaultModel;
@@ -103,7 +104,7 @@ export function createCLIPage({ getToken }) {
   }
   function adoptOverrides() { if (!overridesDirty) modelOverrides = Object.fromEntries(catalog().map(m=>[m.id,m.overrides || {}])); }
   async function load() {
-    snapshot = await request('state'); loadedAt = Date.now();
+    [snapshot] = await Promise.all([request('state'),speeds.refresh()]); loadedAt = Date.now();
     adoptOverrides(); api = snapshot.api; root.querySelector('#cli-api').value = api;
     render();
   }
@@ -211,6 +212,7 @@ export function createCLIPage({ getToken }) {
     if (!value) { drawer.close(); root.querySelectorAll('workbench-select').forEach(select => select.setOpen(false)); }
     else {
       if (opening && Date.now() - loadedAt > 5000) void operate(async () => { await load(); showStatus(snapshot.service.state === 'running' ? '配置已读取。' : '代理已停止；同步后需启动代理才能调用。'); });
+      else if(opening)render();
       poll = setInterval(() => {
         if (!busy && !drawer.element.open && !defaultEnabled && !root.contains(document.activeElement)) void refreshBackground();
       }, 15000);

@@ -13,6 +13,14 @@ function fixture(source,options={}){
  }});
  return {secrets,get child(){return child;}};
 }
+async function runningFixture(t,source,options){
+ const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:['pipe','pipe','pipe']});
+ t.after(async()=>{if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await once(child,'close');}});
+ // Start the operation deadline only after this synthetic helper is ready.
+ // Node startup is unrelated to the SIGTERM/SIGKILL behavior under test.
+ await once(child.stdout,'data');
+ return {child,secrets:new Secrets({...options,spawnImpl:()=>child})};
+}
 test('credentials only travel over stdin; get, set and delete remain compatible',async()=>{
  const f=fixture(`let input='';process.stdin.on('data',b=>input+=b);process.stdin.on('end',()=>{
   const body=JSON.parse(input);
@@ -38,18 +46,15 @@ test('keychain authentication failure stays distinct from upstream login and nev
  const f=fixture("process.stderr.write('钥匙串操作失败：-25293');process.exit(1)");
  await assert.rejects(f.secrets.get('fixture-id'),error=>error.code==='EKEYCHAIN_AUTH_FAILED'&&/不代表上游账号已退出/.test(error.message));
 });
-test('timeout reaps a helper that ignores SIGTERM before rejecting',async()=>{
- const f=fixture("process.on('SIGTERM',()=>{});process.stdout.write('ready');setInterval(()=>{},1000)",{timeoutMs:500,killGraceMs:30});
- const pending=f.secrets.get('fixture-id');
- await once(f.child.stdout,'data');
- await assert.rejects(pending,error=>error.code==='EKEYCHAIN_TIMEOUT');
+test('timeout reaps a helper that ignores SIGTERM before rejecting',async t=>{
+ const f=await runningFixture(t,"process.on('SIGTERM',()=>{});process.stdout.write('ready');setInterval(()=>{},1000)",{timeoutMs:100,killGraceMs:30});
+ await assert.rejects(f.secrets.get('fixture-id'),error=>error.code==='EKEYCHAIN_TIMEOUT');
  assert.equal(f.child.signalCode,'SIGKILL');
  assert.throws(()=>process.kill(f.child.pid,0),error=>error.code==='ESRCH');
 });
-test('timeout remains an error even if a helper exits successfully on SIGTERM',async()=>{
- const f=fixture("process.on('SIGTERM',()=>{process.stdout.write('{}');process.exit(0)});process.stdout.write('ready');setInterval(()=>{},1000)",{timeoutMs:500,killGraceMs:30});
- const pending=f.secrets.get('fixture-id');await once(f.child.stdout,'data');
- await assert.rejects(pending,error=>error.code==='EKEYCHAIN_TIMEOUT');
+test('timeout remains an error even if a helper exits successfully on SIGTERM',async t=>{
+ const f=await runningFixture(t,"process.on('SIGTERM',()=>{process.stdout.write('{}');process.exit(0)});process.stdout.write('ready');setInterval(()=>{},1000)",{timeoutMs:100,killGraceMs:1000});
+ await assert.rejects(f.secrets.get('fixture-id'),error=>error.code==='EKEYCHAIN_TIMEOUT');
  assert.equal(f.child.exitCode,0);
 });
 test('invalid output and unexpected stderr never expose credential data',async()=>{

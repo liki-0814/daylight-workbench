@@ -100,6 +100,8 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         sources = request('/api/proxy/sources')[1]['sources']
         speeds = next(source for source in sources if source['id'] == 'qoder')['performance']
         assert len(speeds) == 1 and speeds[0]['model'] == 'test-model' and speeds[0]['samples'] == 1
+        usage = next(source for source in sources if source['id'] == 'qoder')['modelUsage']
+        assert usage == [{'model': 'test-model', 'requests': 1}]
         assert '思' not in json.dumps(rows, ensure_ascii=False) and 'native-ok' not in json.dumps(rows)
         assert request('/api/qoder/test', {})[0] == 200
         stop(); boot()
@@ -110,6 +112,8 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         assert request('/api/qoder/status')[1]['state'] == 'running'
         speeds = next(source for source in request('/api/proxy/sources')[1]['sources'] if source['id'] == 'qoder')['performance']
         assert len(speeds) == 1 and speeds[0]['samples'] == 1
+        usage = next(source for source in request('/api/proxy/sources')[1]['sources'] if source['id'] == 'qoder')['modelUsage']
+        assert usage == [{'model': 'test-model', 'requests': 1}], 'Manual tests must not affect frequency after restart'
         assert request('/api/qoder/service', {'enabled': False})[0] == 200
         assert request('/api/qoder/settings', {'port': proxy_port, 'autoStart': False})[0] == 200
         assert request('/api/qoder/runtime', {'nodePath': '/missing/node'})[0] == 400
