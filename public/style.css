@@ -181,7 +181,8 @@ main {
 .topbar {
   height: 76px;
   border-bottom: 1px solid var(--line);
-  padding: 0 var(--page-inline);
+  /* Keep breadcrumb and search aligned with the centred content column. */
+  padding: 0 max(var(--page-inline), calc((100% - var(--page-max-width)) / 2 + var(--page-inline)));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -234,7 +235,7 @@ main {
 .workspace {
   padding: 39px var(--page-inline) 23px;
   max-width: var(--page-max-width);
-  margin: 0;
+  margin: 0 auto;
 }
 
 .page-heading {

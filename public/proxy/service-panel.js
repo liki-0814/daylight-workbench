@@ -7,13 +7,13 @@ const template=`<div class="workspace proxy-common"><section class="proxy-panel"
         </div>
         <div id="service-error" class="proxy-error" role="alert" hidden></div>
 </section>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',description:'地址、密钥与请求示例',content:`
-        <div class="proxy-section-title"><span class="proxy-caption">客户端协议</span><div id="protocol-control" class="proxy-protocol"></div></div>
-        <label class="proxy-caption" for="base-url">Base URL</label>
-        <div class="proxy-copy"><input id="base-url" readonly value="正在读取…" spellcheck="false"><button id="copy-url" class="small-button" disabled>复制</button></div>
-        <label class="proxy-caption" for="api-key">API Key</label>
-        <div class="proxy-copy"><input id="api-key" type="password" readonly value="" placeholder="正在读取…" autocomplete="off" spellcheck="false"><button id="show-key" class="small-button" disabled>显示</button><button id="copy-key" class="small-button" disabled>复制</button></div>
-        <div class="proxy-connect-actions"><button id="copy-example" class="secondary" disabled>复制请求示例</button><button id="test-connection" class="text-button" disabled>测试连接</button></div>
-        <p id="connection-result" class="proxy-hint" role="status">开启代理后，即可在客户端中填写以上地址与密钥。</p>
+        <div class="ui-form-row"><span class="proxy-caption">客户端协议</span><div id="protocol-control" class="proxy-protocol"></div></div>
+        <div class="ui-form-row"><label class="proxy-caption" for="base-url">Base URL</label>
+        <div class="proxy-copy"><input id="base-url" readonly value="正在读取…" spellcheck="false"><button id="copy-url" class="small-button" disabled>复制</button></div></div>
+        <div class="ui-form-row"><label class="proxy-caption" for="api-key">API Key</label>
+        <div class="proxy-copy"><input id="api-key" type="password" readonly value="" placeholder="正在读取…" autocomplete="off" spellcheck="false"><button id="show-key" class="small-button" disabled>显示</button><button id="copy-key" class="small-button" disabled>复制</button></div></div>
+        <div class="proxy-connect-actions ui-form-offset"><button id="copy-example" class="secondary" disabled>复制请求示例</button><button id="test-connection" class="text-button" disabled>测试连接</button></div>
+        <p id="connection-result" class="proxy-hint ui-form-offset" role="status">开启代理后，即可在客户端中填写以上地址与密钥。</p>
       `})}
 </div>`;
 const settingsTemplate=`${sectionHeading({title:'反向代理',description:'全局端口、自动启动与运行环境',actions:refreshButton({ariaLabel:'刷新代理设置',attrs:{id:'refresh-proxy-settings'}})})}<p id="proxy-settings-loading" class="proxy-hint" role="status">正在读取代理状态…</p><p id="proxy-settings-error" class="ui-feedback" role="alert" hidden></p><form id="settings-form" class="proxy-settings-form">

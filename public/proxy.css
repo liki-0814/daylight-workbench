@@ -134,7 +134,8 @@
   background: #fafbf8;
   border-radius: 6px;
   padding: 6px 9px;
-  margin: var(--space-2) 0 19px;
+  margin: 0;
+  min-width: 0;
 }
 
 .proxy-copy input {
@@ -162,7 +163,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-top: 23px;
+  margin-top: var(--space-2);
 }
 
 .proxy-hint {
@@ -174,7 +175,7 @@
 }
 
 .proxy-connect .proxy-hint {
-  margin: 15px 0 0;
+  margin-top: 0;
 }
 
 .proxy-field {
@@ -338,7 +339,7 @@
 
 .proxy-protocol {
   width: 184px;
-  max-width: 55%;
+  max-width: 100%;
 }
 
 .proxy-model-field {
@@ -820,6 +821,7 @@
 .proxy-common {
   padding: 0;
   margin: 0;
+  max-width: none;
 }
 
 .proxy-common .proxy-panel {
