@@ -203,3 +203,12 @@ test('statistics reference pricing uses published reference rates rather than ma
  await metadata.refresh();const model=metadata.enrich('custom:one',[{id:'reference',cost:{input:999,output:999,cacheRead:999,cacheWrite:999}}])[0];
  assert.equal(model.cost.input,999);const priced=metadata.referencePricing('custom:one',model);assert.equal(priced.cost.input,2);assert.equal(priced.cost.output,10);assert.deepEqual(priced.info.sources,['https://example.invalid/api-prices']);
 });
+
+test('statistics reference pricing carries the catalog tier schedule with both bounds, even where Pi cost tiers cannot represent it',async t=>{
+ const dataDir=await fixture(t),bounded={...reference,pricing_tiers:[{input_tokens_gt:32000,input_tokens_lte:256000,input:3,output:12,cached_input:.3,cache_write:3},{input_tokens_gt:256000,input_tokens_lte:1000000,input:6,output:20,cached_input:.6,cache_write:6}]};
+ const metadata=createModelMetadata({dataDir,fetchImpl:async()=>Response.json(payload(bounded))});await metadata.refresh();
+ const model=metadata.enrich('custom:one',[{id:'reference'}])[0],priced=metadata.referencePricing('custom:one',model);
+ assert.deepEqual(priced.tiers.map(tier=>[tier.above,tier.atMost,tier.input,tier.cacheRead]),[[32000,256000,3,.3],[256000,1000000,6,.6]]);
+ const open=createModelMetadata({dataDir:await fixture(t),fetchImpl:async()=>Response.json(payload())});await open.refresh();
+ assert.deepEqual(open.referencePricing('custom:one',open.enrich('custom:one',[{id:'reference'}])[0]).tiers.map(tier=>[tier.above,tier.atMost,tier.input,tier.output,tier.cacheRead,tier.cacheWrite]),[[272000,null,4,15,.2,5]]);
+});

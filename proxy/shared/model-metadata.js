@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {readJson,writeJson,serial} from './store.js';
-import {fillModelMetadata,stripModelMetadata} from '../../core/model-metadata.js';
+import {fillModelMetadata,stripModelMetadata,referenceTierSchedule} from '../../core/model-metadata.js';
 import {reasoningCapabilities} from '../../core/model-capabilities.js';
 export const pricingURL='https://liki-0814.github.io/llm-pricing/api/v1/models.json';
 const bad=message=>Object.assign(new Error(message),{status:400});
@@ -52,7 +52,8 @@ export function createModelMetadata({dataDir,fetchImpl=fetch,enabled=true,ttlMs=
   const reference=entries().find(entry=>entry.id===(model.modelMetadata?.matchedId||model.priceInfo?.referenceId));
   if(!reference)return;
   const priced=fillModelMetadata({id:model.id},reference,{version:meta()?.data_version||'',updatedAt:reference.checked_at||meta()?.updated_at||'',cacheWriteIncluded:source==='grok'&&reference.billing?.cached_input_type==='implicit'});
-  return{cost:priced.cost,info:priced.priceInfo};
+  const tiers=referenceTierSchedule(reference,{cacheWriteIncluded:source==='grok'&&reference.billing?.cached_input_type==='implicit'});
+  return{cost:priced.cost,info:priced.priceInfo,...(tiers?{tiers}:{})};
  }
  return{refresh,enrich,referencePricing,async read(force=false){await refresh(force);return{models:entries(),meta:meta(),fetchedAt:cache?.fetchedAt||null,error:[error,supplementError].filter(Boolean).join('；')};},bind:input=>run(async()=>{
   await load();if(!input||typeof input.source!=='string'||typeof input.id!=='string'||typeof input.referenceId!=='string')throw bad('模型关联无效');
