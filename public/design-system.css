@@ -2,7 +2,7 @@
    1. 字体按语义角色配置，字号与行高成对调整。
    2. 全局留白、控件尺寸与页面宽度在 :root 中配置。
    3. 模块用 var(...) 和下方 ui-* 布局类复用，避免各页重复定值。
-   4. --page-max-width: none 表示页面随窗口扩展，表单宽度单独配置。 */
+   4. --page-max-width 限制主内容列宽并在宽屏居中；表单宽度单独配置。 */
 @font-face {
   font-family: system-ui-fallback;
   src: local("PingFang SC");
@@ -118,10 +118,13 @@
   --composer-action-size: 38px;
   --icon-button-size: 28px;
 
-  /* Page containers expand with the window; forms keep a readable measure. */
-  --page-max-width: none;
+  /* Page containers stop growing at a comfortable measure and centre on wide windows; forms keep a readable measure. */
+  --page-max-width: 1320px;
   --form-reading-width: 760px;
-  --form-panel-min-width: 580px;
+  --form-panel-min-width: 520px;
+  --form-label-width: 128px;
+  --form-label-gap: var(--space-5);
+  --form-control-max-width: 560px;
   --dialog-width: 650px;
   --drawer-width: 720px;
   --confirmation-width: 460px;
@@ -288,6 +291,20 @@ input[type="checkbox"], input[type="radio"] {
 @media (max-width: 650px) {
   .ui-section-actions { gap: var(--space-2); margin-left: var(--space-2); }
   .ui-section-actions > .ui-section-description { max-width: 7em; }
+}
+
+/* Label + control rows share one label column and a capped control width, so wide windows never push them apart. */
+.ui-form-row {
+  display: grid;
+  grid-template-columns: var(--form-label-width) minmax(0, var(--form-control-max-width));
+  align-items: center;
+  column-gap: var(--form-label-gap);
+  row-gap: var(--field-label-gap);
+}
+.ui-form-offset { margin-left: calc(var(--form-label-width) + var(--form-label-gap)); }
+@media (max-width: 650px) {
+  .ui-form-row { grid-template-columns: minmax(0, 1fr); }
+  .ui-form-offset { margin-left: 0; }
 }
 
 /* Related settings share available space without stretching their form text. */
