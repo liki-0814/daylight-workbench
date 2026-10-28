@@ -6,12 +6,13 @@ import {randomUUID,createHash} from 'node:crypto';
 import {readJson,writeJson,serial} from '../shared/store.js';
 import {invalid} from '../shared/protocol.js';
 import {Secrets} from '../shared/secrets.js';
+import {AdaptivePromptCache} from '../shared/adaptive-prompt-cache.js';
 const paths={chat:'chat/completions',responses:'responses',messages:'messages'};
 const secretId=(s,k)=>k.credentialId?`${s.id}:credential:${k.credentialId}`:k.id==='default'?s.id:`${s.id}:key:${k.id}`;
 const legacyKey=s=>({id:'default',enabled:true,hasKey:!!s.hasKey,models:s.models||[]});
 const normalize=s=>{const keys=s.keys||[legacyKey(s)];return{...s,keys,hasKey:keys.some(k=>k.enabled!==false&&k.hasKey),models:modelUnion(keys)};};
 export class CustomSources {
- constructor({dataDir,fetchImpl=fetch,secrets=new Secrets(),getPort=()=>4319}){Object.assign(this,{fetchImpl,secrets,getPort});this.file=path.join(dataDir,'custom-proxy/sources.json');this.mutate=serial();this.affinities=new Map();this.cooldowns=new Map();}
+ constructor({dataDir,fetchImpl=fetch,secrets=new Secrets(),getPort=()=>4319,promptCache=new AdaptivePromptCache({file:path.join(dataDir,'custom-proxy/prompt-cache.json')})}){Object.assign(this,{fetchImpl,secrets,getPort,promptCache});this.file=path.join(dataDir,'custom-proxy/sources.json');this.mutate=serial();this.affinities=new Map();this.cooldowns=new Map();}
  async list(){return(await readJson(this.file,[])).map(s=>({...normalize(s),settingFields:customSettingFields}));}
  url(source,endpoint){let u;try{u=new URL(source.baseUrl);}catch{throw invalid('Base URL 无效');}if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)throw invalid('Base URL 需为不含账号、查询参数的 HTTP(S) 地址');
   if(['localhost','127.0.0.1','[::1]','0.0.0.0'].includes(u.hostname)&&[this.getPort(),4318].includes(Number(u.port||80)))throw invalid('上游不能指向 Daylight 自身');

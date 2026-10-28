@@ -1,0 +1,299 @@
+{
+  "date": "2026-10-28",
+  "timeZone": "Asia/Shanghai",
+  "installation": {
+    "installedAt": "2026-10-28T14:38:50.759147+08:00",
+    "app": "/Applications/Daylight.app",
+    "backup": "/Users/liki/Library/Application Support/Daylight/App Backups/adaptive-cache-20261028-143850/Daylight.app"
+  },
+  "beforeInstallation": {
+    "time": "2026-10-28T06:38:44.537Z",
+    "state": "running",
+    "activeRequests": 2,
+    "autoStart": true
+  },
+  "userAuthorizedInterruption": true,
+  "appRestarted": true,
+  "signature": "codesign --verify --deep --strict passed",
+  "installedFilesMatchSource": true,
+  "sourceSha256": {
+    "proxy/shared/adaptive-prompt-cache.js": "a9e7402d18871b95f20e098f5dc0abf4de2105202d4ad250fba7aff0d250328d",
+    "proxy/shared/prompt-cache.js": "8b65d9ede4316fc50fe1ef53598d2b17c80f6cd26faa25e08f9a4bd6f9a6a1a8",
+    "proxy/copilot/provider.js": "f01795a5a2137ec63692a41e998c135f7b47a15c0935be65f25d680175ab4fc0",
+    "proxy/custom/provider.js": "c27f4b4e318f4539d3f05421c5f51c1507b122f75cf2a19afc1dd6e1a052d3e7",
+    "proxy/custom/sources.js": "9ce174abe9ffa6bebb57f40451383b2f581f724385d411651e5f4363b365147d",
+    "proxy/shared/request-records.js": "bc76296d731de73dbe3b4244897799c76555a6b2e38977391c6b8de94cda9353"
+  },
+  "route": "running installed App at 127.0.0.1:4319 → real Copilot Claude Opus 5.5",
+  "callerSpecifiedTtl": false,
+  "intermediateRefreshRequests": 0,
+  "identifiedIdleIntervalsSeconds": [
+    358.078,
+    325.125
+  ],
+  "idTransports": [
+    "prompt_cache_key",
+    "X-Daylight-Conversation-Id",
+    "prompt_cache_key"
+  ],
+  "identifiedPrefixChangedOnPromotion": true,
+  "results": [
+    {
+      "mode": "seed",
+      "group": "with-id",
+      "startedAt": "2026-10-28T06:38:56.369Z",
+      "completedAt": "2026-10-28T06:39:00.148Z",
+      "status": 200,
+      "usage": {
+        "input_tokens": 13111,
+        "output_tokens": 4,
+        "total_tokens": 13115,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 13107
+        },
+        "output_tokens_details": {
+          "thinking_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      "record": {
+        "time": "2026-10-28T06:38:56.394Z",
+        "provider": "copilot",
+        "protocol": "responses",
+        "upstreamProtocol": "messages",
+        "outcome": "completed",
+        "promptCacheTtl": "5m",
+        "promptCacheReason": "cold",
+        "usage": {
+          "cacheHitRate": 0,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 13107,
+          "inputTokens": 13111,
+          "outputDetails": {
+            "reasoning_tokens": 0
+          },
+          "outputTokens": 4
+        }
+      }
+    },
+    {
+      "mode": "seed",
+      "group": "without-id",
+      "startedAt": "2026-10-28T06:39:00.149Z",
+      "completedAt": "2026-10-28T06:39:03.493Z",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 13107
+        },
+        "cache_creation_input_tokens": 13107,
+        "cache_read_input_tokens": 0,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "speed": "standard"
+      },
+      "record": {
+        "time": "2026-10-28T06:39:00.151Z",
+        "provider": "copilot",
+        "protocol": "messages",
+        "upstreamProtocol": "messages",
+        "outcome": "completed",
+        "promptCacheTtl": "5m",
+        "promptCacheReason": "no-session-id",
+        "usage": {
+          "cacheHitRate": 0,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 13107,
+          "inputTokens": 13111,
+          "outputDetails": {
+            "reasoning_tokens": 0
+          },
+          "outputTokens": 4
+        }
+      }
+    },
+    {
+      "mode": "promote",
+      "group": "with-id",
+      "idTransport": "X-Daylight-Conversation-Id",
+      "startedAt": "2026-10-28T06:44:58.226Z",
+      "completedAt": "2026-10-28T06:45:00.878Z",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13112,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 13112,
+        "cache_read_input_tokens": 0,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "speed": "standard"
+      },
+      "record": {
+        "time": "2026-10-28T06:44:58.241Z",
+        "provider": "copilot",
+        "protocol": "messages",
+        "upstreamProtocol": "messages",
+        "outcome": "completed",
+        "promptCacheTtl": "1h",
+        "promptCacheReason": "long-gap",
+        "usage": {
+          "cacheHitRate": 0,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 13112,
+          "inputTokens": 13116,
+          "outputDetails": {
+            "reasoning_tokens": 0
+          },
+          "outputTokens": 4
+        }
+      }
+    },
+    {
+      "mode": "promote",
+      "group": "without-id",
+      "idTransport": "none",
+      "startedAt": "2026-10-28T06:45:00.879Z",
+      "completedAt": "2026-10-28T06:45:02.629Z",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 13107
+        },
+        "cache_creation_input_tokens": 13107,
+        "cache_read_input_tokens": 0,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "speed": "standard"
+      },
+      "record": {
+        "time": "2026-10-28T06:45:00.884Z",
+        "provider": "copilot",
+        "protocol": "messages",
+        "upstreamProtocol": "messages",
+        "outcome": "completed",
+        "promptCacheTtl": "5m",
+        "promptCacheReason": "no-session-id",
+        "usage": {
+          "cacheHitRate": 0,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 13107,
+          "inputTokens": 13111,
+          "outputDetails": {
+            "reasoning_tokens": 0
+          },
+          "outputTokens": 4
+        }
+      }
+    },
+    {
+      "mode": "reuse",
+      "group": "with-id",
+      "idTransport": "prompt_cache_key",
+      "startedAt": "2026-10-28T06:50:26.003Z",
+      "completedAt": "2026-10-28T06:50:29.532Z",
+      "status": 200,
+      "usage": {
+        "input_tokens": 13116,
+        "output_tokens": 4,
+        "total_tokens": 13120,
+        "input_tokens_details": {
+          "cached_tokens": 13112,
+          "cache_write_tokens": 0
+        },
+        "output_tokens_details": {
+          "thinking_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      "record": {
+        "time": "2026-10-28T06:50:26.019Z",
+        "provider": "copilot",
+        "protocol": "responses",
+        "upstreamProtocol": "messages",
+        "outcome": "completed",
+        "promptCacheTtl": "1h",
+        "promptCacheReason": "long-gap",
+        "usage": {
+          "cacheHitRate": 0.9996950289722476,
+          "cacheReadTokens": 13112,
+          "cacheWriteTokens": 0,
+          "inputTokens": 13116,
+          "outputDetails": {
+            "reasoning_tokens": 0
+          },
+          "outputTokens": 4
+        }
+      }
+    },
+    {
+      "mode": "reuse",
+      "group": "without-id",
+      "idTransport": "none",
+      "startedAt": "2026-10-28T06:50:29.532Z",
+      "completedAt": "2026-10-28T06:50:31.861Z",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 13107
+        },
+        "cache_creation_input_tokens": 13107,
+        "cache_read_input_tokens": 0,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "speed": "standard"
+      },
+      "record": {
+        "time": "2026-10-28T06:50:29.537Z",
+        "provider": "copilot",
+        "protocol": "messages",
+        "upstreamProtocol": "messages",
+        "outcome": "completed",
+        "promptCacheTtl": "5m",
+        "promptCacheReason": "no-session-id",
+        "usage": {
+          "cacheHitRate": 0,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 13107,
+          "inputTokens": 13111,
+          "outputDetails": {
+            "reasoning_tokens": 0
+          },
+          "outputTokens": 4
+        }
+      }
+    }
+  ],
+  "conclusions": {
+    "withId": "5m cold → 1h automatic long-gap promotion; upstream confirmed 1h cache write, then real hit after another >5m gap; no rewrite",
+    "withoutId": "all three requests remained 5m/no-session-id; real upstream writes only ephemeral_5m; no 1h writes"
+  },
+  "scope": "Real validation for this account/model and two ID transport forms; not proof of all upstreams or full 60-minute retention.",
+  "finalStatus": {
+    "state": "running",
+    "port": 4319,
+    "activeRequests": 1,
+    "recordsError": ""
+  }
+}

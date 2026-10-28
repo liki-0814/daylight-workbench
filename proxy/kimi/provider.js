@@ -8,7 +8,7 @@ import {KimiAuth,authError} from './auth.js';
 import {omitKimiTemperature} from '../shared/request-parameters.js';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {invalid,convertRequest} from '../shared/protocol.js';
+import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
 
 const BASE='https://api.kimi.com/coding/v1';
 
@@ -48,7 +48,7 @@ export class KimiProvider {
   observe({stage:'discovery'});const model=(await this.listModels()).find(m=>m.id===raw.model&&m.enabled);if(!model)throw invalid('Kimi 模型已停用或不存在');
   observe({stage:'authentication'});const token=await this.credential(),identity=this.identity;const input=structuredClone(raw);
   omitKimiTemperature(input,model.id,observe);
-  const body=protocol==='chat'?input:convertRequest(input,protocol,'chat');
+  const body=prepareUpstreamRequest(input,protocol,'chat');
   if(body.stream)body.stream_options={include_usage:true,...body.stream_options};
   const effort=body.reasoning_effort ?? model.effort;
   if(effort!==undefined){

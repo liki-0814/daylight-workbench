@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-28",
+  "reviewScope": [
+    "generality",
+    "minimal code and persisted state",
+    "architecture maintainability",
+    "documentation"
+  ],
+  "fixedFindings": [
+    {
+      "problem": "TTL-rejection suppression was extended by each subsequent request",
+      "resolution": "fixed 24-hour deadline from rejection; expiry regression passed"
+    },
+    {
+      "problem": "loaded records could carry unknown extra fields",
+      "resolution": "load/save whitelist only required cadence metadata; regression passed"
+    },
+    {
+      "problem": "provider adapters duplicated TTL fallback and commit handling",
+      "resolution": "shared AdaptivePromptCache.request owns policy/send/fallback/commit; adapters provide scope/capability/send only"
+    },
+    {
+      "problem": "content-derived identities could merge anonymous sessions or split explicit sessions when prefixes changed",
+      "resolution": "only stable caller IDs are used; no-ID requests remain 5m with no learning IO"
+    },
+    {
+      "problem": "old session cadence was limited to 5–60 minutes and age expiry",
+      "resolution": "strict timestamp gap >5 minutes has no upper cutoff; max 1000 retained ID-scoped sessions, LRU eviction only"
+    },
+    {
+      "problem": "only JSON evidence existed without user/developer docs",
+      "resolution": "reverse-proxy.md, proxy-architecture.md and development.md updated; independent reader found no substantive issue"
+    }
+  ],
+  "policy": {
+    "callerExplicit": "preserved",
+    "noSessionId": "5m; no content inference or session persistence",
+    "sessionId": "X-Daylight-Conversation-Id, then prompt_cache_key",
+    "knownSessionGap": "strictly greater than five minutes chooses 1h, regardless of session age",
+    "newSession": "5m",
+    "downgrade": "three short new user turns; tools/retries do not count",
+    "persistence": {
+      "schema": 2,
+      "limit": 1000,
+      "fields": [
+        "key",
+        "at",
+        "turn",
+        "ttl",
+        "shortTurns",
+        "disabledUntil (only when needed)"
+      ]
+    }
+  },
+  "sessionAvailabilityEvidence": "2026-10-28-session-id-check.json",
+  "historicalTrafficCoverage": "not measurable from retained records; no percentage asserted",
+  "validation": {
+    "fullSuite": {
+      "tests": 615,
+      "passed": 615,
+      "failed": 0
+    },
+    "sourceCheck": {
+      "files": 346,
+      "contractScripts": 4,
+      "failed": 0
+    },
+    "policyRegressions": {
+      "passed": 14,
+      "failed": 0
+    },
+    "build": "npm run pack:mac passed; bundle/source hashes match; codesign --verify --deep --strict passed",
+    "liveUpstreamEvidence": "2026-10-28-adaptive.json retains earlier real 5m→1h→hit trial; final session-identification/cooldown refactor validated with unit/integration regressions, not a new full wall-clock expiry trial"
+  },
+  "sourceSha256": {
+    "proxy/shared/adaptive-prompt-cache.js": "a9e7402d18871b95f20e098f5dc0abf4de2105202d4ad250fba7aff0d250328d",
+    "proxy/shared/prompt-cache.js": "8b65d9ede4316fc50fe1ef53598d2b17c80f6cd26faa25e08f9a4bd6f9a6a1a8",
+    "proxy/copilot/provider.js": "f01795a5a2137ec63692a41e998c135f7b47a15c0935be65f25d680175ab4fc0",
+    "proxy/custom/provider.js": "c27f4b4e318f4539d3f05421c5f51c1507b122f75cf2a19afc1dd6e1a052d3e7",
+    "proxy/custom/sources.js": "9ce174abe9ffa6bebb57f40451383b2f581f724385d411651e5f4363b365147d",
+    "proxy/shared/request-records.js": "bc76296d731de73dbe3b4244897799c76555a6b2e38977391c6b8de94cda9353"
+  },
+  "delivery": {
+    "installedAppChanged": false,
+    "adaptiveModuleInInstalledApp": false,
+    "builtApp": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app",
+    "reason": "Kept installed version unchanged while historical traffic coverage remains unmeasured."
+  }
+}

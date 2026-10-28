@@ -2,8 +2,9 @@ import {catalogModels} from './models.js';
 import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
 import {omitKimiTemperature,isOfficialKimiUrl} from '../shared/request-parameters.js';
 import {createHash} from 'node:crypto';
-import {invalid,convertRequest} from '../shared/protocol.js';
+import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
 import {headerDeadline} from '../shared/header-deadline.js';
+import {hasMessageCachePolicy} from '../shared/prompt-cache.js';
 const paths={chat:'chat/completions',responses:'responses',messages:'messages'};
 export class CustomProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'maxTokens']);}
@@ -32,18 +33,23 @@ export class CustomProvider {
    const budget=protocol==='responses'?'max_output_tokens':'max_tokens';if(input[budget]===undefined&&input.max_completion_tokens===undefined&&(m.defaultMaxTokens||s.defaultMaxTokens))input[budget]=m.defaultMaxTokens||s.defaultMaxTokens;
    observe({stage:'conversion',keyId:key.id,retries:i,upstreamModel:m.upstreamId});
    if(isOfficialKimiUrl(s.baseUrl))omitKimiTemperature(input,m.upstreamId,observe);
-   const body=convertRequest(input,protocol,s.protocol);body.model=m.upstreamId;
+   const body=prepareUpstreamRequest(input,protocol,s.protocol);body.model=m.upstreamId;
    if(m.effort){
     if(s.protocol==='chat'&&body.reasoning_effort===undefined)body.reasoning_effort=m.effort;
     else if(s.protocol==='responses'&&body.reasoning?.effort===undefined)body.reasoning={...body.reasoning,effort:m.effort};
     else if(s.protocol==='messages'&&body.output_config?.effort===undefined&&raw.thinking===undefined)body.output_config={...body.output_config,effort:m.effort};
    }
+   // The direct Anthropic API documents one-hour TTLs. Unknown compatible
+   // gateways keep their existing default; caller-supplied policies still pass.
+   const adaptive=s.protocol==='messages'&&new URL(s.baseUrl).origin==='https://api.anthropic.com';
    observe({stage:'authentication'});let response;
    try{
     const headers=await owner.headers(s,{key});observe({stage:'upstream'});
-    const deadline=headerDeadline(signal);
-    try{response=await owner.fetchImpl(owner.url(s,s.endpoint||paths[s.protocol]),{method:'POST',redirect:'error',signal:deadline.signal,headers,body:JSON.stringify(body)});}
-    finally{deadline.settle();}
+    const send=async()=>{const deadline=headerDeadline(signal);
+     try{return await owner.fetchImpl(owner.url(s,s.endpoint||paths[s.protocol]),{method:'POST',redirect:'error',signal:deadline.signal,headers,body:JSON.stringify(body)});}
+     finally{deadline.settle();}
+    };
+    response=adaptive?await owner.promptCache.request(body,{scope:[s.id,s.revision,key.id,m.upstreamId],conversationId,promptCacheKey:raw.prompt_cache_key,explicit:protocol===s.protocol&&hasMessageCachePolicy(raw)},send,observe):await send();
    }catch(error){if(signal?.aborted)throw error;
     if(!(error.status===401||error.name==='TimeoutError'||error instanceof TypeError||['ECONNRESET','ECONNREFUSED','ENOTFOUND','EAI_AGAIN','ETIMEDOUT'].includes(error.code||error.cause?.code)))throw error;
     lastError=error;owner.cooldowns.set(`${s.id}:${key.id}`,Date.now()+30000);if(stateful)throw error;continue;

@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-28",
+  "timeZone": "Asia/Shanghai",
+  "model": "claude-opus-5.5",
+  "provider": "copilot",
+  "route": "real CopilotProvider.forward: Responses → native Messages",
+  "callerSpecifiedTtl": false,
+  "intermediateRefreshRequests": 0,
+  "intervalsAfterPreviousResponseSeconds": [
+    306.014,
+    315.108
+  ],
+  "results": [
+    {
+      "mode": "seed",
+      "startedAt": "2026-10-28T06:04:24.004Z",
+      "ttl": "5m",
+      "reason": "cold",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 13097
+        },
+        "cache_creation_input_tokens": 13097,
+        "cache_read_input_tokens": 0,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "completedAt": "2026-10-28T06:04:27.881Z"
+    },
+    {
+      "mode": "promote",
+      "startedAt": "2026-10-28T06:09:33.895Z",
+      "ttl": "1h",
+      "reason": "long-gap",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 13097,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 13097,
+        "cache_read_input_tokens": 0,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "completedAt": "2026-10-28T06:09:39.611Z"
+    },
+    {
+      "mode": "reuse",
+      "startedAt": "2026-10-28T06:14:54.719Z",
+      "ttl": "1h",
+      "reason": "long-gap",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 13097,
+        "inference_geo": "global",
+        "input_tokens": 4,
+        "output_tokens": 4,
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "completedAt": "2026-10-28T06:14:59.933Z"
+    }
+  ],
+  "policy": {
+    "initial": "5m",
+    "longGap": "one accepted reuse after 5–60 minutes selects 1h",
+    "downgrade": "three new short-interval user turns select 5m; tool-only loops do not count",
+    "reset": "more than 60 minutes starts at 5m again",
+    "explicit": "caller policies remain exact",
+    "scope": "account/source/key + model + stable prefix + conversation ID or prompt_cache_key; fingerprint fallback",
+    "persistence": "only hashes/timestamps/cadence; max 1000 entries, 24h expiry",
+    "failure": "HTTP failures do not train; explicit TTL rejection retries auto-managed requests at 5m once and suppresses 1h for the session for 24h",
+    "supported": "Copilot Messages and direct api.anthropic.com Messages; unknown gateways stay on their previous policy"
+  },
+  "verification": {
+    "fullSuite": "610 passed, 0 failed at concurrency 1",
+    "targetedFinal": "43 passed, 0 failed",
+    "check": "346 source files and 4 contract checks passed",
+    "build": "npm run pack:mac and codesign --verify --deep --strict passed",
+    "costModel": "fixed-prefix illustrative simulation passed; not actual Copilot billing or proof of a globally optimal policy"
+  },
+  "sourceSha256": {
+    "proxy/copilot/provider.js": "cb8846c25aacc10cb0fd186b3a93d39d56f0f1d633bccc1909a41a072ef2cc84",
+    "proxy/custom/provider.js": "5a23bdaa3731483766d897bb6b44f6ac986740a26c3e00ef3b1eaad1582e384f",
+    "proxy/custom/sources.js": "9ce174abe9ffa6bebb57f40451383b2f581f724385d411651e5f4363b365147d",
+    "proxy/shared/prompt-cache.js": "d1826f52b8a75c1ffb89b02c205bc301f58b303acf822dff841f5703aad8f474",
+    "proxy/shared/adaptive-prompt-cache.js": "9426d255ed998f0a2625b07cc05c0ee2c10dfb9cbd47dc62d1c8c1334a80335e",
+    "proxy/shared/request-records.js": "bc76296d731de73dbe3b4244897799c76555a6b2e38977391c6b8de94cda9353"
+  },
+  "delivery": {
+    "builtApp": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app",
+    "installed": false,
+    "reason": "Running App has 1 active proxy request; no restart or interruption performed"
+  }
+}

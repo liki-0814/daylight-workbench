@@ -339,6 +339,18 @@ test('conversations isolate MaaS sessions without sending the external conversat
   assert.equal(isolated, 3);
 });
 
+test('Messages catalog routes share translated cache breakpoints', async t => {
+  const {provider, state} = await setup(t);
+  state.catalog = {schema_version:2,catalog:[{key:'mode-messages',harness:'oc',format:'anthropic/messages',model_id:'claude-fixture',max_output_tokens:8192}]};
+  await provider.auth.login();
+  assert.equal((await provider.auth.poll()).authorized, true);
+  await provider.forward({model:'mode-messages',instructions:'Stable system',input:'Hi',max_output_tokens:64}, 'responses');
+  const sent = JSON.parse(state.calls.at(-1).init.body);
+  assert.equal(sent.model,'claude-fixture');
+  assert.deepEqual(sent.system,[{type:'text',text:'Stable system',cache_control:{type:'ephemeral'}}]);
+  assert.deepEqual(sent.messages[0].content[0].cache_control,{type:'ephemeral'});
+});
+
 test('native chat keeps tools and a responses model is converted onto its catalog protocol', async t => {
   const {provider, state} = await setup(t);
   await provider.auth.login();

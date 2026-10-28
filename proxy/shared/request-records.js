@@ -8,7 +8,7 @@ import { diagnosticError, protocolFor } from './contracts.js';
 import {GenerationSpeed,summarizeSpeeds} from './generation-speed.js';
 
 // Select fields here rather than persisting event payloads from five protocols.
-const metadata = ['origin', 'provider', 'model', 'sourceModel', 'streaming', 'sourceRevision', 'upstreamModel', 'reportedModel', 'upstreamProtocol', 'execution', 'effort', 'requestedTier', 'actualTier', 'upstreamStatus', 'retries', 'keyId', 'requestedTemperature', 'effectiveTemperature'];
+const metadata = ['origin', 'provider', 'model', 'sourceModel', 'streaming', 'sourceRevision', 'upstreamModel', 'reportedModel', 'upstreamProtocol', 'execution', 'effort', 'requestedTier', 'actualTier', 'upstreamStatus', 'retries', 'keyId', 'requestedTemperature', 'effectiveTemperature', 'promptCacheTtl', 'promptCacheReason'];
 const counters = ['inputTokens', 'outputTokens', 'totalTokens', 'cacheReadTokens', 'cacheWriteTokens', 'costUsdTicks'];
 const count = n => Number.isFinite(n) && n >= 0;
 const detailCounters = ['cached_tokens', 'cache_write_tokens', 'audio_tokens', 'reasoning_tokens', 'accepted_prediction_tokens', 'rejected_prediction_tokens'];
@@ -26,7 +26,7 @@ export class RequestTrace {
   startGeneration(info) {
     this.generation = new GenerationSpeed(this.now);
     this.upstreamStarted = this.now();
-    for (const key of ['usage','firstContentMs','reportedModel','actualTier','requestedTier','effort']) delete this.entry[key];
+    for (const key of ['usage','firstContentMs','reportedModel','actualTier','requestedTier','effort','promptCacheTtl','promptCacheReason']) delete this.entry[key];
     this.observe(info);
   }
   observe(info) {

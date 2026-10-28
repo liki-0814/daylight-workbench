@@ -70,7 +70,7 @@ Codex 标签通过 [Sign in with ChatGPT 的开源客户端流程](https://devel
 
 自定义标签支持多个上游，填写 Base URL、Key、上游协议与模型映射，保存后共用现有出口和 Key。默认在 URL 后追加 chat/completions、responses 或 messages；高级设置可指定相对端点、自定义请求头及模型容量/默认参数元数据。模型可发现或手填；同名模型汇集来源，通过模型路由管理，也可设置别名分别调用。每个上游支持多个 Key，分别发现模型权限；成功重新获取后覆盖目录。测试按钮会调用第一个启用模型并产生正常上游用量。
 
-自定义 Key 和额外请求头存入 macOS Keychain，由随 App 打包的凭据助手读写，不写入来源 JSON、不通过命令行参数传递。页面留空保留原密钥。相同协议原样转发请求字段与原生响应；跨协议支持文本、图片和 function 工具的基本映射，拒绝不透明 reasoning、缓存控制、内置工具等无法无损转换的请求。Token 用量仅记录上游实际提供的字段，未知费用与缓存写入不伪造为零。
+自定义 Key 和额外请求头存入 macOS Keychain，由随 App 打包的凭据助手读写，不写入来源 JSON、不通过命令行参数传递。页面留空保留原密钥。相同协议保留调用方字段与原生响应；已确认支持的 Messages 通道在调用方未指定策略时补齐缓存控制，规则见下文。跨协议支持文本、图片和 function 工具的基本映射，拒绝不透明 reasoning、原生缓存控制、内置工具等无法无损转换的请求。Token 用量仅记录上游实际提供的字段，未知费用与缓存写入不伪造为零。
 
 ## Kimi Code
 
@@ -91,6 +91,38 @@ Copilot 使用 GitHub 账号独立网页登录，无需安装、运行或读取�
 模型、容量、视觉和工具能力读取上游目录，不按模型名称猜测；按模型声明选择 Chat Completions、Responses 或 Anthropic Messages 上游端点。客户端仍共用三个现有协议入口、模型路由、流式与工具转换、请求诊断及公共模型/额度组件。额度读取 Copilot 上游请求配额，缺失值保持未知，不以 token 数估算 Premium 请求或费用。Pi 接入复用现有全量同步、备份、恢复与默认值保护。建议使用 Responses 或 Chat Completions；选择 Pi Messages 时，仅原生声明 Messages 的模型可接入，以保留手动 thinking 预算、签名和缓存字段。Pi Messages 的 Base URL 使用服务根地址，避免 SDK 重复追加 `/v1`。AI 管理支持 `sourceId: copilot` 的登录/取消/退出、目录和模型设置；`daylight_get_configuration` 使用 `copilot.quota` 查询额度，写操作仍通过审阅草稿。
 
 协议调研参考 [copilot-api](https://github.com/ericc-ch/copilot-api/tree/0ea08febdd7e3e055b03dd298bf57e669500b5c1/src)（MIT）及 [GitHub device flow 文档](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow)。Copilot token、目录及推理路径属于上游非公开兼容接口，实际账号的订阅和组织策略仍决定可用性。当前实现支持 github.com 账号；自建 GitHub Enterprise Server 登录域未接入。
+
+## 提示缓存与自适应时长
+
+缓存由上游建立和读取，Daylight 不在本地缓存模型回答。转换为 Anthropic Messages 时，公共转换层默认添加 5 分钟缓存断点，最多覆盖工具定义末尾、系统提示末尾和最后两条消息的可缓存块。断点表示截至该位置的整个前缀；正文、工具定义、思考配置或上游身份变化仍可能导致未命中。
+
+Copilot Messages 和直接连接 `https://api.anthropic.com` 的自定义 Messages 来源启用自适应时长。原生 Messages 未指定缓存策略时也参与；未知兼容网关继续使用原有默认策略。Chat / Responses 使用上游隐式缓存，不套用 Anthropic 的 TTL。
+
+| 同一会话及稳定前缀的复用情况 | 自动选择 |
+| --- | --- |
+| 未携带会话标识，或该标识首次出现 | 5 分钟；无标识时不保存学习记录 |
+| 已有该会话记录，本次与上次请求时间戳相差超过 5 分钟 | 1 小时，不设间隔上限 |
+| 已选 1 小时，连续 3 次新的用户输入间隔均不超过 5 分钟 | 回到 5 分钟 |
+
+间隔按被上游 HTTP 成功接受的请求发起时间计算，包含模型生成时间。纯工具结果和重试不作为新的用户输入，不会单独触发降级。策略只随正常请求判断，不发送保活请求。第一次未知长停顿前只有 5 分钟缓存时，过期无法事后挽回；这次停顿用于选择后续的 1 小时缓存。它是命中与写入成本之间的启发式策略，不保证每次命中或全局最低费用。
+
+会话标识优先取 `X-Daylight-Conversation-Id`，其次取请求正文的 `prompt_cache_key`。前者是 Daylight 自定义请求头，由调用方为每段对话设置稳定值，不是账号 ID 或认证凭据；普通客户端不会自动携带。`prompt_cache_key` 可作为备用关联值，但只有调用方按会话独立、稳定地生成时才能可靠关联。两者都没有时默认 5 分钟，不按内容推断会话，不保存匿名学习记录。
+
+本机 Pi 1.4.0 的 Responses 发送器默认将自身会话 ID 放入 `prompt_cache_key`，因此不必额外配置 Daylight 请求头；关闭 Pi 缓存时该字段可能不再发送。这是已核对客户端实现及合成请求的行为，不是所有客户端或历史代理流量的覆盖率统计。
+
+账号、来源、Key 和模型分别隔离，同一范围内按稳定标识保存上次时间戳。系统提示或工具定义改变不会把有标识的会话变成新会话，但实际缓存前缀仍可能因此失效。路由到其他来源不会继承原来源的学习结果。
+
+调用方在原生 Messages 中指定的 `cache_control` 始终优先，包括混合 5 分钟与 1 小时策略。Chat 与 Responses 互转时保留 `prompt_cache_key`、`prompt_cache_retention`，但仍受各来源参数限制；OpenAI 的保留时长不能换算为 Messages TTL，显式跨协议转换会报错。缓存 key 转为 Messages 时不透传为未知字段。
+
+自动选择的 `1h` 若收到明确的 TTL 不支持错误，系统仅重试一次 5 分钟策略，并为该学习条目暂停 1 小时策略 24 小时。时间从拒绝发生时计算，不随之后的正常请求延长。调用方显式策略不会被自动改写；其他错误沿用现有来源处理。
+
+学习数据保存在数据目录的 `copilot-proxy/prompt-cache.json` 和 `custom-proxy/prompt-cache.json`，仅包含有标识会话的哈希、时间、当前 TTL、连续短交互数及必要的禁用截止时间。每份最多 1000 条，超限淘汰最久未使用的条目；不按会话年龄删除，保留老会话的上次时间戳。不保存提示词、回答、原始会话 ID 或凭据。被淘汰的会话因缺少上次时间戳，会按首次请求处理。删除学习文件后重启对应服务，可以重新学习；文件损坏或写入失败不阻断推理，但本次进程可能只在内存中学习。旧的内容推断学习格式只重置派生记录，不迁移到当前按 ID 关联的格式。
+
+`GET /api/proxy/requests` 的 `promptCacheTtl`、`promptCacheReason` 表示本次请求采用的策略与原因，`caller` 表示保留调用方策略。是否实际命中仍以 `usage.cacheReadTokens` 为准，策略选择不是缓存成功的证明。
+
+2026-10-28 的真实 Copilot 试验未显式指定 TTL：首个请求写入 5 分钟缓存，静置 306 秒后自动改用 1 小时；再次静置 315 秒，读取缓存 13,097 Token，重新写入为 0。记录见[自适应实测](verification/proxy-cache/2026-10-28-adaptive.json)。该记录证明当前账号、模型与前缀的这条路径，不代表所有兼容上游或实际账单节省比例。
+
+同日最终安装版通过真实代理完成有 ID／无 ID 对照。有 ID 会话先用 `prompt_cache_key` 接入，静置 358 秒后以同值请求头接续，自动写入 13,112 Token 的 1 小时缓存；再次静置 325 秒后切回正文 key，读取 13,112 Token、重新写入为 0。期间修改系统提示，没有重置会话时间戳。无 ID 对照三轮均为 `5m / no-session-id`，只写入 5 分钟缓存，没有 1 小时写入。六次请求全部成功，未发送保活或显式指定 TTL，详见[安装版对照记录](verification/proxy-cache/2026-10-28-adaptive-installed.json)。
 
 ## 模型路由与统一控件
 

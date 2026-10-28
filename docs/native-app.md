@@ -57,3 +57,9 @@ Pi 模型配置抽屉支持手动上下文、最大输出 Token、扩展思考�
 
 
 扩展管理使用现有 AI helper 的传输，单独初始化领域服务；不创建 AIStore 或启动模型发现。打包包含 extensions 模块、页面资源、YAML/MCP 显式 bundle 及许可证。实际 Node/Swift 共用验收执行 test/extensions-contract-test.py，临时主来源与客户端目录通过环境变量隔离。原生任务/日历/专注保持独立运行。
+
+## 2026-10-28 提示缓存更新
+
+用户明确授权中断后，停止当时的 2 个代理请求，备份并替换本机 App。新进程启动后，安装资源与源码摘要一致，签名严格校验通过，代理恢复运行。新版实际代理完成六次 Copilot 请求：有 ID 会话自动从 5 分钟升级到 1 小时，再静置超过 5 分钟后命中 13,112 Token、重新写入为 0；无 ID 对照始终使用 5 分钟。正文缓存 key 与同值会话请求头接续均通过，测试未指定 TTL 或发送保活请求。
+
+该记录为已安装 App 的真实上游验证；615 项源码回归和文档 review 另见[review 记录](verification/proxy-cache/2026-10-28-cache-review.json)。安装时间、备份位置、资源摘要、请求元数据、缓存计数和最终运行状态保存在[安装版对照记录](verification/proxy-cache/2026-10-28-adaptive-installed.json)。未以本轮后端验证替代其他页面或上游的验收。
