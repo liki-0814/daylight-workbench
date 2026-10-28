@@ -1,0 +1,80 @@
+{
+  "startedAt": "2026-10-28T15:28:10.876Z",
+  "finishedAt": "2026-10-28T15:47:28.082Z",
+  "realAccount": true,
+  "results": [
+    {
+      "at": "2026-10-28T15:28:10.876Z",
+      "source": "grok",
+      "model": "grok-imagine-image-2.0",
+      "path": "/v1/images/generations",
+      "host": "cli-chat-proxy.grok.com",
+      "http": 200,
+      "hasImageUrl": true,
+      "hasB64": false,
+      "passed": true
+    },
+    {
+      "at": "2026-10-28T15:28:32.108Z",
+      "source": "grok",
+      "model": "grok-imagine-video-1.5",
+      "path": "/v1/videos/generations",
+      "host": "cli-chat-proxy.grok.com",
+      "http": 200,
+      "hasRequestId": true,
+      "status": "succeeded",
+      "passed": true
+    },
+    {
+      "at": "2026-10-28T15:28:37.278Z",
+      "source": "codex",
+      "model": "gpt-image-2.5-flare",
+      "path": "/v1/images/generations",
+      "host": "api.openai.com",
+      "http": 401,
+      "passed": false,
+      "error": "hardened_oauth_rule_missing"
+    },
+    {
+      "at": "2026-10-28T15:29:04.513Z",
+      "source": "agy",
+      "model": "gemini-3.1-flash-image",
+      "path": "/v1/images/generations",
+      "host": "daily-cloudcode-pa.googleapis.com",
+      "http": 200,
+      "hasB64": true,
+      "passed": true
+    },
+    {
+      "at": "2026-10-28T15:38:59.859Z",
+      "source": "codex",
+      "model": "gpt-image-2.5-flare",
+      "path": "/v1/images/generations",
+      "host": "chatgpt.com",
+      "http": 401,
+      "passed": false,
+      "error": "no_matching_rule"
+    },
+    {
+      "at": "2026-10-28T15:46:42.273Z",
+      "source": "codex",
+      "model": "gpt-image-2.5-flare",
+      "path": "/v1/images/generations",
+      "host": "chatgpt.com",
+      "http": 502,
+      "passed": false,
+      "error": "response_format_unavailable"
+    },
+    {
+      "at": "2026-10-28T15:47:28.082Z",
+      "source": "codex",
+      "model": "gpt-image-2.5-flare",
+      "path": "/v1/images/generations",
+      "host": "chatgpt.com",
+      "http": 200,
+      "hasImageUrl": false,
+      "hasB64": true,
+      "passed": true
+    }
+  ]
+}

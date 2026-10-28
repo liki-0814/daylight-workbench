@@ -10,6 +10,7 @@ import { compileRequest, agyUsage } from './protocol.js';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AgyAuth } from './auth.js';
+import { attachAgyMedia } from './media.js';
 import { headerDeadline } from '../shared/header-deadline.js';
 import { readJson } from '../shared/store.js';
 import { SseParser } from '../shared/llm/sse.js';
@@ -25,6 +26,7 @@ export class AgyProvider {
   constructor({ dataDir, fetchImpl = fetch, auth }) {
     Object.assign(this, { fetchImpl, auth:auth||new AgyAuth({dataDir,fetchImpl}) });
     this.file = path.join(dataDir, 'agy/settings.json'); this.catalogCache=new CatalogCache();this.signatures = new Map(); this.settings=modelSettings(this.file);bindAccountCatalog(this,{reset:()=>this.signatures.clear()});
+    attachAgyMedia(this);
   }
   get cache(){return this.catalogCache.value;}
   async call(method, body, signal, owner) {

@@ -8,7 +8,7 @@ import { diagnosticError, protocolFor } from './contracts.js';
 import {GenerationSpeed,summarizeSpeeds} from './generation-speed.js';
 
 // Select fields here rather than persisting event payloads from five protocols.
-const metadata = ['origin', 'provider', 'model', 'sourceModel', 'streaming', 'sourceRevision', 'upstreamModel', 'reportedModel', 'upstreamProtocol', 'execution', 'effort', 'requestedTier', 'actualTier', 'upstreamStatus', 'retries', 'keyId', 'requestedTemperature', 'effectiveTemperature', 'promptCacheTtl', 'promptCacheReason'];
+const metadata = ['origin', 'provider', 'model', 'sourceModel', 'streaming', 'sourceRevision', 'upstreamModel', 'reportedModel', 'upstreamProtocol', 'execution', 'effort', 'requestedTier', 'actualTier', 'upstreamStatus', 'retries', 'keyId', 'requestedTemperature', 'effectiveTemperature', 'promptCacheTtl', 'promptCacheReason', 'mediaOperation'];
 const counters = ['inputTokens', 'outputTokens', 'totalTokens', 'cacheReadTokens', 'cacheWriteTokens', 'costUsdTicks'];
 const count = n => Number.isFinite(n) && n >= 0;
 const detailCounters = ['cached_tokens', 'cache_write_tokens', 'audio_tokens', 'reasoning_tokens', 'accepted_prediction_tokens', 'rejected_prediction_tokens'];

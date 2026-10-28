@@ -1,0 +1,173 @@
+{
+  "layouts": [
+    {
+      "width": 1360,
+      "source": "agy",
+      "modelHeading": {
+        "x": 281,
+        "y": 615,
+        "width": 1036,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 692,
+        "titleX": 304,
+        "toggleRight": 1290,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 1360,
+      "source": "grok",
+      "modelHeading": {
+        "x": 281,
+        "y": 615,
+        "width": 1036,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 692,
+        "titleX": 304,
+        "toggleRight": 1290,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 1360,
+      "source": "codex",
+      "modelHeading": {
+        "x": 281,
+        "y": 615,
+        "width": 1036,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 692,
+        "titleX": 304,
+        "toggleRight": 1290,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 800,
+      "source": "agy",
+      "modelHeading": {
+        "x": 236,
+        "y": 606,
+        "width": 538,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 683,
+        "titleX": 259,
+        "toggleRight": 747,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 800,
+      "source": "grok",
+      "modelHeading": {
+        "x": 236,
+        "y": 606,
+        "width": 538,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 683,
+        "titleX": 259,
+        "toggleRight": 747,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 800,
+      "source": "codex",
+      "modelHeading": {
+        "x": 236,
+        "y": 606,
+        "width": 538,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 683,
+        "titleX": 259,
+        "toggleRight": 747,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 390,
+      "source": "agy",
+      "modelHeading": {
+        "x": 18,
+        "y": 818,
+        "width": 354,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 895,
+        "titleX": 41,
+        "toggleRight": 353,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 390,
+      "source": "grok",
+      "modelHeading": {
+        "x": 18,
+        "y": 818,
+        "width": 354,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 895,
+        "titleX": 41,
+        "toggleRight": 353,
+        "toggleWidth": 48
+      }
+    },
+    {
+      "width": 390,
+      "source": "codex",
+      "modelHeading": {
+        "x": 18,
+        "y": 818,
+        "width": 354,
+        "height": 76
+      },
+      "controls": {
+        "summaryY": 895,
+        "titleX": 41,
+        "toggleRight": 353,
+        "toggleWidth": 48
+      }
+    }
+  ],
+  "errors": [],
+  "checks": [
+    "接入配置默认折叠，空格展开，收起密钥隐藏",
+    "图像模型通过键盘停用后保留焦点，刷新与切换来源保留设置",
+    "保存失败回滚并保留焦点，可重试",
+    "刷新加载中保留旧列表，错误保留旧列表，空列表有提示，再次刷新恢复",
+    "刷新按钮不触发折叠",
+    "7 个来源共用标题布局，3 个媒体来源共用勾选布局，1360/800/390 无横向溢出",
+    "方向键切换来源，无媒体模型来源反复切换仍隐藏媒体区域",
+    "390 宽度接入配置展开无溢出",
+    "视频模型停用后进入未启用分组，可重新启用"
+  ],
+  "scope": "隔离数据目录；浏览器使用模拟账号与响应；媒体设置保存使用实际 Provider；未发送真实生成请求",
+  "validation": {
+    "fullSuite": {
+      "passed": 645,
+      "failed": 0
+    },
+    "targetedSuite": {
+      "passed": 7,
+      "failed": 0
+    },
+    "check": "362 JS/MJS files and 4 contract scripts passed",
+    "diffCheck": "passed"
+  }
+}

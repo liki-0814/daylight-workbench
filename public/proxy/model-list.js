@@ -4,13 +4,10 @@ import {capacityLimit,capacityOptions,fastSetting} from './model-options.js';
 import {selectField} from '../components/select.js';
 import {disclosureSection,mountDisclosures,refreshButton,setRefreshState} from '../components/section.js';
 import {renderModelSpeed,updateModelSpeeds} from '../components/model-speed.js';
+import {modelGroups,modelHeading} from '../components/model-row.js';
+export {modelGroups} from '../components/model-row.js';
 export {renderModelSpeed,updateModelSpeeds} from '../components/model-speed.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function modelGroups(models,row,{open=false,selected=m=>m.enabled!==false}={}) {
-  const enabled=models.map((m,i)=>({m,i})).filter(({m})=>selected(m));
-  const disabled=models.map((m,i)=>({m,i})).filter(({m})=>!selected(m));
-  return enabled.map(({m,i})=>row(m,i)).join('')+(disabled.length?`<details class="proxy-disabled-models" ${open?'open':''}><summary>未启用模型 <span>${disabled.length}</span></summary>${disabled.map(({m,i})=>row(m,i)).join('')}</details>`:'');
-}
 
 function modelSummary(m){
  const context=m.contextWindow||m.contextWindows?.find(w=>w.isDefault)?.length;
@@ -20,9 +17,6 @@ function modelSummary(m){
 }
 export function updateModelSummary(row,model){
  row.querySelector('[data-model-summary]').outerHTML=modelSummary(model);
-}
-function modelHeading(m,selection){
- return `<div class="proxy-model-heading"><div>${esc(m.displayName||m.upstreamId||m.id)}<small>${esc(m.id)}</small></div><label class="proxy-checkbox ui-first-line-slot">${selection}启用</label></div>`;
 }
 function capacityFields(m,field){
  return ['contextWindow','maxOutputTokens'].map(name=>field(name,name==='contextWindow'?'上下文':'最大输出',m[name]??capacityLimit(m,name)??'',capacityOptions(m,name),!capacityLimit(m,name))).join('');

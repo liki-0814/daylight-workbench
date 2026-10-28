@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { GrokAuth, authError } from './auth.js';
 import { compileRequest, decodeStream, invalid,renderNativeStream,renderNativeResponse } from './protocol.js';
 import { readJson, writeJson } from '../shared/store.js';
+import { attachGrokMedia } from './media.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
 const catalogSchemaVersion=2;
@@ -24,6 +25,7 @@ export class GrokProvider {
   constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth({fetchImpl}) }) {
     Object.assign(this, { fetchImpl, auth });
     this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));bindAccountCatalog(this,{caches:[this.catalogCache,this.quotaCatalogCache]});
+    attachGrokMedia(this);
   }
   async call(endpoint, body, signal, credential, retried = false, observe = () => {}) {
     const a = credential || await this.auth.credential();

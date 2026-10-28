@@ -53,3 +53,19 @@ export function modelSettings(file){
   await writeJson(file,settings);
  })};
 }
+
+// Media and chat models use the same persistent enable/disable preference.
+export function bindMediaModelSettings(provider){
+ const catalog=provider.mediaModels;
+ provider.mediaModels=async()=>{
+  const [models,settings]=await Promise.all([catalog(),provider.settings.read()]);
+  return models.map(model=>({...model,enabled:!(settings.disabled||[]).includes(model.id)}));
+ };
+ provider.setMediaModel=async input=>{
+  const invalid=message=>Object.assign(new Error(message),{status:400,code:'invalid_request'});
+  const model=(await provider.mediaModels()).find(model=>model.id===input.id);
+  if(!model)throw invalid('模型不存在');
+  await provider.settings.save(model,input,{fields:['enabled'],invalid});
+  return provider.mediaModels();
+ };
+}

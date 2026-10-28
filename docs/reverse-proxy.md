@@ -19,12 +19,13 @@ Qoder、AGY、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，�
 ## 公共服务与 Qoder / AGY
 
 - 默认监听 `127.0.0.1:4319`，端口可配置。OpenAI Base URL 为 `http://127.0.0.1:4319/v1`，Anthropic Base URL 为 `http://127.0.0.1:4319`。
-- 提供 `/v1/models`、`/v1/chat/completions`、`/v1/responses`、`/v1/messages`，支持流式响应。客户端必须发送页面中的 API Key（Bearer 或 `x-api-key`）。
+- 提供 `/v1/models`、`/v1/chat/completions`、`/v1/responses`、`/v1/messages`，以及图像和视频的 `/v1/images/generations`、`/v1/images/edits`、`/v1/videos/generations`、`/v1/videos/{id}`。文本支持流式响应。客户端必须发送页面中的 API Key（Bearer 或 `x-api-key`）。图像和视频模型不出现在 `/v1/models`。 来源页的“图像与视频”支持逐个启用或停用，设置自动保存；停用后拒绝新的生成请求，已提交的视频任务仍可查询。公共“接入配置”默认折叠，展开后可复制地址、密钥与请求示例。
 - Qoder 使用 PKCE 浏览器授权，登录成功后自动保存并刷新令牌。AGY 通过 Google 官方 OAuth 网页独立登录，使用本机 `localhost:51121/oauth-callback` 回调、state 和 PKCE；回调服务只监听 `127.0.0.1`，取消、过期和关闭会释放端口。令牌存入 Daylight 自有的 `agy-oauth` Keychain 项，续期复用公共账号机制，不启动 CLI。
 - AGY 登录及续期优先使用本机 OAuth 客户端配置，默认路径为 `~/.config/daylight/agy-oauth-clients.json`，可用 `DAYLIGHT_AGY_OAUTH_CLIENTS_FILE` 指定其他路径。默认文件不存在时，自动从 PATH、`~/.local/bin/agy`、Homebrew 路径或系统／用户 Applications 下的官方 Antigravity 安装中只读识别 consumer 客户端参数；仅接受已知公开客户端指纹对应的一对参数，不执行 CLI、不读取账号令牌、不写入原客户端配置。指纹不匹配时不会猜测其他 Google 客户端。手动文件按 `consumer` / `gcp` 保存 `client_id` 和 `client_secret`，建议权限为 `0600`；网页登录使用 `consumer`。显式指定但无效的配置仍报错，避免静默切换客户端。源码和安装包不包含这些参数；既无可识别安装也无配置时给出明确提示，原登录保留。
 - 兼容升级时，没有 Daylight 独立凭据才尝试一次导入旧 CLI 登录文件或旧版 Keychain。可读取且有效的账号复制到 Daylight；原记录不修改、不删除。旧凭据不可读取不阻止新网页登录。退出会阻止以后重新导入，避免已退出的账号自动恢复。此后续期仅更新 Daylight 凭据，CLI 切换账号不会自动替换 Daylight 登录。
 - Google 授权成功后还要通过 AGY 项目和模型目录检查。未开通、账号权限/资格失败与登录失效分别提示，不把目录成功当作真实推理成功。推理直接请求上游，不启动 Agent 对话；页面连接检查不发推理请求。
 - 模型名不加来源前缀，后台按名称分发。同名模型对外只显示一次，在“模型路由”设置主用和备用顺序；可重试故障仅在输出开始前尝试备用。显式会话标识可绑定成功来源，没有会话标识时固定优先级。AGY 模型目录直接读取上游推荐模型及具体推理档位，保留上游提供的 CLI 公共别名和模型路由，缓存 5 分钟，点击刷新可立即重新发现；额度直接读取上游共享额度汇总，展示 Claude/GPT、Gemini 的 5 小时和 7 天周期。
+- Gemini 图像走 `/v1/images/generations` 和 `/v1/images/edits`，使用同一把 Google 登录，请求发到 `daily-cloudcode-pa.googleapis.com/v1internal:generateContent`。已登录即转发 `gemini-3-pro-image`、`gemini-3.1-flash-image`、`gemini-3.1-flash-image-preview`、`gemini-2.5-flash-image-preview`。这些 id 不进入聊天目录。上游返回图像字节，默认以 `b64_json` 交给客户端。
 - AGY 支持文本、base64 图片、工具调用/结果回传、`tool_choice`、`temperature`、`top_p`、`top_k`、停止序列与输出长度。Claude 与 Gemini tiered 模型支持 `low/medium/high`：Chat 使用 `reasoning_effort`，Responses 使用 `reasoning.effort`，Messages 使用 `output_config.effort`；页面可保存默认强度，请求参数优先。Gemini 按通用规则合并：同一基础 ID 仅末尾 `low/medium/high/xhigh/max` 档位不同，且本机发现至少两档时，自动合为一个模型，无需逐版本配置。可选强度以实际发现档位为准；请求参数优先于页面默认值，自动默认取 medium（若无则 high）。Flash 使用 tiered 模型加思考档位；Pro 按档位选择各自的上游模型和上游提供的思考预算。3.1 Pro 仅 low/high，不提供 medium。
 - Claude 支持 `thinking: {type: "adaptive"}`、`{type: "enabled", budget_tokens: 1024}`（预算至少 1024 且小于 `max_tokens`）和 `{type: "disabled"}`；OpenAI 协议可使用 `reasoning_effort: "none"` / `reasoning.effort: "none"` 关闭。手动预算不与 effort 混用。Messages 流式/非流式保留思考块签名，可用于下一轮。工具签名仍在当前进程内保存，重启后应开启新工具会话。
 - AGY 不把 `max/xhigh` 降级为 `high`；上游不接受的档位明确报错。显式 `cache_control`、缓存 TTL、上下文长度覆盖、结构化输出、服务端会话续接等未适配参数返回错误；不承诺完整 Anthropic/OpenAI API 等价。
@@ -52,6 +53,8 @@ Grok 与其他来源共用地址、Key 和运行开关。Daylight 通过 xAI OID
 - Pi 推荐 `openai-responses`，也可使用 `openai-completions`。如使用 `anthropic-messages`，推理需配置 `compat.forceAdaptiveThinking=true`、关闭显式缓存标记（`cacheRetention: none`）；Grok 不接受 Claude 风格的手动 thinking 预算。用户的现有 Pi 配置不会自动修改。
 - Grok 模型设置与目录缓存保存在 Daylight 数据目录的 `grok/`；真实请求记录仍在共享 `qoder/usage.json`，按实际来源归属。上游未知最大输出不会写入固定硬上限。
 
+图像和视频使用同一次 Grok 登录，走 `cli-chat-proxy.grok.com` 的 `/images/generations`、`/images/edits`、`/videos/generations`。本机入口是 `/v1/images/generations`、`/v1/images/edits`、`/v1/videos/generations` 和 `/v1/videos/{id}`。模型包括 `grok-imagine-image-2.0`、`grok-imagine-image`、`grok-imagine-image-quality`、`grok-imagine-video-1.5`、`grok-imagine-video-1.5-lite` 和 `grok-imagine-video`。这些 id 不进入聊天目录、模型路由或 Pi 同步。来源页在聊天模型下面单独列出它们。视频任务保存在数据目录的 `proxy/media-jobs.json`，只记录任务号和状态，不记录提示词或图片。
+
 Grok 输出预算为可选项：请求未传且没有历史默认预算时，不向上游发送 `max_output_tokens`，不增加固定 token 上限。历史已保存预算仍作为默认值，客户端显式值优先；统一页面不再单独提供预算输入框，容量选择的语义见下文。订阅通道能力以其在线目录和实际返回为准，不能用公开 API 的规格替换。流式请求采用五分钟无数据超时，收到数据后重新计时，不因总时长超过五分钟截断持续输出。
 
 历史验收（2026-09-30）：四个在线模型文本推理通过；grok-4.7 的图片、结构化输出、函数工具回传、网页/X 搜索通过，彼时安装的 Pi 通过三种协议的工具与多轮回传。该记录来自统一架构重构前，不代表 0.4.0 已完成相同真实账号回归。
@@ -65,6 +68,7 @@ Codex 标签通过 [Sign in with ChatGPT 的开源客户端流程](https://devel
 - 推荐使用 `/v1/responses`，支持原生流式事件、图片、function 工具调用和完整历史回传。工具由调用方执行；加密 reasoning 项原样保留。Chat/Messages 采用有限协议转换，不能表示的字段明确报错。
 - Codex 通道不接受显式 `max_output_tokens`（包括其他协议转换来的输出预算）、`previous_response_id`、服务端 conversation、`store=true` 和当前未适配的采样参数。多轮携带完整历史。上下文来自账号在线模型目录，未知最大输出不编造。
 - Fast 映射到 `service_tier: priority`，与 reasoning effort 独立。请求记录分别保存请求档位与实际档位。应以上游回显的实际档位为准，不能仅凭请求成功认定 Fast 已生效。
+- 图像生成和编辑走 `/v1/images/generations` 与 `/v1/images/edits`，使用同一把 ChatGPT 登录，但请求发到 `https://chatgpt.com/backend-api/codex/images/generations` 和 `/images/edits`。公开的 `api.openai.com` 图像接口会拒绝这把套餐令牌。若返回 `hardened_oauth_rule_missing` 或 `no_matching_rule`，且本机 `~/.codex/auth.json` 的邮箱与 Daylight 登录相同，则只读取其中的访问令牌和账号号再请求一次，不读取或保存里面的 API Key，也不改写这个文件。已转发 `gpt-image-2.5-flare`、`gpt-image-2.5-sunburst` 及各自的 `2026-09-08` 快照、`chatgpt-image-latest`、`gpt-image-2` 及其 `2026-04-21` 快照、`gpt-image-1.5`、`gpt-image-1-mini`。没有 `gpt-image-2.5` 这个裸 id，也不转发已关闭的 `gpt-image-1`。文本请求仍走 `api.openai.com/v1/responses`，并继续拒绝托管工具 `image_generation`。这些图像模型不进入聊天目录。
 
 ## 自定义来源
 

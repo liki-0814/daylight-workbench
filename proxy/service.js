@@ -13,6 +13,7 @@ import {readJson,writeJson,serial} from './shared/store.js';
 import {createModelMetadata} from './shared/model-metadata.js';
 import {createProviders} from './providers.js';
 import {createGateway,fail} from './gateway.js';
+import {createMediaJobs} from './shared/media-jobs.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
@@ -61,7 +62,8 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   let listener, state = 'stopped', startedAt = null, lastError = '';
   const mutate = serial(), active = new Set(), finishing = new Set();
   const calibration=await TokenCalibration.load(path.join(dataDir,'proxy/token-estimates.json'));
-  const gateway=createGateway({getSettings:()=>settings,router,registry,sourceState,records,active,finishing,calibration});
+  const jobs=createMediaJobs(dataDir);
+  const gateway=createGateway({getSettings:()=>settings,router,registry,sourceState,records,active,finishing,calibration,jobs});
   const status = async () => {
     const account = await accounts.load();
     return { state, startedAt, activeRequests: active.size, port: settings.port, autoStart: settings.autoStart,
@@ -139,7 +141,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       const result=await response.json();return{message:`连接正常，${result.data.length} 个模型可用（未发送推理请求）`};
     },
   };
-  const management=createManagement({registry,router,sourceState,records,viewSettings,status,sources,service,pi,metadata,getTools:()=>tools});
+  const management=createManagement({registry,router,sourceState,records,viewSettings,status,sources,service,pi,metadata,jobs,getTools:()=>tools});
   const tools=createProxyTools({dataDir,custom,discoverCustom:id=>management.discoverCustom(id,{withKeys:true}),getSources:sources,getRoutes:()=>router.routes(),call:management.call,readConfiguration:createLegacyReader(management.call)});
   const handle=management.handle;
   // Startup errors belong to this module, never prevent task management from opening.

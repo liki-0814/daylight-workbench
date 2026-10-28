@@ -7,6 +7,7 @@ import {CodexAuth} from './auth.js';
 import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import path from 'node:path';
 import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
+import {attachCodexMedia} from './media.js';
 
 export const sourceDescription = {id:'codex',name:'Codex',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'ChatGPT 网页登录 · 无需 CLI',loginLabel:'Continue with ChatGPT'},capabilities:{quota:true,editableSource:false,requestOutputBudget:false,pi:{'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'}},nativeProtocols:['responses']};
 
@@ -15,7 +16,7 @@ export class CodexProvider {
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
   snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:!!this.auth.account,connected:!!this.cache&&this.cache.identity===this.auth.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
   constructor({dataDir,fetchImpl=fetch,auth,...options}) {
-    this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth({dataDir,fetchImpl,...options});this.settings=modelSettings(path.join(dataDir,'codex-proxy/settings.json'));this.catalogCache=new CatalogCache();bindAccountCatalog(this);
+    this.fetchImpl=fetchImpl;this.auth=auth||new CodexAuth({dataDir,fetchImpl,...options});this.settings=modelSettings(path.join(dataDir,'codex-proxy/settings.json'));this.catalogCache=new CatalogCache();bindAccountCatalog(this);attachCodexMedia(this);
   }
   get cache(){return this.catalogCache.value;}
   async quota(){return this.auth.quota();}

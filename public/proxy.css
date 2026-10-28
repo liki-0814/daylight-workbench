@@ -113,9 +113,6 @@
   line-height: var(--font-label-line);
 }
 
-.proxy-connect {
-  padding: var(--panel-block-inset) var(--proxy-panel-inset);
-}
 
 .proxy-section-title {
   display: flex;

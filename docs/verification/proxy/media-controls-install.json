@@ -1,0 +1,26 @@
+{
+  "installedPath": "/Applications/Daylight.app",
+  "version": "0.5.5",
+  "backup": ".local/app-backups/20261029-005206-media-controls",
+  "signature": "valid",
+  "matchesBuild": true,
+  "stateUnchanged": true,
+  "aiVersionUnchanged": true,
+  "missingDataFiles": [],
+  "changedDataFiles": [
+    "grok/catalog.json"
+  ],
+  "proxy": {
+    "state": "running",
+    "port": 4319,
+    "activeRequests": 0
+  },
+  "ui": [
+    "接入配置默认折叠",
+    "AGY 图像模型显示启用勾选框"
+  ],
+  "tests": [
+    "原生 CRUD/鉴权/重启集成通过",
+    "Node/native 24 项合同与全部共享资源通过"
+  ]
+}

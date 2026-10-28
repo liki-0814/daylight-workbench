@@ -24,7 +24,7 @@ export function createLegacyReader(call) {
 const legacy={qoder:'qoder',agy:'agy',grok:'grok','codex-proxy':'codex','kimi-proxy':'kimi'};
 
 // Direct operations and HTTP routes share this boundary. No fake req/res for tools.
-export function createManagement({registry,router,sourceState,records,viewSettings,status,sources,service,pi,metadata,getTools}){
+export function createManagement({registry,router,sourceState,records,viewSettings,status,sources,service,pi,metadata,jobs,getTools}){
  const {providers,custom}=registry;
  function provider(id){const p=providers[id];if(!p)fail('来源不存在或未启用',404);return p;}
  async function listModels(id,refresh=false){return router.refreshSource(id,refresh);}
@@ -59,9 +59,11 @@ export function createManagement({registry,router,sourceState,records,viewSettin
  async function auth(id,operation){
   const p=provider(id),description=registry.snapshot(id);
   if(!description.authentication.operations.includes(operation))fail('来源不支持此认证操作',404);
-  if(description.authentication.requiresStoppedService&&['login','logout'].includes(operation))return service.accountChange(operation,async()=>{const result=await p.auth[operation]();if(operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}return result;});
+  if(description.authentication.requiresStoppedService&&['login','logout'].includes(operation))return service.accountChange(operation,async()=>{const account=p.auth?.identity;const result=await p.auth[operation]();if(operation==='logout'){if(account)await jobs?.dropAccount(id,account);sourceState.invalidate(id);router.invalidateSource(id);}return result;});
   if(operation==='refresh'){const result=await p.auth?.refresh?.();return result?.url?result:catalogStatus(id,true);}
+  const account=p.auth?.identity;
   const result=await p.auth[operation]();
+  if(operation==='logout'&&account)await jobs?.dropAccount(id,account);
   if(result.authorized||operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}
   if(result.authorized&&p.status)return{...result,...await catalogStatus(id,true)};
   return result;
@@ -104,6 +106,11 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   const p=provider(id);
   if(operation==='status')return catalogStatus(id,query.has('refresh'));
   if(operation==='models')return{models:await listModels(id,query.has('refresh'))};
+  if(operation==='media-models')return{models:typeof p.mediaModels==='function'?await p.mediaModels():[]};
+  if(operation==='media-models/setting'){
+   if(typeof p.setMediaModel!=='function')fail('来源不支持图像与视频设置',400);
+   return{models:await p.setMediaModel(input)};
+  }
   if(operation==='models/setting')return updateModel(id,input);
   if(operation==='quota'){
    if(!registry.snapshot(id).capabilities.quota)fail('来源不支持额度查询',404);
@@ -153,8 +160,10 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   }
   const customMatch=/^\/api\/(?:custom-proxy|proxy\/custom)\/(sources(?:\/(?:save|delete|discover|key|credentials))?|save|delete|discover|key|test|credentials)$/.exec(route);
   if(customMatch){const op=customMatch[1].replace(/^sources\//,'');requireMethod(op==='sources'?'GET':'POST');return customOperation(op,input);}
-  const match=/^\/api\/proxy\/sources\/([^/]+)\/(status|models(?:\/setting)?|quota|auth\/(?:login|poll|cancel|refresh|logout)|check)$/.exec(route);
-  if(match){const op=match[2];requireMethod(['status','models','quota','auth/poll'].includes(op)?'GET':'POST');return sourceOperation(decodeURIComponent(match[1]),op,input,query);}
+  const jobMatch=/^\/api\/proxy\/media\/jobs\/([^/]+)$/.exec(route);
+  if(jobMatch){requireMethod('DELETE');const removed=await jobs?.remove(decodeURIComponent(jobMatch[1]));if(!removed)fail('任务不存在',404);return{ok:true};}
+  const match=/^\/api\/proxy\/sources\/([^/]+)\/(status|models(?:\/setting)?|media-models(?:\/setting)?|quota|auth\/(?:login|poll|cancel|refresh|logout)|check)$/.exec(route);
+  if(match){const op=match[2];requireMethod(['status','models','media-models','quota','auth/poll'].includes(op)?'GET':'POST');return sourceOperation(decodeURIComponent(match[1]),op,input,query);}
   const old=/^\/api\/([^/]+)\/(.+)$/.exec(route),id=old&&legacy[old[1]],op=old?.[2];
   if(!id)fail('接口不存在',404);provider(id);
   if(id==='qoder'){

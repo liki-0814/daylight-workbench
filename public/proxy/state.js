@@ -24,13 +24,23 @@ export function createProxyState(api){
   const epoch=row.epoch,controller=new AbortController();row.controller=controller;
   const task=(async()=>{
    // Shared reference metadata has no provider owner.
-   const result=id===null?await api.request(kind+(refresh?'?refresh=1':''),undefined,{signal:controller.signal}):id==='custom'?await api.custom(kind,undefined,{signal:controller.signal}):await api.source(id,kind+(refresh&&kind==='models'?'?refresh=1':''),undefined,{signal:controller.signal});
+   const refreshed=refresh&&(kind==='models'||kind==='media-models')?'?refresh=1':'';
+   const result=id===null?await api.request(kind+(refresh?'?refresh=1':''),undefined,{signal:controller.signal}):id==='custom'?await api.custom(kind,undefined,{signal:controller.signal}):await api.source(id,kind+refreshed,undefined,{signal:controller.signal});
    if(disposed||epoch!==row.epoch)return undefined;row.value=kind==='models'?result.models:result;row.at=Date.now();return row.value;
   })();row.pending=task;
   try{return await task;}finally{if(row.pending===task){row.pending=null;row.controller=null;}}
  }
  async function setModel(id,input){
   const result=await api.source(id,'models/setting',input);invalidate(id);resources.set(id+':models',{epoch:0,at:Date.now(),value:result.models});await refresh();return result.models;
+ }
+ async function setMediaModel(id,input){
+  const identity=source(id)?.identityKey;
+  const result=await api.source(id,'media-models/setting',input);
+  if(identity!==source(id)?.identityKey)return result;
+  const key=id+':media-models',row=resources.get(key);
+  if(row){row.epoch++;row.controller?.abort();}
+  resources.set(key,{epoch:0,at:Date.now(),value:result});
+  return result;
  }
  async function auth(id,operation){
   if(authTasks.has(id)&&!['cancel','logout'].includes(operation))return authTasks.get(id);
@@ -53,5 +63,5 @@ export function createProxyState(api){
    try{await auth(id,'poll');}catch(e){if(logins.get(id)===login){logins.set(id,{...login,error:e.message});notify();}}
   }));
  }
- return {api,refresh,resource,cachedResource:(id,kind)=>resources.get(id+':'+kind)?.value,setModel,auth,pollLogins,cancel,invalidate,source,login:id=>logins.get(id),get status(){return status;},get sources(){return sources;},get error(){return error;},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},dispose(){disposed=true;for(const row of resources.values())row.controller?.abort();listeners.clear();}};
+ return {api,refresh,resource,cachedResource:(id,kind)=>resources.get(id+':'+kind)?.value,setModel,setMediaModel,auth,pollLogins,cancel,invalidate,source,login:id=>logins.get(id),get status(){return status;},get sources(){return sources;},get error(){return error;},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},dispose(){disposed=true;for(const row of resources.values())row.controller?.abort();listeners.clear();}};
 }

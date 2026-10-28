@@ -8,14 +8,9 @@ import { sidebarContent } from './components/sidebar.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
 import { settingsPage } from './components/settings-page.js';
 import { mountAppUpdate } from './app-update.js';
-import { createProxyPage } from './proxy.js';
-import { createCLIPage } from './cli-config.js';
-import { createExtensionsPage } from './extensions/page.js';
-import { createAIPage } from './ai.js';
 import { mountAISettings } from './ai-settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
 import { createTaskClient } from './task-client.js';
-import { createCalendarPage } from './calendar/page.js';
 import { taskRow as renderTaskRow } from './components/task-row.js';
 import { createTaskPicker } from './components/task-picker.js';
 import { createDialogShell } from './components/dialog-shell.js';
@@ -25,7 +20,6 @@ import { createFocusWidget } from './focus/widget.js';
 import { createFocusPanel } from './focus/panel.js';
 import { createTodaySummary } from './focus/today-summary.js';
 import { createTaskSummary } from './focus/task-summary.js';
-import { createStatisticsPage } from './focus/statistics-page.js';
 import { mountFocusSettings } from './focus/settings.js';
 import { pageViews, isPage, sectionFor, esc, empty } from './app-helpers.js';
 
@@ -43,6 +37,65 @@ const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), get
 let cliPage, extensionsPage;
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, appUpdatePanel, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
+const pageLoads = new Map();
+function ensurePage(key, load) {
+  if (!pageLoads.has(key)) pageLoads.set(key, load().catch(error => { pageLoads.delete(key); throw error; }));
+  return pageLoads.get(key);
+}
+function ensureProxy() {
+  return ensurePage('proxy', async () => {
+    const { createProxyPage } = await import('./proxy.js');
+    proxyPage = createProxyPage({ getToken: () => token });
+    app.append(proxyPage.element);
+  });
+}
+function ensureCLI() {
+  return ensurePage('cli', async () => {
+    const { createCLIPage } = await import('./cli-config.js');
+    cliPage = createCLIPage({ getToken: () => token });
+    app.append(cliPage.element);
+  });
+}
+function ensureExtensions() {
+  return ensurePage('extensions', async () => {
+    const { createExtensionsPage } = await import('./extensions/page.js');
+    extensionsPage = createExtensionsPage({ getToken: () => token, onDiscuss(options) { navigate('ai'); void ensureAI().then(() => aiPage.openExtension(options)); } });
+    app.append(extensionsPage.element);
+  });
+}
+function ensureAI() {
+  return ensurePage('ai', async () => {
+    const { createAIPage } = await import('./ai.js');
+    aiPage = createAIPage({ getToken: () => token, onChanged: change => change?.kind === 'extensions' ? extensionsPage?.controller.refresh(true) : change?.kind === 'focus' ? focusController?.refresh() : refreshExternal() });
+    app.append(aiPage.element);
+  });
+}
+function ensureStatistics() {
+  return ensurePage('focus', async () => {
+    const { createStatisticsPage } = await import('./focus/statistics-page.js');
+    statisticsPage = createStatisticsPage({ client: focusClient, controller: focusController, getTaskSnapshot: () => ({ state, version }), onRoute(hash) { focusSelection = parseRoute(hash, state); history.replaceState(null, '', '/' + hash); }, openTask: id => openModal({ type: 'task', id }), notify });
+    app.append(statisticsPage.element);
+    statisticsPage.updateRoute(focusSelection);
+  });
+}
+function ensureCalendar() {
+  return ensurePage('calendar', async () => {
+    const { createCalendarPage } = await import('./calendar/page.js');
+    calendarPage = createCalendarPage({ getTaskSnapshot: () => ({ state, version }), taskClient, openTask: (id, options = {}) => openModal({ type: 'task', id, ...options }), openPicker: openTaskPicker, confirmTaskCompletion, onRoute(hash, { replace, route }) { calendar = { ...route }; history[replace ? 'replaceState' : 'pushState'](null, '', '/' + hash); }, notify });
+    app.append(calendarPage.element);
+  });
+}
+function opening(message) {
+  if (!taskRoot) return;
+  taskRoot.hidden = false;
+  taskRoot.innerHTML = `<p class="loading">${esc(message)}</p>`;
+}
+function loadFailed(message, retry) {
+  if (!taskRoot) return;
+  taskRoot.hidden = false;
+  taskRoot.innerHTML = `<div class="load-error"><h1>暂时无法打开此页面</h1><p>${esc(message)}</p><button class="secondary" type="button" data-retry>重试</button></div>`;
+  taskRoot.querySelector('[data-retry]').onclick = retry;
+}
 
 function writeTaskURL(replace = false) {
   if (!isPage(view)) history[replace ? 'replaceState' : 'pushState'](null, '', '/' + (view === 'calendar' ? calendarRoute(calendar) : taskRoute(view, tab, query)));
@@ -223,7 +276,7 @@ function render() {
   proxyPage?.setSettingsVisible(view === 'settings');
   if (view === 'extensions') {
     proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
-    if (!extensionsPage) { extensionsPage = createExtensionsPage({ getToken: () => token, onDiscuss(options) { navigate('ai'); void aiPage.openExtension(options); } }); app.append(extensionsPage.element); }
+    if (!extensionsPage) { opening('正在打开扩展管理…'); void ensureExtensions().then(() => { if (view === 'extensions') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     extensionsPage.updateRoute(parseRoute(location.hash, state)); extensionsPage.setVisible(true);
     document.title = 'Daylight · 扩展管理'; return;
   }
@@ -231,7 +284,7 @@ function render() {
     proxyPage?.setVisible(false);
     aiPage?.setVisible(false);
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!cliPage) { cliPage = createCLIPage({ getToken: () => token }); app.append(cliPage.element); }
+    if (!cliPage) { opening('正在打开 CLI 配置…'); void ensureCLI().then(() => { if (view === 'cli') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     cliPage.setVisible(true);
     document.title = 'Daylight · CLI 配置';
     return;
@@ -239,20 +292,20 @@ function render() {
   if (view === 'ai') {
     proxyPage?.setVisible(false);
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!aiPage) { aiPage = createAIPage({ getToken: () => token, onChanged: change => change?.kind === 'extensions' ? extensionsPage?.controller.refresh(true) : change?.kind === 'focus' ? focusController?.refresh() : refreshExternal() }); app.append(aiPage.element); }
+    if (!aiPage) { opening('正在打开 AI 对话…'); void ensureAI().then(() => { if (view === 'ai') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     aiPage.setVisible(true); document.title = 'Daylight · AI 对话'; return;
   }
   aiPage?.setVisible(false);
   if (view === 'proxy') {
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!proxyPage) { proxyPage = createProxyPage({ getToken: () => token }); app.append(proxyPage.element); }
+    if (!proxyPage) { opening('正在打开反向代理…'); void ensureProxy().then(() => { if (view === 'proxy') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     proxyPage.setVisible(true);
     document.title = 'Daylight · 反向代理';
     return;
   }
   if (view === 'settings') {
     proxyPage?.setVisible(false);
-    if (!proxyPage) { proxyPage = createProxyPage({ getToken: () => token }); app.append(proxyPage.element); }
+    if (!proxyPage) { opening('正在打开设置…'); void ensureProxy().then(() => { if (view === 'settings') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     if (!settingsRoot) {
       settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
@@ -270,11 +323,11 @@ function render() {
   proxyPage?.setVisible(false);
   if (settingsRoot) settingsRoot.hidden = true;
   if (view === 'focus') {
-    if (!statisticsPage) { statisticsPage=createStatisticsPage({client:focusClient,controller:focusController,getTaskSnapshot:()=>({state,version}),onRoute(hash){focusSelection=parseRoute(hash,state);history.replaceState(null,'','/'+hash);},openTask:id=>openModal({type:'task',id}),notify}); app.append(statisticsPage.element); statisticsPage.updateRoute(focusSelection); }
+    if (!statisticsPage) { opening('正在打开专注统计…'); void ensureStatistics().then(() => { if (view === 'focus') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     statisticsPage.updateState(); statisticsPage.setVisible(true);document.title='Daylight · 专注统计';return;
   }
   if (view === 'calendar') {
-    if (!calendarPage) { calendarPage = createCalendarPage({getTaskSnapshot:()=>({state,version}),taskClient,openTask:(id,options={})=>openModal({type:'task',id,...options}),openPicker:openTaskPicker,confirmTaskCompletion,onRoute(hash,{replace,route}){calendar={...route};history[replace?'replaceState':'pushState'](null,'','/'+hash);},notify}); app.append(calendarPage.element); }
+    if (!calendarPage) { opening('正在打开日历…'); void ensureCalendar().then(() => { if (view === 'calendar') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     calendarPage.updateRoute(calendar); calendarPage.setVisible(true); document.title='Daylight · 日历'; return;
   }
   document.title = 'Daylight · 任务管理';
@@ -516,10 +569,16 @@ async function openDesktopRoute() {
   if (document.querySelector('dialog[open]') || busy) return;
   const route = parseRoute(location.hash, state);
   if (route.page !== 'task') {
+    if (route.page === 'proxy' || route.page === 'settings') await ensureProxy();
+    if (route.page === 'ai') await ensureAI();
+    if (route.page === 'cli') await ensureCLI();
+    if (route.page === 'extensions') await ensureExtensions();
+    if (route.page === 'focus') await ensureStatistics();
     if(route.page==='focus')focusSelection=route;
     navigate(route.page, false);if(route.page==='focus')statisticsPage?.updateRoute(route);
     if (route.page === 'ai' && (route.conversation || route.scope)) await aiPage.open({ conversation: route.conversation, scope: route.scope });
   } else {
+    if (route.view === 'calendar') await ensureCalendar();
     if (route.explicit || !sidebarRoot) { if(route.view==='calendar') calendar={...calendar,...route}; navigate(route.explicit ? route.view : 'all', false); tab=route.status; query=route.query; lastTaskView=view; render(); if(route.view==='calendar') writeTaskURL(true); }
     if (route.missing) notify(route.missing);
     if (route.taskId) openModal({ type:'task',id:route.taskId });
@@ -532,6 +591,16 @@ window.addEventListener('popstate', openDesktopRoute);
 
 try {
   if (location.pathname === '/proxy.html') history.replaceState(null, '', `/${location.hash || '#proxy'}`);
-  await load(); initializeFocus(); void refreshAppRelease(); await openDesktopRoute();
+  await load();
+  const openingRoute = parseRoute(location.hash, state);
+  if (openingRoute.page === 'task' && openingRoute.view !== 'calendar') {
+    view = openingRoute.explicit ? openingRoute.view : 'all';
+    tab = openingRoute.status || 'open';
+    query = openingRoute.query || '';
+    lastTaskView = view;
+  } else if (openingRoute.page === 'task' && openingRoute.view === 'calendar') view = 'calendar';
+  else if (openingRoute.page !== 'task') view = openingRoute.page;
+  render();
+  initializeFocus(); void refreshAppRelease(); await openDesktopRoute();
 }
 catch (error) { app.innerHTML = `<div class="load-error"><h1>暂时无法打开工作台</h1><p>${esc(error.message)}。请确认本地服务正在运行。</p><a href="/">重新连接</a></div>`; }

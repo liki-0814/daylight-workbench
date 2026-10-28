@@ -9,6 +9,7 @@ import {renderChatStream,renderChatResponse} from './shared/protocols/openai-cha
 import {renderResponsesStream,renderResponsesResponse} from './shared/protocols/openai-responses.js';
 import {renderMessagesStream,renderMessagesResponse} from './shared/protocols/anthropic-messages.js';
 import {renderModelList} from './shared/protocols/models-list.js';
+import {jsonType,matchMedia,serveMedia} from './shared/media.js';
 export const equalSecret = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export function send(res, code, value) {
   if (res.destroyed) return;
@@ -38,7 +39,7 @@ const adapters = {
 };
 const errorStatus = code => code === '429' ? 429 : ['10605', '503'].includes(code) ? 503 : ['model_not_found', 'invalid_request'].includes(code) ? 400 : 502;
 
-export function createGateway({getSettings,router,registry,sourceState,records,active,finishing,calibration}) {
+export function createGateway({getSettings,router,registry,sourceState,records,active,finishing,calibration,jobs}) {
   const providers=registry.providers;
   return async function gateway(req, res) {
     const settings=getSettings();
@@ -62,6 +63,18 @@ export function createGateway({getSettings,router,registry,sourceState,records,a
     const disconnected = () => { if (!res.writableEnded) controller.abort(); };
     req.on('error', disconnected); res.on('error', disconnected); res.on('close', disconnected);
     try {
+      const media = matchMedia(route, req.method);
+      if (media?.unknown) return send(res, 404, { error: { message: '接口不存在' } });
+      if (media) {
+        if (!jobs) return send(res, 404, { error: { message: '接口不存在' } });
+        let mediaBody;
+        if (req.method === 'POST') {
+          if (!jsonType(req.headers['content-type'])) fail('Content-Type 必须为 application/json');
+          mediaBody = await readBody(req, media.limit);
+        }
+        await serveMedia({ match: media, body: mediaBody, res, send, registry, jobs, records, signal: controller.signal, sourceState });
+        return;
+      }
       if (route === '/models' && req.method === 'GET') return send(res, 200, renderModelList(await router.listModels()));
       const adapter = adapters[route];
       if (!adapter || req.method !== 'POST') return send(res, 404, { error: { message: '接口不存在' } });
