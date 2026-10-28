@@ -26,6 +26,7 @@ import { pageViews, isPage, sectionFor, esc, empty } from './app-helpers.js';
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
 const toast = document.querySelector('#toast');
+let heldTaskFocus = null;
 let state, version, token, busy = false, today = localDate();
 let view = 'all', query = '', tab = 'open', modal = null, toastTimer;
 let refreshing = false, taskReturn = null, aiActivity = '';
@@ -33,7 +34,7 @@ const formDrafts = new Map();
 let aiPage, calendarPage, focusController, focusClient, focusWidget, todayPanel, todaySummary, statisticsPage, focusSettings, taskSummary, switchShell, pickerShell, picker, legacyPicker;
 let focusSelection = {};
 let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
-const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { busy = value; render(); dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
+const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, appUpdatePanel, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
@@ -340,6 +341,7 @@ function render() {
   const old = oldTasks();
   const grouped = view === 'all';
   const taskList = grouped ? [...state.projects.map(p => ({...p, tasks:tasks.filter(t=>t.projectId===p.id)})), {id:null,name:'未归类',color:'neutral',tasks:tasks.filter(t=>t.projectId===null)}].filter(p=>p.tasks.length).map(p=>`<section class="task-project-group"><div class="task-group-heading"><button data-view="${esc(p.id === null ? 'inbox' : 'project:'+p.id)}"><i class="dot ${esc(p.color)}"></i><strong>${esc(p.name)}</strong><span>${p.tasks.length}</span>${icon('arrow')}</button></div>${p.tasks.map(t=>taskRow(t,{grouped:true})).join('')}</section>`).join('') : tasks.map(t=>taskRow(t,{reorder:view==='today'&&!query})).join('');
+  const focusTarget = taskFocusTarget() || heldTaskFocus;
   taskRoot.innerHTML = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> ${view === 'today' ? '今天' : '任务'}${currentProject ? ' / ' + esc(currentProject.name) : ''}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索${esc(rangeLabel)}…" aria-label="搜索${esc(rangeLabel)}中的${tab === 'done' ? '已完成' : '待办'}任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
     <div class="workspace task-workspace ${view === 'today' ? 'today-workspace' : ''}">
@@ -357,6 +359,25 @@ function render() {
       </section></div><footer class="workspace-footer"><span>本地任务管理</span><span>${state.projects.length} 个项目 · ${state.tasks.length} 项任务</span></footer>
     </div>`;
   if(view==='today'&&!query&&todayPanel){ const column=taskRoot.querySelector('.task-column');column.prepend(todaySummary.element);column.prepend(todayPanel.element); }
+  restoreTaskFocus(focusTarget);
+}
+
+// The task view is rebuilt after every action; keep keyboard focus on the control that was used instead of dropping it to <body>.
+function taskFocusTarget() {
+  const element = document.activeElement;
+  if (!element || element === document.body || !taskRoot.contains(element) || element.id === 'search') return null;
+  if ([todayPanel?.element, todaySummary?.element].some(panel => panel?.contains(element))) return { node: element };
+  const attributes = ['data-action', 'data-id', 'data-tab', 'data-view', 'data-project', 'data-range'].filter(name => element.hasAttribute(name));
+  const selector = element.tagName.toLowerCase() + attributes.map(name => `[${name}="${CSS.escape(element.getAttribute(name))}"]`).join('');
+  const row = element.closest('[data-task]')?.dataset.task;
+  return { selector: attributes.length ? selector : '', row, label: element.getAttribute('aria-label') || '' };
+}
+function restoreTaskFocus(target) {
+  if (!target) return;
+  if (target.node) { if (target.node.isConnected) target.node.focus({ preventScroll: true }); return; }
+  const next = (target.selector && taskRoot.querySelector(target.selector))
+    || (target.row && taskRoot.querySelector(`[data-task="${CSS.escape(target.row)}"] .task-text`));
+  next?.focus({ preventScroll: true });
 }
 
 function renderDialog() {
