@@ -22,9 +22,10 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');
   const sourceState = new SourceState();
+  let records;
   const router = new ModelRouter(providers, {
     routesFile: path.join(directory, 'model-routes.json'), cacheRoutesMs: 300000,
-    onCatalog: (id, models, error, provider) => { sourceState.checked(id, provider, models, error); if (error && error.status !== 401) scheduleCatalogRetry(); },
+    onCatalog: (id, models, error, provider) => { sourceState.checked(id, provider, models, error); if(!error&&models)records?.setModelCatalog(id,models.map(model=>({...model,referencePricing:metadata.referencePricing(id,model)}))); if (error && error.status !== 401) scheduleCatalogRetry(); },
     getSourceHealth: () => sources(),
     retrySource: (id, model) => id.startsWith('custom:') ? management.testCustom(id.slice(7), model) : undefined,
   });
@@ -47,7 +48,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   if (!Number.isInteger(settings.port) || settings.port < 1024 || settings.port > 65535 || typeof settings.autoStart !== 'boolean' || !/^[a-f0-9]{64}$/.test(settings.apiKey)) throw new Error('代理配置无效，原文件已保留');
   await writeJson(serviceFile, settings);
   await registry.sync();
-  const records = await RequestRecords.load(usageFile);
+  records = await RequestRecords.load(usageFile);
   const viewSettings=createViewSettings(path.join(directory,'view.json'));
   const sources = async () => {
     const account = await accounts.load();

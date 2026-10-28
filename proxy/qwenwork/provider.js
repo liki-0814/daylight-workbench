@@ -4,7 +4,7 @@ import {sourceSnapshot, modelCapabilities} from '../shared/contracts.js';
 import {bindAccountCatalog, checkAccountCatalog} from '../shared/account-catalog.js';
 import {modelSettings, applyModelSettings} from '../shared/model-settings.js';
 import {operationError} from '../shared/operation-error.js';
-import {invalid, convertRequest} from '../shared/protocol.js';
+import {invalid, prepareUpstreamRequest} from '../shared/protocol.js';
 import {headerDeadline} from '../shared/header-deadline.js';
 import {AccountStore, QwenWorkAuth, CLIENT_ID, authError, allowedAuthHost, httpsOrigin, qwenWorkHeaders, officeRequest, assertEnvironment} from './auth.js';
 import {adaptChatModes} from './models.js';
@@ -124,7 +124,7 @@ export class QwenWorkProvider {
     if (!model) throw invalid('千问办公模型已停用或不存在');
     const target = model.nativeProtocols.includes(protocol) ? protocol : model.nativeProtocols[0];
     observe({stage: 'conversion', upstreamModel: model.upstreamId});
-    const body = protocol === target ? structuredClone(raw) : convertRequest(raw, protocol, target);
+    const body = prepareUpstreamRequest(raw, protocol, target);
     body.model = model.upstreamId;
     const effort = (target === 'responses' ? body.reasoning?.effort : target === 'messages' ? body.output_config?.effort : body.reasoning_effort) ?? model.effort;
     if (effort !== undefined) {

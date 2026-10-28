@@ -11,6 +11,7 @@ import {fixture,catalog} from '../fixtures/copilot/upstream.mjs';
 import {createWorkbench} from '../server.mjs';
 import {definitions} from '../ai/tools/definitions.mjs';
 import {createProxyState} from '../public/proxy/state.js';
+import {applyMessageCachePolicy} from '../proxy/shared/prompt-cache.js';
 async function setup(t,loggedIn=false){const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-copilot-'));const f={...fixture({dataDir,loggedIn}),dataDir};t.after(async()=>{await f.beforeCleanup?.();f.p.close();await rm(dataDir,{recursive:true,force:true,maxRetries:3});});return f;}
 const safe=value=>{for(const secret of ['synthetic-github-secret','synthetic-copilot-secret','synthetic-device-secret'])assert(!JSON.stringify(value).includes(secret));};
 
@@ -67,7 +68,7 @@ test('Responses uses native Messages for adaptive thinking and preserves long hi
  const before=structuredClone(raw),result=await f.p.forward(raw,'responses'),call=f.calls.at(-1),body=JSON.parse(call.init.body);
  assert.equal(result.protocol,'messages');assert(call.url.endsWith('/v1/messages'));
  assert.deepEqual(body.thinking,{type:'adaptive',display:'summarized'});assert.equal(body.output_config.effort,'high');assert.equal(body.max_tokens,8192);
- assert.equal(body.system,raw.instructions);assert.equal(body.messages[0].content[0].text,raw.input[0].content);assert.equal(body.messages.at(-1).content[0].text,'sentinel-END');assert.deepEqual(raw,before);
+ assert.deepEqual(body.system,[{type:'text',text:raw.instructions,cache_control:{type:'ephemeral'}}]);assert.equal(body.messages[0].content[0].text,raw.input[0].content);assert.equal(body.messages.at(-1).content[0].text,'sentinel-END');assert.deepEqual(raw,before);
 });
 test('explicit disabled native thinking is not overridden by a saved effort',async t=>{
  const f=await setup(t,true);f.setModels({data:[{...catalog.data[0],supported_endpoints:['/v1/messages']}]});
@@ -111,7 +112,7 @@ test('token-based Copilot quota uses AI Credits and precise balances; legacy rem
 test('native Anthropic models retain thinking/signatures and a new user turn is user-initiated',async t=>{
  const f=await setup(t,true);f.setModels({data:[{...catalog.data[0],supported_endpoints:['/v1/messages']}]});
  const raw={model:'copilot-chat-fixture',messages:[{role:'assistant',content:[{type:'thinking',thinking:'private reasoning',signature:'opaque'},{type:'text',text:'Hello'}]},{role:'user',content:'Next'}],max_tokens:100,thinking:{type:'adaptive'},stream:false};
- const result=await f.p.forward(raw,'messages');assert.equal(result.protocol,'messages');assert(f.calls.at(-1).url.endsWith('/v1/messages'));assert.deepEqual(JSON.parse(f.calls.at(-1).init.body),raw);assert.equal(f.calls.at(-1).init.headers['X-Initiator'],'user');assert.equal(f.calls.at(-1).init.headers['anthropic-version'],'2023-06-01');
+ const before=structuredClone(raw),result=await f.p.forward(raw,'messages');assert.equal(result.protocol,'messages');assert(f.calls.at(-1).url.endsWith('/v1/messages'));assert.deepEqual(JSON.parse(f.calls.at(-1).init.body),applyMessageCachePolicy(structuredClone(raw)));assert.deepEqual(raw,before);assert.equal(f.calls.at(-1).init.headers['X-Initiator'],'user');assert.equal(f.calls.at(-1).init.headers['anthropic-version'],'2023-06-01');
 });
 test('saved GitHub login survives restart and token proxy-ep selects the validated account endpoint',async t=>{
  const f=await setup(t,true),auth=new CopilotAuth({secrets:f.secrets,fetchImpl:async()=>Response.json({token:'tid=test;proxy-ep=proxy.individual.githubcopilot.com;exp=test',expires_at:Math.floor(Date.now()/1000)+3600})});

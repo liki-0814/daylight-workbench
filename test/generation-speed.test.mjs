@@ -25,6 +25,18 @@ function chunks(f) {
   f.trace.event({type:'finish',reason:'stop'});
 }
 
+test('call frequency includes short and failed requests, excludes diagnostics and isolates source model and revision across restart',async t=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'model-frequency-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const base={provider:'source',sourceRevision:'current',sourceModel:'model',upstreamModel:'actual',outcome:'completed'};
+  const rows=Array.from({length:1001},()=>({...base}));
+  const file=path.join(dir,'usage.json'),records=new RequestRecords(file,rows);
+  assert.deepEqual(records.frequencies('source','current'),[{model:'model',requests:1000}]);
+  for(const extra of [{outcome:'failed'}, {origin:'test'}, {provider:'other'}, {sourceRevision:'old'}, {sourceModel:'other-model'}, {sourceModel:undefined,upstreamModel:'legacy'}])await records.append({...base,...extra});
+  const reloaded=await RequestRecords.load(file);
+  assert.deepEqual(reloaded.frequencies('source','current'),[{model:'model',requests:995},{model:'other-model',requests:1},{model:'legacy',requests:1}]);
+  assert.deepEqual(reloaded.frequencies('missing','current'),[]);
+});
+
 test('passive speed combines reasoning and text, excludes initial/trailing waits and treats chunks as multiple tokens',()=>{
   const f=traceFixture();chunks(f);f.at(9000);
   const row=f.finish();

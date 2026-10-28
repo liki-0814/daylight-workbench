@@ -16,6 +16,9 @@ async function fixture(t) {
   const preload=path.join(root,'isolated-runtime.mjs');
   await writeFile(preload,`import {Secrets} from ${JSON.stringify(new URL('../proxy/shared/secrets.js',import.meta.url).href)};
 Secrets.prototype.run=async action=>{if(action==='get')return{};throw Error('Web fixture cannot change Keychain');};
+import {EnvHttpProxyAgent} from ${JSON.stringify(new URL('../node_modules/undici/index.js',import.meta.url).href)};
+const dispatch=EnvHttpProxyAgent.prototype.dispatch;
+EnvHttpProxyAgent.prototype.dispatch=function(options,handler){const host=new URL(String(options.origin)).hostname;if(!['127.0.0.1','localhost','[::1]'].includes(host))throw Error('External network disabled in Web fixture');return dispatch.call(this,options,handler);};
 const original=globalThis.fetch;globalThis.fetch=(input,options)=>{const url=new URL(typeof input==='string'||input instanceof URL?input:input.url);return ['127.0.0.1','localhost','[::1]'].includes(url.hostname)?original(input,options):Promise.reject(Error('External network disabled in Web fixture'));};
 `);
   const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';

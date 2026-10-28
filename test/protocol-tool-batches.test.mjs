@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {convertRequest} from '../proxy/shared/protocol.js';
 import {CopilotProvider} from '../proxy/copilot/provider.js';
+import {AdaptivePromptCache} from '../proxy/shared/adaptive-prompt-cache.js';
+import {applyMessageCachePolicy} from '../proxy/shared/prompt-cache.js';
 
 const image = n => `data:image/png;base64,${Buffer.from(`image-${n}`).toString('base64')}`;
 const call = id => ({type:'function_call',call_id:id,name:'read',arguments:'{}'});
@@ -91,7 +93,7 @@ test('Copilot sends complete parallel image batches with agent and vision header
 });
 
 test('Copilot native tool image results preserve payloads and agent/vision semantics',async()=>{
-  const provider=new CopilotProvider({dataDir:'/unused-fixture',auth:{epoch:1,credential:async()=>({identity:'fixture',token:'fixture',baseUrl:'https://fixture.invalid'})}});
+  const provider=new CopilotProvider({dataDir:'/unused-fixture',promptCache:new AdaptivePromptCache(),auth:{epoch:1,credential:async()=>({identity:'fixture',token:'fixture',baseUrl:'https://fixture.invalid'})}});
   provider.listModels=async()=>[{id:'fixture',enabled:true,nativeProtocols:['responses','messages'],reasoningEfforts:[]}];
   provider.catalogCache.value={identity:'fixture'};
   let calls=0;
@@ -99,7 +101,7 @@ test('Copilot native tool image results preserve payloads and agent/vision seman
     const original=request([call('A'),call('B'),result('B',[0]),result('A',[1])]);
     const raw=protocol==='responses'?original:convertRequest(original,'responses','messages');
     provider.fetchImpl=async(_url,options)=>{
-      calls++;assert.deepEqual(JSON.parse(options.body),raw);
+      calls++;assert.deepEqual(JSON.parse(options.body),protocol==='messages'?applyMessageCachePolicy(structuredClone(raw)):raw);
       assert.equal(options.headers['X-Initiator'],'agent');assert.equal(options.headers['copilot-vision-request'],'true');
       return new Response('fixture');
     };

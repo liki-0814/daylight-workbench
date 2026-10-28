@@ -182,7 +182,13 @@ test('authenticated public diagnostics preserve wire responses and capture both 
   assert.equal(customRows[0].httpStatus, 200); assert.equal(customRows[0].outcome, 'failed'); assert.equal(customRows[0].error.category, 'interrupted');
   const truncated = data.records.find(r => r.model === 'q');
   assert.equal(truncated.outcome, 'truncated'); assert.equal(truncated.usage.cacheWriteTokens, undefined);
-  assert.doesNotMatch(await readFile(path.join(dir, 'qoder/usage.json'), 'utf8'), /private-key|private-prompt|opaque_field/);
+  // Records become visible in memory before the serialized disk writes finish.
+  let persisted = '';
+  for (let i = 0; i < 100 && !persisted.includes('"cancelled"'); i++) {
+    persisted = await readFile(path.join(dir, 'qoder/usage.json'), 'utf8').catch(() => '');
+    if (!persisted.includes('"cancelled"')) await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.doesNotMatch(persisted, /private-key|private-prompt|opaque_field/);
   assert.equal((await api('/api/proxy/requests?source=' + encodeURIComponent('custom:' + saved.id))).matched, 2);
   assert.equal((await fetch(base + '/api/proxy/requests?limit=0', { headers: { 'x-workbench-token': token } })).status, 400);
   await api('/api/custom-proxy/save', { ...saved, apiKey: '', enabled: false });

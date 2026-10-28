@@ -9,6 +9,13 @@ export function stripModelMetadata(model){
  delete next.modelMetadata;delete next.priceInfo;return next;
 }
 const rates=pricing=>({input:validRate(pricing?.input)?pricing.input:null,output:validRate(pricing?.output)?pricing.output:null,cacheRead:validRate(pricing?.cached_input)?pricing.cached_input:null,cacheWrite:validRate(pricing?.cache_write)?pricing.cache_write:null});
+// Complete tier schedule for reference-cost statistics. Unlike Pi `cost.tiers` it keeps upper bounds,
+// so bounded or gapped catalog tiers stay interpretable. A tier applies when `above < input <= atMost`.
+export function referenceTierSchedule(reference,{cacheWriteIncluded=false}={}){
+ if(!Array.isArray(reference?.pricing_tiers)||!reference.pricing_tiers.length)return undefined;
+ const includes=cacheWriteIncluded||reference.billing?.cache_write_mode==='included_in_input';
+ return reference.pricing_tiers.map(tier=>{const rate=rates(tier);if(includes&&!validRate(rate.cacheWrite))rate.cacheWrite=rate.input;return{above:tier.input_tokens_gt,atMost:tier.input_tokens_lte??null,...rate};});
+}
 export function piModelCost(cost){
  if(!cost||!fields.every(field=>validRate(cost[field])))return undefined;
  const result=Object.fromEntries(fields.map(field=>[field,cost[field]]));

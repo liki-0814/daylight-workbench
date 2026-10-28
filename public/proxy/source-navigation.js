@@ -7,6 +7,7 @@ export const proxyTabs=[
  ...proxySourceTabs,
  {id:'routes',name:'模型路由',kind:'utility'},
  {id:'quota',name:'账户额度',kind:'utility'},
+ {id:'statistics',name:'使用统计',kind:'utility'},
 ];
 export function visibleTabs(tabs,hiddenSources=[]){return tabs.filter(tab=>tab.kind==='utility'||!hiddenSources.includes(tab.id));}
 export function resolveTab(tabs,selected){return tabs.some(tab=>tab.id===selected)?selected:tabs[0]?.id;}

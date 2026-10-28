@@ -1,3 +1,5 @@
+import path from 'node:path';
+import {UsageHistory} from './usage-history.js';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { readJson, writeJson, serial } from './store.js';
@@ -6,7 +8,7 @@ import { diagnosticError, protocolFor } from './contracts.js';
 import {GenerationSpeed,summarizeSpeeds} from './generation-speed.js';
 
 // Select fields here rather than persisting event payloads from five protocols.
-const metadata = ['origin', 'provider', 'model', 'sourceModel', 'streaming', 'sourceRevision', 'upstreamModel', 'reportedModel', 'upstreamProtocol', 'execution', 'effort', 'requestedTier', 'actualTier', 'upstreamStatus', 'retries', 'keyId', 'requestedTemperature', 'effectiveTemperature'];
+const metadata = ['origin', 'provider', 'model', 'sourceModel', 'streaming', 'sourceRevision', 'upstreamModel', 'reportedModel', 'upstreamProtocol', 'execution', 'effort', 'requestedTier', 'actualTier', 'upstreamStatus', 'retries', 'keyId', 'requestedTemperature', 'effectiveTemperature', 'promptCacheTtl', 'promptCacheReason'];
 const counters = ['inputTokens', 'outputTokens', 'totalTokens', 'cacheReadTokens', 'cacheWriteTokens', 'costUsdTicks'];
 const count = n => Number.isFinite(n) && n >= 0;
 const detailCounters = ['cached_tokens', 'cache_write_tokens', 'audio_tokens', 'reasoning_tokens', 'accepted_prediction_tokens', 'rejected_prediction_tokens'];
@@ -24,7 +26,7 @@ export class RequestTrace {
   startGeneration(info) {
     this.generation = new GenerationSpeed(this.now);
     this.upstreamStarted = this.now();
-    for (const key of ['usage','firstContentMs','reportedModel','actualTier','requestedTier','effort']) delete this.entry[key];
+    for (const key of ['usage','firstContentMs','reportedModel','actualTier','requestedTier','effort','promptCacheTtl','promptCacheReason']) delete this.entry[key];
     this.observe(info);
   }
   observe(info) {
@@ -82,12 +84,15 @@ export class RequestRecords {
   static async load(file) {
     const rows = await readJson(file, []);
     if (!Array.isArray(rows)) throw new Error('用量记录无效，原文件已保留');
-    return new RequestRecords(file, rows);
+    const records=new RequestRecords(file, rows);
+    records.history=await UsageHistory.load(path.join(path.dirname(file),'usage-history.json'),rows);
+    return records;
   }
   async append(row) {
     this.rows = [...this.rows, row].slice(-1000);
+    const snapshot=this.rows;
     await this.write(async () => {
-      try { await writeJson(this.file, this.rows); this.error = ''; }
+      try { await this.history?.append(row); await writeJson(this.file, snapshot); this.history?.checkpoint(snapshot); this.error = this.history?.error || ''; }
       catch { this.error = '请求记录保存失败，请检查数据目录权限'; }
     });
   }
@@ -95,7 +100,22 @@ export class RequestRecords {
     const filtered = this.rows.filter(r => (!source || r.provider === source) && (!model || r.model === model) && (!outcome || r.outcome === outcome));
     return { records: filtered.slice(-limit).reverse(), retained: this.rows.length, matched: filtered.length, error: this.error };
   }
+  setModelCatalog(source,models) {
+    if(this.history?.setModelCatalog(source,models))void this.write(()=>this.history.flush());
+  }
+  statistics(query={}) { if(!this.history)throw Object.assign(Error('历史统计未启用'),{status:503});return this.history.report(query,this.rows); }
   speeds(source, revision) { return summarizeSpeeds(this.rows, source, revision); }
+  frequencies(source, revision) {
+    const models = new Map();
+    for (const row of this.rows) {
+      if (row.provider !== source || row.sourceRevision !== revision || row.origin === 'test') continue;
+      const rawModel = row.sourceModel || row.upstreamModel || row.model;
+      if (!rawModel) continue;
+      const model=this.history?.canonicalModel(source,String(rawModel))||rawModel;
+      models.set(model, (models.get(model) || 0) + 1);
+    }
+    return [...models].map(([model, requests]) => ({model, requests}));
+  }
   legacy() {
     return { ...this.query(), today: this.rows.filter(row => new Date(row.time).toDateString() === new Date().toDateString()) };
   }

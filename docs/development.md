@@ -110,6 +110,8 @@ npm run test:native-focus-notifications
 
 `proxy/shared/request-parameters.js` 负责推理参数规则，`model-settings.js` 负责默认设置的串行原子写入，`catalog-cache.js` 负责目录缓存、身份隔离和失效中的并发请求；其余 shared 模块提供协议转换、路由、凭据存储、额度规范化和请求记录。
 
+提示缓存分为 `prompt-cache.js` 的协议断点和 `adaptive-prompt-cache.js` 的频率学习。支持的来源复用 `AdaptivePromptCache.request`，只提供能力判断、隔离范围与发送回调；不在来源内另写时长状态机或 TTL 回退。学习记录只存有界哈希元数据，调用方显式策略优先；详见[缓存架构](proxy-architecture.md#提示缓存的职责与状态)。
+
 前端 `public/proxy.js` 只组装页面与标签。`public/proxy/api.js` 统一 HTTP 请求，`state.js` 管理轮询与资源状态，`service-panel.js` 管理公共服务，`source-page.js` 按认证描述与模型能力渲染来源；`model-list.js` / `model-options.js`、`quota-panel.js` 共享模型和额度组件；`custom-sources.js` 保留自定义来源的草稿、Key 权限及保存事务。模型路由也使用同一 API 客户端。
 
 新增来源通常只需注册来源描述并实现 `snapshot/listModels/execute/close`，即时模型设置、认证和额度按能力提供。公共推理入口接收原始请求，原生适配器保留字段，事件适配器使用 shared 协议解码，结果通过 `kind: response/events` 选择输出路径。完整文件职责、接口与问题记录见 [中转架构](proxy-architecture.md)。

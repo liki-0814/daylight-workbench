@@ -141,8 +141,9 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   if(route==='/api/proxy/view'){
    if(method==='POST')return viewSettings.save(input);requireMethod('GET');return viewSettings.read();
   }
+  if(route==='/api/proxy/statistics'){requireMethod('GET');return records.statistics(Object.fromEntries(query));}
   if(['/api/proxy/status','/api/proxy/sources','/api/proxy/requests'].includes(route)){
-   requireMethod('GET');if(route.endsWith('/status'))return{...await status(),recordsError:records.error};if(route.endsWith('/sources'))return{sources:(await sources()).map(source=>({...source,performance:records.speeds(source.id,source.revision)}))};
+   requireMethod('GET');if(route.endsWith('/status'))return{...await status(),recordsError:records.error};if(route.endsWith('/sources'))return{sources:(await sources()).map(source=>({...source,performance:records.speeds(source.id,source.revision),modelUsage:records.frequencies(source.id,source.revision)}))};
    const filters=Object.fromEntries(query),limit=filters.limit===undefined?100:Number(filters.limit);if(!Number.isInteger(limit)||limit<1||limit>1000)fail('记录数量需为 1–1000 的整数');return records.query({...filters,limit});
   }
   if(['/api/proxy/service','/api/proxy/settings','/api/proxy/key','/api/proxy/key/rotate','/api/proxy/check','/api/proxy/runtime'].includes(route)){

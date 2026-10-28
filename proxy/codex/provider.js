@@ -6,7 +6,7 @@ import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
 import {CodexAuth} from './auth.js';
 import {modelSettings,applyModelSettings} from '../shared/model-settings.js';
 import path from 'node:path';
-import {invalid,convertRequest} from '../shared/protocol.js';
+import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
 
 export const sourceDescription = {id:'codex',name:'Codex',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'ChatGPT 网页登录 · 无需 CLI',loginLabel:'Continue with ChatGPT'},capabilities:{quota:true,editableSource:false,requestOutputBudget:false,pi:{'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'}},nativeProtocols:['responses']};
 
@@ -37,7 +37,7 @@ export class CodexProvider {
     observe({stage:'discovery'});
     const model=(await this.listModels()).find(m=>m.id===raw.model&&m.enabled);if(!model)throw invalid('模型已停用或不存在');
     observe({stage:'authentication'});
-    const a=await this.auth.read(),epoch=this.auth.epoch;if(a.identity!==this.cache?.identity)throw Object.assign(Error('ChatGPT 账号已切换，请重试'),{status:401});observe({stage:'conversion'});const body=protocol==='responses'?structuredClone(raw):convertRequest(raw,protocol,'responses');
+    const a=await this.auth.read(),epoch=this.auth.epoch;if(a.identity!==this.cache?.identity)throw Object.assign(Error('ChatGPT 账号已切换，请重试'),{status:401});observe({stage:'conversion'});const body=prepareUpstreamRequest(raw,protocol,'responses');
     for(const k of ['previous_response_id','conversation','max_output_tokens','temperature','top_p','truncation','background','max_tool_calls','metadata','moderation','multi_agent','prompt','prompt_cache_retention','safety_identifier','top_logprobs','user'])if(body[k]!=null)throw invalid(`Codex 通道暂不支持 ${k}`,k);
     if(body.store===true)throw invalid('Codex 使用无状态历史，不支持 store=true','store');
     body.model=model.id;body.store=false;body.stream=true;body.instructions??='You are a helpful assistant.';

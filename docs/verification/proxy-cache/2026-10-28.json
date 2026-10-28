@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-28",
+  "timeZone": "Asia/Shanghai",
+  "provider": "copilot",
+  "model": "claude-opus-5.5",
+  "route": "CopilotProvider.forward → /v1/messages (real upstream)",
+  "request": {
+    "max_tokens": 1024,
+    "stream": false,
+    "thinking": {
+      "type": "adaptive"
+    },
+    "output_config": {
+      "effort": "low"
+    },
+    "system": "unique synthetic reference prefix per TTL; 450 reference records",
+    "cache_control": "explicit ephemeral with ttl 1h or 5m",
+    "user": "Reply with only OK."
+  },
+  "intermediateRefreshRequests": 0,
+  "cases": [
+    {
+      "ttl": "1h",
+      "initial": {
+        "mode": "initial",
+        "ttl": "1h",
+        "startedAt": "2026-10-28T05:21:49.137Z",
+        "completedAt": "2026-10-28T05:21:52.498Z",
+        "status": 200,
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 13101,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 13101,
+          "cache_read_input_tokens": 0,
+          "inference_geo": "global",
+          "input_tokens": 14,
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "speed": "standard"
+        }
+      },
+      "replay": {
+        "mode": "replay",
+        "ttl": "1h",
+        "startedAt": "2026-10-28T05:27:40.456Z",
+        "completedAt": "2026-10-28T05:27:44.015Z",
+        "status": 200,
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 13101,
+          "inference_geo": "global",
+          "input_tokens": 14,
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "speed": "standard"
+        }
+      },
+      "idleSeconds": 347.958
+    },
+    {
+      "ttl": "5m",
+      "initial": {
+        "mode": "initial",
+        "ttl": "5m",
+        "startedAt": "2026-10-28T05:21:52.500Z",
+        "completedAt": "2026-10-28T05:21:53.875Z",
+        "status": 200,
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 13101
+          },
+          "cache_creation_input_tokens": 13101,
+          "cache_read_input_tokens": 0,
+          "inference_geo": "global",
+          "input_tokens": 14,
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "speed": "standard"
+        }
+      },
+      "replay": {
+        "mode": "replay",
+        "ttl": "5m",
+        "startedAt": "2026-10-28T05:27:44.015Z",
+        "completedAt": "2026-10-28T05:27:45.363Z",
+        "status": 200,
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 13101
+          },
+          "cache_creation_input_tokens": 13101,
+          "cache_read_input_tokens": 0,
+          "inference_geo": "global",
+          "input_tokens": 14,
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "speed": "standard"
+        }
+      },
+      "idleSeconds": 350.14
+    }
+  ],
+  "scope": "Confirms reported one-hour writes and reuse after more than five idle minutes for this account/model; not a full sixty-minute retention test or proof for other upstreams.",
+  "policy": {
+    "translatedMessages": "default ephemeral (5m); no automatic upgrade",
+    "nativeMessages": "preserve caller cache policy exactly",
+    "openAIConversions": "preserve prompt_cache_key and prompt_cache_retention between Chat and Responses; reject retention conversion to Messages"
+  },
+  "sourceSha256": {
+    "proxy/shared/protocol.js": "19046f72a8abe2f40f93f93672b8b7e7eccf66afc2ca02b964f4d4d29f557ff9",
+    "proxy/shared/prompt-cache.js": "259adda656c44ab45fc90f61cf347a8d4193eef89371e2d02c3a6aca6818512d",
+    "proxy/copilot/provider.js": "7e9f349cab5f0e9c5bc0795fd53d55cb7ae10555f1c80d20378e3fb7eee64b98"
+  },
+  "validation": {
+    "targeted": "passed",
+    "fullSuite": "601 passed, 0 failed at concurrency 2",
+    "initialFullSuite": "598 passed; 2 timing failures; isolated rerun 9/9 passed",
+    "build": "npm run pack:mac passed; codesign --verify --deep --strict passed",
+    "check": "344 files syntax-checked, 4 contract scripts, 0 failed"
+  },
+  "delivery": {
+    "builtApp": "/Users/liki/liki_dev/daylight-workbench/dist/native/Daylight.app",
+    "installed": true,
+    "app": "/Applications/Daylight.app",
+    "verification": "2026-10-28-installed.json"
+  }
+}

@@ -1,6 +1,13 @@
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 export function renderModelSpeed(model){return `<p class="proxy-hint ui-model-speed" data-model-speed="${esc(model.id)}" data-speed-upstream="${esc(model.upstreamId||model.id)}">生成速度：等待实际请求</p>`;}
+export function sortModelsByFrequency(models,getUsage){
+ const count=model=>[...new Set(model.usageSources||[model.source])].reduce((total,source)=>{
+  const rows=getUsage(source);
+  return total+((rows.find(row=>row.model===model.id)||rows.find(row=>row.model===model.upstreamId))?.requests||0);
+ },0);
+ return models.map(model=>({model,count:count(model)})).sort((a,b)=>b.count-a.count).map(row=>row.model);
+}
 export function updateModelSpeeds(root,stats=[],{stale=false,loading=false}={}){
  for(const element of root.querySelectorAll('[data-model-speed]')){
   const groups=stats.filter(row=>(row.model===element.dataset.modelSpeed||row.upstreamModel===element.dataset.speedUpstream||row.model===element.dataset.speedUpstream)&&Number.isFinite(row.tokensPerSecond)&&row.samples>0),latest=groups[0];
@@ -14,7 +21,7 @@ export function updateModelSpeeds(root,stats=[],{stale=false,loading=false}={}){
 
 // Statistics have their own read lifecycle; they never enter Pi config/versioning.
 export function createModelSpeedFeed({api,onChange=()=>{},page=globalThis.document,repeat=globalThis.setInterval,stop=globalThis.clearInterval}){
- let sources=new Map(),loaded=false,error=false,visible=false,disposed=false,pending,controller,timer,epoch=0;
+ let sources=new Map(),usage=new Map(),loaded=false,error=false,visible=false,disposed=false,pending,controller,timer,epoch=0;
  const notify=()=>{if(!disposed)onChange();};
  function cancel(){epoch++;controller?.abort();controller=undefined;pending=undefined;}
  function refresh(){
@@ -26,7 +33,8 @@ export function createModelSpeedFeed({api,onChange=()=>{},page=globalThis.docume
     const result=await Promise.resolve().then(()=>api.request('sources',undefined,{signal}));
     if(disposed||current!==epoch)return;
     if(!Array.isArray(result.sources))throw Error('Invalid source statistics');
-    sources=new Map(result.sources.map(source=>[source.id,Array.isArray(source.performance)?source.performance:[]]));loaded=true;error=false;
+    sources=new Map(result.sources.map(source=>[source.id,Array.isArray(source.performance)?source.performance:[]]));
+    usage=new Map(result.sources.map(source=>[source.id,Array.isArray(source.modelUsage)?source.modelUsage:[]]));loaded=true;error=false;
    }catch(cause){if(!disposed&&current===epoch&&cause.name!=='AbortError')error=true;}
    finally{if(!disposed&&current===epoch){pending=undefined;controller=undefined;notify();}}
   })();
@@ -38,5 +46,5 @@ export function createModelSpeedFeed({api,onChange=()=>{},page=globalThis.docume
   void refresh();timer=repeat(()=>{void refresh();},3000);
  }
  page.addEventListener('visibilitychange',synchronize);
- return{refresh,get:source=>sources.get(source)||[],get loading(){return!loaded&&!error;},get stale(){return error;},setVisible(value){if(visible===value||disposed)return;visible=value;synchronize();},dispose(){disposed=true;visible=false;synchronize();page.removeEventListener('visibilitychange',synchronize);sources.clear();}};
+ return{refresh,get:source=>sources.get(source)||[],getUsage:source=>usage.get(source)||[],get loading(){return!loaded&&!error;},get stale(){return error;},setVisible(value){if(visible===value||disposed)return;visible=value;synchronize();},dispose(){disposed=true;visible=false;synchronize();page.removeEventListener('visibilitychange',synchronize);sources.clear();usage.clear();}};
 }

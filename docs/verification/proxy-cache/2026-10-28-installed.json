@@ -1,0 +1,157 @@
+{
+  "time": "2026-10-28T06:01:19.685Z",
+  "requests": [
+    {
+      "label": "converted-default-cache-write",
+      "startedAt": "2026-10-28T06:01:19.686Z",
+      "completedAt": "2026-10-28T06:01:21.706Z",
+      "status": 200,
+      "usage": {
+        "input_tokens": 13108,
+        "output_tokens": 4,
+        "total_tokens": 13112,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 13104
+        },
+        "output_tokens_details": {
+          "thinking_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "label": "converted-default-cache-read",
+      "startedAt": "2026-10-28T06:01:21.706Z",
+      "completedAt": "2026-10-28T06:01:23.002Z",
+      "status": 200,
+      "usage": {
+        "input_tokens": 13108,
+        "output_tokens": 4,
+        "total_tokens": 13112,
+        "input_tokens_details": {
+          "cached_tokens": 13104,
+          "cache_write_tokens": 0
+        },
+        "output_tokens_details": {
+          "thinking_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "label": "native-one-hour-cache-from-earlier-probe",
+      "startedAt": "2026-10-28T06:01:23.003Z",
+      "completedAt": "2026-10-28T06:01:24.115Z",
+      "status": 200,
+      "usage": {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 13101,
+        "inference_geo": "global",
+        "input_tokens": 14,
+        "output_tokens": 4,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "speed": "standard"
+      }
+    }
+  ],
+  "installedHash": "19046f72a8abe2f40f93f93672b8b7e7eccf66afc2ca02b964f4d4d29f557ff9",
+  "previousOneHourRequest": {
+    "mode": "replay",
+    "ttl": "1h",
+    "startedAt": "2026-10-28T05:27:40.456Z",
+    "completedAt": "2026-10-28T05:27:44.015Z",
+    "status": 200,
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 13101,
+      "inference_geo": "global",
+      "input_tokens": 14,
+      "output_tokens": 4,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "speed": "standard"
+    }
+  },
+  "oneHourIdleSeconds": 2018.988,
+  "installedModuleCacheHintRoundTrip": "passed",
+  "records": [
+    {
+      "time": "2026-10-28T06:01:23.013Z",
+      "provider": "copilot",
+      "model": "claude-opus-5.5",
+      "protocol": "messages",
+      "upstreamProtocol": "messages",
+      "outcome": "completed",
+      "usage": {
+        "cacheHitRate": 0.9989325200152497,
+        "cacheReadTokens": 13101,
+        "cacheWriteTokens": 0,
+        "inputTokens": 13115,
+        "outputDetails": {
+          "reasoning_tokens": 0
+        },
+        "outputTokens": 4
+      }
+    },
+    {
+      "time": "2026-10-28T06:01:21.716Z",
+      "provider": "copilot",
+      "model": "claude-opus-5.5",
+      "protocol": "responses",
+      "upstreamProtocol": "messages",
+      "outcome": "completed",
+      "usage": {
+        "cacheHitRate": 0.9996948428440647,
+        "cacheReadTokens": 13104,
+        "cacheWriteTokens": 0,
+        "inputTokens": 13108,
+        "outputDetails": {
+          "reasoning_tokens": 0
+        },
+        "outputTokens": 4
+      }
+    },
+    {
+      "time": "2026-10-28T06:01:19.699Z",
+      "provider": "copilot",
+      "model": "claude-opus-5.5",
+      "protocol": "responses",
+      "upstreamProtocol": "messages",
+      "outcome": "completed",
+      "usage": {
+        "cacheHitRate": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 13104,
+        "inputTokens": 13108,
+        "outputDetails": {
+          "reasoning_tokens": 0
+        },
+        "outputTokens": 4
+      }
+    }
+  ],
+  "finalStatus": {
+    "time": "2026-10-28T06:01:33.459Z",
+    "state": "running",
+    "activeRequests": 0,
+    "recordsError": ""
+  },
+  "installation": {
+    "app": "/Applications/Daylight.app",
+    "backup": "/Users/liki/Library/Application Support/Daylight/App Backups/cache-fix-20261028-140050/Daylight.app",
+    "signature": "codesign --verify --deep --strict passed",
+    "installedSourceHashMatchesWorkspace": true
+  }
+}

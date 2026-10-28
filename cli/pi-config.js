@@ -131,7 +131,7 @@ export function createPiConfig({ dataDir, getCatalog, getGateway, piDir = proces
     const rows = healthy.map(model => {
       const prior = provider.models?.find(m => matchesModel(model,m.id)), desired = modelConfig(model, {}, api, savedOverride(model,sync.modelOverrides));
       const same = prior && hash(prior) === hash(desired) && provider.baseUrl === gateway.baseUrl && provider.apiKey === gateway.apiKey;
-      return { ...model, state: !prior ? 'new' : same ? 'connected' : 'update', unavailableReason: unavailableReason(model, api), configuration: desired, overrides: savedOverride(model,sync.modelOverrides) || {} };
+      return { ...model, usageSources:modelSources[model.id] || [model.source], state: !prior ? 'new' : same ? 'connected' : 'update', unavailableReason: unavailableReason(model, api), configuration: desired, overrides: savedOverride(model,sync.modelOverrides) || {} };
     });
     for(const model of retained){
       const source=sync.modelSources?.[model.id]?.find(id=>failedIds.has(id))||sync.modelSources?.[model.id]?.[0]||'unknown';

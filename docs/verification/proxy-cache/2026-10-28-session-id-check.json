@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-28",
+  "timeZone": "Asia/Shanghai",
+  "historicalProxySample": {
+    "retainedRequests": 1000,
+    "sessionPresenceRecorded": false,
+    "actualSessionIdCoverageRate": null,
+    "reason": "Existing diagnostic records have no session-presence field; no traffic coverage percentage can be established."
+  },
+  "pi": {
+    "version": "1.4.0",
+    "defaultProvider": "daylight",
+    "api": "openai-responses",
+    "todayLocalSessions": 3,
+    "todayDaylightAssistantReplies": 129,
+    "claudeOpusReplies": 40,
+    "countMeaning": "Local Pi assistant messages, not gateway ingress requests or a measured ID coverage census",
+    "implementation": "SDK passes sessionManager.getSessionId() to the request options; Responses builder sets prompt_cache_key unless cacheRetention is none",
+    "syntheticPayloadProbe": {
+      "requests": 3,
+      "withPromptCacheKey": 3,
+      "sameSessionStable": true,
+      "differentSessionsDistinct": true,
+      "externalNetworkRequests": 0
+    }
+  },
+  "decision": {
+    "noSessionId": "5m, no content inference or persistent state",
+    "knownSessionId": "server timestamp gap >5 minutes selects 1h; no upper gap cutoff",
+    "installedApp": "Kept unchanged; adaptive changes have not been installed"
+  }
+}

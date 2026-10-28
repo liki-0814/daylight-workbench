@@ -6,6 +6,7 @@ import {SseParser} from './llm/sse.js';
 import {parseUsage,mergeUsage} from './llm/usage.js';
 import {toolTurns} from './tool-turns.js';
 import {upstreamError} from './upstream-error.js';
+import {applyMessageCachePolicy} from './prompt-cache.js';
 export const invalid=(message,param)=>Object.assign(new Error(message),{status:400,code:'invalid_request',param});
 const decoders={chat:decodeChatRequest,messages:decodeMessagesRequest,responses:decodeResponsesRequest};
 // Decode only when an event adapter needs canonical messages; native relays retain raw fields.
@@ -13,7 +14,7 @@ export function decodeRequest(raw,protocol){
  try{return {...decoders[protocol](protocol==='responses'?normalizeResponsesHints(raw):raw),raw};}
  catch{throw invalid('请求格式不正确，请检查消息与工具字段');}
 }
-const allowed={chat:'model messages tools tool_choice stream stream_options max_tokens max_completion_tokens reasoning_effort service_tier parallel_tool_calls store',responses:'model input instructions tools tool_choice stream max_output_tokens reasoning service_tier parallel_tool_calls store',messages:'model messages system tools tool_choice stream max_tokens thinking output_config'};
+const allowed={chat:'model messages tools tool_choice stream stream_options max_tokens max_completion_tokens reasoning_effort service_tier parallel_tool_calls store prompt_cache_key prompt_cache_retention',responses:'model input instructions tools tool_choice stream max_output_tokens reasoning service_tier parallel_tool_calls store prompt_cache_retention',messages:'model messages system tools tool_choice stream max_tokens thinking output_config'};
 function normalizeResponsesHints(raw){
   raw=structuredClone(raw);
   // These are optional output/cache hints, not resumable upstream state.
@@ -24,12 +25,22 @@ function normalizeResponsesHints(raw){
   if(Array.isArray(raw.input))raw.input=raw.input.filter(item=>!(item.type==='reasoning'&&item.id?.startsWith('rs_daylight-')&&!Object.hasOwn(item,'encrypted_content')&&Object.keys(item).every(k=>['type','id','summary'].includes(k))&&Array.isArray(item.summary)&&item.summary.every(p=>p.type==='summary_text'&&typeof p.text==='string')));
  return raw;
 }
+export function prepareUpstreamRequest(raw,from,to){
+ const body=convertRequest(raw,from,to);
+ return from!==to&&to==='messages'?applyMessageCachePolicy(body):body;
+}
 export function convertRequest(raw,from,to){
  if(from===to)return structuredClone(raw);
+ const cacheHints={};
+ for(const key of ['prompt_cache_key','prompt_cache_retention'])if(Object.hasOwn(raw,key)){
+  if(raw[key]!==null&&typeof raw[key]!=='string')throw invalid(`${key} 需为字符串`,key);
+  cacheHints[key]=raw[key];
+ }
  if(from==='responses')raw=normalizeResponsesHints(raw);
  for(const k of Object.keys(raw))if(!allowed[from].split(' ').includes(k))throw invalid(`跨协议暂不支持 ${k}，请使用上游原生协议`,k);
  if(raw.store===true)throw invalid('跨协议不支持 store=true');
  if(raw.service_tier!==undefined&&to==='messages')throw invalid('Messages 无法转换 service_tier');
+ if(cacheHints.prompt_cache_retention!=null&&to==='messages')throw invalid('Messages 无法转换 prompt_cache_retention，请使用原生 cache_control','prompt_cache_retention');
  const inspect=v=>{if(!v||typeof v!=='object')return;if(v.cache_control||v.signature||v.type==='reasoning'||v.type==='redacted_thinking')throw invalid('此内容需使用上游原生协议');for(const [k,x]of Object.entries(v))if(!['parameters','input_schema'].includes(k))inspect(x);};inspect(raw);
  if(raw.tools?.some(t=>from==='messages'?t.type&&t.type!=='custom':t.type!=='function'))throw invalid('跨协议仅支持函数工具');
  if(raw.tools?.some(t=>t.strict!==undefined&&t.strict!==false||t.function?.strict!==undefined&&t.function.strict!==false))throw invalid('strict 工具请使用上游原生协议');
@@ -93,6 +104,8 @@ export function convertRequest(raw,from,to){
  if(raw.parallel_tool_calls!==undefined){if(to==='messages')out.tool_choice={...(out.tool_choice||{type:'auto'}),disable_parallel_tool_use:!raw.parallel_tool_calls};else out.parallel_tool_calls=raw.parallel_tool_calls;}
  if(raw.tool_choice?.disable_parallel_tool_use!==undefined&&to!=='messages')out.parallel_tool_calls=!raw.tool_choice.disable_parallel_tool_use;
  if(raw.service_tier!==undefined)out.service_tier=raw.service_tier;
+ // OpenAI protocols share cache hints. Never invent an Anthropic TTL from them.
+ if(to!=='messages')Object.assign(out,cacheHints);
  // Re-decode the generated wire shape to catch any converter that breaks batch structure.
  toolTurns(decoders[to](out).messages,to==='responses'?'input':'messages');
  return out;
