@@ -1,4 +1,5 @@
-import {referenceCost} from './reference-cost.js';
+import {referenceCostRange,tierRules} from './reference-cost.js';
+import {tierEdges,requestShape,addTierBin,validBins} from './usage-tiers.js';
 import {parseModelRef} from './llm/models.js';
 import {createHash} from 'node:crypto';
 import {readJson,writeJson} from './store.js';
@@ -16,8 +17,11 @@ export function usageDay(time,timeZone){
 }
 export const usageModel=row=>String(row.sourceModel||row.upstreamModel||row.model||'unknown');
 const add=(target,row)=>{for(const key of fields)target[key]+=row[key];return target;};
-const summarize=rows=>rows.reduce((sum,row)=>{add(sum,row);sum.referenceCostUsd+=row.referenceCostUsd??0;sum.pricedRequests+=row.pricedRequests||0;return sum;},{...empty(),referenceCostUsd:0,pricedRequests:0});
-const decorate=row=>({...row,referenceCostUsd:row.pricedRequests?row.referenceCostUsd:null,totalTokens:row.tokenRequests?row.inputTokens+row.outputTokens:null,successRate:row.succeeded+row.failed+row.timedOut?row.succeeded/(row.succeeded+row.failed+row.timedOut):null,cacheHitRate:row.cacheInputTokens>0?row.cacheReadTokens/row.cacheInputTokens:null});
+// Reference amounts are bounds: equal when every covered request has a known tier, otherwise a range.
+// Short fingerprints keep the replay guard small. A collision only leaves one request in the estimated remainder.
+const tag=id=>createHash('sha256').update(id).digest('hex').slice(0,12);
+const summarize=rows=>rows.reduce((sum,row)=>{add(sum,row);sum.referenceCostMinUsd+=row.referenceCostMinUsd??0;sum.referenceCostMaxUsd+=row.referenceCostMaxUsd??0;sum.pricedRequests+=row.pricedRequests||0;sum.estimatedRequests+=row.estimatedRequests||0;return sum;},{...empty(),referenceCostMinUsd:0,referenceCostMaxUsd:0,pricedRequests:0,estimatedRequests:0});
+const decorate=row=>({...row,referenceCostMinUsd:row.pricedRequests?row.referenceCostMinUsd:null,referenceCostMaxUsd:row.pricedRequests?row.referenceCostMaxUsd:null,referenceCostUsd:row.pricedRequests&&!row.estimatedRequests?row.referenceCostMinUsd:null,totalTokens:row.tokenRequests?row.inputTokens+row.outputTokens:null,successRate:row.succeeded+row.failed+row.timedOut?row.succeeded/(row.succeeded+row.failed+row.timedOut):null,cacheHitRate:row.cacheInputTokens>0?row.cacheReadTokens/row.cacheInputTokens:null});
 
 // Daily numeric aggregates have a separate lifetime from the bounded diagnostic log.
 // The last 2000 IDs make replay of the latest 1000 records idempotent after a crash.
@@ -31,17 +35,36 @@ export class UsageHistory{
     if(!state||state.schemaVersion!==1||typeof state.timeZone!=='string'||!valid(state.importedRequests)||!Array.isArray(state.buckets)||!Array.isArray(state.seenIds)||!Number.isFinite(Date.parse(state.startedAt)))throw Error('Invalid history');
     if(state.catalogs!==undefined&&(!Array.isArray(state.catalogs)||state.catalogs.some(entry=>!entry||typeof entry.source!=='string'||typeof entry.id!=='string'||!Array.isArray(entry.aliases)||entry.aliases.some(id=>typeof id!=='string'))))throw Error('Invalid model names');
     new Intl.DateTimeFormat('en',{timeZone:state.timeZone}).format(now);
+    if(state.tieredIds!==undefined&&(!Array.isArray(state.tieredIds)||state.tieredIds.some(id=>typeof id!=='string')))throw Error('Invalid history');
     if(state.buckets.some(b=>!isCivilDate(b.day)||typeof b.source!=='string'||typeof b.model!=='string'||fields.some(k=>!valid(b[k])))||state.seenIds.some(id=>typeof id!=='string'))throw Error('Invalid history buckets');
+    // Optional pricing detail never makes the permanent totals unreadable; unusable detail is dropped and re-estimated.
+    state={...state,buckets:state.buckets.map(b=>b.tiers===undefined||validBins(b.tiers)?b:Object.fromEntries(Object.entries(b).filter(([key])=>key!=='tiers')))};
    }else state={schemaVersion:1,timeZone:options.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone,startedAt:now.toISOString(),importedRequests:0,buckets:[],seenIds:[]};
    history=new UsageHistory(file,state,options);
    let next=state;
    if(initial||state.recentSnapshotHash!==snapshotHash(rows))for(const row of rows){const updated=history.next(row,next);if(updated!==next&&initial)updated.importedRequests++;next=updated;}
+   next=UsageHistory.backfillTiers(next,rows);
    next={...next,recentSnapshotHash:snapshotHash(rows)};
    await writeJson(file,next);history.state=next;
   }catch{
    history ||= new UsageHistory(file,null,options);history.disabled=true;history.error='历史统计无法读取或保存，原文件已保留；代理请求记录仍可继续使用。';
   }
   return history;
+ }
+ // Rows already in the totals but not yet in the pricing histogram get their real input length from the retained log.
+ // `tieredIds` records each row once, so repeated startups and replays never add a request twice.
+ static backfillTiers(state,rows){
+  const seen=new Set(state.seenIds),done=new Set(state.tieredIds||[]),edges=tierEdges(state.catalogs),ids=[];let recovered=0,buckets=state.buckets;
+  for(const row of rows){
+   if(row.origin==='test')continue;
+   const id=identity(row),mark=tag(id);if(!seen.has(id)||done.has(mark))continue;
+   const day=usageDay(row.time||row.completedAt,state.timeZone),source=typeof row.provider==='string'&&row.provider?row.provider:'unresolved',model=usageModel(row),index=buckets.findIndex(b=>b.day===day&&b.source===source&&b.model===model);
+   if(index<0)continue;
+   done.add(mark);ids.push(mark);
+   const shape=requestShape(row.usage);
+   if(shape){if(buckets===state.buckets)buckets=[...buckets];buckets[index]={...buckets[index],tiers:addTierBin(buckets[index].tiers,shape,edges)};recovered++;}
+  }
+  return ids.length?{...state,buckets,tieredIds:[...(state.tieredIds||[]),...ids].slice(-2000),tierBackfilledRequests:(state.tierBackfilledRequests||0)+recovered}:state;
  }
  next(row,state=this.state){
   if(row.origin==='test')return state;
@@ -61,9 +84,11 @@ export class UsageHistory{
    if(valid(u.outputDetails?.reasoning_tokens)&&u.outputDetails.reasoning_tokens<=u.outputTokens){delta.reasoningRequests=1;delta.reasoningTokens=u.outputDetails.reasoning_tokens;}
   }
   const buckets=state.buckets.map(b=>({...b}));
-  const bucket=buckets.find(b=>b.day===day&&b.source===source&&b.model===model);
+  const bucket=buckets.find(b=>b.day===day&&b.source===source&&b.model===model),shape=requestShape(u);
   if(bucket)add(bucket,delta);else buckets.push({day,source,model,...delta});
-  return {...state,buckets,seenIds:[...state.seenIds,id].slice(-2000)};
+  const target=bucket||buckets.at(-1);
+  if(shape)target.tiers=addTierBin(target.tiers,shape,tierEdges(state.catalogs));
+  return {...state,buckets,seenIds:[...state.seenIds,id].slice(-2000),tieredIds:[...(state.tieredIds||[]),tag(id)].slice(-2000)};
  }
  setModelCatalog(source,models){
   if(this.disabled)return false;
@@ -101,14 +126,14 @@ export class UsageHistory{
   const source=query.source||'',model=query.model||'';
   const available=this.state.buckets.filter(b=>b.day>=from&&b.day<=to).map(bucket=>{
    const id=this.canonicalModel(bucket.source,bucket.model),reference=(this.state.catalogs||[]).find(entry=>entry.source===bucket.source&&entry.id===id)?.pricing;
-   const amount=referenceCost(bucket,reference);
-   return {...bucket,model:id,referenceCostUsd:amount,pricedRequests:amount===null?0:bucket.tokenRequests};
+   const range=referenceCostRange(bucket,reference);
+   return {...bucket,model:id,referenceCostMinUsd:range?.minUsd??0,referenceCostMaxUsd:range?.maxUsd??0,pricedRequests:range?.coveredRequests??0,estimatedRequests:range?.estimatedRequests??0};
   });
   const selected=available.filter(b=>(!source||b.source===source)&&(!model||b.model===model));
   const groups=key=>[...Map.groupBy(selected,b=>b[key])].map(([id,rows])=>({id,...decorate(summarize(rows))})).sort((a,b)=>b.requests-a.requests||a.id.localeCompare(b.id));
   const daily=Array.from({length:days},(_,i)=>{const day=addCivilDays(from,i);return{day,...decorate(summarize(selected.filter(b=>b.day===day)))};});
   return{from,to,today,timeZone,startedAt,importedRequests,retention:'permanent',partial:from<=usageDay(startedAt,timeZone),error:this.error,
-   summary:decorate(summarize(selected)),daily,models:groups('model'),sources:groups('source'),references:(this.state.catalogs||[]).filter(entry=>selected.some(b=>b.source===entry.source&&b.model===entry.id)&&entry.pricing).map(entry=>({source:entry.source,model:entry.id,...entry.pricing.info})),
+   summary:decorate(summarize(selected)),daily,models:groups('model'),sources:groups('source'),references:(this.state.catalogs||[]).filter(entry=>selected.some(b=>b.source===entry.source&&b.model===entry.id)&&entry.pricing).map(entry=>({source:entry.source,model:entry.id,...entry.pricing.info,tiers:tierRules(entry.pricing)})),
    options:{sources:[...new Set(available.map(b=>b.source))].sort(),models:[...new Set(available.filter(b=>!source||b.source===source).map(b=>b.model))].sort()}};
  }
 }

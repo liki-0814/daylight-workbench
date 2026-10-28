@@ -12,6 +12,11 @@ import {addCivilDays} from '../../core/date.js';
 
 const number=value=>Number(value).toLocaleString('zh-CN',{maximumFractionDigits:1});
 const tokens=formatTokens;
+// Reference amounts are exact only when every covered request has a known price tier; otherwise they are a lower–upper range.
+const estimated=row=>!!row?.estimatedRequests;
+const costText=row=>row?.pricedRequests?estimated(row)?`≈ ${formatUsd(row.referenceCostMinUsd)} – ${formatUsd(row.referenceCostMaxUsd)}`:formatUsd(row.referenceCostUsd):'—';
+const costValue=row=>row?.pricedRequests?(row.referenceCostMinUsd+row.referenceCostMaxUsd)/2:null;
+const estimateNote=row=>estimated(row)?`其中 ${row.estimatedRequests} 次请求无法还原长上下文分档，已按可能分档给出范围（估算，非精确值）。`:'';
 const percent=value=>value===null?'—':(value*100).toLocaleString('zh-CN',{maximumFractionDigits:1})+'%';
 export function createStatisticsPage({api,store}){
  const root=document.createElement('section');root.id='proxy-panel-statistics';root.className='proxy-provider-page';root.hidden=true;root.setAttribute('role','tabpanel');root.setAttribute('aria-labelledby','proxy-tab-statistics');
@@ -40,18 +45,18 @@ export function createStatisticsPage({api,store}){
  function paintMetrics(){
   $('[data-statistics-metrics]').innerHTML=metricCards(report?.summary);
   const s=report?.summary,state=s?'ready':readError?'error':'loading';
-  $('[data-statistics-price]').innerHTML=metricCard({label:'官方 API 参考折算（USD）',value:formatUsd(s?.referenceCostUsd),state,note:s?`按当前参考目录收录的官方 API 公开单价折算，不代表订阅或账号的实际扣费。可折算 ${s.pricedRequests} / ${s.requests} 次请求；未计入部分不视为免费。`:readError?'暂无可用统计':'正在读取参考金额'});
+  $('[data-statistics-price]').innerHTML=metricCard({label:'官方 API 参考折算（USD）',value:costText(s),title:estimated(s)?`估算范围：下限 ${formatUsd(s.referenceCostMinUsd)}，上限 ${formatUsd(s.referenceCostMaxUsd)}。${estimateNote(s)}`:'',state,note:s?`按当前参考目录收录的官方 API 公开单价折算，不代表订阅或账号的实际扣费。可折算 ${s.pricedRequests} / ${s.requests} 次请求${estimated(s)?'（含估算 '+s.estimatedRequests+' 次）':''}；未计入部分不视为免费。${estimateNote(s)}`:readError?'暂无可用统计':'正在读取参考金额'});
  }
  function paint(){
   paintFilters();paintMetrics();
   if(!report)return;
   const s=report.summary,time=new Date(report.startedAt).toLocaleString('zh-CN',{timeZone:report.timeZone});
   $('[data-statistics-coverage]').textContent=`${report.from} 至 ${report.to} · ${report.timeZone}。持续统计始于 ${time}，回填 ${report.importedRequests} 条现存旧记录。${report.partial?'所选范围包含开始统计前的时段，早期数据可能不完整。':''}手动测试不计入；汇总永久保存。`;
-  const value=row=>metric==='requests'?row.requests:metric==='cost'?row.referenceCostUsd:row.totalTokens;
-  const display=row=>metric==='requests'?number(row.requests)+' 次':metric==='cost'?formatUsd(row.referenceCostUsd):tokens(row.totalTokens);
+  const value=row=>metric==='requests'?row.requests:metric==='cost'?costValue(row):row.totalTokens;
+  const display=row=>metric==='requests'?number(row.requests)+' 次':metric==='cost'?costText(row):tokens(row.totalTokens);
   chart.update(report.daily.map(day=>({key:day.day,label:day.day.slice(5),value:day.requests?value(day):0,valueText:day.requests?display(day):'无请求'})));
-  for(const [key,list] of Object.entries(distributions))list.update(report[key].filter(row=>value(row)!==null).map(row=>({key:row.id,label:key==='sources'?sourceName(row.id):row.id,value:value(row)})).sort((a,b)=>b.value-a.value));
-  $('[data-statistics-prices]').innerHTML='<p class="proxy-statistics-note">按当前参考单价统一折算历史用量，价格更新后参考金额也会变化。只有真实输入、输出与缓存计数完整且价表可用的部分参与；存在长上下文分档而历史汇总无法还原逐请求分档时不估算。未单列缓存写入的输入按普通输入价折算；单列写入但缺少价格的部分不计入。参考金额不包含订阅折扣、赠送额度、税费或实际账单调整。</p><ul>'+((report.references||[]).map(ref=>`<li>${esc(sourceName(ref.source))} · ${esc(ref.model)} · ${esc(ref.referenceId||'')} · 价表 ${esc(ref.updatedAt||'日期未知')} ${(ref.sources||[]).filter(url=>typeof url==='string'&&url.startsWith('https://')).map(url=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">价格来源</a>`).join(' · ')}</li>`).join('')||'<li>尚无可用的官方 API 参考价表</li>')+'</ul>';
+  for(const [key,list] of Object.entries(distributions))list.update(report[key].filter(row=>value(row)!==null).map(row=>({key:row.id,label:key==='sources'?sourceName(row.id):row.id,value:value(row),...metric==='cost'?{valueText:costText(row)}:{}})).sort((a,b)=>b.value-a.value));
+  $('[data-statistics-prices]').innerHTML='<p class="proxy-statistics-note">按当前参考单价统一折算历史用量，价格更新后参考金额也会变化。只有真实输入、输出与缓存计数完整且价表可用的部分参与；长上下文分档按每次请求的输入长度（普通输入 + 缓存读取 + 缓存写入）选择，所选档位对整次请求的输入、缓存和输出统一计价（价表未提供“仅超出部分加价”规则）。新记录按输入长度区间永久保存汇总，现存明细会补充回填；无法还原逐请求输入长度的旧汇总按所有可能的档位给出“≈ 下限 – 上限”范围，属于估算，不是精确值。未单列缓存写入的输入按普通输入价折算；单列写入但缺少价格的部分不计入。参考金额不包含订阅折扣、赠送额度、税费或实际账单调整。</p><ul>'+((report.references||[]).map(ref=>`<li>${esc(sourceName(ref.source))} · ${esc(ref.model)} · ${esc(ref.referenceId||'')} · 价表 ${esc(ref.updatedAt||'日期未知')}${ref.tiers?.length?' · 分档：输入超过 '+ref.tiers.map(t=>number(t.above)+(t.atMost?'–'+number(t.atMost):'')).join(' / ')+' Token':''} ${(ref.sources||[]).filter(url=>typeof url==='string'&&url.startsWith('https://')).map(url=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">价格来源</a>`).join(' · ')}</li>`).join('')||'<li>尚无可用的官方 API 参考价表</li>')+'</ul>';
   $('[data-token-breakdown]').innerHTML=`<div class="proxy-statistics-metrics">${metricCard({label:'输入（含缓存）',value:s.tokenRequests?tokens(s.inputTokens):'—',note:'计入总 Token'})}${metricCard({label:'输出（含思考）',value:s.tokenRequests?tokens(s.outputTokens):'—',note:'计入总 Token'})}${metricCard({label:'缓存读取',value:s.cacheRequests?tokens(s.cacheReadTokens):'—',note:`输入的细分 · 覆盖 ${s.cacheRequests} 次`})}${metricCard({label:'缓存写入',value:s.cacheWriteRequests?tokens(s.cacheWriteTokens):'—',note:`输入的细分 · 覆盖 ${s.cacheWriteRequests} 次`})}</div><p class="proxy-statistics-note">已报告的思考 Token：${s.reasoningRequests?tokens(s.reasoningTokens):'未知'}，属于输出的细分（覆盖 ${s.reasoningRequests} 次请求）。Token 汇总只使用同时提供真实输入与输出计数的请求；缺失、估算用量不补为零。${metric==='tokens'?'分布占比基于已知 Token；未知用量的模型不参与占比。':''}</p>`;
  }
  async function load(force=false){
