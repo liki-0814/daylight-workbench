@@ -1,5 +1,5 @@
 import { disclosureSection, mountDisclosures, refreshButton, setRefreshState } from './section.js';
-import { modelGroups, modelHeading } from './model-row.js';
+import { modelGroups, modelHeading, repaintKeepingControl } from './model-row.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const kindLabel = { image: '图像', video: '视频' };
@@ -57,9 +57,8 @@ export function createMediaModels({ source, load, save }) {
       if (current !== version) return;
       const restoreFocus = visible && (document.activeElement === input || document.activeElement === document.body);
       models = result.models; snapshot = result;
-      paint(!value || list.querySelector('.proxy-disabled-models')?.open);
+      repaintKeepingControl(list, `[data-media-model="${CSS.escape(original.id)}"]`, () => paint(!value || list.querySelector('.proxy-disabled-models')?.open), { focus: restoreFocus });
       message.textContent = '已保存';
-      if (restoreFocus) list.querySelector(`[data-media-model="${CSS.escape(original.id)}"]`)?.focus({ preventScroll: true });
     } catch (error) {
       if (current === version) { input.checked = original.enabled !== false; message.textContent = error.message || '保存失败，请重试'; }
     } finally {

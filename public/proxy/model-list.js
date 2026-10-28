@@ -4,7 +4,7 @@ import {capacityLimit,capacityOptions,fastSetting} from './model-options.js';
 import {selectField} from '../components/select.js';
 import {disclosureSection,mountDisclosures,refreshButton,setRefreshState} from '../components/section.js';
 import {renderModelSpeed,updateModelSpeeds} from '../components/model-speed.js';
-import {modelGroups,modelHeading} from '../components/model-row.js';
+import {modelGroups,modelHeading,repaintKeepingControl} from '../components/model-row.js';
 export {modelGroups} from '../components/model-row.js';
 export {renderModelSpeed,updateModelSpeeds} from '../components/model-speed.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -38,7 +38,7 @@ export function createModelList({store,source}){
  const element=document.createElement('div');element.innerHTML=disclosureSection({id:source+'-models-details',className:'proxy-disclosure',title:'模型设置',description:'启用与默认参数',actions:refreshButton({ariaLabel:'刷新模型',attrs:{'data-refresh-models':true}}),content:'<div data-models-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-message></p>'});mountDisclosures(element);
  const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],references=[],referenceSnapshot,loaded=false,loading=false,version=0,visible=false;
  function paintSpeeds(){updateModelSpeeds(list,store.source(source)?.performance,{stale:!!store.error});}
- function paint(){const open=list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,m=>renderModelRow(m,references),{open});paintSpeeds();}
+ function paint(forceOpen=false){const open=forceOpen||list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,m=>renderModelRow(m,references),{open});paintSpeeds();}
  const unsubscribe=store.subscribe(paintSpeeds);
  async function load(force=false){
   if(loading||!force&&loaded&&models===store.cachedResource(source,'models')&&referenceSnapshot&&referenceSnapshot===store.cachedResource(null,'model-metadata'))return;
@@ -58,7 +58,7 @@ export function createModelList({store,source}){
  list.onchange=async event=>{
   const input=event.target,{model,field}=input.closest('[data-model]')?.dataset||{};if(!model)return;
   const original=models.find(m=>m.id===model),current=version,restoreFocus=input.closest('workbench-select')?.contains(document.activeElement);input.disabled=true;
-  try{const value=input.type==='checkbox'?input.dataset.fastTier?input.checked?input.dataset.fastTier:'auto':input.checked:['context','contextWindow','maxOutputTokens'].includes(field)?Number(input.value):input.value;const result=field==='referenceId'?(await store.api.request('model-metadata',{source,id:original.upstreamId||original.id,referenceId:value})).models:await store.setModel(source,{id:model,field,value});if(field==='referenceId')store.invalidate(source);if(current!==version)return;models=result;message.textContent='已保存';if(['enabled','referenceId'].includes(field)){paint();if(restoreFocus)list.querySelector(`[data-model="${CSS.escape(model)}"][data-field="${field}"] .select-trigger`)?.focus({preventScroll:true});}else if(['contextWindow','maxOutputTokens','effort'].includes(field)){const updated=models.find(m=>m.id===model),row=input.closest('.proxy-model');updateModelSummary(row,updated);}}
+  try{const value=input.type==='checkbox'?input.dataset.fastTier?input.checked?input.dataset.fastTier:'auto':input.checked:['context','contextWindow','maxOutputTokens'].includes(field)?Number(input.value):input.value;const result=field==='referenceId'?(await store.api.request('model-metadata',{source,id:original.upstreamId||original.id,referenceId:value})).models:await store.setModel(source,{id:model,field,value});if(field==='referenceId')store.invalidate(source);if(current!==version)return;models=result;message.textContent='已保存';if(['enabled','referenceId'].includes(field)){const target=field==='enabled'?`input[data-model="${CSS.escape(model)}"][data-field="enabled"]`:`[data-model="${CSS.escape(model)}"][data-field="referenceId"] .select-trigger`;repaintKeepingControl(list,target,()=>paint(field==='enabled'&&!input.checked),{focus:field==='enabled'||restoreFocus});}else if(['contextWindow','maxOutputTokens','effort'].includes(field)){const updated=models.find(m=>m.id===model),row=input.closest('.proxy-model');updateModelSummary(row,updated);}}
   catch(e){if(current!==version)return;message.textContent=e.message;if(input.type==='checkbox')input.checked=field==='enabled'?original.enabled:field==='serviceTier'?['priority','fast'].includes(original.serviceTier):original.fast;else if(field==='referenceId')input.value=original.modelMetadata?.referenceId||'';else input.value=['contextWindow','maxOutputTokens'].includes(field)?original[field]??'':field==='context'?original.contextWindows.find(w=>w.isDefault)?.length:field==='serviceTier'?original.serviceTier||'auto':field==='fast'?original.fast?'fast':'default':original.effort||'auto';}
   finally{input.disabled=false;paintSpeeds();}
  };
