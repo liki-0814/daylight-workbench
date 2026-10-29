@@ -81,6 +81,12 @@ test('media gateway forwards every grok id, rejects the bare codex name, and kee
   const rejected = await post(port, '/videos/generations', { model: 'grok-imagine-video-1.5', prompt: 'x', reference_images: ['a'] });
   assert.equal(rejected.status, 400);
   assert.equal(calls.filter(call => call.body?.reference_images).length, 0);
+  const withRefs = await post(port, '/videos/generations', { model: 'grok-imagine-video-1.5', duration: 3, resolution: '480p', reference_images: [{ url: 'https://example.com/ref.png' }] });
+  assert.equal(withRefs.status, 200);
+  assert.deepEqual(calls.at(-1).body, { model: 'grok-imagine-video-1.5', duration: 3, resolution: '480p', reference_images: [{ url: 'https://example.com/ref.png' }] });
+  const voices = await post(port, '/videos/generations', { model: 'grok-imagine-video-1.5', prompt: 'x', voices: ['eve'] });
+  assert.equal(voices.status, 400);
+  assert.match(voices.body.error.message, /reference_audios/);
   const submitted = await post(port, '/videos/generations', { model: 'grok-imagine-video-1.5', prompt: 'wave' });
   const polled = await new Promise((resolve, reject) => {
     http.get({ hostname: '127.0.0.1', port, path: '/v1/videos/' + submitted.body.id, headers: { Authorization: `Bearer ${key}` } }, res => {

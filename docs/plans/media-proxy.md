@@ -97,7 +97,7 @@ Host、无 Origin、代理 API Key 与现有 `/v1` 相同。`Content-Type` 是 `
 
 图像编辑是 `image` 或 `images` 二选一，最多五张，元素为 `{ "type": "image_url", "url" }`。
 
-视频允许 `prompt`、`duration`、`aspect_ratio`、`resolution`、`image`。`duration` 是 1 到 15。`resolution` 是 `480p`、`720p`、`1080p`。`aspect_ratio` 是 `1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`21:9`、`5:2`。有参考图时 `image` 只有 `url`。`reference_images`、声音、钉帧、编辑和延长返回 400。
+视频允许 `prompt`、`duration`、`aspect_ratio`、`resolution`、`image`、`reference_images`、`reference_audios`、`last_frame`、`keyframes`、`generate_audio`。`duration` 是 1 到 15。`resolution` 是 `480p`、`720p`、`1080p`。`aspect_ratio` 是 `1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`21:9`、`5:2`。图片对象都只有 `url`。按模型限制：`grok-imagine-video-1.5` 最多 14 张 `reference_images`、3 个 `reference_audios`（只接受预设 `{ "voice_id" }`，不接受自定义音频 `url`）、`last_frame`、最多 4 个 `keyframes`（`{ image: { url }, timestamp_s }`，时间点须大于 0 且小于 `duration`，间隔至少 1/3 秒）；`-lite` 都不支持；`grok-imagine-video` 最多 7 张 `reference_images`，带参考图时 `duration` 最长 10，`resolution` 只有 `480p`、`720p`，且不能同时传 `image`。`prompt` 在有 `image`、`reference_images`、`last_frame` 或 `keyframes` 时可省略。`generate_audio` 是布尔值。一次请求内嵌 data URI 解码后总计不超过 40 MB。`voices`、`voice` 返回 400 并提示改用 `reference_audios`；编辑、延长、`first_frame`、`seed`、`negative_prompt`、`n` 仍是 400。上游返回 `done` 但 `video.respect_moderation` 为 `false` 时记为失败（`moderation_rejected`）。上游文档（docs.x.ai）有记载，但 `cli-chat-proxy.grok.com` 上的真实探针尚未完成（documented upstream; live probe on cli-chat-proxy.grok.com pending）。
 
 上游图像成功体取 `data[].url`。视频提交只取 `request_id`。任务的 `account` 是 `auth.identity`，登出成功后删除。`cost_in_usd_ticks` 只留在当次响应里，当作上游标价，不写入用量历史。
 
@@ -178,7 +178,7 @@ Host、无 Origin、代理 API Key 与现有 `/v1` 相同。`Content-Type` 是 `
 
 - 未登录。
 - 非法图片 URL、超过单张 8 MB、图像编辑超过五张。
-- Grok 收到 `reference_images`、声音或钉帧时返回 400，且没有发出上游请求。
+- Grok 视频按模型校验 `reference_images`、`reference_audios`、`last_frame`、`keyframes`、`generate_audio`：合法时原样转发，超出模型限制或字段形状错误时返回 400 且没有发出上游请求；`voices` / `voice` 的 400 指向 `reference_audios`。
 - 裸 id `gpt-image-2.5` 返回 400，错误正文同时含 `gpt-image-2.5-flare` 和 `gpt-image-2.5-sunburst`。
 - Codex 的 `size` 在选中 Codex 之后才校验。同一请求若被分到 Grok 或 AGY，返回 400。
 - AGY 省略 `response_format` 时返回 `b64_json`。明确要求 `url` 而上游只有 `inlineData` 时返回 502 `response_format_unavailable`。
@@ -209,4 +209,4 @@ Host、无 Origin、代理 API Key 与现有 `/v1` 相同。`Content-Type` 是 `
 
 ## 不做
 
-Qoder 的首帧 / 参考图视频与图像编辑（文生图、文生视频见 [qoder-media.md](qoder-media.md)）。Copilot、Kimi、千问办公、自定义来源的媒体。Codex 和 AGY 的视频。网页 cookie。`api.x.ai` 和另外购买的图像 API Key。Grok 的参考图视频、声音、钉帧、视频编辑、延长和 lite。把媒体模型写进聊天目录或在页面里直接生成。把聊天额度换算成剩余张数。
+Qoder 的首帧 / 参考图视频与图像编辑（文生图、文生视频见 [qoder-media.md](qoder-media.md)）。Copilot、Kimi、千问办公、自定义来源的媒体。Codex 和 AGY 的视频。网页 cookie。`api.x.ai` 和另外购买的图像 API Key。Grok 的视频编辑和延长。把媒体模型写进聊天目录或在页面里直接生成。把聊天额度换算成剩余张数。

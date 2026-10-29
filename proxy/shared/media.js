@@ -6,18 +6,31 @@ const POLICY = new Set(['content_filter', 'content_safety', 'content_safety_reje
 export const IMAGE_BYTES = 8_000_000;
 const RESPONSE_BYTES = 32_000_000;
 
+export const VIDEO_IMAGE_BUDGET_BYTES = 40_000_000;
+
+// Returns the decoded size of a data URI (0 for an https URL) so a caller sending several images can bound the total.
 export function assertImageUrl(url) {
   if (typeof url !== 'string' || !url) fail('图片地址无效');
   if (url.startsWith('https://')) {
     let parsed;
     try { parsed = new URL(url); } catch { fail('图片地址无效'); }
     if (parsed.protocol !== 'https:') fail('图片地址无效');
-    return;
+    return 0;
   }
   const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=\s]+)$/.exec(url);
   if (!match) fail('图片地址无效');
   const bytes = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
   if (!bytes.length || bytes.length > IMAGE_BYTES) fail('单张图片不能超过 8 MB');
+  return bytes.length;
+}
+
+// Accumulates decoded data-URI bytes across one request; https URLs cost nothing here.
+export function imageBudget(max = VIDEO_IMAGE_BUDGET_BYTES) {
+  let used = 0;
+  return bytes => {
+    used += bytes;
+    if (used > max) fail(`一次请求的内嵌图片总计不能超过 ${max / 1_000_000} MB，请改用 https 图片地址`);
+  };
 }
 
 // Reads at most maxBytes: trusts a declared content-length only to reject early, then counts the bytes actually received.
