@@ -2,7 +2,7 @@ import {referenceCostRange,tierRules} from './reference-cost.js';
 import {tierEdges,requestShape,addTierBin,validBins} from './usage-tiers.js';
 import {parseModelRef} from './llm/models.js';
 import {createHash} from 'node:crypto';
-import {readJson,writeJson} from './store.js';
+import {readJson,writeJson,writeJsonSync,serial} from './store.js';
 import {addCivilDays,validateDateRange,isCivilDate} from '../../core/date.js';
 
 const fields=['requests','succeeded','failed','timedOut','cancelled','unknown','tokenRequests','inputTokens','outputTokens','cacheRequests','cacheInputTokens','cacheReadTokens','cacheWriteRequests','cacheWriteTokens','reasoningRequests','reasoningTokens'];
@@ -25,8 +25,33 @@ const decorate=row=>({...row,referenceCostMinUsd:row.pricedRequests?row.referenc
 
 // Daily numeric aggregates have a separate lifetime from the bounded diagnostic log.
 // The last 2000 IDs make replay of the latest 1000 records idempotent after a crash.
+// State is mutated in place: buckets are indexed by day/source/model so a request touches one bucket and the ID window,
+// and disk writes are coalesced (see `flushDelayMs`). Replay of the retained log recovers anything a crash left unwritten.
+const idWindow=2000;
+const bucketKey=(day,source,model)=>JSON.stringify([day,source,model]);
+const live=new Set();let hooked=false;
+function hookProcess(){
+ if(hooked)return;hooked=true;
+ // Fires for process.exit() and for a natural end alike, where only a synchronous atomic write can still finish.
+ process.on('exit',()=>{for(const history of live)history.flushSync();});
+}
+function pushCapped(list,ids,limit,onDrop){
+ for(const id of ids)list.push(id);
+ if(list.length>limit)for(const dropped of list.splice(0,list.length-limit))onDrop?.(dropped);
+}
 export class UsageHistory{
- constructor(file,state,{now=()=>new Date()}={}){this.file=file;this.state=state;this.now=now;this.error='';this.disabled=false;}
+ constructor(file,state,{now=()=>new Date(),flushDelayMs=3000}={}){
+  this.file=file;this.now=now;this.flushDelayMs=flushDelayMs;this.error='';this.disabled=false;
+  this.dirty=false;this.writing=false;this.timer=null;this.writes=serial();this.snapshotRows=null;this.state=state;
+ }
+ get state(){return this._state;}
+ // Assigning a whole state rebuilds the indexes; per-request updates never do.
+ set state(state){
+  this._state=state;this.edgeCache=null;
+  this.buckets=new Map();this.seen=new Set(state?.seenIds||[]);
+  for(const bucket of state?.buckets||[]){const key=bucketKey(bucket.day,bucket.source,bucket.model);if(!this.buckets.has(key))this.buckets.set(key,bucket);}
+ }
+ edges(){return this.edgeCache||=tierEdges(this.state.catalogs);}
  static async load(file,rows,options={}){
   const now=options.now?.()||new Date();let history;
   try{
@@ -41,11 +66,11 @@ export class UsageHistory{
     state={...state,buckets:state.buckets.map(b=>b.tiers===undefined||validBins(b.tiers)?b:Object.fromEntries(Object.entries(b).filter(([key])=>key!=='tiers')))};
    }else state={schemaVersion:1,timeZone:options.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone,startedAt:now.toISOString(),importedRequests:0,buckets:[],seenIds:[]};
    history=new UsageHistory(file,state,options);
-   let next=state;
-   if(initial||state.recentSnapshotHash!==snapshotHash(rows))for(const row of rows){const updated=history.next(row,next);if(updated!==next&&initial)updated.importedRequests++;next=updated;}
-   next=UsageHistory.backfillTiers(next,rows);
-   next={...next,recentSnapshotHash:snapshotHash(rows)};
-   await writeJson(file,next);history.state=next;
+   if(initial||state.recentSnapshotHash!==snapshotHash(rows))for(const row of rows)if(history.next(row)&&initial)state.importedRequests++;
+   history.backfillTiers(rows);
+   state.recentSnapshotHash=snapshotHash(rows);
+   await writeJson(file,state);
+   hookProcess();live.add(history);
   }catch{
    history ||= new UsageHistory(file,null,options);history.disabled=true;history.error='历史统计无法读取或保存，原文件已保留；代理请求记录仍可继续使用。';
   }
@@ -53,23 +78,28 @@ export class UsageHistory{
  }
  // Rows already in the totals but not yet in the pricing histogram get their real input length from the retained log.
  // `tieredIds` records each row once, so repeated startups and replays never add a request twice.
- static backfillTiers(state,rows){
-  const seen=new Set(state.seenIds),done=new Set(state.tieredIds||[]),edges=tierEdges(state.catalogs),ids=[];let recovered=0,buckets=state.buckets;
+ backfillTiers(rows){
+  const state=this.state,done=new Set(state.tieredIds||[]),edges=this.edges(),ids=[];let recovered=0;
   for(const row of rows){
    if(row.origin==='test')continue;
-   const id=identity(row),mark=tag(id);if(!seen.has(id)||done.has(mark))continue;
-   const day=usageDay(row.time||row.completedAt,state.timeZone),source=typeof row.provider==='string'&&row.provider?row.provider:'unresolved',model=usageModel(row),index=buckets.findIndex(b=>b.day===day&&b.source===source&&b.model===model);
-   if(index<0)continue;
+   const id=identity(row),mark=tag(id);if(!this.seen.has(id)||done.has(mark))continue;
+   const bucket=this.buckets.get(bucketKey(usageDay(row.time||row.completedAt,state.timeZone),typeof row.provider==='string'&&row.provider?row.provider:'unresolved',usageModel(row)));
+   if(!bucket)continue;
    done.add(mark);ids.push(mark);
    const shape=requestShape(row.usage);
-   if(shape){if(buckets===state.buckets)buckets=[...buckets];buckets[index]={...buckets[index],tiers:addTierBin(buckets[index].tiers,shape,edges)};recovered++;}
+   if(shape){bucket.tiers=addTierBin(bucket.tiers,shape,edges);recovered++;}
   }
-  return ids.length?{...state,buckets,tieredIds:[...(state.tieredIds||[]),...ids].slice(-2000),tierBackfilledRequests:(state.tierBackfilledRequests||0)+recovered}:state;
+  if(!ids.length)return false;
+  state.tieredIds=[...(state.tieredIds||[])];pushCapped(state.tieredIds,ids,idWindow);
+  state.tierBackfilledRequests=(state.tierBackfilledRequests||0)+recovered;
+  return true;
  }
- next(row,state=this.state){
-  if(row.origin==='test')return state;
+ // Counts one request in place; returns whether it was new. Persisting is the caller's decision (see touch).
+ next(row){
+  const state=this.state;
+  if(row.origin==='test')return false;
   const day=usageDay(row.time||row.completedAt,state.timeZone),today=usageDay(this.now(),state.timeZone),id=identity(row);
-  if(!day||day>today||state.seenIds.includes(id))return state;
+  if(!day||day>today||this.seen.has(id))return false;
   const source=typeof row.provider==='string'&&row.provider?row.provider:'unresolved',model=usageModel(row),delta=empty();delta.requests=1;
   if(row.outcome==='cancelled')delta.cancelled=1;
   else if(row.outcome==='timeout')delta.timedOut=1;
@@ -83,12 +113,14 @@ export class UsageHistory{
    if(valid(u.cacheWriteTokens)){delta.cacheWriteRequests=1;delta.cacheWriteTokens=u.cacheWriteTokens;}
    if(valid(u.outputDetails?.reasoning_tokens)&&u.outputDetails.reasoning_tokens<=u.outputTokens){delta.reasoningRequests=1;delta.reasoningTokens=u.outputDetails.reasoning_tokens;}
   }
-  const buckets=state.buckets.map(b=>({...b}));
-  const bucket=buckets.find(b=>b.day===day&&b.source===source&&b.model===model),shape=requestShape(u);
-  if(bucket)add(bucket,delta);else buckets.push({day,source,model,...delta});
-  const target=bucket||buckets.at(-1);
-  if(shape)target.tiers=addTierBin(target.tiers,shape,tierEdges(state.catalogs));
-  return {...state,buckets,seenIds:[...state.seenIds,id].slice(-2000),tieredIds:[...(state.tieredIds||[]),tag(id)].slice(-2000)};
+  const key=bucketKey(day,source,model);let bucket=this.buckets.get(key);
+  if(bucket)add(bucket,delta);else{bucket={day,source,model,...delta};state.buckets.push(bucket);this.buckets.set(key,bucket);}
+  const shape=requestShape(u);
+  if(shape)bucket.tiers=addTierBin(bucket.tiers,shape,this.edges());
+  state.seenIds.push(id);this.seen.add(id);
+  if(state.seenIds.length>idWindow)for(const dropped of state.seenIds.splice(0,state.seenIds.length-idWindow))this.seen.delete(dropped);
+  state.tieredIds||=[];pushCapped(state.tieredIds,[tag(id)],idWindow);
+  return true;
  }
  setModelCatalog(source,models){
   if(this.disabled)return false;
@@ -100,23 +132,46 @@ export class UsageHistory{
    if(index>=0)next[index]=entry;else next.push(entry);
   }
   if(JSON.stringify(next)===JSON.stringify(current))return false;
-  this.state={...this.state,catalogs:next};return true;
+  this.state.catalogs=next;this.edgeCache=null;this.touch();return true;
  }
  canonicalModel(source,model){
   const catalog=(this.state.catalogs||[]).filter(row=>row.source===source),id=source==='qoder'?parseModelRef(model).id:model;
   const exact=catalog.find(row=>row.id===id);if(exact)return exact.id;
   const matches=catalog.filter(row=>row.aliases.includes(id));return matches.length===1?matches[0].id:model;
  }
- async flush(){
-  if(this.disabled)return;
-  try{await writeJson(this.file,this.state);this.error='';}catch{this.error='历史统计保存失败，当前统计可能尚未更新；保留原有历史文件。';}
+ // Marks unwritten changes and arms one timer; every change inside the window shares a single whole-file write.
+ touch(){
+  this.dirty=true;
+  if(this.disabled||this.timer)return;
+  this.timer=setTimeout(()=>{this.timer=null;void this.flush();},this.flushDelayMs);this.timer.unref?.();
+  hookProcess();live.add(this);
  }
- checkpoint(rows){if(!this.disabled)this.state={...this.state,recentSnapshotHash:snapshotHash(rows)};}
- async append(row){
+ // Atomic write of the current state; resolves after every earlier flush. A failed write stays dirty and is retried by the next change.
+ flush(){
+  if(this.timer){clearTimeout(this.timer);this.timer=null;}
+  return this.writes(async()=>{
+   if(this.disabled||!this.dirty)return;
+   this.dirty=false;this.writing=true;
+   try{this.stamp();await writeJson(this.file,this.state);this.error='';}
+   catch{this.dirty=true;this.error='历史统计保存失败，当前统计可能尚未更新；保留原有历史文件。';}
+   finally{this.writing=false;}
+  });
+ }
+ // Last-chance write when the process ends without an orderly close. Never creates the data directory.
+ flushSync(){
+  if(this.disabled||!(this.dirty||this.writing))return;
+  try{this.stamp();writeJsonSync(this.file,this.state);this.dirty=false;}catch{}
+ }
+ async close(){
+  try{await this.flush();}finally{live.delete(this);}
+ }
+ stamp(){if(this.snapshotRows)this.state.recentSnapshotHash=snapshotHash(this.snapshotRows);}
+ // The hash of the retained log is only needed on disk, so it is computed when writing rather than per request.
+ checkpoint(rows){if(!this.disabled)this.snapshotRows=rows;}
+ append(row){
   if(this.disabled)return;
-  const next=this.next(row);if(next===this.state&&!this.error)return;
-  this.state=next;
-  await this.flush();
+  if(!this.next(row)&&!this.error)return;
+  this.touch();
  }
  report(query={}){
   if(this.disabled)throw Object.assign(Error(this.error),{status:503});

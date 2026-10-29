@@ -12,6 +12,8 @@ export function createMediaJobs(dataDir, { now = () => Date.now() } = {}) {
   const update = fn => queue(async () => {
     const stored = await readJson(file, []);
     const rows = Array.isArray(stored) ? stored : [];
+    // Polling reads through here too: compare with what was read so an unchanged list never rewrites the file.
+    const before = JSON.stringify(stored);
     const clock = now();
     for (const row of rows) {
       if (!terminal(row.status) && clock - Date.parse(row.createdAt) > OPEN_MS) {
@@ -20,7 +22,7 @@ export function createMediaJobs(dataDir, { now = () => Date.now() } = {}) {
       }
     }
     const result = await fn(rows, clock);
-    await writeJson(file, result.rows);
+    if (JSON.stringify(result.rows) !== before) await writeJson(file, result.rows);
     return result.value;
   });
   return {

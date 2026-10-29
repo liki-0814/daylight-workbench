@@ -3,7 +3,7 @@ import { readUpstreamError } from './upstream-error.js';
 
 export const fail = (message, status = 400, code = 'invalid_request', extra) => { throw Object.assign(new Error(message), { status, code, ...extra }); };
 const POLICY = new Set(['content_filter', 'content_safety', 'content_safety_rejected', 'image_gen_content_safety_rejected', 'moderation_rejected', 'policy_violation', 'safety_rejection']);
-const IMAGE_BYTES = 8_000_000;
+export const IMAGE_BYTES = 8_000_000;
 const RESPONSE_BYTES = 32_000_000;
 
 export function assertImageUrl(url) {
@@ -18,6 +18,25 @@ export function assertImageUrl(url) {
   if (!match) fail('图片地址无效');
   const bytes = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
   if (!bytes.length || bytes.length > IMAGE_BYTES) fail('单张图片不能超过 8 MB');
+}
+
+// Reads at most maxBytes: trusts a declared content-length only to reject early, then counts the bytes actually received.
+export async function readBytesLimited(response, maxBytes, message) {
+  const declared = Number(response.headers?.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) { await response.body?.cancel(); fail(message); }
+  const reader = response.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks = []; let size = 0;
+  try {
+    for (;;) {
+      const step = await reader.read();
+      if (step.done) break;
+      size += step.value.length;
+      if (size > maxBytes) { await reader.cancel(); fail(message); }
+      chunks.push(step.value);
+    }
+  } finally { reader.releaseLock?.(); }
+  return Buffer.concat(chunks);
 }
 
 export function jsonType(header) {

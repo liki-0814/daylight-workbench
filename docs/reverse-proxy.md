@@ -26,6 +26,7 @@ Qoder、AGY、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，�
 - Google 授权成功后还要通过 AGY 项目和模型目录检查。未开通、账号权限/资格失败与登录失效分别提示，不把目录成功当作真实推理成功。推理直接请求上游，不启动 Agent 对话；页面连接检查不发推理请求。
 - 模型名不加来源前缀，后台按名称分发。同名模型对外只显示一次，在“模型路由”设置主用和备用顺序；可重试故障仅在输出开始前尝试备用。显式会话标识可绑定成功来源，没有会话标识时固定优先级。AGY 模型目录直接读取上游推荐模型及具体推理档位，保留上游提供的 CLI 公共别名和模型路由，缓存 5 分钟，点击刷新可立即重新发现；额度直接读取上游共享额度汇总，展示 Claude/GPT、Gemini 的 5 小时和 7 天周期。
 - Gemini 图像走 `/v1/images/generations` 和 `/v1/images/edits`，使用同一把 Google 登录，请求发到 `daily-cloudcode-pa.googleapis.com/v1internal:generateContent`。已登录即转发 `gemini-3-pro-image`、`gemini-3.1-flash-image`、`gemini-3.1-flash-image-preview`、`gemini-2.5-flash-image-preview`。这些 id 不进入聊天目录。上游返回图像字节，默认以 `b64_json` 交给客户端。
+- AGY 图像编辑的远程参考图只接受公网 `https` 地址；本机、回环、内网、链路本地等地址（含 IPv6 与 DNS 解析后的结果）一律拒绝。图片先看 `content-length`，再边读边计数，超过 8 MB 立即中止，不再整张缓冲后才判断。
 - AGY 支持文本、base64 图片、工具调用/结果回传、`tool_choice`、`temperature`、`top_p`、`top_k`、停止序列与输出长度。Claude 与 Gemini tiered 模型支持 `low/medium/high`：Chat 使用 `reasoning_effort`，Responses 使用 `reasoning.effort`，Messages 使用 `output_config.effort`；页面可保存默认强度，请求参数优先。Gemini 按通用规则合并：同一基础 ID 仅末尾 `low/medium/high/xhigh/max` 档位不同，且本机发现至少两档时，自动合为一个模型，无需逐版本配置。可选强度以实际发现档位为准；请求参数优先于页面默认值，自动默认取 medium（若无则 high）。Flash 使用 tiered 模型加思考档位；Pro 按档位选择各自的上游模型和上游提供的思考预算。3.1 Pro 仅 low/high，不提供 medium。
 - Claude 支持 `thinking: {type: "adaptive"}`、`{type: "enabled", budget_tokens: 1024}`（预算至少 1024 且小于 `max_tokens`）和 `{type: "disabled"}`；OpenAI 协议可使用 `reasoning_effort: "none"` / `reasoning.effort: "none"` 关闭。手动预算不与 effort 混用。Messages 流式/非流式保留思考块签名，可用于下一轮。工具签名仍在当前进程内保存，重启后应开启新工具会话。
 - AGY 不把 `max/xhigh` 降级为 `high`；上游不接受的档位明确报错。显式 `cache_control`、缓存 TTL、上下文长度覆盖、结构化输出、服务端会话续接等未适配参数返回错误；不承诺完整 Anthropic/OpenAI API 等价。
@@ -199,7 +200,7 @@ AGY 独立 OAuth 的端点、scope、回调和项目发现参考 [CLIProxyAPI �
 
 「反向代理 → 使用统计」提供请求次数、真实 Token、按输入 Token 加权的缓存命中率和请求成功率，支持日期、来源、模型筛选，以及每日趋势与分布联动。手动测试不计入；取消、超时、失败及未知状态分别计数，成功率排除取消和未知状态。Token 缺失或估算不补为零，页面显示真实用量覆盖率；缓存属于输入、思考属于输出，细分项不重复累加。
 
-按日、实际来源和来源模型聚合的数字保存在数据目录的 `qoder/usage-history.json`，永久保留，不保存提示词、输出正文或新增的逐条请求明细。现有短期诊断记录继续供 TPS 和调用频次排序使用。首次启用只回填当前仍保留的记录，并显示持续统计起点；早期缺失数据无法恢复。每次可查询最多 366 天，永久保存不受查询范围限制。统计时区在首次创建时固定，后续按相同时区归属日期。
+按日、实际来源和来源模型聚合的数字保存在数据目录的 `qoder/usage-history.json`，永久保留，不保存提示词、输出正文或新增的逐条请求明细。现有短期诊断记录继续供 TPS 和调用频次排序使用。首次启用只回填当前仍保留的记录，并显示持续统计起点；早期缺失数据无法恢复。每次可查询最多 366 天，永久保存不受查询范围限制。统计时区在首次创建时固定，后续按相同时区归属日期。统计写入合并为约 3 秒一次的原子写；正常停止代理、退出进程（含 SIGTERM）会立即落盘，强杀进程最多丢失最近几秒，重启时由保留的最近 1,000 条记录补回，不会重复计数。
 
 统计页每 30 秒在可见且没有操作内部控件时刷新；切页、隐藏窗口和销毁页面会取消请求。历史统计读取失败会保留原文件并显示错误，不妨碍现有代理请求记录继续使用。
 

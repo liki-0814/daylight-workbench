@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { oauthError } from '../shared/oauth-account.js';
 import { bindMediaModelSettings } from '../shared/model-settings.js';
-import { assertImageUrl, assertMediaOk, fail, imageResult, onlyKeys, readJsonLimited } from '../shared/media.js';
+import { IMAGE_BYTES, assertImageUrl, assertMediaOk, fail, imageResult, onlyKeys, readBytesLimited, readJsonLimited } from '../shared/media.js';
+import { assertPublicImageUrl } from '../shared/remote-image.js';
 
 const HOST = 'https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent';
 export const agyMediaIds = ['gemini-3-pro-image', 'gemini-3.1-flash-image', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image-preview'];
@@ -14,18 +15,19 @@ async function session(provider) {
   catch { return null; }
 }
 
-async function inlineImage(url, fetchImpl, signal) {
+async function inlineImage(url, { fetchImpl, lookup }, signal) {
   assertImageUrl(url);
   if (url.startsWith('data:')) {
     const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=\s]+)$/.exec(url);
     return { mimeType: match[1], data: match[2].replace(/\s/g, '') };
   }
+  await assertPublicImageUrl(url, { lookup, signal });
   const response = await fetchImpl(url, { redirect: 'error', signal });
   if (!response.ok) { await response.body?.cancel(); fail('参考图无法读取'); }
   const type = response.headers.get('content-type')?.split(';')[0];
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(type)) { await response.body?.cancel(); fail('参考图格式无效'); }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (!bytes.length || bytes.length > 8_000_000) fail('单张图片不能超过 8 MB');
+  const bytes = await readBytesLimited(response, IMAGE_BYTES, '单张图片不能超过 8 MB');
+  if (!bytes.length) fail('单张图片不能超过 8 MB');
   return { mimeType: type, data: bytes.toString('base64') };
 }
 
@@ -54,7 +56,7 @@ async function execute(provider, { operation, body, model }, { signal, observe =
     if (!Array.isArray(list) || !list.length || list.length > 5) fail('图片数量无效');
     for (const item of list) {
       if (!item || typeof item !== 'object' || item.type !== 'image_url') fail('图片格式无效');
-      parts.push({ inlineData: await inlineImage(item.url, provider.fetchImpl, signal) });
+      parts.push({ inlineData: await inlineImage(item.url, provider, signal) });
     }
   }
   const imageConfig = {};
