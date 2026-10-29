@@ -101,7 +101,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
     await Promise.all(finishing);
     state = 'stopped'; startedAt = null;
   }
-  const close = () => mutate(async () => {retiring = true; clearTimeout(catalogRetry); await pi.close();await stop(true);await registry.close();});
+  const close = () => mutate(async () => {retiring = true; clearTimeout(catalogRetry); await pi.close();await stop(true);await registry.close();await records?.close();});
   const pi = createPiConfig({ ...piOptions, dataDir,
     getGateway: async () => ({ state, baseUrl: `http://127.0.0.1:${settings.port}/v1`, apiKey: settings.apiKey }),
     getCatalog: async force => {

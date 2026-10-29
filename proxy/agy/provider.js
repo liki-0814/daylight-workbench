@@ -23,8 +23,8 @@ export class AgyProvider {
   close(){this.catalogCache.invalidate();this.signatures.clear();this.auth.close?.();}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',events:this.stream(request,context)};}
   snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:!!this.auth.account,connected:!!this.cache&&this.cache.identity===this.auth.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
-  constructor({ dataDir, fetchImpl = fetch, auth }) {
-    Object.assign(this, { fetchImpl, auth:auth||new AgyAuth({dataDir,fetchImpl}) });
+  constructor({ dataDir, fetchImpl = fetch, auth, lookup }) {
+    Object.assign(this, { fetchImpl, lookup, auth:auth||new AgyAuth({dataDir,fetchImpl}) });
     this.file = path.join(dataDir, 'agy/settings.json'); this.catalogCache=new CatalogCache();this.signatures = new Map(); this.settings=modelSettings(this.file);bindAccountCatalog(this,{reset:()=>this.signatures.clear()});
     attachAgyMedia(this);
   }

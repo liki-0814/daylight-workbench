@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile, rename, unlink, chmod } from 'node:fs/promises';
+import { writeFileSync, renameSync, unlinkSync, chmodSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -14,6 +15,15 @@ export async function writeJson(file, value) {
     await rename(temporary, file);
     await chmod(file, 0o600);
   } finally { await unlink(temporary).catch(() => {}); }
+}
+// Synchronous variant for process exit, where only sync work can finish. Does not create the directory.
+export function writeJsonSync(file, value) {
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, JSON.stringify(value, null, 2), { mode: 0o600, flag: 'wx' });
+    renameSync(temporary, file);
+    chmodSync(file, 0o600);
+  } finally { try { unlinkSync(temporary); } catch {} }
 }
 export function serial() {
   let tail = Promise.resolve();

@@ -101,8 +101,10 @@ export class RequestRecords {
     return { records: filtered.slice(-limit).reverse(), retained: this.rows.length, matched: filtered.length, error: this.error };
   }
   setModelCatalog(source,models) {
-    if(this.history?.setModelCatalog(source,models))void this.write(()=>this.history.flush());
+    this.history?.setModelCatalog(source,models);
   }
+  // Drains queued appends, then writes any coalesced statistics still pending.
+  async close() { await this.write(() => {}); await this.history?.close(); }
   statistics(query={}) { if(!this.history)throw Object.assign(Error('历史统计未启用'),{status:503});return this.history.report(query,this.rows); }
   speeds(source, revision) { return summarizeSpeeds(this.rows, source, revision); }
   frequencies(source, revision) {
