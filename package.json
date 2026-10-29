@@ -37,7 +37,7 @@
   },
   "author": "Daylight",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@qoder-ai/qoder-agent-sdk": "1.0.53",
     "jsonc-parser": "^3.3.1",
     "smol-toml": "^1.9.1",
