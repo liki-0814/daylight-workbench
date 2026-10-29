@@ -1319,3 +1319,34 @@
   font-size: var(--font-meta-size);
   font-weight: 400;
 }
+
+/* Deferred regroup: a toggled row stays where it is until the next refresh / page entry. */
+.proxy-pending {
+  margin-left: auto;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.proxy-undo {
+  padding: 0 2px;
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.proxy-model:has(> .proxy-model-heading.is-pending) {
+  background: var(--soft);
+}
+
+.proxy-model:has(> .proxy-model-heading.is-pending) > :not(.proxy-model-heading) {
+  opacity: .55;
+}
+
+/* Reserve the "已保存" feedback row so saving a toggle does not push everything below the list down. */
+.ui-disclosure-body .proxy-model-message:empty {
+  display: flex;
+  visibility: hidden;
+}
