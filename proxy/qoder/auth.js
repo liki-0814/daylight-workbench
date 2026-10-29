@@ -81,6 +81,8 @@ export class AccountStore {
 // The provider owns login state; management owns the stop-before-account-change policy.
 export class QoderAuth {
  constructor({accounts,http,config,fetchImpl,onChange=()=>{}}){Object.assign(this,{accounts,http,config,fetchImpl,onChange});}
+ // Media jobs are keyed by account id; logout reads it before the file is removed.
+ async accountKey(){try{return(this.accounts.current??await this.accounts.load())?.id;}catch{return undefined;}}
  async login(){this.pending=startAuthorize(this.config);return{url:this.pending.url,expiresAt:this.pending.expiresAt};}
  async poll(){
   if(!this.pending||Date.now()>this.pending.expiresAt){this.pending=null;throw Object.assign(new Error('登录链接已过期，请重新登录'),{status:400});}
