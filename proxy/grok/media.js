@@ -1,7 +1,7 @@
 import { bindMediaModelSettings } from '../shared/model-settings.js';
 import { randomUUID } from 'node:crypto';
 import { authError } from './auth.js';
-import { assertImageUrl, assertMediaOk, fail, imageResult, onlyKeys, readJsonLimited } from '../shared/media.js';
+import { assertImageUrl, assertMediaOk, fail, imageBudget, imageResult, onlyKeys, readJsonLimited } from '../shared/media.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
 const IMAGES = ['grok-imagine-image-2.0', 'grok-imagine-image', 'grok-imagine-image-quality'];
@@ -10,8 +10,21 @@ const RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1'
 const VIDEO_RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9', '5:2']);
 const IMAGE_KEYS = new Set(['model', 'prompt', 'n', 'response_format', 'aspect_ratio', 'resolution', 'quality']);
 const EDIT_KEYS = new Set(['model', 'prompt', 'image', 'images', 'aspect_ratio', 'resolution', 'quality', 'response_format']);
-const VIDEO_KEYS = new Set(['model', 'prompt', 'duration', 'aspect_ratio', 'resolution', 'image']);
-const VIDEO_REJECTED = ['reference_images', 'voices', 'voice', 'first_frame', 'last_frame', 'keyframes', 'extend', 'video', 'mode', 'size', 'n', 'response_format', 'file_id'];
+const VIDEO_KEYS = new Set(['model', 'prompt', 'duration', 'aspect_ratio', 'resolution', 'image', 'reference_images', 'reference_audios', 'last_frame', 'keyframes', 'generate_audio']);
+const VIDEO_REJECTED = ['voices', 'voice', 'first_frame', 'extend', 'video', 'video_url', 'mode', 'size', 'n', 'response_format', 'file_id', 'seed', 'negative_prompt', 'seconds'];
+// Fields whose upstream name differs from a plausible client spelling: say which one to use instead of a bare "unsupported".
+const VIDEO_REDIRECTS = {
+  voices: 'voices 不被支持，请改用 reference_audios（例如 [{"voice_id":"eve"}]）',
+  voice: 'voice 不被支持，请改用 reference_audios（例如 [{"voice_id":"eve"}]）',
+  first_frame: 'first_frame 不被支持，首帧请使用 image',
+};
+// Upstream limits per model (docs.x.ai video overview / reference-to-video). `refDuration` caps duration only when reference_images are sent.
+const VIDEO_CAPS = {
+  'grok-imagine-video-1.5': { resolutions: ['480p', '720p', '1080p'], refs: 14, voices: 3, lastFrame: true, keyframes: 4, refDuration: 15, imageWithRefs: true },
+  'grok-imagine-video-1.5-lite': { resolutions: ['480p', '720p', '1080p'], refs: 0, voices: 0, lastFrame: false, keyframes: 0, refDuration: 15, imageWithRefs: false },
+  'grok-imagine-video': { resolutions: ['480p', '720p'], refs: 7, voices: 0, lastFrame: false, keyframes: 0, refDuration: 10, imageWithRefs: false },
+};
+const VIDEO_DEFAULT_DURATION = 8;
 
 const row = (id, output) => ({ id, displayName: id, output, status: 'ready', source: 'grok' });
 export const grokMediaIds = new Set([...IMAGES, ...VIDEOS]);
@@ -44,6 +57,67 @@ function imageOptions(body) {
   if (body.aspect_ratio !== undefined && !RATIOS.has(body.aspect_ratio)) fail('aspect_ratio 无效');
   if (body.resolution !== undefined && !['1k', '2k'].includes(body.resolution)) fail('resolution 无效');
   if (body.quality !== undefined && !['low', 'medium', 'auto'].includes(body.quality)) fail('quality 无效');
+}
+
+function videoImage(value, budget, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => key !== 'url')) fail(`${label} 只接受 { url }`);
+  budget(assertImageUrl(value.url));
+  return { url: value.url };
+}
+
+function videoList(value, label, max, model) {
+  if (!Array.isArray(value) || !value.length) fail(`${label} 需要非空数组`);
+  if (!max) fail(`${model} 不支持 ${label}`);
+  if (value.length > max) fail(`${label} 最多 ${max} 项`);
+  return value;
+}
+
+// Validates a client video body against the model's caps and returns the exact upstream body. Anything not named here is never forwarded.
+function videoUpstream(body, model) {
+  const caps = VIDEO_CAPS[model];
+  if (!caps) fail('模型不是视频模型');
+  for (const key of VIDEO_REJECTED) if (body[key] !== undefined) fail(VIDEO_REDIRECTS[key] || `不支持的字段：${key}`);
+  onlyKeys(body, VIDEO_KEYS);
+  const budget = imageBudget();
+  const pinned = body.image !== undefined || body.reference_images !== undefined || body.last_frame !== undefined || body.keyframes !== undefined;
+  if (body.prompt === undefined ? !pinned : typeof body.prompt !== 'string' || !body.prompt) fail(body.prompt === undefined ? 'prompt 无效：未提供 image、reference_images、last_frame 或 keyframes 时必填' : 'prompt 无效');
+  if (body.duration !== undefined && (!Number.isInteger(body.duration) || body.duration < 1 || body.duration > 15)) fail('duration 无效');
+  if (body.aspect_ratio !== undefined && !VIDEO_RATIOS.has(body.aspect_ratio)) fail('aspect_ratio 无效');
+  if (body.resolution !== undefined && !caps.resolutions.includes(body.resolution)) fail('resolution 无效');
+  if (body.generate_audio !== undefined && typeof body.generate_audio !== 'boolean') fail('generate_audio 必须是布尔值');
+  const upstream = { model, ...(body.prompt !== undefined ? { prompt: body.prompt } : {}), ...(body.duration ? { duration: body.duration } : {}), ...(body.aspect_ratio ? { aspect_ratio: body.aspect_ratio } : {}), ...(body.resolution ? { resolution: body.resolution } : {}) };
+  if (body.image !== undefined) upstream.image = videoImage(body.image, budget, 'image');
+  if (body.reference_images !== undefined) {
+    const list = videoList(body.reference_images, 'reference_images', caps.refs, model);
+    if (body.image !== undefined && !caps.imageWithRefs) fail(`${model} 不支持同时传 image 与 reference_images`);
+    if (body.duration !== undefined && body.duration > caps.refDuration) fail(`${model} 带参考图时 duration 最长 ${caps.refDuration} 秒`);
+    upstream.reference_images = list.map((item, index) => videoImage(item, budget, `reference_images[${index}]`));
+  }
+  if (body.reference_audios !== undefined) {
+    const list = videoList(body.reference_audios, 'reference_audios', caps.voices, model);
+    upstream.reference_audios = list.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item) || Object.keys(item).some(key => key !== 'voice_id') || typeof item.voice_id !== 'string' || !item.voice_id.trim()) fail(`reference_audios[${index}] 只接受 { voice_id }`);
+      return { voice_id: item.voice_id };
+    });
+  }
+  if (body.last_frame !== undefined) {
+    if (!caps.lastFrame) fail(`${model} 不支持 last_frame`);
+    upstream.last_frame = videoImage(body.last_frame, budget, 'last_frame');
+  }
+  if (body.keyframes !== undefined) {
+    const list = videoList(body.keyframes, 'keyframes', caps.keyframes, model);
+    const duration = body.duration ?? VIDEO_DEFAULT_DURATION, slots = new Set();
+    upstream.keyframes = list.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item) || Object.keys(item).some(key => key !== 'image' && key !== 'timestamp_s')) fail(`keyframes[${index}] 只接受 image 与 timestamp_s`);
+      if (typeof item.timestamp_s !== 'number' || !Number.isFinite(item.timestamp_s) || item.timestamp_s <= 0 || item.timestamp_s >= duration) fail(`keyframes[${index}].timestamp_s 必须大于 0 且小于 duration`);
+      const slot = Math.round(item.timestamp_s * 3);
+      if (slots.has(slot)) fail('keyframes 的时间点至少相隔 1/3 秒');
+      slots.add(slot);
+      return { image: videoImage(item.image, budget, `keyframes[${index}].image`), timestamp_s: item.timestamp_s };
+    });
+  }
+  if (body.generate_audio !== undefined) upstream.generate_audio = body.generate_audio;
+  return upstream;
 }
 
 async function jsonCall(provider, endpoint, body, signal, observe) {
@@ -105,17 +179,7 @@ async function execute(provider, { operation, body, model }, { signal, observe =
     return imageResult(payload, format, payload.data || []);
   }
   if (operation === 'video.submit') {
-    for (const key of VIDEO_REJECTED) if (body[key] !== undefined) fail(`不支持的字段：${key}`);
-    onlyKeys(body, VIDEO_KEYS);
-    if (typeof body.prompt !== 'string' || !body.prompt) fail('prompt 无效');
-    if (body.duration !== undefined && (!Number.isInteger(body.duration) || body.duration < 1 || body.duration > 15)) fail('duration 无效');
-    if (body.aspect_ratio !== undefined && !VIDEO_RATIOS.has(body.aspect_ratio)) fail('aspect_ratio 无效');
-    if (body.resolution !== undefined && !['480p', '720p', '1080p'].includes(body.resolution)) fail('resolution 无效');
-    if (body.image !== undefined) {
-      if (!body.image || typeof body.image !== 'object' || Array.isArray(body.image) || Object.keys(body.image).some(key => key !== 'url')) fail('视频参考图只接受 url');
-      assertImageUrl(body.image.url);
-    }
-    const upstream = { model, prompt: body.prompt, ...(body.duration ? { duration: body.duration } : {}), ...(body.aspect_ratio ? { aspect_ratio: body.aspect_ratio } : {}), ...(body.resolution ? { resolution: body.resolution } : {}), ...(body.image ? { image: { url: body.image.url } } : {}) };
+    const upstream = videoUpstream(body, model);
     const response = await jsonCall(provider, 'videos/generations', upstream, signal, observe);
     await assertMediaOk(response);
     const payload = await readJsonLimited(response);
@@ -129,8 +193,10 @@ async function execute(provider, { operation, body, model }, { signal, observe =
   const response = await jsonCall(provider, `videos/${encodeURIComponent(job.upstreamId)}`, undefined, signal, observe);
   await assertMediaOk(response);
   const payload = await readJsonLimited(response);
-  const status = response.status === 202 || payload.status === 'pending' ? 'in_progress' : payload.status === 'done' && payload.video?.url ? 'succeeded' : payload.status === 'failed' ? 'failed' : payload.status === 'expired' ? 'expired' : 'in_progress';
-  const next = { ...job, status, updatedAt: new Date().toISOString(), ...(status === 'succeeded' ? { outputUrl: payload.video.url } : {}), ...(status === 'failed' && typeof payload.error?.code === 'string' ? { errorCode: payload.error.code } : {}) };
+  const moderated = payload.status === 'done' && payload.video?.respect_moderation === false;
+  const status = moderated ? 'failed' : response.status === 202 || payload.status === 'pending' ? 'in_progress' : payload.status === 'done' && payload.video?.url ? 'succeeded' : payload.status === 'failed' ? 'failed' : payload.status === 'expired' ? 'expired' : 'in_progress';
+  const errorCode = moderated ? 'moderation_rejected' : status === 'failed' && typeof payload.error?.code === 'string' ? payload.error.code : undefined;
+  const next = { ...job, status, updatedAt: new Date().toISOString(), ...(status === 'succeeded' ? { outputUrl: payload.video.url } : {}), ...(errorCode ? { errorCode } : {}) };
   delete next.error;
   await jobs.save(next);
   return publicJob(next);

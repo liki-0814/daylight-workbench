@@ -85,7 +85,7 @@ PR1 里每个来源的 `media.status` 都是 `unavailable`。后面的 PR 在 Gr
 | `grok-imagine-video-1.5` | $0.08/秒 | $0.14/秒 | $0.25/秒 |
 | `grok-imagine-video-1.5-lite` | $0.02/秒 | $0.03/秒 | $0.14/秒 |
 
-文档里的「大约 $0.08/秒」和「lite 大约 $0.02/秒」只是 480p 的下限。客户端示例若写 `resolution: "720p"`，1.5 的单价是 $0.14/秒。省略 `resolution` 时按上游默认 480p 计，也就是这张表的第一列。参考图、声音、钉帧和视频编辑不在第一刀里，它们的更高规格和另一套单价也不实现。
+文档里的「大约 $0.08/秒」和「lite 大约 $0.02/秒」只是 480p 的下限。客户端示例若写 `resolution: "720p"`，1.5 的单价是 $0.14/秒。省略 `resolution` 时按上游默认 480p 计，也就是这张表的第一列。参考图、声音和钉帧后来按模型放开（见下文“Grok 视频字段”），它们可能有另一套单价，未实现；视频编辑和延长仍不实现。
 
 网页 Imagine 和 CLI 订阅是同一份额度，证据是 [CLIProxyAPI #5335](https://github.com/router-for-me/CLIProxyAPI/issues/5335)（2026-08-29，已修复）：SuperGrok 账号在 grok.com/imagine 能生成，预付余额为 0 时 `api.x.ai` 返回 `personal-team-blocked:spending-limit`；同一把 OAuth 打 `cli-chat-proxy.grok.com` 的 images 与 videos 返回 200，并消耗订阅周额度。图像响应含 `data[].url`（`imgen.x.ai`）和 `usage.cost_in_usd_ticks`；视频先返回 `request_id`，完成时 `video.url` 在 `vidgen.x.ai`。`cost_in_usd_ticks` 按聊天通道的既有规则只作上游标价，不当成额外账单。
 
@@ -141,7 +141,7 @@ grok.com 页面自己还有 cookie 接口 `POST /rest/media/imagine/quota_info` 
 - 不调用 `signedInference`。不把 Qoder 媒体折进 `protocol.js`。
 - 不实现 Kimi、千问办公、Custom、Copilot 的媒体。Custom 的路径仍然只有三个文本端点。
 - 不在 AI 面板增加生成按钮。
-- 不实现 Grok 的 reference-to-video、声音、首尾帧、中间帧、视频编辑和延长。不启用 `grok-imagine-video-1.5-lite` 和 `grok-imagine-video`。
+- 初版不实现 Grok 的 reference-to-video、声音、首尾帧、中间帧、视频编辑和延长。其中 reference-to-video、预设声音、尾帧和中间帧已在后续改动中按模型放开（上游文档（docs.x.ai）有记载，但 `cli-chat-proxy.grok.com` 上的真实探针尚未完成（documented upstream; live probe on cli-chat-proxy.grok.com pending）。）；视频编辑和延长仍不实现。
 - 不实现 Qoder 图像编辑。`imageSearch` 不是生成。
 - 不配置 Bailian / DashScope，失败也不回退到它。
 - 不把 OIDC 探测放进 PR。不抓 cookie。
@@ -325,7 +325,9 @@ Base URL `https://cli-chat-proxy.grok.com/v1`。Bearer 用 `GrokAuth.credential(
 
 无 `image` 就是文生视频，有则必须是上面的对象，且只有 `url`。不给视频的 `image` 加 `type`。`url` 与编辑相同：只允许 `https://` 或 `data:image/(png|jpeg|webp);base64,...`。拒绝 `file_id`、`file://`、本机路径，以及 `gif` 等其他 data URI。解码上限同样是 8_000_000。`duration` 是 1 到 15 的整数。`resolution` 只允许 `480p`、`720p`、`1080p`。`aspect_ratio` 只允许视频那九个比值。上例 `720p` 的单价是 $0.14/秒，不是 $0.08。省略 `duration`、`resolution`、`aspect_ratio` 时不发送，上游默认分别是 8、`480p`、`16:9`。
 
-以下键即使出现也是 400，不转发：`reference_images`、`images`、`voices`、`voice`、`first_frame`、`last_frame`、`keyframes`、`extend`、`video`、`video_url`、`mode`、`size`、`quality`、`n`、`response_format`，以及 `image.type`、`image.file_id`。
+Grok 视频字段（后续改动）：除上述字段外，还允许 `reference_images`、`reference_audios`、`last_frame`、`keyframes`、`generate_audio`。按模型限制：`grok-imagine-video-1.5` 最多 14 张 `reference_images`、3 个 `reference_audios`（只接受预设 `{ "voice_id" }`，不接受自定义音频 `url`）、`last_frame`、最多 4 个 `keyframes`（`{ image: { url }, timestamp_s }`，时间点须大于 0 且小于 `duration`，间隔至少 1/3 秒）；`-lite` 都不支持；`grok-imagine-video` 最多 7 张 `reference_images`，带参考图时 `duration` 最长 10，`resolution` 只有 `480p`、`720p`，且不能同时传 `image`。`prompt` 在有 `image`、`reference_images`、`last_frame` 或 `keyframes` 时可省略。`generate_audio` 是布尔值。一次请求内嵌 data URI 解码后总计不超过 40 MB。`voices`、`voice` 返回 400 并提示改用 `reference_audios`；编辑、延长、`first_frame`、`seed`、`negative_prompt`、`n` 仍是 400。上游返回 `done` 但 `video.respect_moderation` 为 `false` 时记为失败（`moderation_rejected`）。上游文档（docs.x.ai）有记载，但 `cli-chat-proxy.grok.com` 上的真实探针尚未完成（documented upstream; live probe on cli-chat-proxy.grok.com pending）。
+
+以下键即使出现也是 400，不转发：`images`、`voices`、`voice`、`first_frame`、`extend`、`video`、`video_url`、`mode`、`size`、`quality`、`n`、`response_format`、`seed`、`negative_prompt`、`seconds`，以及 `image.type`、`image.file_id`。
 
 提交的上游响应 fixture 只有任务 id：
 
@@ -799,7 +801,7 @@ Qoder 视频另附：编码前 JSON 的键名和类型，每种 mode 一份，�
 - 标题：`Add Grok Imagine video jobs without downloading bytes`
 - 文件：`proxy/grok/media.js`、`test/grok-media.test.mjs`、`docs/reverse-proxy.md`
 - 依赖：PR3。与 PR4 同改 `grok/media.js`，审查放在 PR4 之后
-- 内容：文生视频和单对象 `image`，`url` 遵守编辑的 scheme 和 MIME 规则。按 POST `{request_id}` 与 GET `video.url` 两份响应 fixture 映射，主机仍是 `cli-chat-proxy.grok.com`。HTTP 200 且 `failed` 写成失败 job，不保存 `error.message`。终态 GET 不打上游。超过 24 小时的非终态在 `serial()` 里过期。job.`operation` 为 `video.submit`，账号键为 `auth.identity`。拒绝 reference、声音、帧、编辑和延长。不启用 lite。`operation` 信号覆盖正文，180000 / 45000 / 30000 ms。
+- 内容：文生视频和单对象 `image`，`url` 遵守编辑的 scheme 和 MIME 规则。按 POST `{request_id}` 与 GET `video.url` 两份响应 fixture 映射，主机仍是 `cli-chat-proxy.grok.com`。HTTP 200 且 `failed` 写成失败 job，不保存 `error.message`。终态 GET 不打上游。超过 24 小时的非终态在 `serial()` 里过期。job.`operation` 为 `video.submit`，账号键为 `auth.identity`。该测试描述的是初版；reference、预设声音、尾帧和中间帧的按模型校验见 `test/grok-media.test.mjs`。编辑和延长仍被拒绝。`operation` 信号覆盖正文，180000 / 45000 / 30000 ms。
 
 ### PR6：Qoder 门闩与传输，不启用
 
