@@ -4,11 +4,25 @@ import {mkdtemp} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {kimiQuota} from '../proxy/kimi/quota.js';
+import {grokQuota} from '../proxy/grok/quota.js';
 import {KimiProvider} from '../proxy/kimi/provider.js';
 import {CodexProvider} from '../proxy/codex/provider.js';
 import { closeWorkbench } from '../fixtures/workbench.mjs';
 import {renderQuota} from '../public/proxy/quota-panel.js';
 import {normalizeQuota} from '../proxy/shared/quota.js';
+test('Grok omitted zero usage after a weekly reset remains visible with its reset time',()=>{
+ // Actual credits response shape: proto3 omits creditUsagePercent when it is zero.
+ const currentPeriod={type:'USAGE_PERIOD_TYPE_WEEKLY',start:'2026-10-28T17:09:00.033593+00:00',end:'2026-11-04T17:09:00.033593+00:00'};
+ const snapshot=grokQuota({config:{currentPeriod,onDemandCap:{val:0},onDemandUsed:{val:0},isUnifiedBillingUser:true,prepaidBalance:{val:0}}});
+ assert.equal(snapshot.usedPercent,0);assert.equal(snapshot.buckets.length,1);
+ assert.equal(snapshot.buckets[0].period,'本周');assert.equal(snapshot.buckets[0].resetsAt,'2026-11-04T17:09:00.033Z');
+ assert.match(renderQuota(snapshot),/100%/);assert.match(renderQuota(snapshot),/data-quota-progress/);
+ assert.equal(grokQuota({config:{currentPeriod:{...currentPeriod,type:'USAGE_PERIOD_TYPE_MONTHLY'}}}).buckets[0].period,'本月');
+ for(const creditUsagePercent of [0,47,100])assert.equal(grokQuota({config:{currentPeriod,creditUsagePercent}}).usedPercent,creditUsagePercent);
+ for(const config of [undefined,null,{}, {currentPeriod:{}},{currentPeriod:{...currentPeriod,end:'bad'}},{currentPeriod:{...currentPeriod,type:'UNKNOWN'}},...[null,'0',NaN,-1].map(creditUsagePercent=>({currentPeriod,creditUsagePercent}))]){
+  assert.deepEqual(grokQuota({config}).buckets,[]);
+ }
+});
 test('quota contract retains only valid applicable fields and is idempotent',()=>{
  const snapshot=normalizeQuota({buckets:[null,{id:'bad',unit:'widgets',limit:-1,used:'invalid',usedPercent:NaN},{id:'percentage',limit:'100',remaining:'75',unit:'widgets',invalidField:'discard',resetsAt:1e100},{id:'unlimited',unlimited:true,unit:'credits',limit:0,remaining:0,usedPercent:0,resetsAt:'2026-11-01'},{id:'credits',unit:'credits',limit:'100',used:'0',remaining:100,resetsAt:'2026-11-01'}]});
  assert.deepEqual(snapshot.buckets,[{id:'percentage',unit:'percent',usedPercent:25},{id:'unlimited',unlimited:true},{id:'credits',unit:'credits',limit:100,used:0,remaining:100,usedPercent:0,resetsAt:'2026-11-01T00:00:00.000Z'}]);
