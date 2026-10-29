@@ -56,6 +56,8 @@ Grok 与其他来源共用地址、Key 和运行开关。Daylight 通过 xAI OID
 
 图像和视频使用同一次 Grok 登录，走 `cli-chat-proxy.grok.com` 的 `/images/generations`、`/images/edits`、`/videos/generations`。本机入口是 `/v1/images/generations`、`/v1/images/edits`、`/v1/videos/generations` 和 `/v1/videos/{id}`。模型包括 `grok-imagine-image-2.0`、`grok-imagine-image`、`grok-imagine-image-quality`、`grok-imagine-video-1.5`、`grok-imagine-video-1.5-lite` 和 `grok-imagine-video`。这些 id 不进入聊天目录、模型路由或 Pi 同步。来源页在聊天模型下面单独列出它们。视频任务保存在数据目录的 `proxy/media-jobs.json`，只记录任务号和状态，不记录提示词或图片。
 
+Qoder 也有图像和视频，同一次登录，走 `api3.qoder.sh` 的 `/algo/api/v2/service/pro/generateImage` 和 `/videos`（COSY 签名，请求体与聊天同样编码）。本机入口同上，模型是 `qwen-image-3.0`（上游 `ge3i`，显示名带“映射待确认”）和 `wan3.0-video`（万相 3.0，上游 `wan30`，别名 `wan30`）。图像只返回 `b64_json`，视频目前只有文生视频（`duration` 2 到 30 秒、`size`），任务和 Grok 一样保存在 `proxy/media-jobs.json`。费用是团队 Credits（图像约 4、5 秒 720p 视频约 40，实测），不折算美元，不进参考花费。详见 [plans/qoder-media.md](plans/qoder-media.md)。
+
 Grok 输出预算为可选项：请求未传且没有历史默认预算时，不向上游发送 `max_output_tokens`，不增加固定 token 上限。历史已保存预算仍作为默认值，客户端显式值优先；统一页面不再单独提供预算输入框，容量选择的语义见下文。订阅通道能力以其在线目录和实际返回为准，不能用公开 API 的规格替换。流式请求采用五分钟无数据超时，收到数据后重新计时，不因总时长超过五分钟截断持续输出。
 
 历史验收（2026-09-30）：四个在线模型文本推理通过；grok-4.7 的图片、结构化输出、函数工具回传、网页/X 搜索通过，彼时安装的 Pi 通过三种协议的工具与多轮回传。该记录来自统一架构重构前，不代表 0.4.0 已完成相同真实账号回归。

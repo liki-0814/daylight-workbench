@@ -6,7 +6,7 @@ const kindLabel = { image: '图像', video: '视频' };
 const statusLabel = { ready: '已登录可用' };
 
 export function mediaRowsHtml(models, options) {
-  return modelGroups(models, (model, i, state = {}) => `<div class="proxy-model ui-media-model">${modelHeading(model, `<input type="checkbox" data-media-model="${esc(model.id)}" ${model.enabled !== false ? 'checked' : ''} aria-label="启用 ${esc(model.id)}">`, { pending: state.pending, selected: model.enabled !== false })}<p class="proxy-hint">${esc(kindLabel[model.output] || model.output)} · ${esc(statusLabel[model.status] || model.status)}</p></div>`, options);
+  return modelGroups(models, (model, i, state = {}) => `<div class="proxy-model ui-media-model">${modelHeading(model, `<input type="checkbox" data-media-model="${esc(model.id)}" ${model.enabled !== false ? 'checked' : ''} aria-label="启用 ${esc(model.id)}">`, { pending: state.pending, selected: model.enabled !== false })}<p class="proxy-hint">${esc(kindLabel[model.output] || model.output)} · ${esc(statusLabel[model.status] || model.status)}${model.note ? ` · ${esc(model.note)}` : ''}</p></div>`, options);
 }
 
 export function createMediaModels({ source, load, save }) {

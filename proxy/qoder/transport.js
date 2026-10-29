@@ -60,6 +60,16 @@ export class QoderHttp {
     const sig = signCosy({ url: fullUrl, body: '', identity: identityOf(session), temporaryKey: opts.temporaryKey, timestamp: opts.timestamp });
     return this.fetchImpl(fullUrl, { method: 'GET', headers: { ...signingHeaders(session, sig), accept: 'application/json' }, signal: opts.signal });
   }
+  // 图像与视频：COSY 签名，application/json 进出，不带聊天的 scene 与 model-key 头。
+  // POST 的 body 是 encodeBody 的文本（URL 需带 Encode=1），GET 无 body。
+  async signedMedia(fullUrl, req) {
+    const body = req.method === 'POST' ? req.body : '';
+    const sig = signCosy({ url: fullUrl, body, identity: identityOf(req.session), temporaryKey: req.temporaryKey, requestId: req.requestId, timestamp: req.timestamp });
+    return this.fetchImpl(fullUrl, {
+      method: req.method, signal: req.signal, ...(req.method === 'POST' ? { body } : {}),
+      headers: { ...signingHeaders(req.session, sig), accept: 'application/json', ...(req.method === 'POST' ? { 'content-type': 'application/json' } : {}) },
+    });
+  }
   async signedInference(fullUrl, req) {
     const sig = signCosy({ url: fullUrl, body: req.encodedBody, identity: identityOf(req.session), temporaryKey: req.temporaryKey, requestId: req.requestId, timestamp: req.timestamp });
     return this.fetchImpl(fullUrl, {

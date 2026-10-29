@@ -10,7 +10,7 @@
 | `codex` | Codex | 图像、图像编辑 | 现有 ChatGPT 登录，`chatgpt.com/backend-api/codex` |
 | `agy` | AGY | Gemini 图像、图像编辑 | 现有 Google 登录，`daily-cloudcode-pa.googleapis.com` |
 
-Codex 和 AGY 这次没有视频。本机 Codex 0.161.0 没有视频接口。AGY 现有的 `v1internal` 路径上也没有视频方法。Qoder 的 CLI 里有图像和视频，请求体还没从一次真实调用里录下来，这次不猜测它的 JSON。Copilot、Kimi、千问办公和自定义来源没有生成接口。
+Codex 和 AGY 这次没有视频。本机 Codex 0.161.0 没有视频接口。AGY 现有的 `v1internal` 路径上也没有视频方法。Qoder 的文生图和文生视频后来经真实探针确认并接入，见 [qoder-media.md](qoder-media.md)。Copilot、Kimi、千问办公和自定义来源没有生成接口。
 
 文本目录、`model-list.js`、模型路由和 Pi 同步都不收这些模型。`supportsImages` 和 `isVL` 只表示能看图，不表示能生成图。
 
@@ -209,4 +209,4 @@ Host、无 Origin、代理 API Key 与现有 `/v1` 相同。`Content-Type` 是 `
 
 ## 不做
 
-Qoder 媒体请求。Copilot、Kimi、千问办公、自定义来源的媒体。Codex 和 AGY 的视频。网页 cookie。`api.x.ai` 和另外购买的图像 API Key。Grok 的参考图视频、声音、钉帧、视频编辑、延长和 lite。把媒体模型写进聊天目录或在页面里直接生成。把聊天额度换算成剩余张数。
+Qoder 的首帧 / 参考图视频与图像编辑（文生图、文生视频见 [qoder-media.md](qoder-media.md)）。Copilot、Kimi、千问办公、自定义来源的媒体。Codex 和 AGY 的视频。网页 cookie。`api.x.ai` 和另外购买的图像 API Key。Grok 的参考图视频、声音、钉帧、视频编辑、延长和 lite。把媒体模型写进聊天目录或在页面里直接生成。把聊天额度换算成剩余张数。

@@ -67,7 +67,7 @@ export async function mediaCatalog(registry) {
 export async function selectMedia(registry, model, source) {
   if (model === 'gpt-image-2.5') fail('没有 gpt-image-2.5。请使用 gpt-image-2.5-flare 或 gpt-image-2.5-sunburst');
   const ready = await mediaCatalog(registry);
-  const matches = ready.filter(row => row.id === model && (!source || row.source === source));
+  const matches = ready.filter(row => (row.id === model || row.aliases?.includes(model)) && (!source || row.source === source));
   if (matches.length > 1) fail('模型对应多个来源', 400, 'model_ambiguous', { sources: [...new Set(matches.map(row => row.source))] });
   if (matches.length === 1) return matches[0];
   for (const provider of Object.values(registry.providers)) {

@@ -10,6 +10,8 @@
 | 读者 | 熟悉 `proxy/` 的工程师 |
 | 相关文档 | `docs/proxy-architecture.md`、`docs/reverse-proxy.md` |
 
+> **更正（2026-10-29）**：Qoder 部分已被 [qoder-media.md](qoder-media.md) 取代。图像上游模型是 `ge3i`（对外 `qwen-image-3.0`），响应是 data URL，只支持 `b64_json`；视频内层是 `{model:'wan30', prompt, seconds:'5'（字符串）, size}`；`sessionId` 必须是非空 UUID，空串会返回 500；视频结果是约 30 天有效的 `video_url`，实测约 158 秒完成；请求用 `application/json`。本文中 Qoder 的 PR 拆分、`unverified` 状态和“需要手动探针”的说法不再适用。
+
 本文只做设计，不实现代码。主目标是把 Grok Imagine 的图像和视频接进现有本机反向代理。Codex、AGY、Qoder、GitHub Copilot 的结论一并写明。标识符、路径和 API 字段保持英文。
 
 ## Overview

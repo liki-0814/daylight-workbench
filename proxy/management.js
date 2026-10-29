@@ -56,12 +56,13 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   else router.setCatalog(id,undefined,new Error('Source unavailable'));
   return result;
  }
+ const accountKey=async p=>p.auth?.accountKey?p.auth.accountKey():p.auth?.identity;
  async function auth(id,operation){
   const p=provider(id),description=registry.snapshot(id);
   if(!description.authentication.operations.includes(operation))fail('来源不支持此认证操作',404);
-  if(description.authentication.requiresStoppedService&&['login','logout'].includes(operation))return service.accountChange(operation,async()=>{const account=p.auth?.identity;const result=await p.auth[operation]();if(operation==='logout'){if(account)await jobs?.dropAccount(id,account);sourceState.invalidate(id);router.invalidateSource(id);}return result;});
+  if(description.authentication.requiresStoppedService&&['login','logout'].includes(operation))return service.accountChange(operation,async()=>{const account=await accountKey(p);const result=await p.auth[operation]();if(operation==='logout'){if(account)await jobs?.dropAccount(id,account);sourceState.invalidate(id);router.invalidateSource(id);}return result;});
   if(operation==='refresh'){const result=await p.auth?.refresh?.();return result?.url?result:catalogStatus(id,true);}
-  const account=p.auth?.identity;
+  const account=await accountKey(p);
   const result=await p.auth[operation]();
   if(operation==='logout'&&account)await jobs?.dropAccount(id,account);
   if(result.authorized||operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}

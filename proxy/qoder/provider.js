@@ -17,6 +17,7 @@ import {contextWindowRejection, effortRejection} from '../shared/llm/index.js';
 import {SessionStore} from './protocol.js';
 import {compileNativeBody, INFERENCE_PATH, INFERENCE_QUERY} from './protocol.js';
 import {encodeBody} from './body-codec.js';
+import {attachQoderMedia} from './media.js';
 import {QoderDeframer, RETRYABLE_UPSTREAM_CODES} from './stream.js';
 
 export const sourceDescription = {id:'qoder',name:'Qoder',authentication:{mode:'browser',operations:['login', 'poll', 'cancel', 'logout','refresh'],requiresStoppedService:true},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat']};
@@ -25,7 +26,7 @@ export class QoderProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'context', 'effort', 'fast']);}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',events:this.stream(request,context)};}
   snapshot(){const c=this.accounts.current?.credential;return{...sourceSnapshot({...sourceDescription,identityKey:this.accounts.current?.id,configured:!!c,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,catalogIdentityKey:this.cache?.identity}),account:c?{login:[c.organizationName,c.uid].filter(Boolean).join(' · ')}:undefined};}
-  constructor(config, http, accounts) { Object.assign(this, { config, http, accounts });this.mutate=serial();this.catalogCache=new CatalogCache(); this.sessions = new SessionStore(); this.auth=new QoderAuth({accounts,http,config,fetchImpl:http.fetchImpl,onChange:()=>this.clear()});this.creditsHistory = new CreditsHistory(path.join(path.dirname(config.accountFile), "credits-history.json")); }
+  constructor(config, http, accounts) { Object.assign(this, { config, http, accounts });this.mutate=serial();this.catalogCache=new CatalogCache(); this.sessions = new SessionStore(); this.auth=new QoderAuth({accounts,http,config,fetchImpl:http.fetchImpl,onChange:()=>this.clear()});this.creditsHistory = new CreditsHistory(path.join(path.dirname(config.accountFile), "credits-history.json"));attachQoderMedia(this); }
   get cache(){return this.catalogCache.value;}
   clear() { this.catalogCache.invalidate(); this.sessions = new SessionStore(); }
   async ready() {
