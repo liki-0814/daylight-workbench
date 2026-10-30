@@ -1,5 +1,5 @@
 .ai-workspace {
-  min-height: calc(100dvh - 76px);
+  min-height: calc(100dvh - var(--toolbar-height));
   display: flex;
   flex-direction: column;
 }
@@ -31,10 +31,10 @@
 
 .ai-history {
   position: sticky;
-  top: 24px;
+  top: calc(var(--toolbar-height) + 24px);
   min-width: 0;
   align-self: start;
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - var(--toolbar-height) - 48px);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -410,7 +410,7 @@
   }
   .ai-history {
     position: sticky;
-    top: 0;
+    top: var(--toolbar-height);
     z-index: 3;
     max-height: none;
     background: #f7f8f5;

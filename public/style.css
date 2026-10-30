@@ -47,6 +47,11 @@ a {
   line-height: var(--font-caption-line);
 }
 
+html {
+  /* 吸顶工具栏不遮住被聚焦 / 滚动到的元素 */
+  scroll-padding-top: calc(var(--toolbar-height) + var(--space-3));
+}
+
 #app {
   display: flex;
   min-height: 100vh;
@@ -101,7 +106,7 @@ a {
   box-shadow: 0 2px 3px #1f301205;
 }
 
-.capture>span {
+.capture>span:not(.capture-label) {
   font-size: var(--font-meta-size);
   color: var(--text-secondary);
   margin-left: auto;
@@ -118,8 +123,7 @@ a {
 
   margin-bottom: var(--space-1);
 
-  color: #626e63;
-
+  color: var(--text-secondary);
 }
 
 .nav-item>span {
@@ -178,8 +182,15 @@ main {
   flex: 1;
 }
 
+/* 工具栏：52px、吸顶；材质（半透明 + 模糊）只用在这里，系统「降低透明度」或不支持时由令牌回退为不透明。 */
 .topbar {
-  height: 76px;
+  height: var(--toolbar-height);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--material);
+  -webkit-backdrop-filter: var(--material-filter);
+  backdrop-filter: var(--material-filter);
   border-bottom: 1px solid var(--line);
   /* Keep breadcrumb and search aligned with the centred content column. */
   padding: 0 max(var(--page-inline), calc((100% - var(--page-max-width)) / 2 + var(--page-inline)));
@@ -716,7 +727,15 @@ dialog {
 
 dialog::backdrop {
   background: #2236294d;
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
+}
+:root[data-reduce-transparency] dialog::backdrop {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 .dialog-header {
@@ -836,7 +855,7 @@ dialog::backdrop {
 #toast {
   position: fixed;
   bottom: 28px;
-  left: calc(50% + 90px);
+  left: calc(50% + var(--sidebar-width) / 2);
   transform: translate(-50%,12px);
   background: #304638;
   color: #f5f8f0;
@@ -903,15 +922,6 @@ dialog::backdrop {
 }
 
 @media(max-width:1150px) {
-  :root { --sidebar-width: 210px; }
-  .sidebar {
-    width: var(--sidebar-width);
-    padding-left: 15px;
-    padding-right: 15px;
-  }
-  main {
-    margin-left: var(--sidebar-width);
-  }
   .workspace {
     padding: 30px var(--page-inline);
   }
@@ -1013,7 +1023,7 @@ dialog::backdrop {
     width: auto;
     margin: 0;
   }
-  .capture>span {
+  .capture>span:not(.capture-label) {
     display: none;
   }
   .sidebar>nav:first-of-type {
@@ -1400,7 +1410,7 @@ dialog::backdrop {
 
 @media(min-width:931px) {
   .today-workspace {
-    min-height: calc(100dvh - 76px);
+    min-height: calc(100dvh - var(--toolbar-height));
     display: flex;
     flex-direction: column;
   }
@@ -1595,7 +1605,7 @@ dialog::backdrop {
 }
 
 .nav-item [data-app-update] {
-  color: #8a6230;
+  color: var(--warning-text);
   font-weight: 600;
 }
 
@@ -1784,4 +1794,61 @@ dialog::backdrop {
     width: 100%;
     text-align: right;
   }
+}
+
+/* 0.7 PR-4：≤999（760 档）侧栏收成 64px 图标栏。标签只做视觉隐藏，读屏仍读得到；徽标变成小圆点。
+   限定 min-width:651px，保留旧的 ≤650 堆叠布局不变（原生壳 minSize 为 760，那段布局在 App 里到不了）。 */
+@media (max-width: 999px) and (min-width: 651px) {
+  .sidebar {
+    padding: var(--space-5) var(--space-2);
+    align-items: stretch;
+  }
+  .sidebar .brand {
+    justify-content: center;
+    margin: 0 0 var(--space-6);
+  }
+  .sidebar .brand-text,
+  .sidebar .nav-label,
+  .sidebar .capture-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .sidebar .capture {
+    justify-content: center;
+    padding: 0;
+    min-height: var(--compact-button-height);
+    margin-bottom: var(--space-6);
+  }
+  .sidebar .capture > span:not(.capture-label) { display: none; }
+  .sidebar .page-navigation { gap: var(--space-1); }
+  .sidebar .nav-item {
+    position: relative;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0;
+    margin-bottom: 0;
+  }
+  .sidebar .nav-item .icon { width: 20px; height: 20px; }
+  .sidebar .nav-item small {
+    position: absolute;
+    top: 7px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--accent);
+    font-size: 0;
+    line-height: 0;
+    color: transparent;
+  }
+  .sidebar .nav-item small:empty { display: none; }
 }
