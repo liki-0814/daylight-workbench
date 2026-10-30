@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { error } from './files.mjs';
+import { normalizeResolutions } from './conflicts.mjs';
 
 // bindings.json keeps schemaVersion 1. Skill enable state is an optional top-level map so older
 // builds, which only read `bindings` and preserve unknown keys, keep working:
@@ -9,7 +10,7 @@ const plain = value => value && typeof value === 'object' && !Array.isArray(valu
 const text = value => typeof value === 'string' && value.length > 0 && value.length < 4096 && !/[\0\r\n]/.test(value);
 export function normalizeManifest(manifest) {
   const states = manifest.skillStates;
-  if (states === undefined) return manifest;
+  if (states === undefined) return normalizeResolutions(manifest);
   const bad = () => error('接入记录中的 Skill 启停记忆格式错误，接入写入已暂停');
   if (!plain(states) || Object.keys(states).length > 5000) throw bad();
   for (const [id, state] of Object.entries(states)) {
@@ -18,7 +19,7 @@ export function normalizeManifest(manifest) {
       if (!plain(item) || Object.keys(item).sort().join() !== 'clientId,linkTarget,source,target' || !Object.values(item).every(text) || !path.isAbsolute(item.source) || !path.isAbsolute(item.target)) throw bad();
     }
   }
-  return manifest;
+  return normalizeResolutions(manifest);
 }
 // Mutates a cloned manifest: store or clear one Skill's state. Returns true when anything changed.
 export function setSkillState(manifest, id, state) {

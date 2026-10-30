@@ -70,7 +70,10 @@ export async function replace(file, next) {
   try {
     await materialize(temp, next);
     // File/link replacement uses rename; directory replacement is journaled, not globally atomic.
-    if ((await stat(file))?.isDirectory()) await fs.rm(file, { recursive: true });
+    // A directory can only be renamed onto a missing path, so a link or file standing in its way (a restore after
+    // E-11 "adopt shared" turned a real folder into a link) is removed first; a directory is removed before any replacement.
+    const existing = await stat(file);
+    if (existing && (existing.isDirectory() || next.kind === 'directory')) await fs.rm(file, { recursive: true });
     await fs.rename(temp, file);
   } finally { await fs.rm(temp, { recursive: true, force: true }); }
 }

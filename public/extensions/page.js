@@ -1,4 +1,5 @@
 import { createExtensionsClient } from './client.js';
+import { conflictOf, isOpenConflict, conflictSupported, conflictNote, conflictHint, conflictPanel, compareView, conflictErrorMessage, conflictShouldRefresh, conflictBlock, resolveTitle, resolveIntro } from './conflict.js';
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
@@ -51,12 +52,17 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   function bindingControl(skill, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);
     if (binding.state === 'local') return `<span>${esc(software.name)} · 本地专有${skill.linked ? '链接' : ''}</span>`;
-    const live = liveSkill(skill), conflict = binding.state === 'conflict', actual = connectedState(binding.state), note = bindingLabel[binding.state];
+    const live = liveSkill(skill), conflict = binding.state === 'conflict', actual = connectedState(binding.state), note = conflict ? conflictNote(binding) : bindingLabel[binding.state];
     const change = { kind: 'binding', id: skill.id, clientId: binding.clientId }, pending = staged.has(stageKey(change)), checked = stagedValue(staged, change, actual);
     const masterStaged = stagedKindFor(staged, skill.id) === 'skill', offSkill = !skillEnabled(live) && !actual && !pending;
     const reason = conflict ? '' : masterStaged ? '已暂存总开关变更，先应用或还原' : offSkill ? '已停用，启用后才能接入' : '';
     const disabled = conflict || batchBusy || !!reason || (skill.readOnly && !skill.valid);
-    return switchControl({ label: skill.name + ' · ' + software.name, text: software.name, hint: !compact ? (reason || note) : conflict ? '冲突' : masterStaged ? '总开关待应用' : offSkill ? '已停用' : '', checked, pending, busy: batchBusy && pending, disabled, title: reason || note, className: 'extension-binding-control', inputAttrs: { 'data-binding-toggle': true, 'data-skill': skill.id, 'data-client': binding.clientId } });
+    return switchControl({ label: skill.name + ' · ' + software.name, text: software.name, hint: !compact ? (reason || note) : conflict ? conflictHint(binding) : masterStaged ? '总开关待应用' : offSkill ? '已停用' : '', checked, pending, busy: batchBusy && pending, disabled, title: reason || note, className: 'extension-binding-control', inputAttrs: { 'data-binding-toggle': true, 'data-skill': skill.id, 'data-client': binding.clientId } });
+  }
+  // 检查器里的冲突块（E-11）：对比 / 采用 / 保留 / 重新处理。总开关有暂存时采用和保留置灰；Skill 已停用时只有采用置灰；原因写在块里。
+  function conflictBlockFor(skill, binding) {
+    if (!conflictOf(binding) || !conflictSupported(state?.capabilities)) return '';
+    return conflictPanel({ skill, binding, client: state.clients.find(item => item.id === binding.clientId), root: state.root || '', busy: batchBusy, masterStaged: stagedKindFor(staged, skill.id) === 'skill', skillOff: !skillEnabled(liveSkill(skill)) });
   }
   function bindingRow(skill, binding, showSkillName = false) {
     return `<div class="extension-binding"><div>${showSkillName ? `<a href="${extensionsRoute({ tab: 'skills', id: skill.id })}">${esc(skill.name)}</a>` : ''}${bindingControl(skill, binding)}</div>${binding.state === 'existing' ? `<details><summary>管理记录</summary><button type="button" class="text-button" data-binding="adopt" data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}">记录链接归属（可选）</button></details>` : ''}</div>`;
@@ -174,7 +180,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       const matchesSoftware = !route.client || (route.tab === 'skills'
         ? item.bindings.some(binding => binding.clientId === route.client && binding.state !== 'not_connected')
         : route.tab === 'clients' ? item.id === route.client : item.clientId === route.client);
-      const matchesProblems = !route.problems || item.valid === false || route.tab === 'clients' && item.selected && !item.installed || item.bindings?.some(binding => binding.state === 'conflict') || state.diagnostics.some(problem => problem.id === item.id);
+      const matchesProblems = !route.problems || item.valid === false || route.tab === 'clients' && item.selected && !item.installed || item.bindings?.some(isOpenConflict) || state.diagnostics.some(problem => problem.id === item.id);
       return matchesText && matchesSoftware && matchesProblems;
     });
   }
@@ -280,7 +286,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const heading = backBar() + sectionHeading({ title: item.name || '操作回执' });
     let content;
     if (route.operation) content = `<p>状态：${esc(item.status)}</p><p>${esc(item.error || '')}</p><code>${esc(item.requestId)}</code><div class="extension-actions"><button type="button" class="secondary" data-restore-operation="${esc(item.requestId)}" ${item.status === 'applied' && item.steps.length ? '' : 'disabled'}>预览恢复修改前内容</button></div><details><summary>操作与步骤</summary><pre>${esc(JSON.stringify(item, null, 2))}</pre></details>`;
-    else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre>${dangerZone(item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件', item.linked ? '只移除软件里的链接，源文件保留。' : '归档后，使用它的软件会失去这个 Skill。')}`;
+    else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding) + conflictBlockFor(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre>${dangerZone(item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件', item.linked ? '只移除软件里的链接，源文件保留。' : '归档后，使用它的软件会失去这个 Skill。')}`;
     else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${liveServer(item).enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p>${shared(item) ? `<div class="extension-mcp-switch">${mcpSwitch(item, false)}</div>` : ''}${(w => w ? `<p class="extension-warning" data-insecure-http><strong>警告 · </strong>${esc(w)}</p>` : '')(insecureHttpWarning(item.url, { hasHeaders: !!Object.keys(item.headerRefs || {}).length }))}<p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${(a => a.ok ? '' : 'disabled aria-describedby="extension-probe-hint"')(probeAvailability(item))}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div>${(a => a.ok ? '' : `<p class="extension-probe-hint" id="extension-probe-hint" data-probe-hint><small>${esc(a.hint)}</small></p>`)(probeAvailability(item))}<div data-probe-result role="status">${probeCardMarkup(item)}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', ...(refRows(item) ? [] : ['envRefs', 'headerRefs'])].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(key === 'args' ? redactArgs(value) : value, null, 2) : value)}</dd>`).join('')}</dl>${refTableMarkup(item)}<p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : `<h3>接入软件</h3>${state.clients.filter(client => client.selected && client.mcpMode === 'native').map(client => `<button type="button" class="secondary" data-install-mcp="${esc(client.id)}">接入 ${esc(client.name)}</button>`).join(' ') || chooseClientsPrompt}`}${dangerZone(item.scope === 'client' ? '移除软件 MCP 配置' : '归档 MCP 主配置', '归档后，使用它的软件会失去这个 MCP 服务。')}`;
     else content = `<p>${esc(item.note)}</p><dl><dt>软件主目录</dt><dd>${esc(item.root)}</dd><dt>软件 Skills 目录</dt><dd>${esc(item.skillsRoot)}</dd><dt>Daylight 管理的共享来源</dt><dd>${esc(state.root)}/skills</dd><dt>CLI 命令</dt><dd>${esc(item.command)}</dd></dl><p>${esc(item.refresh)}</p><p>${item.installed ? '可执行文件：' + esc(item.executable) : '未找到命令，可填写可执行文件的绝对路径。'}</p><div class="extension-actions"><button type="button" class="secondary" data-cli-selection data-client="${esc(item.id)}" ${selectionPreviewing ? 'disabled' : ''}>${item.selected ? '取消接入' : '选择接入'}</button>${item.registrationId ? '<button type="button" class="secondary" data-remove-client>删除旧登记，使用自动识别</button>' : ''}${item.custom ? '<button type="button" class="secondary" data-edit>编辑 CLI</button><button type="button" class="ui-button-destructive" data-remove-client>移除登记</button>' : ''}${item.selected && item.mcpMode !== 'unsupported' ? `<button type="button" class="secondary" data-generate>预览生成 MCP 配置</button>` : ''}<button type="button" class="text-button" data-discuss>让 AI 解释接入情况</button>${item.id === 'pi' ? '<a class="text-button" href="#cli">Pi 模型配置</a>' : ''}</div><p>${item.discovered ? '自动识别' : item.custom ? '手动登记' : '内置适配器'} · MCP ${item.mcpMode === 'native' ? '直接管理' : item.mcpMode === 'manual' ? '仅生成片段' : '未接入'}</p>${item.mcpPath ? `<p>用户级 MCP 文件：<code>${esc(item.mcpPath)}</code></p>` : ''}${item.selected ? `<h3>Skills</h3>${item.skills.map(skill => bindingRow(skill, skill.binding, true)).join('') || '<p>主目录暂无 Skill。</p>'}<h3>用户级 MCP</h3>${item.servers?.map(server => `<p><a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">${esc(server.name)}</a> · ${server.enabled ? '启用' : '禁用'}</p>`).join('') || `<p>${item.mcpValid === false ? '配置读取失败，请修复后重新扫描。' : item.mcpMode === 'native' ? '暂无用户级 MCP。可在 MCP 分类新增，选择此软件。' : '尚无已核实的原生 MCP 适配器。'}</p>`}${item.generated ? `<h3>MCP 导出片段</h3><p>${item.generated.current ? '与主配置一致' : '主配置已变化或格式不能生成，请重新核对'}</p><code>${esc(item.generated.path)}</code><p>${esc(item.integration)}</p><pre>${esc(item.generated.content)}</pre>` : `<p>${item.mcpMode === 'unsupported' ? '该软件暂未设置支持的 MCP 配置格式。' : '尚未生成 MCP 适配文件；生成后仍需在客户端接入。'}</p>`}` : '<p>尚未选择接入。选择后才读取和管理此软件的 Skills、MCP；取消接入会保留原有文件和链接。</p>'}`;
     $('.extension-detail').innerHTML = heading + content;
@@ -385,14 +391,14 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const used = action.type === 'skill.archive' ? (users.length ? `正在使用它的软件：${users.map(esc).join('、')}。归档后这些软件不再有它。` : '目前没有软件接入它。') : '归档后，使用它的软件会失去这个 MCP 服务。';
     return `<div class="extension-archive-intro" data-archive-affected><p><strong>归档「${esc(name)}」</strong></p><p>${used}</p><p>归档不是永久删除：完成后可以在提示里点「撤销」，也可以稍后在操作回执里恢复。</p></div>`;
   };
-  async function preview(action, { title, onClose } = {}) {
+  async function preview(action, { title, onClose, intro = '', confirmLabel = '', destructive = false } = {}) {
     const plan = await client.prepare(action);
     if (!visible) { onClose?.(); return; }
     const removedId = removalTarget(action); let removal = null;
     const archive = ['skill.archive', 'mcp.archive'].includes(action.type), name = nameFor(action);
     const closed = () => { onClose?.(); if (removal) focusAfterRemoval(removal); };   // 对话框先把焦点还给触发按钮（已被移除），随后才走到这里
-    const applyLabel = action.type === 'mcp.probe' ? '确认并检测' : archive ? '归档' : '应用变更';
-    const dialog = openShell(title || (action.type === 'mcp.probe' ? '确认检测 MCP 连接' : archive ? `确认归档「${name}」` : '预览扩展变更'), `${archive ? archiveIntro(action, name) : ''}${extensionPlanContent(plan)}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="${archive ? 'ui-button ui-button-danger' : 'primary'}" data-preview-apply ${plan.conflicts.length ? 'disabled' : ''}>${applyLabel}</button></div>`, closed);
+    const applyLabel = confirmLabel || (action.type === 'mcp.probe' ? '确认并检测' : archive ? '归档' : '应用变更');
+    const dialog = openShell(title || (action.type === 'mcp.probe' ? '确认检测 MCP 连接' : archive ? `确认归档「${name}」` : '预览扩展变更'), `${archive ? archiveIntro(action, name) : intro}${extensionPlanContent(plan)}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="${archive || destructive ? 'ui-button ui-button-danger' : 'primary'}" data-preview-apply ${plan.conflicts.length ? 'disabled' : ''}>${applyLabel}</button></div>`, closed);
     dialog.element.querySelector('[data-preview-cancel]').onclick = () => dialog.close();
     dialog.element.querySelector('[data-preview-apply]').onclick = async () => {
       dialog.setBusy(true); dialog.element.querySelector('[data-preview-apply]').disabled = true;
@@ -403,9 +409,38 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
         detailKey = ''; await loadDetail(); dialog.setBusy(false); dialog.close();
         receipt([{ action: plan.normalizedAction, result, name }]);
       }
-      catch (error) { dialog.element.querySelector('[data-dialog-error]').textContent = (action.type.startsWith('mcp.') ? mcpErrorMessage(error, name) : error.message) + '；输入与原请求已保留。'; if (action.type.startsWith('mcp.') && shouldRefresh(error)) void controller.refresh(true); }
+      catch (error) { dialog.element.querySelector('[data-dialog-error]').textContent = (action.type.startsWith('mcp.') ? mcpErrorMessage(error, name) : action.type === 'skill.resolveConflict' ? conflictErrorMessage(error, { name, clientName: state?.clients.find(item => item.id === action.clientId)?.name }) : error.message) + '；输入与原请求已保留。'; if (action.type.startsWith('mcp.') && shouldRefresh(error) || action.type === 'skill.resolveConflict' && conflictShouldRefresh(error)) void controller.refresh(true); }
       finally { dialog.setBusy(false); dialog.element.querySelector('[data-preview-apply]').disabled = false; }
     };
+  }
+  // ---- Skill 接入冲突（E-11）----
+  // 对比：只读，不进暂存、不产生回执。弹窗先显示「正在读取」，响应回来后只经 compareView（再次脱敏）渲染。
+  let compareToken = 0;
+  async function openCompare(button) {
+    const skill = state?.skills.find(item => item.id === button.dataset.skill), clientInfo = state?.clients.find(item => item.id === button.dataset.client); if (!skill) return;
+    const token = ++compareToken, names = { name: skill.name, clientName: clientInfo?.name || button.dataset.client };
+    const footer = '<div class="dialog-footer ui-sheet-footer"><button type="button" class="secondary" data-compare-close>关闭</button></div>';
+    const dialog = openShell(`对比差异 · ${skill.name} · ${names.clientName}`, `<div data-compare-body aria-live="polite"><p class="extension-compare-loading" role="status" data-compare-loading>正在读取差异…</p></div>${footer}`, () => { compareToken++; });
+    dialog.element.classList.add('extension-compare-dialog');
+    dialog.element.querySelector('[data-compare-close]').onclick = () => dialog.close();
+    const body = () => dialog.element.querySelector('[data-compare-body]');
+    try {
+      const result = await client.compare({ id: skill.id, clientId: button.dataset.client, expectedVersion: state.version });
+      if (token !== compareToken || !body()) return;
+      body().innerHTML = compareView(result, { skillName: skill.name, clientName: names.clientName, root: state?.root || '' });
+    } catch (error) {
+      if (token !== compareToken || !body()) return;
+      body().innerHTML = `<p class="extension-error" role="alert" data-compare-error>${esc(conflictErrorMessage(error, names))}</p>`;
+      if (conflictShouldRefresh(error)) void controller.refresh(true);
+    }
+  }
+  // 三个选择都走 prepare → 预览确认 → apply → 回执（采用共享可「撤销」→ operation.restore）。不进暂存栏：逐项决定，各自确认。
+  async function resolveConflict(button, resolution) {
+    const skill = state?.skills.find(item => item.id === button.dataset.skill), clientInfo = state?.clients.find(item => item.id === button.dataset.client); if (!skill) return;
+    const clientName = clientInfo?.name || button.dataset.client;
+    const action = { type: 'skill.resolveConflict', id: skill.id, clientId: button.dataset.client, resolution };
+    try { await preview(action, { title: `${resolveTitle[resolution]} · ${skill.name} · ${clientName}`, intro: resolveIntro({ resolution, skillName: skill.name, clientName }), confirmLabel: resolveTitle[resolution], destructive: resolution === 'adoptShared' }); }
+    catch (error) { setError(new Error(conflictErrorMessage(error, { name: skill.name, clientName }))); if (conflictShouldRefresh(error)) void controller.refresh(true); }
   }
   // 单个检测的轮询：排队（queued）和运行（running）都要继续轮询；页面隐藏时停下，回来时由 setVisible 接着查。
   function watchProbe(id) {
@@ -700,6 +735,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.hasAttribute('data-probe-all')) openProbeAll();
       else if (button.hasAttribute('data-cancel-all-probes')) await cancelProbeAll();
       else if (button.hasAttribute('data-cancel-probe')) await cancelOneProbe(button.dataset.probeId);
+      else if (button.hasAttribute('data-conflict-compare')) await openCompare(button);
+      else if (button.hasAttribute('data-conflict-adopt')) await resolveConflict(button, 'adoptShared');
+      else if (button.hasAttribute('data-conflict-keep')) await resolveConflict(button, 'keepLocal');
+      else if (button.hasAttribute('data-conflict-reopen')) await resolveConflict(button, 'reopen');
       else if (button.dataset.restoreOperation) await preview({ type: 'operation.restore', operationId: button.dataset.restoreOperation });
       else if (button.hasAttribute('data-retry-submission')) { button.disabled = true; await controller.retry(); }
       else if (button.hasAttribute('data-clear-submission')) controller.clearSubmission();

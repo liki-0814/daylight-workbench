@@ -175,3 +175,26 @@
 .extension-probe-list code { display: block; color: var(--text-secondary, var(--muted)); }
 /* MCP 行：名称单行省略（完整名称在检查器里，DOM 里仍是全文），长名字不把行撑到 90px 以上（R13） */
 .extension-table[data-tab=mcp] .extension-row-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- Skill 接入冲突（E-11）：检查器里的冲突块、对比弹窗。颜色沿用 .extension-warning 的令牌；差异行同时用符号和读屏文字，不只靠颜色 ---- */
+.extension-conflict { display: grid; gap: var(--space-2); margin: var(--space-2) 0 var(--space-3); padding: var(--space-2) var(--space-3); color: var(--warning-text, #9a4300); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); overflow-wrap: anywhere; }
+.extension-conflict p { margin: 0; }
+.extension-conflict[data-conflict-state="kept"] { color: var(--text-secondary, inherit); background: var(--bg-secondary, #f4f4f2); }
+.extension-conflict-path { font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
+.extension-conflict .extension-actions { margin-top: 0; }
+.extension-conflict-intro p { margin: 0 0 var(--space-2); }
+.extension-compare-dialog [data-compare-body] { display: grid; gap: var(--space-2); max-height: 60vh; overflow: auto; }
+.extension-compare-readonly, .extension-compare-summary { margin: 0; }
+.extension-compare-paths { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--space-3); margin: 0; font-size: var(--font-caption-size); }
+.extension-compare-paths dt { color: var(--text-secondary, inherit); }
+.extension-compare-paths dd { margin: 0; font-family: var(--font-mono, monospace); overflow-wrap: anywhere; }
+.extension-compare-file { border: 1px solid var(--control-border, #ddd); border-radius: var(--radius-sm, 6px); padding: var(--space-1) var(--space-2); }
+.extension-compare-file summary { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; cursor: pointer; }
+.extension-compare-path { font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
+.extension-compare-status { font-size: var(--font-caption-size); }
+.extension-compare-lines { margin: var(--space-1) 0 0; font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); white-space: pre-wrap; overflow-wrap: anywhere; }
+.extension-compare-line { display: block; }
+.extension-compare-sign { display: inline-block; width: 1.5em; user-select: none; }
+.extension-compare-shared { background: var(--danger-bg, #fdecec); }
+.extension-compare-local { background: var(--success-bg, #eaf6ee); }
+.extension-compare-hunk-head { color: var(--text-secondary, inherit); }

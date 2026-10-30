@@ -66,6 +66,18 @@ npm run dev
 
 `skill.import` 从本地文件夹复制 Skill（不支持 URL）：路径需为绝对路径，顶层有合法 `SKILL.md`；目录名取其中的 `name`；不跟随符号链接，忽略隐藏文件和 `node_modules`，最多 500 个文件、5 MB、6 层目录；目标同名时进入冲突，不覆盖。`scope` 为 `shared` 或 `client`（需 `clientId`）。`mcp.importJson` 解析粘贴的 `{"mcpServers": {...}}` 或带 `id`/`name` 的单个服务对象，`env`/`headers` 只接受 `${变量名}` 形式的引用，明文凭据会被拒绝且不回显；JSON 语法错误返回 `line`/`column`；已有 ID 一律是冲突，不覆盖。
 
+## 接入冲突处理（E-11）
+
+当软件的 Skills 目录里已有同名内容（真实目录、单个文件，或指向别处的链接），而不是指向共享 Skill 的正确链接时，这个位置的状态是 `conflict`（`bindings[].state`），不能直接接入。处理方式有三种，对应检查器的三个按钮，范围是共享来源中的 Skill：
+
+- **对比差异（只读）** `GET /api/extensions/compare?id=<skillId>&clientId=<clientId>[&expectedVersion=<version>]`。返回 `readOnly:true`、`local.kind`（`directory`/`file`/`link`）、`summary`（各状态文件数、`withheld`、`redactedLines`）、`files[]`（`path`、`status`：`same`/`different`/`onlyShared`/`onlyLocal`/`typeDiffers`/`unknown`；文本文件的 `diff` 是从共享版本到软件内版本的行差异，每行 `op` 为 `same`/`shared`（只在共享版本）/`local`（只在软件内版本））、`identical`、`truncated`。有 `expectedVersion` 且已过期返回 409 `EXTENSIONS_VERSION_CONFLICT`；该位置没有冲突返回 409 `EXTENSIONS_NOT_CONFLICT`。
+- **采用共享版本** `skill.resolveConflict {id, clientId, resolution:"adoptShared"}`：先 `prepare`，确认后用 `actions` 提交（`expectedVersion`、`planId`、`requestId` 与其他动作相同）。把软件里的同名内容替换成指向共享 Skill 的链接并登记为 Daylight 管理的接入；被替换的内容（目录最多 2500 个文件 / 8 MB）写入恢复记录，可用 `operation.restore` 找回。共享 Skill 已停用时 409 `EXTENSIONS_SKILL_DISABLED`。
+- **保留软件内版本** `skill.resolveConflict {id, clientId, resolution:"keepLocal"}`：不改动任何文件，也不建立链接；在 `bindings.json` 的可选顶层数组 `conflictResolutions: [{skillId, clientId, target, fingerprint}]` 里记住这个决定（`fingerprint` 是软件内内容的 SHA-256，不含内容本身）。之后该绑定仍是 `conflict`，但带 `resolution:"keepLocal"`，`BINDING_CONFLICT` 诊断消失；软件内内容变化后 `resolution` 变回 `null`、带 `resolutionStale:true`，诊断重新出现。`resolution:"reopen"` 清除这个决定（不改文件）。归档该 Skill 会清除它的决定。
+
+不泄露内容的约束：对比永远不跟随符号链接（软件位置本身是链接时只返回链接目标，`compared:false`），忽略 `.git` 与 `node_modules`，最多 500 个文件、6 层；文本差异每个文件不超过 64 KB / 2000 行 / 400 行差异；`.env*`、密钥证书、名称含 credential/secret/token/password 的文件只给状态和大小（`withheld:"sensitive"`），二进制或过大文件同样不给内容；看起来像凭据的行（`api_key=`、`token:`、`sk-…`、`ghp_…`、Bearer、PEM 私钥）整行替换为「[已隐藏：疑似凭据]」。`prepare` 的 `files` 对目录与链接替换不回显任何文件内容，对被替换的单个文件标记为私有，不回显。
+
+错误码：`EXTENSIONS_NOT_CONFLICT`（409，位置没有冲突）、`EXTENSIONS_ALREADY_RESOLVED`（409，已保留软件内版本）、`EXTENSIONS_NOT_RESOLVED`（409，没有可重新打开的记录）、`EXTENSIONS_SKILL_DISABLED`（409）；`resolution`、`clientId`、`id` 无效返回 400 并带 `field`。
+
 ## MCP 行级启停、批量检测与凭据引用状态
 
 - `mcp.toggle`（`id`、`enabled` 布尔值）现在也适用于共享 MCP：只改主配置 `servers.json` 里的 `enabled`，不启动服务；重复启停返回 409（`EXTENSIONS_ALREADY_ENABLED` / `EXTENSIONS_ALREADY_DISABLED`）；停用后配置版本变化，进行中的检测会被取消，停用的服务不能检测（`POST /probes` 返回 400）。软件作用域的行为不变。

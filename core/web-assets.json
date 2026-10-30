@@ -111,6 +111,7 @@
   "/extensions/capabilities.js": "extensions/capabilities.js",
   "/extensions/staging.js": "extensions/staging.js",
   "/extensions/mcp.js": "extensions/mcp.js",
+  "/extensions/conflict.js": "extensions/conflict.js",
   "/extensions/extensions.css": "extensions/extensions.css",
   "/core/model-capabilities.js": "../core/model-capabilities.js",
   "/proxy/source-navigation.js": "proxy/source-navigation.js",
