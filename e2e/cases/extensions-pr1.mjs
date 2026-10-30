@@ -24,7 +24,7 @@ export default [
     const areas = { '清单': '.extension-list', '详情': '.extension-detail' };
     for (const [area, scope] of Object.entries(areas)) {
       if (area === '详情') { await rows(page).filter({ hasText: 'review-code' }).locator('[data-extension-id]').first().click(); await page.locator('.extension-detail:not([hidden])').waitFor(); }
-      const box = () => page.locator(scope).getByRole('checkbox', { name: 'review-code · Pi', exact: true });
+      const box = () => page.locator(scope).getByRole('switch', { name: 'review-code · Pi', exact: true });
       for (const [name, cancel] of Object.entries(cancels)) {
         const label = area + ' / ' + name;
         await box().click(); await dialog(page).waitFor(); await cancel(); await gone(page);
