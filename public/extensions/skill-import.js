@@ -48,6 +48,7 @@ export function importFailure(error) {
 export const importHasConflict = plan => Array.isArray(plan?.conflicts) && plan.conflicts.length > 0;
 export const importConflictNote = '这个文件夹里的 Skill 与已有的同名，导入不会覆盖。请先归档已有的 Skill，或换一个文件夹后再预览。';
 
+export const importUnknownMessage = '没有收到明确的结果，文件可能已经导入。请关闭这个窗口，在页面上方点「核对原请求」确认，不要重复导入。';
 export const importedSkillMessage = name => `已导入 Skill${name ? `「${name}」` : ''}`;
 export const importDialogIntro = ({ pickerAvailable }) => `<p>从本机一个文件夹复制 Skill 到共享来源；文件夹顶层需要有 <code>SKILL.md</code>，来源文件夹不会被修改。一次只导入一个。${pickerAvailable ? '可以点「选择文件夹…」，也可以直接输入完整路径。' : '请输入文件夹的完整路径。'}</p>`;
 export const sourcePathLabel = 'Skill 文件夹路径';

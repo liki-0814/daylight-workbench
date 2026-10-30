@@ -5,7 +5,7 @@ import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
 import { addMenuMarkup, addMenuItems, mountAddMenu } from './add-menu.js';
 import { createFolderPicker, folderPickerAvailable } from './folder-picker.js';
-import { validateSourcePath, importPhaseView, importFailure, importHasConflict, importConflictNote, importDialogIntro, sourcePathLabel, sourcePathHint } from './skill-import.js';
+import { validateSourcePath, importPhaseView, importFailure, importHasConflict, importConflictNote, importUnknownMessage, importDialogIntro, sourcePathLabel, sourcePathHint } from './skill-import.js';
 import { backupList, backupMeta, restoreNoticeText, revealBody, revealErrorMessage, revealFallbackPath } from './restore-reveal.js';
 import { mcpCompareSupported, mcpCompareView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, settleDuplicateFieldError } from './mcp-conflict.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
@@ -719,7 +719,11 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
         receipt([{ action: plan.normalizedAction || session.base, result, name: target ? String(target).split('/').filter(Boolean).pop() : '' }]);
       } catch (error) {
         if (closed) return;
-        session = null; review.innerHTML = ''; setPhase('failed'); showFailure(error);
+        session = null; review.innerHTML = ''; setPhase('failed');
+        if (['submitted', 'unknown'].includes(controller.getSubmission()?.status)) {
+          // 服务没有给出明确回应：文件可能已经写入。不让用户在这里再点一次（controller 也会拒绝），指向页面上的「核对原请求」。
+          setError(importUnknownMessage); input.readOnly = true; previewButton.disabled = true; if (pickButton) pickButton.disabled = true; form.dataset.phase = 'unknown'; form.querySelector('[data-import-cancel]').focus();
+        } else showFailure(error);
         if (error?.code === 'EXTENSIONS_VERSION_CONFLICT' || error?.status === 409) void controller.refresh(true);
       }
     }
