@@ -129,3 +129,7 @@ test('mcp-conflict.js 登记在 web-assets.json；不引入新依赖', () => {
   assert.deepEqual([...source.matchAll(/^import .* from '([^']+)'/gm)].map(match => match[1]).filter(path => !path.startsWith('.')), []);
   assert.doesNotMatch(source, /innerHTML|document\./);
 });
+test('「导入 JSON…」按钮的 hidden 不会被按钮样式盖过（只在 MCP 页签出现）', () => {
+  const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
+  assert.match(css, /\.extension-category-action\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
+});
