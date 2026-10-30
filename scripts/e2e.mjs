@@ -7,7 +7,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { startFixture } from '../e2e/fixture.mjs';
-import { E2E_DIR, WIDTHS, loadPlaywright, launchBrowser, newPage, settle, checkBaseline } from '../e2e/harness.mjs';
+import { E2E_DIR, WIDTHS, loadPlaywright, launchBrowser, newPage, settle, checkBaseline, PATH_MASK_COLOR, maskLocators, uncoveredPathText } from '../e2e/harness.mjs';
 import cases from '../e2e/cases/index.mjs';
 
 const args = process.argv.slice(2), flag = name => args.includes(name), value = name => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
@@ -28,7 +28,7 @@ try {
     const fixture = await startFixture(); fixtureVersion = fixture.version;
     const label = `${item.id}@${width}`, { context, page, errors, blocked } = await newPage(browser, { url: fixture.url, width });
     const notes = [], visuals = [];
-    const shot = async name => { await settle(page); const buffer = await page.screenshot({ animations: 'disabled', caret: 'initial' }); const key = `${item.id}-${name}-${width}`; await fs.writeFile(path.join(out, key + '.png'), buffer); if (visual) visuals.push(await checkBaseline({ name: key, buffer, update, reason })); };
+    const shot = async name => { await settle(page); if (visual) { const loose = await uncoveredPathText(page); if (loose.length) throw new Error(`截图里有未打码的路径文字（要加进 PATH_MASK_SELECTORS）：${loose.join(' ; ')}`); } const buffer = await page.screenshot({ animations: 'disabled', caret: 'initial', ...(visual ? { mask: maskLocators(page), maskColor: PATH_MASK_COLOR } : {}) }); const key = `${item.id}-${name}-${width}`; await fs.writeFile(path.join(out, key + '.png'), buffer); if (visual) visuals.push(await checkBaseline({ name: key, buffer, update, reason })); };
     let outcome = 'pass', detail = '';
     try { await item.run({ page, url: fixture.url, fixture, errors, blocked, width, assert, shot, note: text => notes.push(text) }); }
     catch (error) { outcome = 'fail'; detail = (error.message || String(error)).split('\n').slice(0, 3).join(' | '); }
