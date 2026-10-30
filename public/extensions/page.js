@@ -3,6 +3,9 @@ import { shownText, conflictOf, isOpenConflict, conflictSupported, conflictNote,
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
+import { addMenuMarkup, addMenuItems, mountAddMenu } from './add-menu.js';
+import { createFolderPicker, folderPickerAvailable } from './folder-picker.js';
+import { validateSourcePath, importPhaseView, importFailure, importHasConflict, importConflictNote, importDialogIntro, sourcePathLabel, sourcePathHint } from './skill-import.js';
 import { backupList, backupMeta, restoreNoticeText, revealBody, revealErrorMessage, revealFallbackPath } from './restore-reveal.js';
 import { mcpCompareSupported, mcpCompareView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, settleDuplicateFieldError } from './mcp-conflict.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
@@ -34,9 +37,10 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div data-restore-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><span class="extension-visually-hidden" role="status" data-probe-live></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><div class="extension-category-action extension-add-slot" data-create-slot></div></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div data-restore-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><span class="extension-visually-hidden" role="status" data-probe-live></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
   const $ = selector => element.querySelector(selector);
   let route = { tab: 'skills', query: '' }, restoreNotice = null, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, selectionPreviewing = false, staged = new Map(), batchBusy = false, liveProbes = new Map(), probeWatching = null, probeAllRun = null, probeAllTimer = 0, loadView = {}, loadStartedAt = 0, loadStripTimer, focusBeforeLoad = null;
+  let addMenu = null;   // 「添加 ▾」菜单的行为（slot 常驻，内容随页签重绘）
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
   const liveServer = server => state?.servers.find(item => item.id === server.id) || server;
   // 检测进度的页面内覆盖：进行中的检测每 0.5–0.8s 轮询一次，比 10s 一次的整页刷新快；整页刷新带回 lastProbe 后自动让位。
@@ -145,7 +149,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const restoreFocus=$('#extensions-tabs')?.contains(document.activeElement); tabsDispose?.(); $('.extension-tabs').innerHTML = segmentedControl({ id: 'extensions-tabs', label: '扩展分类', value: route.tab, options: categories, mode: 'tabs' });
     tabsDispose = mountSegmentedControl($('#extensions-tabs'), { onChange: tab => changeRoute({ tab, id: null, operation: null, file: null }) });
     if(restoreFocus)$('#extensions-tabs [aria-selected="true"]').focus({preventScroll:true});
-    $('[data-create]').textContent = category().action;
+    renderCreateSlot();
     $('#extensions-client-filter').value = route.client || ''; $('[data-problems]').checked = !!route.problems; $('.extension-search input').value = route.query || ''; searchControl?.sync();
   }
   function renderClientFilter() {
@@ -173,9 +177,19 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   // 检查器里的「在访达中显示」：只在 capabilities.extensions.reveal === true 时出现；请求体只有 kind + id / clientId（不带路径）。
   const revealButton = (kind, item) => capability('reveal') && revealBody(kind, kind === 'client' ? { clientId: item.id } : { id: item.id }) ? `<button type="button" class="secondary" data-extension-reveal="${kind}" data-reveal-id="${esc(item.id)}">在访达中显示</button>` : '';
   const bannerMarkupFor = banner => bannerMarkup({ tone: 'error', title: banner.title, attrs: { 'data-config-banner': banner.code }, actions: bannerActions(banner), messageHtml: `<p>${banner.where ? `位置：${banner.problem?.path ? `<code data-config-path>${esc(banner.problem.path)}</code>${esc(banner.where.slice(banner.problem.path.length))}` : esc(banner.where)}${banner.reason ? ' · ' + esc(banner.reason) : ''}。` : esc(banner.reason || '')}${banner.where || banner.reason ? '' : '请检查配置文件。'}</p><p>Daylight 不会覆盖或改写这个文件。${banner.blocksCreate ? '修复之前“' + category().action + '”已暂停。' : '修复之前接入写入已暂停。'}修好后重新扫描，提示会自动消失。</p>` });
+  // 工具栏右侧的入口：Skills / MCP 是「添加 ▾」菜单（新建 + 导入），接入软件只有一个「添加 CLI」按钮。菜单打开时不重绘，只改禁用状态。
+  const createBlockedReason = '配置文件无法读取，修复并重新扫描后才能新建或导入。';
+  let createBlocked = false;
+  function renderCreateSlot() {
+    const slot = $('[data-create-slot]'); if (!slot) return;
+    addMenu?.close();
+    slot.innerHTML = addMenuItems(route.tab) ? addMenuMarkup(route.tab, { disabled: createBlocked, reason: createBlockedReason }) : `<button class="secondary" type="button" data-create ${createBlocked ? `disabled title="${esc(createBlockedReason)}"` : ''}>${esc(category().action)}</button>`;
+  }
   function updateCreateAvailability(banner) {
-    const button = $('[data-create]'); if (!button) return;
-    button.disabled = !!banner?.blocksCreate; button.title = banner?.blocksCreate ? '配置文件无法读取，修复并重新扫描后才能新建。' : '';
+    createBlocked = !!banner?.blocksCreate;
+    const button = $('[data-create-slot] [data-add-menu-button]') || $('[data-create-slot] [data-create]'); if (!button) return;
+    if (createBlocked) addMenu?.close();
+    button.disabled = createBlocked; button.title = createBlocked ? createBlockedReason : '';
   }
   function visibleItems() {
     const needle = (route.query || '').toLowerCase();
@@ -258,7 +272,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     updateCreateAvailability(banner);
     // 配置文件读不出来时列表为空只是表象，横幅已说明原因，不再叠一个“还没有 MCP 服务”。
     const empty = !filtered.length ? (!all.length && nothingFiltered() ? (banner?.blocksCreate ? '' : emptyState(route.tab)) : noMatchState()) : '';
-    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}${route.tab === 'mcp' ? importButtonMarkup(banner) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
     if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
     if (markup === listMarkup) { applyRoving(); return; }
@@ -478,8 +492,6 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     void poll();
   }
   // ---- 检测全部服务（E-12）：对话框确认后 POST /probes；后端最多同时跑 2 个，其余排队；这里逐个轮询、可整体取消 ----
-  /* 「导入 JSON…」放在列表标题行（仅 MCP 页签）：放进工具栏会挤窄搜索框、挪动三个分类共享的布局锚点（L2–L5 的 LAY 锚点用例会拦下）。 */
-  function importButtonMarkup(banner) { return `<button type="button" class="secondary extension-import-action" data-import-json ${banner?.blocksCreate ? 'disabled title="配置文件无法读取，修复并重新扫描后才能导入。"' : ''}>导入 JSON…</button>`; }
   function probeAllMarkup(filtered) {
     if (probeAllRun) return `<div class="extension-probe-all"><span class="extension-probe-progress" aria-hidden="true" data-probe-progress>${esc(probeAllRun.cancelling ? '正在取消…' : progressText(progressOf(probeAllRun.probes.values())))}</span><button type="button" class="secondary" data-cancel-all-probes ${probeAllRun.cancelling ? 'disabled' : ''}>取消全部检测</button></div>`;
     const plan = probeAllPlan(filtered), ok = plan.targets.length > 0;
@@ -645,6 +657,77 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.matches('[data-import-back]')) { const box = form.querySelector('[data-import-actions]'); box.innerHTML = '<div class="dialog-footer"><button type="button" class="primary" data-import-apply>应用导入</button></div>'; updateApply(); box.querySelector('[data-import-apply]').focus(); }
     });
     text.focus();
+  }
+  // ---- 从文件夹导入 Skill（0.7 PR-8）：一次一个文件夹 → 预览（只读）→ 导入；同名冲突不覆盖，只提示 ----
+  // 选文件夹：只有原生桥接存在时才显示「选择文件夹…」（folder-picker.js）；否则手输绝对路径。两种方式拿到的路径都以后端 skill.import 的校验为准。
+  function openImportSkill() {
+    if (!state) return;
+    const pickerOn = folderPickerAvailable(), picker = pickerOn ? createFolderPicker() : null;
+    let closed = false;
+    const dialog = openShell('从文件夹导入 Skill', `<form class="extension-editor extension-skill-import" data-skill-import-form novalidate>${importDialogIntro({ pickerAvailable: pickerOn })}<label>${sourcePathLabel}<input name="sourcePath" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="4096" placeholder="/Users/…/my-skill" data-import-path></label><p class="extension-field-hint" id="skill-import-path-hint">${esc(sourcePathHint)}</p>${pickerOn ? '<div class="extension-import-pick"><button type="button" class="secondary" data-pick-folder>选择文件夹…</button></div>' : ''}<p class="extension-import-status" role="status" data-import-status></p><p class="extension-error" role="alert" data-dialog-error></p><div class="extension-skill-import-review" data-import-review aria-live="polite"></div><div class="dialog-footer"><button type="button" class="secondary" data-import-cancel>取消</button><button type="submit" class="primary" data-import-preview>预览导入</button></div></form>`, () => { closed = true; });
+    dialog.element.classList.add('extension-compare-dialog');
+    const form = dialog.element.querySelector('[data-skill-import-form]'), review = form.querySelector('[data-import-review]'), input = form.querySelector('[data-import-path]'), pickButton = form.querySelector('[data-pick-folder]'), previewButton = form.querySelector('[data-import-preview]'), statusLine = form.querySelector('[data-import-status]');
+    input.setAttribute('aria-describedby', 'skill-import-path-hint');
+    const messages = createFieldMessages(form);
+    const setError = message => { form.querySelector('[data-dialog-error]').textContent = message || ''; };
+    let phase = 'idle', session = null;
+    const setPhase = next => {
+      phase = next; const view = importPhaseView(phase, { pickerAvailable: pickerOn });
+      form.dataset.phase = phase; input.readOnly = !view.canEditPath; previewButton.disabled = !view.canPreview; if (pickButton) pickButton.disabled = !view.canPick;
+      statusLine.textContent = view.status; form.querySelector('[data-import-apply]')?.toggleAttribute('disabled', !view.canApply);
+      dialog.setBusy(phase === 'previewing' || phase === 'importing');
+    };
+    const reset = () => { session = null; review.innerHTML = ''; setError(''); messages.clearAll(); if (phase !== 'picking') setPhase('idle'); };
+    const showFailure = error => {
+      const failure = importFailure(error);
+      if (failure.field === 'sourcePath' && messages.error('sourcePath', failure.message)) input.focus(); else { setError(failure.message); input.focus(); }
+    };
+    async function pickFolder() {
+      if (!picker || phase !== 'idle' && phase !== 'ready' && phase !== 'conflict' && phase !== 'failed') return;
+      reset(); setPhase('picking');
+      const result = await picker.pick();
+      if (closed) return;
+      setPhase('idle');
+      if (result.status === 'picked') { input.value = result.path; statusLine.textContent = '已填入所选文件夹的路径，请核对后点「预览导入」。'; input.focus(); }
+      else if (result.status === 'error' || result.status === 'timeout') { setError(result.message); (input || pickButton).focus(); }
+      else pickButton?.focus();            // 取消：不报错，回到「选择文件夹…」
+    }
+    async function runPreview() {
+      reset();
+      const checked = validateSourcePath(input.value);
+      if (!checked.ok) { messages.error('sourcePath', checked.message); input.focus(); return; }
+      input.value = checked.path; setPhase('previewing');
+      try {
+        const base = { type: 'skill.import', scope: 'shared', sourcePath: checked.path }, plan = await client.prepare(base);
+        if (closed) return;
+        session = { base, plan };
+        const conflict = importHasConflict(plan);
+        review.innerHTML = `<div data-import-plan>${extensionPlanContent(plan)}</div>${conflict ? `<p class="extension-error" data-import-conflict tabindex="-1" id="skill-import-conflict">${esc(importConflictNote)}</p>` : ''}<div class="dialog-footer"><button type="button" class="primary" data-import-apply ${conflict ? 'disabled aria-describedby="skill-import-conflict"' : ''}>导入</button></div>`;
+        setPhase(conflict ? 'conflict' : 'ready');
+        (conflict ? review.querySelector('[data-import-conflict]') : review.querySelector('[data-import-apply]'))?.focus();
+      } catch (error) { if (closed) return; setPhase('failed'); showFailure(error); if (error?.code === 'EXTENSIONS_VERSION_CONFLICT') void controller.refresh(true); }
+    }
+    async function commit() {
+      if (phase !== 'ready' || !session) return;
+      setPhase('importing'); setError('');
+      try {
+        const plan = session.plan, result = await controller.submit(plan), target = plan.files?.[0]?.path;
+        dialog.setBusy(false); dialog.close();
+        receipt([{ action: plan.normalizedAction || session.base, result, name: target ? String(target).split('/').filter(Boolean).pop() : '' }]);
+      } catch (error) {
+        if (closed) return;
+        session = null; review.innerHTML = ''; setPhase('failed'); showFailure(error);
+        if (error?.code === 'EXTENSIONS_VERSION_CONFLICT' || error?.status === 409) void controller.refresh(true);
+      }
+    }
+    form.onsubmit = event => { event.preventDefault(); if (phase === 'previewing' || phase === 'importing' || phase === 'picking') return; void runPreview(); };
+    form.querySelector('[data-import-cancel]').onclick = () => dialog.close();
+    form.addEventListener('input', event => { if (event.target === input && (session || messages.has('sourcePath') || phase === 'failed')) reset(); });
+    form.addEventListener('click', event => {
+      const button = event.target.closest('button'); if (!button) return;
+      if (button.matches('[data-pick-folder]')) void pickFolder(); else if (button.matches('[data-import-apply]')) void commit();
+    });
+    setPhase('idle'); input.focus();
   }
   function edit(create = false) {
     const item = create ? null : selected, isMcp = create ? route.tab === 'mcp' : item.kind === 'mcp', isClient = create ? route.tab === 'clients' : item.kind === 'client', key = create ? 'new:' + route.tab : item.id + ':' + (item.file || ''), draft = controller.drafts.get(key);
@@ -879,6 +962,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.hasAttribute('data-restore-dismiss')) { restoreNotice = null; renderRestoreNotice(); $('[data-extension-refresh]')?.focus(); }
       else if (button.hasAttribute('data-create') || button.hasAttribute('data-empty-create')) edit(true);
       else if (button.hasAttribute('data-import-json')) openImportJson();
+      else if (button.hasAttribute('data-import-skill')) openImportSkill();
       else if (button.hasAttribute('data-clear-filters')) { changeRoute({ query: '', client: null, problems: false }); $('.extension-search input')?.focus(); }
       else if (button.hasAttribute('data-edit')) edit();
       else if (button.hasAttribute('data-cli-selection')) await toggleClientSelection(button);
@@ -902,6 +986,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.hasAttribute('data-discuss')) onDiscuss({ reference: { id: selected.id, kind: selected.kind, version: selected.version, name: selected.name }, returnHash: extensionsRoute(route), prompt: selected.kind === 'skill' ? '请解释这个 Skill 的用途和接入情况。如需修改，先给我审阅草稿。' : '请检查这个扩展的配置和接入情况。实际检测或修改前先给我审阅草稿。' });
     } catch (error) { setError(error); } finally { button.disabled = false; }
   });
+  addMenu = mountAddMenu($('[data-create-slot]'));
   renderTabs();
   return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { if (!probeAllRun) liveProbes.clear(); probeWatching = null; clearTimeout(probeAllTimer); detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); if (probeAllRun) void pollProbeAll(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { document.removeEventListener('keydown', onFind); clearTimeout(detailTimer); unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); clearTimeout(probeAllTimer); element.remove(); } };
 }
