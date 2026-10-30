@@ -323,7 +323,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
             manifest.bindings = manifest.bindings.filter(item => !(item.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(item.clientId) && item.target === target));
             manifest.bindings.push({ skillId: skill.id, clientId: client.id, source, target, linkTarget: source });
             setResolution(manifest, { skillId: skill.id, clientId: client.id, target }, null); manifestChanged = true;
-            impact.push('用共享版本替换 ' + client.name + ' 里的同名' + ({ directory: '目录', file: '文件', link: '链接' }[replaced?.before.kind] || '内容') + '：' + target + '。原内容已记录，可撤销这次操作来恢复（不超过 2500 个文件 / 8 MB）。');
+            impact.push('用共享版本替换 ' + client.name + ' 里的同名' + ({ directory: '目录', file: '文件', link: '链接' }[replaced?.before.kind] || '内容') + '：' + target + '。原内容已记录，可在操作历史中点「撤销」恢复（不超过 2500 个文件 / 8 MB）。');
             impact.push(client.name + '：' + client.refresh);
             warnings.push('软件内版本里不在共享版本中的内容将不再被该软件读取。覆盖前请先用“对比差异”核对。');
           }
