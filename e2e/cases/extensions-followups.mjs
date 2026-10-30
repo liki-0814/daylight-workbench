@@ -83,7 +83,7 @@ export default [
     forced = 404; await detail(page).getByRole('button', { name: '在访达中显示' }).click();
     await page.locator('.ui-toast').filter({ hasText: /已经不存在.*重新扫描/ }).waitFor();
   } },
-  { id: 'ext-fu-04', priority: 'P0', widths: [1440], ...GATE, ...FIX05, title: 'PR-12 小问题：选过处理方式后遇到非冲突失败，面板收起且选择清掉；再次提交重新 409，没有预选，请求不带 onConflict', async run({ page, url, fixture, assert: check }) {
+  { id: 'ext-fu-04', priority: 'P0', widths: [1440], ...FIX05, title: 'PR-12 小问题：选过处理方式后遇到非冲突失败，面板收起且选择清掉；再次提交重新 409，没有预选，请求不带 onConflict', async run({ page, url, fixture, assert: check }) {
     const dialog = page.locator('dialog[open]'), requests = []; let failNext = false;
     await page.route(/\/api\/extensions\/prepare$/, async route => { requests.push(route.request().postDataJSON()); if (failNext) { failNext = false; await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: '临时失败', code: 'EXTENSIONS_INTERNAL' }) }); } else await route.continue(); });
     await open(page, url, 'mcp');

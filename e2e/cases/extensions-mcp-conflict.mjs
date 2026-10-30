@@ -15,7 +15,7 @@ import { FIXTURE_SECRET } from '../fixture.mjs';
 // capabilities.extensions.mcpConflictCompare:true 镜像进 /api/extensions/state（extensions/service.mjs），就标 expectedFail；
 // 两者都有后自动变为必须通过，不需要手动改标记。
 const built = file => { try { return fs.readFileSync(fileURLToPath(new URL('../../' + file, import.meta.url)), 'utf8'); } catch { return ''; } };
-const HAS_UI = built('public/extensions/mcp-conflict.js') !== '', HAS_MIRROR = /mcpConflictCompare:\s*true/.test(built('extensions/service.mjs'));
+const HAS_UI = built('public/extensions/mcp-conflict.js') !== '', HAS_MIRROR = /mcpConflictCompare:\s*true/.test(built('extensions/service.mjs')) || /extensionsMirrorKeys\s*=[^;]*mcpConflictCompare/.test(built('core/extensions-contracts.js'));   // #34 5cca619 起镜像键由 extensionsMirrorKeys 一份清单生成
 const UI_GATE = HAS_UI && HAS_MIRROR ? {} : { expectedFail: !HAS_UI ? 'PR-12 需要新 UI（public/extensions/mcp-conflict.js 未合入）：导入 JSON 的同 ID 对比与逐项选择，合入后自动变为必须通过' : '后端 /api/extensions/state 的 capabilities 镜像没有 extensions.mcpConflictCompare:true（#34 缺一行）：补上后自动变为必须通过' };
 
 const hasBackend = typeof extensionsCapability.mcpConflictCompare === 'string';
