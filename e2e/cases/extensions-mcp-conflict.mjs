@@ -86,7 +86,10 @@ export default [
   { id: 'ext-pr12-01', priority: 'P0', widths: [1440], ...UI_GATE, title: '导入 JSON：逐项选择（替换 + 保留）→ 替换二次确认（返回不改动）→ 应用 → toast「撤销」还原', async run({ page, url, fixture, assert: check }) {
     const incoming = { 'missing-env-mcp': { command: 'npx', args: ['-y', 'replacement'], env: { E2E_OTHER_TOKEN: '${E2E_OTHER_TOKEN}' } }, 'github-remote': { url: 'http://127.0.0.1:9/mcp', headers: { Authorization: '${E2E_GITHUB_AUTH}' } }, 'brand-new': { command: 'node' } };
     const original = (await servers(fixture)).find(item => item.id === 'missing-env-mcp'), remoteBefore = (await servers(fixture)).find(item => item.id === 'github-remote');
+    await page.goto(`${url}/#extensions`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
+    check.equal(await page.getByRole('button', { name: /导入.*JSON/ }).isVisible(), false, 'Skill 页签不显示「导入 JSON…」');
     await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
+    check.equal(await page.getByRole('button', { name: /导入.*JSON/ }).isVisible(), true, 'MCP 页签显示「导入 JSON…」');
     await page.getByRole('button', { name: /导入.*JSON/ }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').fill(mcp(incoming)); await dialog.getByRole('button', { name: /预览|下一步/ }).click();
