@@ -50,6 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         fm.addItem(withTitle: "关闭窗口", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         let edit = NSMenuItem(title: "编辑", action: nil, keyEquivalent: ""); let em = NSMenu(); edit.submenu = em; menu.addItem(edit)
         for (title, selector, key) in [("撤销", "undo:", "z"), ("剪切", "cut:", "x"), ("复制", "copy:", "c"), ("粘贴", "paste:", "v"), ("全选", "selectAll:", "a")] { em.addItem(withTitle: title, action: Selector(selector), keyEquivalent: key) }
+        // 编辑 › 查找 › 查找… (⌘F): the page owns search, so the shell only raises a `daylight-find` event; the web listener focuses the current page's search field.
+        em.addItem(.separator())
+        let findItem = NSMenuItem(title: "查找", action: nil, keyEquivalent: ""); let findMenu = NSMenu(title: "查找"); findItem.submenu = findMenu; em.addItem(findItem)
+        findMenu.addItem(item("查找…", key: "f") { self.findInPage() })
         NSApp.mainMenu = menu
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua); window.backgroundColor = NSColor(calibratedRed: 0.97, green: 0.98, blue: 0.96, alpha: 1); window.title = "Daylight · 任务管理"; window.minSize = NSSize(width: 760, height: 560); window.isReleasedWhenClosed = false; window.center()
@@ -105,6 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func applicationDidBecomeActive(_ notification: Notification) { focusNotifications?.refreshPermission(); if status != nil { updateTray(); server.updater.foreground() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { show(); return true }
+    /// Only for the main window: with the quick panel or another window key, ⌘F is not ours to answer.
+    func findInPage() {
+        guard window?.isKeyWindow == true, web != nil else { return }
+        web.evaluateJavaScript("window.dispatchEvent(new CustomEvent('daylight-find'))")
+    }
     func show(_ route: String? = nil) {
         guard window != nil else { return }
         if let route { let hash = route + "&intent=" + UUID().uuidString; web.evaluateJavaScript("location.hash=\((try? jsonText(hash)) ?? "''")") }
