@@ -78,6 +78,20 @@ npm run dev
 
 错误码：`EXTENSIONS_NOT_CONFLICT`（409，位置没有冲突）、`EXTENSIONS_ALREADY_RESOLVED`（409，已保留软件内版本）、`EXTENSIONS_NOT_RESOLVED`（409，没有可重新打开的记录）、`EXTENSIONS_SKILL_DISABLED`（409）；`resolution`、`clientId`、`id` 无效返回 400 并带 `field`。
 
+## MCP 同 ID 冲突处理（PR-12）
+
+`mcp.importJson` 或 `mcp.save`（`create:true`）遇到已存在的 ID 时，默认仍是冲突：导入返回 `conflicts`，提交时 409 `EXTENSIONS_CONFLICT`；新建返回 409 `EXTENSIONS_DUPLICATE_ID`。现在可以先只读对比，再对每个冲突 ID 选择处理方式。E-11（Skill 接入冲突）不变，两者互相独立。
+
+- **对比（只读）** `POST /api/extensions/mcp-compare`（Agent 路径 `/api/v1/extensions/mcp-compare`）。因为要携带导入内容，所以用 POST，但不写任何文件。请求 `{scope:"shared"|"client", clientId?, json | server, expectedVersion?}`（`json` 与 `server` 二选一；`scope:"client"` 需要 `clientId`）。`expectedVersion` 过期返回 409 `EXTENSIONS_VERSION_CONFLICT`。响应 `{readOnly:true, version, scope, clientId?, items[], newIds[], resolutions:["adoptNew","keepExisting"]}`。每个冲突项 `{id, existing, incoming, editable, identical, fields[], refs[]}`：`existing`/`incoming` 是脱敏视图（`name`、`transport`、`enabled`、`command`、`args`、`cwd`、`url`、`refs[]`）；`fields[]` 是不同的字段 `{field, existing, incoming}`；`refs[]` 是引用差异 `{kind:"env"|"header", key, status:"added"|"removed"|"changed", existingRef, incomingRef}`，只有变量名，没有值；每个 `refs` 视图项带 `set`（变量当前是否已设置）与 `internal`，**从不读取或返回变量值**。疑似凭据的参数显示为 `[已隐藏：疑似凭据]`，带凭据的 URL 显示为 `（已隐藏）`；软件里无法读取的明文凭据只给名称（`secretKeys`，例如 `env.API_KEY`）。导入内容里的明文凭据照旧被 400 拒绝且不回显。
+- **选择处理方式** `mcp.importJson` 增加可选 `resolutions: {"<服务ID>": "adoptNew" | "keepExisting"}`；`mcp.save` 在 `create:true` 时增加可选 `onConflict`（取值相同）。`resolutions` 的键必须是导入内容里出现的 ID（最多 100 项），无效的键或值返回 400，`field` 为 `resolutions.<id>` / `resolutions` / `onConflict`；`onConflict` 不能和编辑（省略 `create`）一起用。没有选择的冲突 ID 仍然是冲突。
+  - `adoptNew`：用导入的配置整体替换现有服务（位置不变，`enabled` 取导入内容；共享来源与软件用户级配置都适用）。
+  - `keepExisting`：不导入这个 ID，不改任何文件。只有 `keepExisting` 的计划 `files` 为空，也可以提交。
+- **流程** 与其他动作相同：`prepare`（返回 `resolved:[{id,resolution}]`、`impact`、`warnings`、`conflicts`）→ `actions`（`expectedVersion`、`planId`、`requestId`）。内容完全相同的 ID 不会产生文件改动。
+- **撤销** 被替换的配置记录在操作快照里：`operation.restore {operationId}` 把文件恢复到提交前的状态（和其他动作一样，文件在提交后又被改动则拒绝）。
+- **软件用户级配置的限制**：`adoptNew` 只改 `mcp-compare` 里 `editable:true` 的条目；条目包含无法安全编辑的字段（疑似凭据的命令/参数/URL）时 `prepare` 返回冲突，请在 CLI 中修改或选择 `keepExisting`。软件里读不出来的明文凭据（`secretKeys`）替换后保持原样，不会被删除，也不会出现在任何响应里。
+- **替换之后**：已生成或已接入软件的配置不会自动更新，`warnings` 会提示重新生成；已声明依赖这个服务的 Skill 在 `impact` 中列出，不会被修改。
+- 能力探测：`GET /api/v1/capabilities` 的 `extensions.mcpConflictCompare`（以及 `operations` 里没有新动作，只是已有动作多了可选字段）；旧版本没有这一项，前端据此隐藏对比入口。
+
 ## MCP 行级启停、批量检测与凭据引用状态
 
 - `mcp.toggle`（`id`、`enabled` 布尔值）现在也适用于共享 MCP：只改主配置 `servers.json` 里的 `enabled`，不启动服务；重复启停返回 409（`EXTENSIONS_ALREADY_ENABLED` / `EXTENSIONS_ALREADY_DISABLED`）；停用后配置版本变化，进行中的检测会被取消，停用的服务不能检测（`POST /probes` 返回 400）。软件作用域的行为不变。

@@ -1,8 +1,9 @@
 import { createExtensionsClient } from './client.js';
-import { conflictOf, isOpenConflict, conflictSupported, conflictNote, conflictHint, conflictPanel, compareView, conflictErrorMessage, conflictShouldRefresh, conflictBlock, resolveTitle, resolveIntro } from './conflict.js';
+import { shownText, conflictOf, isOpenConflict, conflictSupported, conflictNote, conflictHint, conflictPanel, compareView, conflictErrorMessage, conflictShouldRefresh, conflictBlock, resolveTitle, resolveIntro } from './conflict.js';
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
+import { mcpCompareSupported, mcpCompareView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, settleDuplicateFieldError } from './mcp-conflict.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
 import { probeAllPlan, chunkIds, PROBE_BATCH_SIZE, resumablePlan, redactArgs, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
@@ -254,7 +255,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     updateCreateAvailability(banner);
     // 配置文件读不出来时列表为空只是表象，横幅已说明原因，不再叠一个“还没有 MCP 服务”。
     const empty = !filtered.length ? (!all.length && nothingFiltered() ? (banner?.blocksCreate ? '' : emptyState(route.tab)) : noMatchState()) : '';
-    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}${route.tab === 'mcp' ? importButtonMarkup(banner) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
     if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
     if (markup === listMarkup) { applyRoving(); return; }
@@ -460,6 +461,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     void poll();
   }
   // ---- 检测全部服务（E-12）：对话框确认后 POST /probes；后端最多同时跑 2 个，其余排队；这里逐个轮询、可整体取消 ----
+  /* 「导入 JSON…」放在列表标题行（仅 MCP 页签）：放进工具栏会挤窄搜索框、挪动三个分类共享的布局锚点（L2–L5 的 LAY 锚点用例会拦下）。 */
+  function importButtonMarkup(banner) { return `<button type="button" class="secondary extension-import-action" data-import-json ${banner?.blocksCreate ? 'disabled title="配置文件无法读取，修复并重新扫描后才能导入。"' : ''}>导入 JSON…</button>`; }
   function probeAllMarkup(filtered) {
     if (probeAllRun) return `<div class="extension-probe-all"><span class="extension-probe-progress" aria-hidden="true" data-probe-progress>${esc(probeAllRun.cancelling ? '正在取消…' : progressText(progressOf(probeAllRun.probes.values())))}</span><button type="button" class="secondary" data-cancel-all-probes ${probeAllRun.cancelling ? 'disabled' : ''}>取消全部检测</button></div>`;
     const plan = probeAllPlan(filtered), ok = plan.targets.length > 0;
@@ -535,12 +538,103 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (probeWatching === id) { clearTimeout(probeTimer); probeTimer = setTimeout(() => watchProbe(id), 0); }
     else if (liveProbes.size) void client.probe(id).then(probe => { liveProbes.set(probe.serverId, probe); renderList(); }).catch(() => {});
   }
+  // ---- MCP 导入 JSON（0.7 PR-12，最小版：粘贴 → 预览 → 同 ID 冲突逐项处理 → 应用）----
+  // 复用 E-11：对比只读（不进暂存、不产生回执）、替换用红色破坏性按钮二次确认、成功后 toast「撤销」→ operation.restore。
+  // 对比与选择只在 capabilities.extensions.mcpConflictCompare === true 时出现；旧后端上冲突仍是文字冲突，不能应用。
+  function openImportJson() {
+    if (!state) return;
+    const compareOn = mcpCompareSupported(state.capabilities), root = state.root || '';
+    const natives = state.clients.filter(item => item.selected && item.mcpMode === 'native');
+    const scopeField = selectField({ id: 'extension-import-scope', name: 'clientId', label: '导入到', value: natives.some(item => item.id === route.client) ? route.client : '', options: [{ value: '', label: '共享来源 ~/.agents' }, ...natives.map(item => ({ value: item.id, label: item.name + ' · 本地配置' }))] });
+    const dialog = openShell('导入 MCP JSON', `<form class="extension-editor extension-mcp-import" data-import-form novalidate><p>粘贴 <code>{"mcpServers": {…}}</code>。导入只写配置，不会启动服务；明文凭据会被拒绝，请改用环境变量引用。</p>${scopeField}<label>MCP JSON<textarea name="json" rows="9" spellcheck="false" autocapitalize="none" data-import-text></textarea></label><p class="extension-error" role="alert" data-dialog-error></p><div class="extension-mcp-import-review" data-import-review aria-live="polite"></div><div class="dialog-footer"><button type="button" class="secondary" data-import-cancel>取消</button><button type="submit" class="primary" data-import-preview>预览导入</button></div></form>`);
+    dialog.element.classList.add('extension-compare-dialog');
+    const form = dialog.element.querySelector('[data-import-form]'), review = form.querySelector('[data-import-review]'), text = form.querySelector('[data-import-text]'), previewButton = form.querySelector('[data-import-preview]');
+    const setError = message => { form.querySelector('[data-dialog-error]').textContent = message || ''; };
+    const scopeValue = () => form.querySelector('#extension-import-scope')?.value || '';
+    let session = null, working = false;
+    const baseAction = (json, clientId) => ({ type: 'mcp.importJson', scope: clientId ? 'client' : 'shared', ...(clientId ? { clientId } : {}), json });
+    const withChoices = () => { const resolutions = cleanChoices(session.choices, session.ids); return { ...session.base, ...(Object.keys(resolutions).length ? { resolutions } : {}) }; };
+    const busy = on => { working = on; dialog.setBusy(on); previewButton.disabled = on; form.querySelectorAll('[data-mcp-resolution]').forEach(input => { input.disabled = on || input.dataset.locked === 'true'; }); updateApply(); };
+    const reset = () => { session = null; review.innerHTML = ''; setError(''); };
+    function updateApply() {
+      const apply = form.querySelector('[data-import-apply]'); if (!apply) return;
+      apply.disabled = working || !session || !session.plan || session.plan.conflicts.length > 0 || (session.ids.length > 0 && !allChosen(session.choices, session.ids));
+    }
+    function renderPlan() { const box = form.querySelector('[data-import-plan]'); if (box) box.innerHTML = extensionPlanContent(session.plan); updateApply(); }
+    function renderReview() {
+      const choiceable = compareOn && session.items.length > 0;
+      const hint = choiceable ? '<p data-import-hint>下面的服务在这里已经存在。每一个都要选择怎么处理，才能应用；默认不会替换。</p>' : '';
+      review.innerHTML = `<div data-import-plan>${extensionPlanContent(session.plan)}</div>${hint}${choiceable ? conflictChoiceList(session.items, session.choices) : ''}<div data-import-actions><div class="dialog-footer"><button type="button" class="primary" data-import-apply disabled>应用导入</button></div></div>`;
+      form.querySelectorAll('[data-mcp-conflict]').forEach(group => { const item = session.items.find(entry => entry.id === group.dataset.id); if (item?.editable === false) group.querySelector('input[value="adoptNew"]').dataset.locked = 'true'; });
+      updateApply(); (review.querySelector('[data-mcp-compare]') || review.querySelector('[data-import-apply]'))?.focus();
+    }
+    async function runPreview() {
+      const json = text.value, clientId = scopeValue(); setError('');
+      if (!json.trim()) { setError('请先粘贴要导入的 MCP JSON。'); text.focus(); return; }
+      reset(); busy(true);
+      try {
+        const base = baseAction(json, clientId), plan = await client.prepare(base);
+        let items = [];
+        if (compareOn && plan.conflicts.length) items = (await client.mcpCompare({ scope: base.scope, ...(clientId ? { clientId } : {}), json, expectedVersion: plan.expectedVersion })).items || [];
+        session = { base, plan, items, ids: items.map(item => item.id), choices: {}, token: 0, version: plan.expectedVersion };
+        renderReview();
+      } catch (error) { setError(mcpCompareErrorMessage(error)); if (mcpShouldRefresh(error)) void controller.refresh(true); }
+      finally { busy(false); }
+    }
+    async function refreshPlan() {
+      if (!session) return; const mine = ++session.token; busy(true);
+      try { const plan = await client.prepare(withChoices()); if (!session || mine !== session.token) return; session.plan = plan; renderPlan(); setError(''); }
+      catch (error) { if (session && mine === session.token) setError(mcpCompareErrorMessage(error)); }
+      finally { if (!session || mine === session.token) busy(false); }
+    }
+    async function showCompare(button) {
+      const id = button.dataset.id, group = [...form.querySelectorAll('[data-mcp-conflict]')].find(entry => entry.dataset.id === id), body = group?.querySelector('[data-mcp-compare-body]'); if (!body || !session) return;
+      if (button.getAttribute('aria-expanded') === 'true') { body.innerHTML = ''; button.setAttribute('aria-expanded', 'false'); return; }
+      button.disabled = true; body.innerHTML = '<p class="extension-compare-loading" role="status">正在读取差异…</p>';
+      try {
+        const clientId = scopeValue(), result = await client.mcpCompare({ scope: session.base.scope, ...(clientId ? { clientId } : {}), json: session.base.json, expectedVersion: session.version });
+        body.innerHTML = mcpCompareView(result, { root, only: id }); button.setAttribute('aria-expanded', 'true');
+      } catch (error) { body.innerHTML = `<p class="extension-error" role="alert" data-compare-error>${esc(mcpCompareErrorMessage(error))}</p>`; if (mcpShouldRefresh(error)) void controller.refresh(true); }
+      finally { button.disabled = false; }
+    }
+    async function commit() {
+      busy(true); setError('');
+      try {
+        const plan = session.plan, result = await controller.submit(plan); dialog.setBusy(false); dialog.close();
+        receipt([{ action: { ...plan.normalizedAction, resolutions: plan.normalizedAction?.resolutions || cleanChoices(session.choices, session.ids) }, result, name: '' }]);
+      } catch (error) {
+        setError(mcpCompareErrorMessage(error) + '；输入已保留，请重新预览。'); if (mcpShouldRefresh(error)) { session = null; review.innerHTML = ''; void controller.refresh(true); }
+        busy(false);
+      }
+    }
+    function confirmReplace() {
+      const ids = adoptedIds(session.choices, session.ids), box = form.querySelector('[data-import-actions]');
+      box.innerHTML = `${replaceConfirm(ids)}<div class="dialog-footer"><button type="button" class="secondary" data-import-back>返回</button><button type="button" class="ui-button ui-button-danger" data-import-replace>确认替换</button></div>`;
+      box.querySelector('[data-import-back]').focus();
+    }
+    form.onsubmit = event => { event.preventDefault(); if (!working) void runPreview(); };
+    form.querySelector('[data-import-cancel]').onclick = () => dialog.close();
+    form.addEventListener('input', event => { if (event.target === text && session) reset(); });
+    form.addEventListener('change', event => {
+      if (event.target.closest?.('#extension-import-scope') && session) { reset(); return; }
+      const input = event.target.closest?.('[data-mcp-resolution]'); if (!input || !session) return;
+      session.choices = { ...session.choices, [input.dataset.id]: input.value }; updateApply(); void refreshPlan();
+    });
+    form.addEventListener('click', event => {
+      const button = event.target.closest('button'); if (!button || working && !button.matches('[data-import-back]')) return;
+      if (button.matches('[data-mcp-compare]')) void showCompare(button);
+      else if (button.matches('[data-import-apply]')) { if (adoptedIds(session.choices, session.ids).length) confirmReplace(); else void commit(); }
+      else if (button.matches('[data-import-replace]')) void commit();
+      else if (button.matches('[data-import-back]')) { const box = form.querySelector('[data-import-actions]'); box.innerHTML = '<div class="dialog-footer"><button type="button" class="primary" data-import-apply>应用导入</button></div>'; updateApply(); box.querySelector('[data-import-apply]').focus(); }
+    });
+    text.focus();
+  }
   function edit(create = false) {
     const item = create ? null : selected, isMcp = create ? route.tab === 'mcp' : item.kind === 'mcp', isClient = create ? route.tab === 'clients' : item.kind === 'client', key = create ? 'new:' + route.tab : item.id + ':' + (item.file || ''), draft = controller.drafts.get(key);
     const destinations = [{ value: '', label: '共享来源 ~/.agents' }, ...state.clients.filter(client => client.selected && (!isMcp || client.mcpMode === 'native')).map(client => ({ value: client.id, label: client.name + ' · 本地配置' }))];
     const destination = create && !isClient ? selectField({ id: 'extension-destination', name: 'clientId', label: '保存到', value: route.client || '', options: destinations }) : '';
     const form = isClient ? `<p>常见 CLI 会自动识别；其他 CLI 可手动登记目录，并选择已核实的适配器。</p><input type="hidden" name="id" value="${esc(item?.id || draft?.id || 'client_' + crypto.randomUUID())}"><div class="extension-form-grid">${textField('name', '软件名称', item?.name, 'required maxlength="80" placeholder="如 Claude Code"')}${textField('command', 'CLI 命令', item?.command, 'required maxlength="2000" placeholder="命令名或可执行文件绝对路径"')}</div>${textField('root', '软件主目录', item?.root, 'required maxlength="2000" placeholder="如 ~/.claude"')}${textField('skillsDirectory', 'Skills 相对目录', item?.skillsDirectory || 'skills', 'required maxlength="2000" placeholder="如 skills 或 agent/skills"')}${selectField({ id: 'extension-client-adapter', name: 'adapter', label: 'CLI 适配器', value: item?.adapter || 'auto', options: [{ value: 'auto', label: '按命令自动匹配' }, { value: 'manual', label: '仅管理 Skills / 导出 MCP' }, ...state.adapters.map(({ id, name }) => ({ value: id, label: name }))] })}${selectField({ id: 'extension-client-mcp-format', name: 'mcpFormat', label: '未匹配适配器时的导出格式', value: item?.mcpFormat || 'none', options: [{ value: 'none', label: '暂不生成 MCP 配置' }, { value: 'toml', label: 'TOML（Codex 格式）' }, { value: 'json', label: 'JSON（Qoder 格式）' }] })}` : isMcp ? `${destination}<p>${item?.scope === 'client' ? '只修改该软件的用户级 MCP，保留已有凭据与其他配置。' : '保存到所选来源；共享配置可再接入软件。'}凭据请填环境变量名。</p><div class="extension-form-grid">${textField('id', '稳定 ID', item?.serverKey || item?.id, 'required maxlength="' + (create && !route.client && !draft?.clientId ? 80 : 200) + '" autocapitalize="none" spellcheck="false" autocomplete="off" ' + (item ? 'readonly' : ''))}${textField('name', '服务名称', item?.name, 'required maxlength="200"')}</div>${selectField({ id: 'extension-transport', name: 'transport', label: '连接方式', value: item?.transport || 'stdio', options: [{ value: 'stdio', label: '本地命令（stdio）' }, { value: 'http', label: 'HTTP 服务' }] })}<div data-stdio-fields>${textField('command', '可执行命令', item?.command, 'placeholder="如 node 或 /绝对路径/程序"')}<label>参数（每行一项）<textarea name="args" rows="3">${esc((item?.args || []).join('\n'))}</textarea></label>${textField('cwd', '工作目录（可选）', item?.cwd)}<label>环境变量引用（每行 名称=环境变量名）<textarea name="envRefs" rows="3" placeholder="API_TOKEN=API_TOKEN">${esc(refText(item?.envRefs))}</textarea></label></div><div data-http-fields>${textField('url', 'HTTP 端点', item?.url, 'type="url" placeholder="https://example.com/mcp"')}<label>请求头引用（每行 请求头=环境变量名）<textarea name="headerRefs" rows="3" placeholder="Authorization=MCP_AUTH_HEADER">${esc(refText(item?.headerRefs))}</textarea></label></div><label class="extension-checkbox" data-enabled-field><input type="checkbox" name="enabled" ${item?.enabled !== false ? 'checked' : ''}>配置启用（软件生效需刷新；不支持启停的软件只能保存为启用）</label>` : create ? `${destination}${textField('directory', 'Skill 名称 / 目录', '', 'required pattern="[a-z0-9][a-z0-9\\-]{0,63}" maxlength="64" autocapitalize="none" spellcheck="false" autocomplete="off" placeholder="如 review-code"')}<label>用途说明<textarea name="description" required rows="2" placeholder="什么时候使用这个 Skill"></textarea></label><label>操作说明<textarea name="body" rows="10" placeholder="写下使用步骤和约束"></textarea></label>` : `<p>编辑来源 ${esc(item.sourcePath)}/${esc(item.file)}，不会执行其中的脚本。</p><label>文件内容<textarea name="content" rows="16" spellcheck="false" required>${esc(item.content)}</textarea></label>`;
-    const dialog = openShell(isClient ? create ? '添加 CLI' : '编辑 CLI' : create ? isMcp ? '新建 MCP 服务' : '新建 Skill' : '编辑主来源', `<form class="extension-editor">${form}${isClient || isMcp ? '<div data-client-review hidden></div>' : ''}<p class="extension-error" role="alert" data-dialog-error></p><p class="extension-draft-note" role="status">未保存内容在切换页面后保留。</p><div class="dialog-footer"><button type="button" class="secondary" data-editor-cancel>取消</button><button type="submit" class="primary">${isClient ? '预览登记' : '保存主来源'}</button></div></form>`);
+    const dialog = openShell(isClient ? create ? '添加 CLI' : '编辑 CLI' : create ? isMcp ? '新建 MCP 服务' : '新建 Skill' : '编辑主来源', `<form class="extension-editor">${form}${isClient || isMcp ? '<div data-client-review hidden></div>' : ''}${create && isMcp ? '<div class="extension-duplicate-panel" data-duplicate-panel hidden></div>' : ''}<p class="extension-error" role="alert" data-dialog-error></p><p class="extension-draft-note" role="status">未保存内容在切换页面后保留。</p><div class="dialog-footer"><button type="button" class="secondary" data-editor-cancel>取消</button><button type="submit" class="primary">${isClient ? '预览登记' : '保存主来源'}</button></div></form>`);
     const editor = dialog.element.querySelector('form');
     if (draft) for (const [name, value] of Object.entries(draft)) { const control = editor.elements[name]; if (control) control.type === 'checkbox' ? control.checked = value : control.value = value; }
     if (isMcp) editor.querySelector('#extension-transport').value = editor.elements.transport.value;
@@ -554,7 +648,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const messages = createFieldMessages(editor), formKind = isClient ? 'client' : isMcp ? 'mcp' : create ? 'skill-create' : 'skill-edit';
     const setDialogError = text => { editor.querySelector('[data-dialog-error]').textContent = text; };
     const viewExistingAction = { id: 'view-existing', label: '查看现有服务' };
-    let duplicateOf = null;
+    let duplicateOf = null, lastAction = null, conflictChoice = null;
+    const duplicateAware = create && isMcp && mcpCompareSupported(state?.capabilities);
     const formValues = () => { saveDraft(); return controller.drafts.get(key) || {}; };
     const validate = values => validateExtensionForm({ kind: formKind, creating: create, values, servers: state?.servers || [] });
     function showError(found) { if (found.duplicate) duplicateOf = found.duplicate; messages.error(found.name, found.message, found.duplicate ? { action: viewExistingAction } : undefined); }
@@ -583,12 +678,52 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     });
     updateHttpWarning();
     function reportFailure(error) {
+      if (error.code !== 'EXTENSIONS_DUPLICATE_ID') hideDuplicatePanel();   // 非同 ID 冲突的失败：收起面板并清掉已选处理方式
       const raw = String(error.field || '').replace(/^(server|client)\./, ''), name = [fieldInputName(error.field), raw].find(candidate => candidate && editor.elements[candidate]);
       if (!name) { setDialogError(error.message); return; }
       const duplicate = error.code === 'EXTENSIONS_DUPLICATE_ID' ? findDuplicateServer(state?.servers || [], { id: formValues().id, clientId: formValues().clientId || '' }) : null;
       showError({ name, message: error.message, ...(duplicate ? { duplicate } : {}) });
       setDialogError('有字段需要修改，输入已保留。'); editor.elements[name].focus();
+      if (duplicateAware && error.code === 'EXTENSIONS_DUPLICATE_ID' && lastAction?.server) void showDuplicatePanel();
     }
+    // ---- 同 ID 冲突（PR-12）：409 EXTENSIONS_DUPLICATE_ID → 对比 + 「用新填写的替换 / 保留现有」→ 以 onConflict 重新 prepare ----
+    const duplicatePanel = () => editor.querySelector('[data-duplicate-panel]');
+    function hideDuplicatePanel() { const panel = duplicatePanel(); if (panel) { panel.hidden = true; panel.innerHTML = ''; } conflictChoice = null; }
+    async function showDuplicatePanel() {
+      const panel = duplicatePanel(), action = lastAction; if (!panel || !action?.server) return;
+      const clientId = action.clientId || '', root = state?.root || '';
+      panel.hidden = false; panel.innerHTML = '<p class="extension-compare-loading" role="status">正在读取现有服务…</p>';
+      let item;
+      try {
+        const result = await client.mcpCompare({ scope: clientId ? 'client' : 'shared', ...(clientId ? { clientId } : {}), server: action.server, expectedVersion: state?.version });
+        item = (result.items || []).find(entry => entry.id === action.server.id);
+        if (!item) { panel.innerHTML = '<p role="status">这个 ID 现在已经没有同名服务了，直接再保存一次即可。</p>'; return; }
+      } catch (error) { panel.innerHTML = `<p class="extension-error" role="alert">${esc(mcpCompareErrorMessage(error))}</p>`; if (mcpShouldRefresh(error)) void controller.refresh(true); return; }
+      const label = id => esc(shownText(id));
+      panel.innerHTML = `<p><strong>已经有 ID 为「${label(item.id)}」的 MCP 服务</strong>。选择怎么处理，再继续保存；默认不会替换。</p>${conflictChoiceList([item], {}, { source: 'form' })}<div data-duplicate-actions><div class="dialog-footer"><button type="button" class="primary" data-duplicate-continue disabled>按所选继续</button></div></div>`;
+      panel.querySelector('[data-mcp-compare]')?.focus();
+      let chosen = '';
+      const renderActions = () => { const box = panel.querySelector('[data-duplicate-actions]'); box.innerHTML = '<div class="dialog-footer"><button type="button" class="primary" data-duplicate-continue>按所选继续</button></div>'; };
+      panel.onchange = event => { const input = event.target.closest('[data-mcp-resolution]'); if (!input) return; chosen = input.value; settleDuplicateFieldError({ messages, setDialogError }); panel.querySelector('[data-duplicate-continue]')?.removeAttribute('disabled'); };
+      panel.onclick = async event => {
+        const button = event.target.closest('button'); if (!button) return;
+        if (button.matches('[data-mcp-compare]')) {
+          const body = panel.querySelector('[data-mcp-compare-body]');
+          if (button.getAttribute('aria-expanded') === 'true') { body.innerHTML = ''; button.setAttribute('aria-expanded', 'false'); return; }
+          body.innerHTML = mcpCompareView({ items: [item], newIds: [] }, { root, incomingLabel: '新填写的', only: item.id }); button.setAttribute('aria-expanded', 'true');
+        } else if (button.matches('[data-duplicate-continue]')) {
+          if (chosen === 'adoptNew') {
+            settleDuplicateFieldError({ messages, setDialogError });
+            const box = panel.querySelector('[data-duplicate-actions]');
+            box.innerHTML = `${replaceConfirm([item.id], { source: 'form' })}<div class="dialog-footer"><button type="button" class="secondary" data-duplicate-back>返回</button><button type="button" class="ui-button ui-button-danger" data-duplicate-replace>确认替换</button></div>`;
+            box.querySelector('[data-duplicate-back]').focus();
+          } else if (chosen === 'keepExisting') { conflictChoice = 'keepExisting'; editor.requestSubmit(); }
+        } else if (button.matches('[data-duplicate-back]')) { renderActions(); panel.querySelector('[data-duplicate-continue]').focus(); }
+        else if (button.matches('[data-duplicate-replace]')) { conflictChoice = 'adoptNew'; editor.requestSubmit(); }
+      };
+    }
+    editor.addEventListener('input', event => { if (event.target.name === 'id') hideDuplicatePanel(); });
+    editor.addEventListener('change', event => { if (event.target.name === 'clientId') hideDuplicatePanel(); });
     editor.querySelector('[data-editor-cancel]').onclick = () => dialog.close();
     async function run(work) {
       if (submitting) return;
@@ -609,14 +744,16 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     editor.onsubmit = async event => {
       event.preventDefault(); if (submitting) return; saveDraft(); const values = controller.drafts.get(key); let action;
       messages.clearAll(); duplicateOf = null; setDialogError('');
-      const problems = validate(values);
-      if (problems.length) { problems.forEach(showError); setDialogError(`有 ${problems.length} 处需要修改，已定位到第一处；已填写的内容都保留着。`); messages.focusFirst(); return; }
+      const choice = conflictChoice; conflictChoice = null;   // 选择只管这一次提交；失败后要重新选，不沿用上次的
+      if (!choice) hideDuplicatePanel();
+      const problems = validate(values).filter(problem => !(duplicateAware && problem.duplicate));   // 有对比能力时同 ID 交给后端 409 EXTENSIONS_DUPLICATE_ID，再给对比与选择
+      if (problems.length) { hideDuplicatePanel(); problems.forEach(showError); setDialogError(`有 ${problems.length} 处需要修改，已定位到第一处；已填写的内容都保留着。`); messages.focusFirst(); return; }
       await run(async () => {
         if (isClient) action = { type: 'client.save', client: values };
-        else if (isMcp) action = { type: 'mcp.save', ...(create ? { create: true } : {}), ...((item?.clientId || values.clientId) ? { clientId: item?.clientId || values.clientId } : {}), server: { id: values.id, name: values.name, enabled: values.enabled, transport: values.transport, ...(values.transport === 'stdio' ? { command: values.command, args: values.args.split('\n').filter(Boolean), ...(values.cwd ? { cwd: values.cwd } : {}), envRefs: parseRefs(values.envRefs) } : { url: values.url, headerRefs: parseRefs(values.headerRefs) }) } };
+        else if (isMcp) action = { type: 'mcp.save', ...(create ? { create: true } : {}), ...(create && choice ? { onConflict: choice } : {}), ...((item?.clientId || values.clientId) ? { clientId: item?.clientId || values.clientId } : {}), server: { id: values.id, name: values.name, enabled: values.enabled, transport: values.transport, ...(values.transport === 'stdio' ? { command: values.command, args: values.args.split('\n').filter(Boolean), ...(values.cwd ? { cwd: values.cwd } : {}), envRefs: parseRefs(values.envRefs) } : { url: values.url, headerRefs: parseRefs(values.headerRefs) }) } };
         else if (create) action = { type: 'skill.create', ...(values.clientId ? { clientId: values.clientId } : {}), directory: values.directory, content: '---\nname: ' + JSON.stringify(values.directory) + '\ndescription: ' + JSON.stringify(values.description) + '\n---\n\n' + values.body + '\n' };
         else action = { type: 'skill.update', id: item.id, file: item.file, content: values.content };
-        let plan;
+        lastAction = action; let plan;
         try { plan = await client.prepare(action); }
         catch (error) {
           // 旧版服务不认识 create 字段（400）：上面的同 ID 检查已通过，退回不带 create 的请求；新版服务会返回 409 EXTENSIONS_DUPLICATE_ID。
@@ -722,6 +859,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.dataset.extensionReveal) await revealInFinder(button.dataset.extensionReveal);
       else if (button.hasAttribute('data-extension-restore-backup')) await chooseBackup(button);
       else if (button.hasAttribute('data-create') || button.hasAttribute('data-empty-create')) edit(true);
+      else if (button.hasAttribute('data-import-json')) openImportJson();
       else if (button.hasAttribute('data-clear-filters')) { changeRoute({ query: '', client: null, problems: false }); $('.extension-search input')?.focus(); }
       else if (button.hasAttribute('data-edit')) edit();
       else if (button.hasAttribute('data-cli-selection')) await toggleClientSelection(button);

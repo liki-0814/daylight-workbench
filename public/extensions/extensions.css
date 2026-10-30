@@ -170,6 +170,8 @@
 .extension-probe-all { margin-left: auto; }
 /* 「检测全部服务」按钮（36px）比 h2 行高，会让 MCP 页的清单标题比另外两个分类高 18px，三个分类共享的布局锚点（LAY-溢出+锚点）就移位了：用负的块方向外边距把它的占位收回到标题行高内，点击区域仍是 36px */
 .extension-list-heading > .extension-probe-all { margin-block: -9px; }
+.extension-list-heading > .extension-import-action { margin-left: auto; margin-block: -9px; }
+.extension-list-heading > .extension-probe-all + .extension-import-action { margin-left: var(--space-3); }
 .extension-probe-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; max-height: 240px; overflow: auto; display: grid; gap: var(--space-2); }
 .extension-probe-list li { overflow-wrap: anywhere; }
 .extension-probe-list code { display: block; color: var(--text-secondary, var(--muted)); }
@@ -198,3 +200,23 @@
 .extension-compare-shared { background: var(--danger-bg, #fdecec); }
 .extension-compare-local { background: var(--success-bg, #eaf6ee); }
 .extension-compare-hunk-head { color: var(--text-secondary, inherit); }
+
+/* ---- 0.7 PR-12：MCP 同 ID 冲突（只用 token）---- */
+.extension-mcp-conflicts { display: grid; gap: var(--space-3); margin: var(--space-2) 0; }
+.extension-mcp-conflict { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--control-border, #ddd); border-radius: var(--radius-sm, 6px); min-width: 0; }
+.extension-mcp-conflict legend { padding: 0 var(--space-1); font-weight: 600; overflow-wrap: anywhere; }
+.extension-mcp-conflict > button { justify-self: start; }
+.extension-mcp-choices { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.extension-mcp-choice { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; cursor: pointer; }
+.extension-mcp-choice input { margin: 0; }
+.extension-mcp-compare-table { width: 100%; border-collapse: collapse; font-size: var(--font-caption-size); table-layout: fixed; }
+.extension-mcp-compare-table th, .extension-mcp-compare-table td { padding: var(--space-1) var(--space-2); text-align: left; vertical-align: top; border-top: 1px solid var(--control-border, #ddd); overflow-wrap: anywhere; font-weight: normal; }
+.extension-mcp-compare-table thead th { color: var(--text-secondary, inherit); border-top: 0; }
+.extension-mcp-compare-table tbody th { width: 5em; color: var(--text-secondary, inherit); }
+.extension-mcp-refs { margin: 0; padding-left: var(--space-4, 1.25rem); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
+.extension-mcp-refsets { display: grid; gap: var(--space-2); }
+.extension-mcp-import textarea { width: 100%; min-height: 9em; font-family: var(--font-mono, monospace); box-sizing: border-box; }
+.extension-mcp-import-review, .extension-duplicate-panel { display: grid; gap: var(--space-2); }
+.extension-duplicate-panel { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm, 6px); background: var(--warning-background, #fff5e8); color: var(--warning-text, #9a4300); }
+.extension-ref-badge { font-size: var(--font-caption-size); white-space: nowrap; }
+.extension-ref-badge[data-tone="warning"] { font-weight: 600; }
