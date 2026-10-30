@@ -288,46 +288,6 @@
   display: none!important;
 }
 
-@media(max-width:650px) {
-  .proxy-page {
-    --proxy-panel-inset: var(--panel-inline-inset);
-  }
-  .proxy-service {
-    padding: var(--panel-block-inset) var(--proxy-panel-inset);
-  }
-  .proxy-account {
-    padding: 17px var(--proxy-panel-inset);
-  }
-  .proxy-account-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
-  }
-  .proxy-connect {
-    padding: var(--panel-block-inset) var(--proxy-panel-inset);
-  }
-  .proxy-section-title {
-    gap: 10px;
-  }
-  .proxy-error {
-    margin-left: 18px;
-    margin-right: 18px;
-  }
-  .proxy-disclosure>summary>span {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .proxy-copy {
-    gap: 3px;
-  }
-  .proxy-copy input {
-    font-size: var(--font-control-size);
-    line-height: var(--font-control-line);
-  }
-  .proxy-model-options {
-    gap: 10px;
-  }
-}
 
 [data-local-id="models-list"] {
   overflow: visible;
@@ -1199,15 +1159,6 @@
   flex-shrink: 0;
 }
 
-@media(max-width:650px) {
-  .proxy-account {
-    flex-wrap: wrap;
-  }
-  .proxy-account-actions {
-    margin-left: auto;
-    gap: 14px;
-  }
-}
 
 .proxy-model-message {
   margin: 0;

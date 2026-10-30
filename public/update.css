@@ -21,7 +21,3 @@
 .update-history span { display: block; color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
 .update-history li[data-status="failed"] span, .update-history li[data-status="rolled-back"] span { color: #8a6230; }
 .update-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); }
-@media (max-width: 650px) {
-  .update-notice { flex-direction: column; align-items: flex-start; }
-  .update-inline-actions { margin-left: 0; }
-}

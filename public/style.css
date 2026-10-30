@@ -985,200 +985,6 @@ dialog::backdrop {
   }
 }
 
-@media(max-width:650px) {
-  .single {
-    --task-title-size: var(--font-body-size);
-  }
-  #app {
-    display: block;
-  }
-  .sidebar {
-    position: static;
-    width: auto;
-    padding: 17px 18px;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    display: block;
-  }
-  .brand {
-    margin: 0;
-    font-size: var(--font-brand-size);
-    line-height: var(--font-brand-line);
-  }
-  .brand>span {
-    font-size: var(--font-brand-size);
-    line-height: var(--font-brand-line);
-  }
-  .brand img {
-    width: 30px;
-    height: 30px;
-  }
-  .brand small {
-    display: none;
-  }
-  .capture {
-    position: absolute;
-    right: 18px;
-    top: 18px;
-    width: auto;
-    margin: 0;
-  }
-  .capture>span:not(.capture-label) {
-    display: none;
-  }
-  .sidebar>nav:first-of-type {
-    display: flex;
-    margin-top: 18px;
-    gap: var(--space-1);
-  }
-  .nav-item {
-    padding: 9px var(--space-2);
-
-    gap: 5px;
-    margin-bottom: 0;
-
-  }
-  .nav-item small {
-    display: none;
-  }
-  .nav-item .icon {
-    width: 15px;
-    height: 15px;
-  }
-
-  main {
-    margin-left: 0;
-  }
-  .topbar {
-    height: 55px;
-    padding: 0 var(--page-inline);
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .search {
-    width: 143px;
-  }
-  .search input {
-    font-size: var(--font-control-size);
-    line-height: var(--font-control-line);
-  }
-  .topbar .slash {
-    margin: 0 5px;
-  }
-  .workspace {
-    padding: 25px var(--page-inline) 18px;
-  }
-  .page-heading {
-    margin-bottom: var(--page-heading-gap);
-    column-gap: var(--space-4);
-  }
-  h1 {
-    font-size: var(--font-page-size);
-    margin-top: 9px;
-    letter-spacing: -.7px;
-    line-height: var(--font-page-line);
-  }
-  .page-heading p {
-    font-size: var(--font-caption-size);
-    line-height: var(--font-caption-line);
-  }
-  .date-stamp {
-    padding-left: 16px;
-    padding-right: 0;
-  }
-  .date-stamp strong {
-    font-size: var(--font-date-size);
-    line-height: var(--font-date-line);
-  }
-  .date-stamp span {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .panel-header {
-    padding: 0 var(--space-4);
-  }
-  .empty {
-    min-height: 220px;
-  }
-
-  .workspace-footer {
-    font-size: var(--font-meta-size);
-    letter-spacing: 0;
-    align-items: center;
-    line-height: var(--font-meta-line);
-  }
-  .workspace-footer>span:first-child {
-    max-width: 180px;
-    line-height: var(--font-meta-line);
-  }
-  .task-row,.single .task-row {
-    padding: 17px var(--task-row-inset);
-    gap: var(--task-column-gap);
-  }
-  .task-meta {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .task-actions,.single .task-actions {
-    gap: 0;
-  }
-
-  .task-meta b {
-    display: none;
-  }
-  .dialog-header {
-    padding: var(--panel-block-inset) var(--dialog-inline-inset);
-  }
-  .dialog-header h2 {
-    font-size: var(--font-dialog-size);
-    line-height: var(--font-dialog-line);
-  }
-  .form-body {
-    padding: var(--panel-block-inset) var(--dialog-inline-inset);
-  }
-  .dialog-footer {
-    padding: var(--space-4) var(--dialog-inline-inset);
-  }
-  .picker-list .task-row {
-    padding: var(--space-4);
-  }
-  .picker-list .task-meta {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .project-path {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .project-path small {
-    display: none;
-  }
-  .focus-card {
-    padding: var(--space-5);
-  }
-  .focus-title {
-    font-size: var(--font-section-size);
-    line-height: var(--font-section-line);
-  }
-  .focus-bottom {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  #toast {
-    left: 50%;
-    bottom: 20px;
-    width: max-content;
-    max-width: calc(100vw - 24px);
-  }
-  .page-heading>.primary {
-    padding: 9px;
-
-  }
-  .carryover {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-}
 
 @media(prefers-reduced-motion:reduce) {
   *, *::before, *::after {
@@ -1335,26 +1141,6 @@ dialog::backdrop {
   line-height: var(--font-caption-line);
 }
 
-@media(max-width:650px) {
-  .settings-panel {
-    padding: var(--panel-block-inset) var(--panel-inline-inset) var(--space-2);
-  }
-  .settings-heading {
-    flex-direction: column;
-    gap: var(--heading-copy-gap);
-  }
-  .shortcut-list li {
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .settings-facts>div {
-    flex-direction: column;
-    gap: 5px;
-  }
-  .settings-facts dd {
-    text-align: left;
-  }
-}
 
 /* Preserve scrolling while hiding platform scrollbars across the workbench. */
 * {
@@ -1702,37 +1488,6 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
 }
 
-@media(max-width:650px) {
-  .sidebar>nav.page-navigation:first-of-type {
-    display: grid;
-    grid-template-columns: repeat(6,minmax(0,1fr));
-    gap: var(--space-1);
-    margin-top: 18px;
-  }
-  .page-navigation .nav-item {
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-    padding: 9px 3px;
-
-  }
-  .task-view-controls {
-    gap: var(--space-2);
-  }
-  .task-range-tabs button {
-    padding: var(--space-2) 10px;
-
-    min-height: var(--compact-button-height);
-  }
-
-  .task-group-heading {
-    padding: 0 var(--task-row-inset);
-  }
-
-  .task-workspace .page-heading h1 {
-    overflow-wrap: anywhere;
-  }
-}
 
 .task-view-controls {
   justify-content: flex-start;
@@ -1752,23 +1507,6 @@ dialog::backdrop {
   padding-bottom: var(--space-4);
 }
 
-@media(max-width:650px) {
-  .task-view-controls {
-    flex-wrap: wrap;
-  }
-  .task-view-controls .select-field {
-    max-width: 100%;
-    flex: 1;
-    min-width: 120px;
-  }
-  .task-view-controls>.text-button:last-child {
-    margin-left: 0;
-  }
-  .task-project-group .task-row {
-    padding-top: 14px;
-    padding-bottom: 14px;
-  }
-}
 
 .task-panel>.panel-header>.select-field {
   margin: 0 0 0 auto;
@@ -1785,20 +1523,10 @@ dialog::backdrop {
   padding-bottom: 7px;
 }
 
-@media(max-width:650px) {
-  .task-panel>.panel-header>.select-field {
-    max-width: 180px;
-  }
-
-  .task-panel>.panel-header>.text-button {
-    width: 100%;
-    text-align: right;
-  }
-}
 
 /* 0.7 PR-4：≤999（760 档）侧栏收成 64px 图标栏。标签只做视觉隐藏，读屏仍读得到；徽标变成小圆点。
-   限定 min-width:651px，保留旧的 ≤650 堆叠布局不变（原生壳 minSize 为 760，那段布局在 App 里到不了）。 */
-@media (max-width: 999px) and (min-width: 651px) {
+   旧的 ≤650 堆叠布局（原生壳 minSize 为 760，到不了）已在 PR-5 清理，这里不再需要加下限。 */
+@media (max-width: 999px) {
   .sidebar {
     padding: var(--space-5) var(--space-2);
     align-items: stretch;
