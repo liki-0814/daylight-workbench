@@ -20,6 +20,29 @@ export default [
       'Esc': () => page.keyboard.press('Escape'),
       '点遮罩': () => page.mouse.click(3, 3),
     };
+    if (await page.locator('[data-staging-bar]').count()) {
+      // 0.7 PR-6：开关只暂存，预览在底栏「预览并应用」里打开。E-26 的不变量照旧：取消后一切仍可操作、焦点回到触发预览的按钮、可再次进入预览，且没有写任何文件。
+      const staged = { '清单': '.extension-list', '详情': '.extension-detail' };
+      for (const [area, scope] of Object.entries(staged)) {
+        if (area === '详情') { await rows(page).filter({ hasText: 'review-code' }).locator('[data-extension-id]').first().click(); await page.locator('.extension-detail:not([hidden])').waitFor(); }
+        const box = () => page.locator(scope).getByRole('switch', { name: 'review-code · Pi', exact: true });
+        const review = page.locator('[data-staging-bar]').getByRole('button', { name: '预览并应用', exact: true });
+        await box().click();
+        for (const [name, cancel] of Object.entries(cancels)) {
+          const label = area + ' / ' + name;
+          await review.click({ timeout: 5000 }).catch(error => { throw new Error(label + '：点不到「预览并应用」（' + error.message.split('\n')[0] + '）'); });
+          await dialog(page).waitFor(); await cancel(); await gone(page);
+          await page.waitForFunction(() => { const button = document.querySelector('[data-staging-review]'); return button && !button.disabled; }, null, { timeout: 2000 }).catch(() => { throw new Error(label + '：「预览并应用」仍为 disabled'); });
+          await page.waitForFunction(() => document.activeElement?.matches?.('[data-staging-review]'), null, { timeout: 2000 }).catch(() => { throw new Error(label + '：焦点没有回到「预览并应用」'); });
+          check.equal(await box().isDisabled(), false, label + '：开关仍可操作');
+          check.equal(await box().isChecked(), true, label + '：暂存值保留');
+        }
+        await review.click(); await dialog(page).waitFor(); await page.keyboard.press('Escape'); await gone(page);   // 取消后还能再进入预览
+        await page.locator('[data-staging-revert]').click();
+        check.equal(await box().isChecked(), false, area + '：还原后回到未接入');
+      }
+      return;
+    }
     // 清单里的复选框先测（E-26 的根因在清单重绘的缓存）；窄窗口下打开详情会隐藏清单，所以放在详情之前。
     const areas = { '清单': '.extension-list', '详情': '.extension-detail' };
     for (const [area, scope] of Object.entries(areas)) {

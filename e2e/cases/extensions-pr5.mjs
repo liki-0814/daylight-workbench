@@ -219,7 +219,7 @@ const stepB = [
   } },
   { id: 'ext-l-17', priority: 'P0', title: '能力统一到 extensions.*：镜像里的 extensions.reveal / extensions.restoreBackup 决定「在访达中显示」「从备份恢复…」；缺 reveal（不支持访达）时仍有「复制路径」；非 true 值一律不显示；旧的顶层镜像仍兼容', async run({ page, url, assert: check, fixture }) {
     const file = path.join(fixture.agents, 'mcp/servers.json'), good = await fs.readFile(file, 'utf8');
-    let capabilities; const rescan = () => page.getByRole('button', { name: '重新扫描扩展', exact: true }).evaluate(el => el.click());
+    let capabilities; const rescan = async () => { const done = page.waitForResponse(response => /\/api\/extensions\/refresh/.test(response.url())); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).evaluate(el => el.click()); await done; await page.waitForTimeout(300); };   // 等到刷新响应并渲染完，再断言「没有按钮」——否则上一轮的旧 DOM 会让否定断言空过（PR-6 反向验证发现）
     const banner = () => page.locator('[data-config-banner="MCP_FORMAT"]'), names = async () => (await banner().getByRole('button').allInnerTexts()).map(text => text.trim());
     await page.route(/\/api\/extensions\/(state|refresh)(\?.*)?$/, async route => {
       const response = await route.fetch(), body = await response.json(); body.capabilities = capabilities; await route.fulfill({ response, json: body });
@@ -235,8 +235,13 @@ const stepB = [
       check.deepEqual(await names(), ['重新扫描', '复制路径'], '字符串 "true" / 数字 1 都不算支持');
       capabilities = undefined; await rescan(); await page.waitForFunction(() => !document.querySelector('[data-extension-restore-backup]'));
       check.deepEqual(await names(), ['重新扫描', '复制路径'], '没有 capabilities：只有基础按钮');
-      capabilities = { restoreBackup: true, reveal: true }; await rescan(); await page.waitForFunction(() => document.querySelector('[data-extension-reveal]'));
-      check.deepEqual(await names(), ['重新扫描', '在访达中显示', '从备份恢复…'], '旧的顶层镜像（#36 498c48f 及之前的形状）仍然兼容；#36 现在只返回 capabilities.extensions.*');
+      // PR-6（Jevis 决定 1）：只读嵌套的 extensions.*，顶层扁平键不再兜底。同一用例在 PR-5 的构建（仍兼容扁平镜像）上也成立，所以按构建分支。
+      const nestedOnly = (await page.locator('[data-staging-bar]').count()) > 0;
+      capabilities = { restoreBackup: true, reveal: true }; await rescan();
+      if (nestedOnly) { await page.waitForFunction(() => !document.querySelector('[data-extension-reveal]') && !document.querySelector('[data-extension-restore-backup]')); check.deepEqual(await names(), ['重新扫描', '复制路径'], '顶层扁平键 capabilities.reveal / restoreBackup 不再算数（PR-6：只认 extensions.*）'); }
+      else { await page.waitForFunction(() => document.querySelector('[data-extension-reveal]')); check.deepEqual(await names(), ['重新扫描', '在访达中显示', '从备份恢复…'], '旧的顶层镜像（#36 498c48f 及之前的形状）仍然兼容（PR-5 构建）'); }
+      capabilities = { extensions: { reveal: true, restoreBackup: true }, reveal: false, restoreBackup: false }; await rescan(); await page.waitForFunction(() => document.querySelector('[data-extension-reveal]'));
+      check.deepEqual(await names(), ['重新扫描', '在访达中显示', '从备份恢复…'], '嵌套为 true 时，扁平键写 false 也不影响');
     } finally { await fs.writeFile(file, good); }
     capabilities = {}; await rescan(); await page.locator('[data-config-banner]').waitFor({ state: 'detached' });
   } },
