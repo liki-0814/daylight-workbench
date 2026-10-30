@@ -150,7 +150,7 @@ test('restoreBackup repairs a damaged servers.json through prepare→apply and i
   assert.equal((await f.state()).mcpValid, false);
   const plan = await f.service.prepare({ type: 'mcp.restoreBackup', operationId: first });
   assert.equal(plan.conflicts.length, 0); assert.equal(plan.files.length, 1); assert.equal(plan.files[0].path, f.serversFile);
-  assert.match(plan.impact.join(' '), /恢复为.*1 个服务/); assert.match(plan.impact.join(' '), /operation\.restore/);
+  assert.match(plan.impact.join(' '), /恢复为.*1 个服务/); assert.match(plan.impact.join(" "), /操作历史中点「撤销」恢复/); assert.doesNotMatch(plan.impact.join(" "), /operation\.restore|mcp\.restoreBackup|操作快照/);
   assert.equal(JSON.stringify(plan).includes(REF_VALUE), false);
   const applied = await f.commit(plan);
   assert.equal(applied.status, 'applied'); assert.equal(JSON.stringify(applied).includes(REF_VALUE), false);
@@ -168,6 +168,7 @@ test('restoreBackup on a healthy file reports removed services and warns about g
   assert.deepEqual(plan.changedIds, ['beta']); assert.match(plan.warnings.join(' '), /beta/); assert.match(plan.warnings.join(' '), /不会自动更新/);
   await f.commit(plan);
   assert.deepEqual((await f.state()).servers.map(server => server.id), ['alpha']);
+  assert.ok(plan.impact.every(line => !/operation\.restore|mcp\.restoreBackup|操作快照/.test(line)) && plan.impact.some(line => /操作历史中点「撤销」恢复/.test(line)), 'restore impact copy has no API jargon: ' + plan.impact.join(' | '));
   const same = await f.service.prepare({ type: 'mcp.restoreBackup', operationId: first });
   assert.equal(same.files.length, 0); assert.match(same.warnings.join(' '), /已与该恢复点相同/);
 });

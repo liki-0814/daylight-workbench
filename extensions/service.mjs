@@ -492,7 +492,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       const removed = [...now.keys()].filter(id => !then.has(id)), added = [...then.keys()].filter(id => !now.has(id)), changed = [...then.keys()].filter(id => now.has(id) && now.get(id) !== then.get(id));
       changedIds.push(...removed, ...added, ...changed);
       if (!steps.length) warnings.push('当前 MCP 主配置已与该恢复点相同，提交不会修改任何文件。');
-      impact.push('把 MCP 主配置（servers.json）恢复为 ' + record.createdAt + ' 的版本，共 ' + backup.length + ' 个服务。' + (current ? '移除 ' + removed.length + ' 个、新增 ' + added.length + ' 个、变更 ' + changed.length + ' 个现有服务。' : '当前文件无法读取，恢复前的内容会记录在操作快照里。') + '可用 operation.restore 撤销。');
+      impact.push('把 MCP 主配置（servers.json）恢复为 ' + record.createdAt + ' 的版本，共 ' + backup.length + ' 个服务。' + (current ? '移除 ' + removed.length + ' 个、新增 ' + added.length + ' 个、变更 ' + changed.length + ' 个现有服务。' : '当前文件无法读取，恢复前的内容会先记录下来。') + '可在操作历史中点「撤销」恢复。');
       if (removed.length) warnings.push('恢复点之后新增的服务会从主配置移除：' + removed.join('、') + '（可撤销）。');
       warnings.push('已生成或已接入软件的 MCP 配置不会自动更新；恢复后请重新生成或接入。');
     } else {
