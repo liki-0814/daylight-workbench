@@ -40,3 +40,14 @@ test('native menu: 编辑 › 查找 › 查找… is ⌘F and only raises dayli
   vm.runInNewContext(script, { CustomEvent, window: { dispatchEvent: event => seen.push(event.type) } });
   assert.deepEqual(seen, ['daylight-find']);
 });
+
+test('native menu: ⌘F is only the menu item — no key-equivalent override or event monitor can consume it before the web keydown handler (no double handling)', async () => {
+  const sources = await Promise.all(['Server', 'Focus', 'FocusNotifications', 'FocusTray', 'Launcher', 'main', 'DisplayAccessibility'].map(name => read(`native/${name}.swift`)));
+  for (const source of sources) assert.doesNotMatch(source, /performKeyEquivalent|addLocalMonitorForEvents|addGlobalMonitorForEvents|NSEvent\.addLocal/);
+  // the item has no modifier override: key "f" is Command-F; the event is plain (not cancelable, not bubbling), so the web side must not depend on dispatchEvent's return value
+  assert.doesNotMatch(main, /findMenu\.addItem\([^\n]*keyEquivalentModifierMask/);
+  assert.doesNotMatch(/func findInPage\(\) \{[\s\S]*?\n    \}/.exec(main)[0], /cancelable|bubbles/);
+  // exactly one ⌘F menu item
+  assert.equal((main.match(/key: "f"/g) || []).length, 1);
+});
+
