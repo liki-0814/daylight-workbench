@@ -23,9 +23,9 @@ test('「仅看问题」只算未处理与已变化的冲突', () => {
   assert.equal(isOpenConflict(conflict({ resolution: 'keepLocal' })), false);
   assert.equal(isOpenConflict({ state: 'managed' }), false);
 });
-test('能力：缺失按支持，只有字面 false 才隐藏', () => {
-  for (const value of [undefined, {}, { extensions: {} }, { extensions: { skillConflict: true } }, { extensions: { skillConflict: 'false' } }, { extensions: { skillConflict: 0 } }]) assert.equal(conflictSupported(value), true, JSON.stringify(value));
-  assert.equal(conflictSupported({ extensions: { skillConflict: false } }), false);
+test('能力：只认 capabilities.extensions.skillConflict 的字面 true，其余一律隐藏', () => {
+  assert.equal(conflictSupported({ extensions: { skillConflict: true } }), true);
+  for (const value of [undefined, null, {}, { extensions: {} }, { extensions: null }, { extensions: { skillConflict: false } }, { extensions: { skillConflict: 'true' } }, { extensions: { skillConflict: 1 } }, { extensions: { skillConflict: {} } }, { skillConflict: true }, { extensions: { mcpConflictCompare: true } }]) assert.equal(conflictSupported(value), false, JSON.stringify(value));
 });
 test('shownText：疑似凭据的行一律替换；路径缩写成 ~', () => {
   for (const line of [`API_KEY=${SENTINEL}`, `token: ${SENTINEL}`, `Authorization: Bearer ${SENTINEL}ABCDEF`, SENTINEL, '-----BEGIN RSA PRIVATE KEY-----', 'password = hunter2']) assert.equal(shownText(line), REDACTED, line);
