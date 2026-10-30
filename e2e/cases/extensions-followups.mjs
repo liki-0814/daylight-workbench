@@ -52,10 +52,12 @@ export default [
     } finally { await fsp.writeFile(file, good); }
   } },
   { id: 'ext-fu-02', priority: 'P0', widths: [1440], ...GATE, title: 'reveal 补 skill / client：门控字面 true；请求体只有 kind + id / clientId；client 仅已接入时有；关闭门控没有按钮', async run({ page, url, fixture, assert: check }) {
-    const state = json(await fixture.api('/api/extensions/state')), skill = state.skills[0], selectedClient = state.clients.find(item => item.selected), plainClient = state.clients.find(item => !item.selected);
+    const state = json(await fixture.api('/api/extensions/state')), skill = state.skills[0], selectedClient = state.clients.find(item => item.selected), otherClient = state.clients.find(item => item.id !== selectedClient?.id), plainClient = otherClient;   // 夹具里的软件可能全部已接入：下面把 otherClient 的详情改成未接入，保证「未接入没有按钮」这条断言一定会跑
     check.ok(skill && selectedClient, '夹具有 skill 与已接入的软件');
     const bodies = [];
+    check.ok(otherClient, '夹具至少有两个软件');
     await mockCapabilities(page, { restoreBackup: true, reveal: true });
+    await page.route(new RegExp('/api/extensions/objects/' + otherClient.id + '(\\?.*)?$'), async route => { const response = await route.fetch(), body = await response.json(); body.selected = false; await route.fulfill({ response, json: body }); });
     await page.route(/\/api\/extensions\/reveal$/, async route => { bodies.push(route.request().postDataJSON()); await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
     await open(page, url, 'skills'); await pick(page, skill.id);
     await detail(page).getByRole('button', { name: '在访达中显示' }).click(); await page.locator('.ui-toast').filter({ hasText: '已在访达中显示' }).waitFor();
@@ -65,7 +67,8 @@ export default [
     check.ok(bodies.length === 2, '第二次请求已发出：' + bodies.length);
     check.deepEqual(bodies[1], { kind: 'client', clientId: selectedClient.id }, 'client 请求体');
     check.ok(bodies.every(body => !('path' in body)), '请求体不带路径');
-    if (plainClient) { await pick(page, plainClient.id); check.equal(await detail(page).getByRole('button', { name: '在访达中显示' }).count(), 0, '未接入的软件没有「在访达中显示」'); }
+    { await pick(page, plainClient.id); await detail(page).locator(`[data-cli-selection][data-client="${plainClient.id}"]`).filter({ hasText: '选择接入' }).waitFor();   // 等详情真的换成这个软件（且是未接入）再数按钮
+      check.equal(await detail(page).getByRole('button', { name: '在访达中显示' }).count(), 0, '未接入的软件没有「在访达中显示」'); }
     await mockCapabilities(page, { restoreBackup: true, reveal: 'true' }); await page.reload();   // 同一页内换 hash 不会重新取 /state，必须整页重载
     await open(page, url, 'skills'); await pick(page, skill.id);
     check.equal(await detail(page).getByRole('button', { name: '在访达中显示' }).count(), 0, "reveal:'true' 不是字面 true，没有按钮");
