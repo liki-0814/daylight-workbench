@@ -1,5 +1,5 @@
 // Shared with JavaScriptCore. Keep this module free of filesystem and SDK imports.
-export const extensionActions = ['skill.create', 'skill.update', 'skill.archive', 'mcp.save', 'mcp.archive', 'mcp.generate', 'mcp.probe', 'mcp.install', 'mcp.toggle', 'binding.connect', 'binding.adopt', 'binding.disconnect', 'client.save', 'client.remove', 'client.select', 'operation.restore'];
+export const extensionActions = ['skill.create', 'skill.update', 'skill.archive', 'skill.disable', 'skill.enable', 'mcp.save', 'mcp.archive', 'mcp.generate', 'mcp.probe', 'mcp.install', 'mcp.toggle', 'binding.connect', 'binding.adopt', 'binding.disconnect', 'client.save', 'client.remove', 'client.select', 'operation.restore'];
 // Swift JSONSerialization and JS may order keys differently. Identity is semantic.
 export function canonicalJSON(value, space) {
   const sorted = input => Array.isArray(input) ? input.map(sorted) : input && typeof input === 'object' ? Object.fromEntries(Object.keys(input).sort().map(key => [key, sorted(input[key])])) : input;
