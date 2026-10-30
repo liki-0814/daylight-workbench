@@ -313,7 +313,9 @@ final class WorkbenchServer {
             if handler == "ai" || handler == "proxy" {
                 let target = dispatch["target"] as! String
                 (handler == "ai" ? ai : proxy).handle(path: target + (query.isEmpty ? "" : "?" + query), method: method, body: body) { code, object in
-                    self.queue.async { self.reply(connection, code, object) }
+                    // Reveal in Finder: the helper resolves the location; the shell opens it with NSWorkspace and never forwards the path to the page.
+                    let (status, result) = handler == "ai" && method == "POST" && path == NativeReveal.route ? NativeReveal.finish(code, object) : (code, object)
+                    self.queue.async { self.reply(connection, status, result) }
                 }
                 return
             }

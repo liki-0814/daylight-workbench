@@ -30,7 +30,7 @@ resources = contents / 'Resources'
 resources.mkdir(parents=True, exist_ok=True)
 (contents / 'MacOS').mkdir(exist_ok=True)
 module_cache = str(pathlib.Path(build_directory.name) / 'swift-cache')
-subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', '-whole-module-optimization', '-Xlinker', '-dead_strip', '-target', 'arm64-apple-macos13.0', *[str(root / 'native' / name) for name in ('Server.swift', 'Focus.swift', 'FocusTimeZone.swift', 'FocusNotifications.swift', 'FocusTray.swift', 'DisplayAccessibility.swift', 'Proxy.swift', 'Launcher.swift', 'Updater.swift', 'main.swift')], '-o', str(contents / 'MacOS/Daylight')], check=True)
+subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', '-whole-module-optimization', '-Xlinker', '-dead_strip', '-target', 'arm64-apple-macos13.0', *[str(root / 'native' / name) for name in ('Server.swift', 'Focus.swift', 'FocusTimeZone.swift', 'FocusNotifications.swift', 'FocusTray.swift', 'DisplayAccessibility.swift', 'NativeReveal.swift', 'Proxy.swift', 'Launcher.swift', 'Updater.swift', 'main.swift')], '-o', str(contents / 'MacOS/Daylight')], check=True)
 subprocess.run(['strip', '-x', str(contents / 'MacOS/Daylight')], check=True)
 shutil.copytree(root / 'public', resources / 'public', dirs_exist_ok=True)
 shutil.copytree(root / 'core', resources / 'core', dirs_exist_ok=True)

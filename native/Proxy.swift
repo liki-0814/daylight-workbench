@@ -100,6 +100,7 @@ final class ProxyRuntime {
             env["WORKBENCH_DATA_DIR"] = directory.path; env[helper == "ai" ? "DAYLIGHT_AI_TOKEN" : "DAYLIGHT_QODER_TOKEN"] = token
             env["DAYLIGHT_SYSTEM_PROXY"] = systemProxySettings()
             if let workbenchURL { env["DAYLIGHT_WORKBENCH_URL"] = workbenchURL }
+            if helper == "ai" { env[NativeReveal.environmentKey] = NativeReveal.environmentValue }
             env.removeValue(forKey: "NODE_OPTIONS"); env.removeValue(forKey: "NODE_PATH")
             task.environment = env; task.standardInput = pipe; task.standardOutput = output; task.standardError = FileHandle.nullDevice
             let ready = DispatchSemaphore(value: 0), lock = NSLock()
