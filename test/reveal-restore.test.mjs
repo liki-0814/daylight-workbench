@@ -48,9 +48,9 @@ test('routes, action list and capabilities: reveal is web-only, restoreBackup is
 
 test('state advertises restoreBackup always and reveal only when supported', async t => {
   const on = await fixture(t), off = await fixture(t, { supported: false });
-  assert.deepEqual((await on.call('/state')).value.capabilities, { extensions: { mcpConflictCompare: true, restoreBackup: true, reveal: true } });
-  assert.deepEqual((await off.call('/state')).value.capabilities, { extensions: { mcpConflictCompare: true, restoreBackup: true } });
-  assert.deepEqual((await off.call('/refresh', {})).value.capabilities, { extensions: { mcpConflictCompare: true, restoreBackup: true } });
+  assert.deepEqual((await on.call('/state')).value.capabilities, { extensions: { skillConflict: true, mcpConflictCompare: true, restoreBackup: true, reveal: true } });
+  assert.deepEqual((await off.call('/state')).value.capabilities, { extensions: { skillConflict: true, mcpConflictCompare: true, restoreBackup: true } });
+  assert.deepEqual((await off.call('/refresh', {})).value.capabilities, { extensions: { skillConflict: true, mcpConflictCompare: true, restoreBackup: true } });
 });
 
 test('reveal: unsupported environments answer 501 and never run anything', async t => {
@@ -222,7 +222,7 @@ test('/api/v1/capabilities: extensions.restoreBackup always, extensions.reveal o
   for (const [side, source] of [[on, capsOn], [off, capsOff]]) {
     const mirror = (await side.api('/api/extensions/state')).value.capabilities;
     assert.deepEqual(Object.keys(mirror), ['extensions']);
-    const shared = ['mcpConflictCompare', 'restoreBackup', 'reveal'].filter(key => key in source);
+    const shared = ['skillConflict', 'mcpConflictCompare', 'restoreBackup', 'reveal'].filter(key => key in source);
     assert.deepEqual(Object.keys(mirror.extensions).sort(), shared.sort()); assert.ok(Object.values(mirror.extensions).every(value => value === true));
   }
   await fs.mkdir(path.join(on.extensionsOptions.agentsRoot, 'mcp'), { recursive: true }); await fs.writeFile(path.join(on.extensionsOptions.agentsRoot, 'mcp/servers.json'), '{"schemaVersion":1,"servers":[]}');
