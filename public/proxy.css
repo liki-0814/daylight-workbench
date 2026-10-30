@@ -236,7 +236,7 @@
 }
 
 .proxy-login a {
-  color: var(--green);
+  color: var(--accent-text);
   margin-right: 18px;
 }
 
@@ -288,46 +288,6 @@
   display: none!important;
 }
 
-@media(max-width:650px) {
-  .proxy-page {
-    --proxy-panel-inset: var(--panel-inline-inset);
-  }
-  .proxy-service {
-    padding: var(--panel-block-inset) var(--proxy-panel-inset);
-  }
-  .proxy-account {
-    padding: 17px var(--proxy-panel-inset);
-  }
-  .proxy-account-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
-  }
-  .proxy-connect {
-    padding: var(--panel-block-inset) var(--proxy-panel-inset);
-  }
-  .proxy-section-title {
-    gap: 10px;
-  }
-  .proxy-error {
-    margin-left: 18px;
-    margin-right: 18px;
-  }
-  .proxy-disclosure>summary>span {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .proxy-copy {
-    gap: 3px;
-  }
-  .proxy-copy input {
-    font-size: var(--font-control-size);
-    line-height: var(--font-control-line);
-  }
-  .proxy-model-options {
-    gap: 10px;
-  }
-}
 
 [data-local-id="models-list"] {
   overflow: visible;
@@ -762,7 +722,7 @@
 
 .custom-key-field [data-key-state] {
   font-size: var(--font-label-size);
-  color: var(--green);
+  color: var(--accent-text);
   line-height: var(--font-label-line);
 }
 
@@ -873,7 +833,7 @@
   border-left: 1px solid var(--line);
   border-radius: 0;
   background: var(--soft);
-  color: var(--green);
+  color: var(--accent-text);
   box-shadow: -12px 0 40px #16231d2b;
 }
 
@@ -1002,7 +962,7 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--paper);
-  color: var(--green);
+  color: var(--accent-text);
   font: inherit;
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
@@ -1024,7 +984,7 @@
 }
 
 .route-filters [aria-pressed=true] {
-  color: var(--green);
+  color: var(--accent-text);
   background: var(--paper);
   box-shadow: 0 1px 3px #16231d0d;
 }
@@ -1155,7 +1115,7 @@
 
 .route-badge {
   margin-left: 12px;
-  color: var(--green);
+  color: var(--accent-text);
   font-size: var(--font-body-size);
   line-height: var(--font-body-line);
 }
@@ -1199,15 +1159,6 @@
   flex-shrink: 0;
 }
 
-@media(max-width:650px) {
-  .proxy-account {
-    flex-wrap: wrap;
-  }
-  .proxy-account-actions {
-    margin-left: auto;
-    gap: 14px;
-  }
-}
 
 .proxy-model-message {
   margin: 0;
@@ -1331,7 +1282,7 @@
 
 .proxy-undo {
   padding: 0 2px;
-  color: var(--green);
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;

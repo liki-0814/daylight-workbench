@@ -13,7 +13,7 @@ button, [role="button"] {
 button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacity: var(--button-disabled-opacity); }
 :is(button,a,input,textarea,select,summary,[role="button"]):focus-visible { outline: var(--button-focus-width) solid var(--green); outline-offset: var(--button-focus-offset); }
 
-.ui-button, .primary, .secondary, .capture, .small-button, .text-button, .icon-button, .danger-link, .ui-refresh-button {
+.ui-button, .primary, .secondary, .capture, .small-button, .text-button, .icon-button, .danger-link, .ui-refresh-button, .ui-button-destructive {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -33,22 +33,22 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
   padding: var(--button-padding-block) var(--button-padding-inline);
   border: 1px solid var(--line);
   background: var(--paper);
-  color: var(--green);
+  color: var(--accent-text);
 }
-.ui-button-primary, .primary { background: var(--green); border-color: var(--green); color: var(--paper); }
+.ui-button-primary, .primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .ui-button-text, .text-button, .danger-link {
   min-height: var(--compact-button-height);
   padding: var(--compact-button-padding-block) var(--space-2);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--green);
+  color: var(--accent-text);
 }
 .small-button, .ui-refresh-button {
   min-height: var(--compact-button-height);
   padding: var(--compact-button-padding-block) var(--compact-button-padding-inline);
   border: 1px solid var(--line);
   background: var(--paper);
-  color: var(--green);
+  color: var(--accent-text);
 }
 .ui-button-icon, .icon-button, .quick-close {
   width: var(--icon-button-size);
@@ -61,9 +61,18 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 }
 .ui-button-danger, .danger-button { background: var(--danger); border-color: var(--danger); color: var(--paper); }
 .danger-link { color: var(--danger); }
+/* Destructive role (design-spec §9): outlined danger text. A solid red fill is reserved for the confirmation sheet (.ui-button-danger). */
+.ui-button-destructive {
+  min-height: var(--compact-button-height);
+  padding: var(--compact-button-padding-block) var(--compact-button-padding-inline);
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+.ui-button-destructive:hover:not(:disabled) { background: var(--danger-bg); }
 :is(.ui-button,.primary,.secondary,.small-button,.text-button,.icon-button,.danger-link,.ui-refresh-button):hover:not(:disabled) { filter: brightness(.96); }
 :is(.ui-button-text,.ui-button-icon,.text-button,.icon-button,.ui-refresh-button):hover:not(:disabled) { background: var(--workbench-background); }
-.small-button.selected { background: var(--selection-background); color: var(--green); }
+.small-button.selected { background: var(--selection-background); color: var(--accent-text); }
 
 /* Navigation, form selection and toggles retain their semantic variants. */
 :is(.proxy-tabs,.route-filters,.task-range-tabs,.ai-history-filters) > button { min-height: var(--compact-button-height); padding: var(--compact-button-padding-block) var(--compact-button-padding-inline); border-radius: var(--button-radius); }
@@ -80,7 +89,7 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
   line-height: var(--font-button-line);
   font-weight: var(--tab-font-weight);
 }
-.proxy-tabs [aria-selected="true"] { color: var(--green); border-bottom-color: currentColor; }
+.proxy-tabs [aria-selected="true"] { color: var(--accent-text); border-bottom-color: currentColor; }
 .select-trigger { font-size: var(--font-control-size); line-height: var(--font-control-line); border-radius: var(--button-radius); }
 .select-compact .select-trigger { font-size: var(--font-compact-size); line-height: var(--font-compact-line); }
 .ai-send,.ai-stop { width: var(--composer-action-size); height: var(--composer-action-size); min-height: var(--composer-action-size); border-radius: var(--button-radius); padding: 0; }
