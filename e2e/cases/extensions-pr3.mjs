@@ -14,7 +14,8 @@ const breakMcp = async (page, fixture) => {
   return { file, restore: () => fs.writeFile(file, good) };
 };
 const withCapabilities = (page, capabilities) => page.route(/\/api\/extensions\/(state|refresh)(\?.*)?$/, async route => {
-  const response = await route.fetch(), body = await response.json(); body.capabilities = { ...(body.capabilities || {}), ...capabilities };
+  const response = await route.fetch(), body = await response.json(); // inject both the nested shape (capabilities.extensions.*, what #36 serves and PR-5 reads) and the old flat one that the PR-3 page.js (#33) still reads
+  body.capabilities = { ...(body.capabilities || {}), ...capabilities, extensions: { ...(body.capabilities?.extensions || {}), ...capabilities } };
   await route.fulfill({ response, json: body });
 });
 

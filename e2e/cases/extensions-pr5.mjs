@@ -236,7 +236,7 @@ const stepB = [
       capabilities = undefined; await rescan(); await page.waitForFunction(() => !document.querySelector('[data-extension-restore-backup]'));
       check.deepEqual(await names(), ['重新扫描', '复制路径'], '没有 capabilities：只有基础按钮');
       capabilities = { restoreBackup: true, reveal: true }; await rescan(); await page.waitForFunction(() => document.querySelector('[data-extension-reveal]'));
-      check.deepEqual(await names(), ['重新扫描', '在访达中显示', '从备份恢复…'], '后端目前返回的顶层镜像仍然兼容（#36 498c48f）');
+      check.deepEqual(await names(), ['重新扫描', '在访达中显示', '从备份恢复…'], '旧的顶层镜像（#36 498c48f 及之前的形状）仍然兼容；#36 现在只返回 capabilities.extensions.*');
     } finally { await fs.writeFile(file, good); }
     capabilities = {}; await rescan(); await page.locator('[data-config-banner]').waitFor({ state: 'detached' });
   } },

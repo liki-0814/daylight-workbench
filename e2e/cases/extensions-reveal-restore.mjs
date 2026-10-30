@@ -20,7 +20,10 @@ export default [
   { id: 'ext-rr-01', priority: 'P0', widths: [1440], ...BACKEND_GATE, title: '§H 接口：恢复点只含元数据；mcp.restoreBackup 走 prepare→apply 并可 operation.restore 撤销；reveal 拒绝原始路径', async run({ assert: check, fixture }) {
     const original = await servers(fixture);
     const state = json(await fixture.api('/api/extensions/state'));
-    check.equal(state.capabilities?.restoreBackup, true, 'state.capabilities.restoreBackup');
+    // the /state mirror has the same shape as /api/v1/capabilities: capabilities.extensions.{mcpConflictCompare, restoreBackup, reveal?}
+    check.equal(state.capabilities?.extensions?.restoreBackup, true, 'state.capabilities.extensions.restoreBackup');
+    check.equal(state.capabilities?.extensions?.mcpConflictCompare, true, 'state.capabilities.extensions.mcpConflictCompare');
+    check.equal(state.capabilities?.restoreBackup, undefined, '旧的顶层镜像 capabilities.restoreBackup 不再提供');
     // two writes: the first one's result is a recovery point once the second is applied
     const first = await applyAction(fixture, { type: 'mcp.save', create: true, server: { id: 'rr-one', name: 'rr-one', transport: 'stdio', command: 'node', args: ['one.mjs'] } });
     check.equal(first.applied.status, 200, '第一次保存');
