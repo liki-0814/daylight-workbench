@@ -23,6 +23,8 @@ final class ProxyRuntime {
     }()
     init(resources: URL, directory: URL, helper: String = "qoder", workbenchURL: String? = nil) { self.resources = resources; self.directory = directory; self.helper = helper; self.workbenchURL = workbenchURL }
     private var configFile: URL { directory.appendingPathComponent("qoder/runtime.json") }
+    /// True once the helper process is running; asking its status never boots it.
+    var isReady: Bool { queue.sync { controlPort != nil } }
     func start() { queue.async { self.boot() } }
     func shutdown() { queue.sync { self.stop() } }
     private func stop() {

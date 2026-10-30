@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { interpretRelease, latestReleaseURL, compareVersions } from '../core/app-update.js';
 import { resolveRoute } from '../core/contracts.js';
-import { appUpdateMarkup } from '../public/app-update.js';
+import { updateMarkup, progressFraction, progressText } from '../public/update-page.js';
 import { createWorkbench } from '../server.mjs';
 
 const page = 'https://github.com/liki-0814/daylight-workbench/releases/tag/v0.9.0';
@@ -69,20 +69,85 @@ test('GitHub release payloads become an update report', () => {
   assert.equal(resolveRoute('/api/app/update', 'POST').handler, 'missing');
 });
 
-test('update markup keeps release links on GitHub and escapes notes', () => {
-  const html = appUpdateMarkup({
-    current: '0.5.1', status: 'available', checkedAt: '2026-10-19T00:00:00Z',
-    latest: { version: '0.9.0', publishedAt: '2026-10-19T00:00:00Z', htmlUrl: page, notes: '修复 <script>', asset: { name: 'Daylight-0.9.0-arm64.dmg', url: arm64 } },
+const available = (extra = {}) => ({
+  current: '0.5.1', status: 'available', checkedAt: '2026-10-19T00:00:00Z',
+  latest: { version: '0.9.0', name: '0.9.0', publishedAt: '2026-10-19T00:00:00Z', htmlUrl: page, notes: '修复 <script>', body: '## 修复\n- 登录', asset: { name: 'Daylight-0.9.0-arm64.dmg', url: arm64 }, install: { ok: true, size: 5242880, minOS: '13.0', date: '2026-10-19T00:00:00Z' }, ...extra },
+});
+const native = (extra = {}) => ({ supported: true, phase: 'idle', mode: 'notify', history: [], backup: null, lastResult: null, current: { version: '0.5.1', signing: 'self-signed' }, ...extra });
+
+test('update page markup shows the repository, versions and one primary action per state', () => {
+  const idle = updateMarkup({ release: available(), updater: native() });
+  assert.match(idle, /href="https:\/\/github\.com\/liki-0814\/daylight-workbench"/);
+  assert.match(idle, /data-update-copy/);
+  assert.match(idle, /data-update-check/);
+  assert.match(idle, /data-update-download[^>]*>[\s\S]*下载更新 0\.9\.0 · 5\.0 MB/);
+  assert.doesNotMatch(idle, /data-update-install|data-update-cancel/);
+  assert.match(idle, /data-state="available"/);
+  assert.match(idle, /href="[^"]*releases\/tag\/v0\.9\.0"/);
+  const downloading = updateMarkup({ release: available(), updater: native({ phase: 'downloading', target: '0.9.0', progress: { received: 1048576, total: 5242880 } }) });
+  assert.match(downloading, /data-update-cancel/);
+  assert.match(downloading, /aria-live="polite"/);
+  assert.match(downloading, /正在下载 0\.9\.0 · 20% \(1\.0 MB \/ 5\.0 MB\)/);
+  assert.doesNotMatch(downloading, /data-update-download/);
+  const ready = updateMarkup({ release: available(), updater: native({ phase: 'ready', staged: { version: '0.9.0', size: 5242880, credentialsReset: true } }) });
+  assert.match(ready, /data-update-install[^>]*>[\s\S]*重启并安装 0\.9\.0/);
+  assert.match(ready, /data-update-discard/);
+  assert.match(ready, /钥匙串辅助程序/);
+  const installing = updateMarkup({ release: available(), updater: native({ phase: 'installing' }) });
+  assert.match(installing, /正在重启…/);
+  assert.match(installing, /data-update-check[^>]*disabled/);
+  assert.equal(progressFraction(native({ progress: { received: 5, total: 0 } })), 0);
+  assert.equal(progressFraction(native({ progress: { received: 9, total: 4 } })), 1);
+  assert.equal(progressText(native({ phase: 'verifying', target: '0.9.0' })), '正在校验 0.9.0');
+});
+
+test('update page markup falls back to the DMG when in-app install is unavailable', () => {
+  const web = updateMarkup({ release: available(), updater: native({ supported: false, reason: 'web', message: '网页版不支持应用内安装' }) });
+  assert.doesNotMatch(web, /data-update-download/);
+  assert.match(web, /下载 Daylight-0\.9\.0-arm64\.dmg/);
+  assert.match(web, /网页版不支持应用内安装/);
+  assert.match(web, /data-segment-value="download-quit"[^>]*disabled/);
+  const blocked = updateMarkup({ release: available({ install: { ok: false, code: 'os-too-old', message: '需要 macOS 15.0 或更高版本' } }), updater: native() });
+  assert.doesNotMatch(blocked, /data-update-download/);
+  assert.match(blocked, /需要 macOS 15\.0 或更高版本/);
+  const reauth = updateMarkup({ release: available(), updater: native({ needsReauth: { message: '签名身份变了，需要手动安装一次 DMG' } }) });
+  assert.match(reauth, /签名身份变了/);
+});
+
+test('update page markup covers loading, error, empty and history states', () => {
+  assert.match(updateMarkup({}), /正在检查…/);
+  assert.match(updateMarkup({ loadError: '无法读取更新状态' }), /无法读取更新状态/);
+  assert.match(updateMarkup({ release: { current: '0.5.1', status: 'current', latest: null }, updater: native() }), /已是最新正式发布/);
+  assert.match(updateMarkup({ release: { current: '0.5.1', status: 'unavailable', latest: null, error: '暂时无法连接 GitHub 发布' }, updater: native() }), /暂时无法连接 GitHub 发布/);
+  assert.match(updateMarkup({ release: available(), updater: native() }), /data-update-history-empty/);
+  assert.match(updateMarkup({ release: available({ body: '' }), updater: native() }), /data-update-notes-empty/);
+  const history = updateMarkup({
+    release: available(),
+    updater: native({
+      backup: { version: '0.5.0', createdAt: '2026-10-18T00:00:00Z', sameSigner: false },
+      history: [{ status: 'rolled-back', from: '0.5.0', to: '0.5.1', at: '2026-10-18T00:00:00Z' }, { status: 'success', kind: 'install', from: '0.4.0', to: '0.5.0' }],
+      lastResult: { status: 'failed', kind: 'install', from: '0.5.1', to: '0.9.0', message: '磁盘已满' },
+      error: { code: 'download', message: '下载中断 <b>' },
+    }),
   });
-  assert.match(html, new RegExp(`href="${page}"`));
-  assert.match(html, /下载 Daylight-0\.9\.0-arm64\.dmg/);
-  assert.match(html, /修复 &lt;script&gt;/);
+  assert.match(history, /data-update-rollback/);
+  assert.match(history, /回滚到 0\.5\.0/);
+  assert.match(history, /签名与当前不同/);
+  assert.match(history, /0\.9\.0 启动后|0\.5\.1 启动后未通过健康检查，已自动回滚到 0\.5\.0/);
+  assert.match(history, /更新失败，已保持原版本：磁盘已满/);
+  assert.match(history, /下载中断 &lt;b&gt;/);
+  assert.match(history, /role="alert"/);
+  assert.match(history, /data-update-ack/);
+});
+
+test('update page markup keeps release links on GitHub and escapes notes', () => {
+  const html = updateMarkup({ release: available(), updater: native(), notesHtml: '<h2>修复</h2>' });
+  assert.match(html, /<h2>修复<\/h2>/);
   assert.doesNotMatch(html, /<script>/);
-  assert.match(html, /data-state="available"/);
-  const blocked = appUpdateMarkup({ current: '0.5.1', status: 'available', latest: { version: '0.9.0', htmlUrl: 'https://evil.example/release', asset: { name: 'x.dmg', url: 'javascript:alert(1)' } } });
+  const fallbackNotes = updateMarkup({ release: available({ body: '正文' }), updater: native() });
+  assert.match(fallbackNotes, /修复 &lt;script&gt;/);
+  const blocked = updateMarkup({ release: { current: '0.5.1', status: 'available', latest: { version: '0.9.0', htmlUrl: 'https://evil.example/release', asset: { name: 'x.dmg', url: 'javascript:alert(1)' }, install: { ok: false, message: 'x' } } }, updater: native({ supported: false }) });
   assert.doesNotMatch(blocked, /evil\.example|javascript:/);
-  assert.match(appUpdateMarkup(null), /正在检查…/);
-  assert.match(appUpdateMarkup({ current: '0.5.1', status: 'current', latest: null }, { busy: true }), /disabled/);
 });
 
 test('the update endpoint caches GitHub releases and requires the local session', async () => {

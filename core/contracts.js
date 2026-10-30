@@ -35,6 +35,7 @@ export function resolveRoute(path, method) {
   if (path.startsWith('/api/focus/')) return { auth: method === 'POST' ? 'webOrigin' : 'web', handler: focusMethods[path.slice('/api/focus/'.length)] === method ? 'focus' : 'missing' };
   if (path === '/api/calendar') return { auth: 'web', handler: method === 'GET' ? 'calendar' : 'missing' };
   if (path === '/api/app/update') return { auth: 'web', handler: method === 'GET' ? 'appUpdate' : 'missing' };
+  if (path === '/api/app/updater') return { auth: method === 'POST' ? 'webOrigin' : 'web', handler: method === 'GET' || method === 'POST' ? 'appUpdater' : 'missing' };
   if (path === '/api/task-actions') return { auth: 'webOrigin', handler: method === 'POST' ? 'actions' : 'missing' };
   if (path === '/api/state' && method === 'GET') return { auth: 'public', handler: 'webState' };
   if (path === '/api/state' && method === 'PUT') return { auth: 'webOrigin', handler: 'webWrite' };

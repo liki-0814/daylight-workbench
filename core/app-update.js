@@ -1,5 +1,11 @@
 const owner = 'liki-0814';
 const repo = 'daylight-workbench';
+const maxBodyLength = 20000;
+const maxPackageBytes = 1024 * 1024 * 1024;
+export const manifestAssetName = 'latest-mac.json';
+export const signatureAssetName = `${manifestAssetName}.sig`;
+export const manifestSchema = 1;
+const downloadPrefix = `https://github.com/${owner}/${repo}/releases/download/`;
 
 export function latestReleaseURL() {
   return `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
@@ -32,6 +38,11 @@ function releaseLink(value) {
   return value;
 }
 
+function bodyOf(body) {
+  const text = String(body ?? '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim();
+  return text.length > maxBodyLength ? `${text.slice(0, maxBodyLength - 1)}…` : text;
+}
+
 function notesOf(body) {
   const text = String(body ?? '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
@@ -50,6 +61,96 @@ function assetOf(assets) {
   return { name, url, ...(size == null ? {} : { size }) };
 }
 
+export function packageAssetName(version) {
+  return `Daylight-${String(version).replace(/^v/, '')}-arm64.zip`;
+}
+
+// Everything the updater downloads must be an asset of this repository's release for exactly that tag.
+export function assetURL(version, name) {
+  const parts = parseVersion(version);
+  if (!parts || typeof name !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/.test(name)) return null;
+  return `${downloadPrefix}v${parts.join('.')}/${name}`;
+}
+
+export function isTrustedAssetURL(value, version, name) {
+  const expected = assetURL(version, name);
+  return expected != null && value === expected;
+}
+
+// Release assets are served from GitHub's own storage hosts after a redirect; nothing else is followed.
+export function isTrustedRedirectHost(host) {
+  const name = String(host ?? '').toLowerCase();
+  return name === 'github.com' || name === 'objects.githubusercontent.com' || name === 'release-assets.githubusercontent.com' || name === 'github-releases.githubusercontent.com';
+}
+
+export function normalizeDigest(value) {
+  const match = /^(?:sha256:)?([0-9a-fA-F]{64})$/.exec(String(value ?? '').trim());
+  return match ? match[1].toLowerCase() : null;
+}
+
+export function digestsMatch(left, right) {
+  const a = normalizeDigest(left), b = normalizeDigest(right);
+  return a != null && a === b;
+}
+
+function updateAssetOf(assets, version) {
+  const list = Array.isArray(assets) ? assets : [];
+  const pick = name => {
+    const item = list.find(entry => entry && entry.name === name && isTrustedAssetURL(entry.browser_download_url, version, name));
+    if (!item) return null;
+    const digest = normalizeDigest(item.digest);
+    return { name, url: item.browser_download_url, ...(Number.isInteger(item.size) && item.size > 0 ? { size: item.size } : {}), ...(digest ? { digest } : {}) };
+  };
+  const zip = pick(packageAssetName(version)), manifest = pick(manifestAssetName), signature = pick(signatureAssetName);
+  return zip && manifest && signature ? { zip, manifest, signature } : null;
+}
+
+const manifestFailure = (code, message) => ({ ok: false, code, message });
+
+// The manifest is the signed document. Its fields are validated before any file is downloaded.
+export function parseUpdateManifest(text, expectedVersion) {
+  let data;
+  try { data = JSON.parse(String(text)); } catch { return manifestFailure('manifest-malformed', '更新清单不是有效的 JSON'); }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return manifestFailure('manifest-malformed', '更新清单格式不正确');
+  if (data.schema !== manifestSchema) return manifestFailure('manifest-schema', '更新清单版本不受支持');
+  const parts = parseVersion(data.version);
+  if (!parts || typeof data.version !== 'string' || data.version !== parts.join('.')) return manifestFailure('manifest-malformed', '更新清单的版本号无效');
+  if (expectedVersion != null && data.version !== String(expectedVersion).replace(/^v/, '')) return manifestFailure('manifest-version', '更新清单与发布版本不一致');
+  if (!isTrustedAssetURL(data.url, data.version, packageAssetName(data.version))) return manifestFailure('manifest-url', '更新包地址不在本项目的发布里');
+  if (!Number.isInteger(data.size) || data.size < 1 || data.size > maxPackageBytes) return manifestFailure('manifest-malformed', '更新清单的文件大小无效');
+  if (typeof data.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(data.sha256)) return manifestFailure('manifest-malformed', '更新清单的校验值无效');
+  if (typeof data.minOS !== 'string' || !/^\d+(?:\.\d+){0,2}$/.test(data.minOS)) return manifestFailure('manifest-malformed', '更新清单的最低系统版本无效');
+  if (typeof data.date !== 'string' || Number.isNaN(Date.parse(data.date))) return manifestFailure('manifest-malformed', '更新清单的日期无效');
+  if (typeof data.downgradeable !== 'boolean') return manifestFailure('manifest-malformed', '更新清单缺少降级标记');
+  const { schema, version, url, size, sha256, minOS, date, downgradeable } = data;
+  return { ok: true, manifest: { schema, version, url, size, sha256, minOS, date, downgradeable } };
+}
+
+function osParts(value) {
+  const parts = String(value ?? '').split('.').map(Number);
+  return parts.some(part => !Number.isInteger(part) || part < 0) ? null : [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+}
+
+export function osAtLeast(os, minimum) {
+  const left = osParts(os), right = osParts(minimum);
+  if (!left || !right) return false;
+  for (let index = 0; index < 3; index += 1) if (left[index] !== right[index]) return left[index] > right[index];
+  return true;
+}
+
+// Decides whether a verified manifest may replace the running version. `release` is the GitHub
+// asset record of the zip, whose digest (when GitHub supplies one) must agree with the manifest.
+export function decideUpdate({ current, manifest, release, os, allowDowngrade = false }) {
+  const order = compareVersions(current, manifest?.version);
+  if (order == null) return { ok: false, code: 'version-unrecognized', message: '版本号无法比较' };
+  if (order === 0) return { ok: false, code: 'same-version', message: '已是该版本' };
+  if (order > 0 && !(manifest.downgradeable === true && allowDowngrade === true)) return { ok: false, code: 'downgrade-refused', message: '更新清单的版本低于当前版本，已拒绝降级' };
+  if (os != null && !osAtLeast(os, manifest.minOS)) return { ok: false, code: 'os-too-old', message: `需要 macOS ${manifest.minOS} 或更高版本` };
+  if (release?.digest && !digestsMatch(release.digest, manifest.sha256)) return { ok: false, code: 'digest-mismatch', message: 'GitHub 记录的校验值与更新清单不一致' };
+  if (release?.size != null && release.size !== manifest.size) return { ok: false, code: 'size-mismatch', message: 'GitHub 记录的文件大小与更新清单不一致' };
+  return { ok: true, code: 'ok', message: '' };
+}
+
 export function interpretRelease(current, httpStatus, body) {
   const version = String(current ?? '');
   if (httpStatus === 404) return { current: version, status: 'none', latest: null };
@@ -65,7 +166,9 @@ export function interpretRelease(current, httpStatus, body) {
     publishedAt: typeof body.published_at === 'string' ? body.published_at : null,
     ...(htmlUrl ? { htmlUrl } : {}),
     notes: notesOf(body.body),
+    body: bodyOf(body.body),
     asset: assetOf(body.assets),
+    update: updateAssetOf(body.assets, tag),
   };
   const order = compareVersions(version, tag);
   if (order == null) return { current: version, status: 'unrecognized', latest, error: '发布版本号无法与当前版本比较' };

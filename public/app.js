@@ -7,7 +7,6 @@ import { actionButton } from './components/button.js';
 import { sidebarContent } from './components/sidebar.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
 import { settingsPage } from './components/settings-page.js';
-import { mountAppUpdate } from './app-update.js';
 import { mountAISettings } from './ai-settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
 import { createTaskClient } from './task-client.js';
@@ -36,8 +35,8 @@ let focusSelection = {};
 let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
-let sidebarRoot, taskRoot, proxyPage, settingsRoot, appUpdatePanel, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
-const scrollPositions = { task: 0, proxy: 0, settings: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
+let sidebarRoot, taskRoot, proxyPage, settingsRoot, updatePage, updaterReady = false, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
+const scrollPositions = { task: 0, proxy: 0, settings: 0, update: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
 const pageLoads = new Map();
 function ensurePage(key, load) {
   if (!pageLoads.has(key)) pageLoads.set(key, load().catch(error => { pageLoads.delete(key); throw error; }));
@@ -48,6 +47,13 @@ function ensureProxy() {
     const { createProxyPage } = await import('./proxy.js');
     proxyPage = createProxyPage({ getToken: () => token });
     app.append(proxyPage.element);
+  });
+}
+function ensureUpdate() {
+  return ensurePage('update', async () => {
+    const { createUpdatePage } = await import('./update-page.js');
+    updatePage = createUpdatePage({ getToken: () => token, getRelease: () => appRelease, refreshRelease: force => refreshAppRelease(force), notify, onChange: updater => { updaterReady = updater?.phase === 'ready'; syncUpdateBadge(); } });
+    app.append(updatePage.element);
   });
 }
 function ensureCLI() {
@@ -255,7 +261,7 @@ function render() {
     taskRoot = document.createElement('main'); taskRoot.id = 'task-page';
     app.replaceChildren(sidebarRoot, taskRoot);
   }
-  const markup = sidebarContent({ state, day: today, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' });
+  const markup = sidebarContent({ state, day: today, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady });
   if (markup !== sidebarMarkup) {
     const scroll = sidebarRoot.scrollTop;
     sidebarRoot.innerHTML = markup; sidebarMarkup = markup;
@@ -273,6 +279,7 @@ function render() {
   focusSettings?.setVisible(view === 'settings');
   todaySummary?.setVisible(view === 'today' && !query);
   cliPage?.setVisible(view === 'cli');
+  updatePage?.setVisible(view === 'update');
   extensionsPage?.setVisible(view === 'extensions');
   proxyPage?.setSettingsVisible(view === 'settings');
   if (view === 'extensions') {
@@ -280,6 +287,13 @@ function render() {
     if (!extensionsPage) { opening('正在打开扩展管理…'); void ensureExtensions().then(() => { if (view === 'extensions') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
     extensionsPage.updateRoute(parseRoute(location.hash, state)); extensionsPage.setVisible(true);
     document.title = 'Daylight · 扩展管理'; return;
+  }
+  if (view === 'update') {
+    proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
+    if (!updatePage) { opening('正在打开更新…'); void ensureUpdate().then(() => { if (view === 'update') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    updatePage.setVisible(true);
+    document.title = 'Daylight · 更新';
+    return;
   }
   if (view === 'cli') {
     proxyPage?.setVisible(false);
@@ -312,12 +326,10 @@ function render() {
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
       mountAISettings(settingsRoot, () => token);
       focusSettings=mountFocusSettings(settingsRoot.querySelector('.ui-panel-stack'),{controller:focusController,notify});
-      appUpdatePanel = mountAppUpdate(settingsRoot.querySelector('.ui-panel-stack'), { getReport: () => appRelease, onRefresh: () => refreshAppRelease(true) });
       settingsRoot.querySelector('.ui-panel-stack').prepend(proxyPage.settingsElement);
     }
     settingsRoot.hidden = false;
     proxyPage.setSettingsVisible(true);
-    if (releaseIsStale()) void refreshAppRelease();
     document.title = 'Daylight · 设置';
     return;
   }
@@ -518,21 +530,16 @@ setInterval(() => {
 // Keep external skill writes visible without replacing an in-progress form.
 const releaseIntervalMs = 6 * 60 * 60 * 1000;
 function syncUpdateBadge() {
-  const button = sidebarRoot?.querySelector('[data-view="settings"]');
+  const button = sidebarRoot?.querySelector('[data-view="update"]');
   if (!button) return;
   const existing = button.querySelector('[data-app-update]');
-  if (appRelease?.status === 'available') {
+  if (appRelease?.status === 'available' || updaterReady) {
     if (existing) return;
     const badge = document.createElement('small');
     badge.dataset.appUpdate = '';
     badge.textContent = '有更新';
     button.append(badge);
   } else existing?.remove();
-}
-function releaseIsStale() {
-  const checked = Date.parse(appRelease?.checkedAt || '');
-  if (!appRelease || Number.isNaN(checked)) return true;
-  return Date.now() - checked >= (appRelease.status === 'unavailable' ? 15 * 60 * 1000 : releaseIntervalMs);
 }
 async function refreshAppRelease(force = false) {
   if (!token) return;
@@ -546,12 +553,13 @@ async function refreshAppRelease(force = false) {
       if (!appRelease) appRelease = { current: '', status: 'unavailable', latest: null, error: '暂时无法检查更新', checkedAt: new Date().toISOString() };
     } finally { releaseCheck = null; }
     syncUpdateBadge();
-    appUpdatePanel?.paint();
+    void updatePage?.paint();
   })();
   return releaseCheck;
 }
-setInterval(() => { if (!document.hidden && releaseIsStale()) void refreshAppRelease(); }, 15 * 60 * 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && releaseIsStale()) void refreshAppRelease(); });
+// The native updater checks in the background; reading the server's cached report is cheap and picks that up.
+setInterval(() => { if (!document.hidden) void refreshAppRelease(); }, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void refreshAppRelease(); });
 
 async function refreshExternal() {
   if (!state || busy || dialog.open || refreshing || document.hidden) return;
@@ -591,12 +599,14 @@ async function openDesktopRoute() {
   const route = parseRoute(location.hash, state);
   if (route.page !== 'task') {
     if (route.page === 'proxy' || route.page === 'settings') await ensureProxy();
+    if (route.page === 'update') await ensureUpdate();
     if (route.page === 'ai') await ensureAI();
     if (route.page === 'cli') await ensureCLI();
     if (route.page === 'extensions') await ensureExtensions();
     if (route.page === 'focus') await ensureStatistics();
     if(route.page==='focus')focusSelection=route;
     navigate(route.page, false);if(route.page==='focus')statisticsPage?.updateRoute(route);
+    if (route.page === 'update' && route.check) { history.replaceState(null, '', '/#update'); void updatePage?.check(); }
     if (route.page === 'ai' && (route.conversation || route.scope)) await aiPage.open({ conversation: route.conversation, scope: route.scope });
   } else {
     if (route.view === 'calendar') await ensureCalendar();

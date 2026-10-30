@@ -2,7 +2,7 @@
 // Keep this module free of app state so it can be imported anywhere without cycles.
 import { icon } from './components/icons.js';
 
-export const pageViews = ['proxy', 'settings', 'ai', 'cli', 'focus', 'extensions'];
+export const pageViews = ['proxy', 'settings', 'update', 'ai', 'cli', 'focus', 'extensions'];
 export const isPage = value => pageViews.includes(value);
 export const sectionFor = value => isPage(value) ? value : 'task';
 

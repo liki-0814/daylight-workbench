@@ -1605,13 +1605,6 @@ dialog::backdrop {
   margin: 0 0 var(--space-3);
 }
 
-.app-update-notes {
-  margin: 0 0 var(--space-3);
-  color: var(--muted);
-  font-size: var(--font-caption-size);
-  line-height: var(--font-caption-line);
-}
-
 .settings-facts dd[data-state="available"] {
   color: #8a6230;
   font-weight: 600;

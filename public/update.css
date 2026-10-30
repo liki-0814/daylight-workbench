@@ -1,0 +1,27 @@
+/* The update page reuses the settings layout (.settings-panel, .settings-facts, .ui-panel-stack);
+   only its own content types are styled here. */
+.update-inline-actions { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: var(--space-2); vertical-align: middle; }
+.settings-facts dd a:not(.text-button) { color: var(--green); }
+.update-live { min-height: 0; display: grid; gap: var(--space-2); margin: 0 0 var(--space-3); font-size: var(--font-caption-size); line-height: var(--font-caption-line); color: var(--muted); }
+.update-live:empty { display: none; }
+.update-notice { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin: var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--line); border-radius: 8px; background: #f7f9f3; color: #44543f; font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
+.update-notice[data-tone="warn"] { border-color: #decda7; background: #fcf6e9; color: #795c27; }
+.update-notice[data-tone="ok"] { border-color: #cfe0c7; background: #f1f7ee; }
+.update-notes { max-height: 360px; overflow: auto; margin: var(--space-3) 0; font-size: var(--font-body-size); line-height: var(--font-body-line); overflow-wrap: anywhere; }
+.update-notes > :first-child { margin-top: 0; }
+.update-notes h1, .update-notes h2, .update-notes h3, .update-notes h4 { font-size: var(--font-body-size); line-height: var(--font-body-line); margin: var(--space-4) 0 var(--space-2); }
+.update-notes pre { overflow: auto; padding: var(--space-3); border-radius: 6px; background: #f1f4ec; }
+.update-notes a { color: var(--green); }
+.update-empty, .update-mode-note, .update-inline-note { margin: var(--space-3) 0; color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
+.update-mode { margin: var(--space-3) 0 0; }
+.update-history { list-style: none; margin: var(--space-2) 0; padding: 0; }
+.update-history li { padding: var(--space-3) 0; border-top: 1px solid #edf0e9; }
+.update-history li:first-child { border-top: 0; }
+.update-history strong { display: block; font-weight: 550; font-size: var(--font-body-size); line-height: var(--font-body-line); }
+.update-history span { display: block; color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
+.update-history li[data-status="failed"] span, .update-history li[data-status="rolled-back"] span { color: #8a6230; }
+.update-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); }
+@media (max-width: 650px) {
+  .update-notice { flex-direction: column; align-items: flex-start; }
+  .update-inline-actions { margin-left: 0; }
+}

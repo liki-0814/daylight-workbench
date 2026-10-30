@@ -135,6 +135,10 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
       }
       if (dispatch.handler === 'focus') return await focus.handle(req, res);
       if (dispatch.handler === 'appUpdate') return send(200, await readAppRelease(new URL(req.url, `http://${expectedHost}`).searchParams.get('refresh') === '1'));
+      if (dispatch.handler === 'appUpdater') {
+        if (req.method === 'POST') return send(409, { error: '网页版不支持应用内安装，请使用 Daylight 桌面版', code: 'web-edition' });
+        return send(200, { supported: false, reason: 'web', message: '网页版不支持应用内安装；可以检查新版本并从 GitHub 下载。', phase: 'idle', mode: 'notify', history: [], backup: null, lastResult: null, current: { version: currentVersion } });
+      }
       if (dispatch.handler === 'state') return send(200, { ...snapshot(), localDate: localDate() });
       if (dispatch.handler === 'capabilities') return send(200, capabilities());
       if (dispatch.handler === 'missing') return send(404, { error: '接口不存在' });

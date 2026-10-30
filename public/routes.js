@@ -15,8 +15,8 @@ export function parseRoute(hash, state) {
     return { page: 'task', view: 'calendar', month: selectedDay.slice(0, 7), selectedDay, status: ['open', 'done', 'all'].includes(p.get('status')) ? p.get('status') : 'open', query: p.get('q') || '', projectId: missingProject ? null : projectId, unassigned: !projectId && p.get('unassigned') === '1', newTask: p.has('new'), taskId: state?.tasks.some(task => task.id === p.get('task')) ? p.get('task') : undefined, explicit: true, missing: missingProject ? '项目不存在或已删除，已清除筛选' : p.has('date') && !validDay || p.has('month') && !validMonth ? '日历日期无效，已恢复有效日期' : null };
   }
   if (p.has('focus')) return { page: 'focus', from: p.get('from'), to: p.get('to'), projectId: p.get('project'), taskId: p.get('task'), unassigned: p.get('unassigned') === '1' };
-  const page = ['ai', 'proxy', 'cli', 'settings'].find(k => p.has(k));
-  if (page) return { page, conversation: p.get('conversation'), scope: p.has('scope') ? { kind: p.get('scope'), ...(p.get('scopeId') ? { id: p.get('scopeId') } : {}) } : null };
+  const page = ['ai', 'proxy', 'cli', 'settings', 'update'].find(k => p.has(k));
+  if (page) return { page, check: page === 'update' && p.get('check') === '1', conversation: p.get('conversation'), scope: p.has('scope') ? { kind: p.get('scope'), ...(p.get('scopeId') ? { id: p.get('scopeId') } : {}) } : null };
   let view = p.has('today') ? 'today' : p.has('inbox') || p.get('unassigned') === '1' ? 'inbox' : p.has('project') ? projectView(p.get('project')) : 'all';
   let status = p.has('done') || p.get('status') === 'done' ? 'done' : 'open';
   const taskId = p.get('task'), task = state?.tasks.find(t => t.id === taskId);
