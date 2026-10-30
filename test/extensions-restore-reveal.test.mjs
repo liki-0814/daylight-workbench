@@ -36,13 +36,14 @@ test('revealBody：只产出 kind + id / clientId；不认识的 kind、缺 id �
   assert.equal(revealBody('skill', {}), null); assert.equal(revealBody('client', { id: 'x' }), null); assert.equal(revealBody('path', { id: 'x' }), null); assert.equal(revealBody(undefined), null);
 });
 
-test('revealErrorMessage：501 / 404 / 500 / 400 各有提示；501 优先；未知错误带原因', () => {
-  assert.match(revealErrorMessage({ status: 501, code: 'EXTENSIONS_UNSUPPORTED' }), /不支持.*macOS.*复制路径/);
-  assert.match(revealErrorMessage({ status: 501 }), /不支持/);
+test('revealErrorMessage：501 / 404 / 500 / 400 各有提示；501 优先；「复制路径」提示只在有路径可复制时出现', () => {
+  assert.match(revealErrorMessage({ status: 501, code: 'EXTENSIONS_UNSUPPORTED' }, { canCopy: true }), /不支持.*macOS.*复制路径/);
+  assert.doesNotMatch(revealErrorMessage({ status: 501 }), /复制路径/); assert.match(revealErrorMessage({ status: 501 }), /不支持/);
   assert.match(revealErrorMessage({ status: 404, code: 'EXTENSIONS_OBJECT_MISSING' }), /不存在.*重新扫描/);
-  assert.match(revealErrorMessage({ status: 500, code: 'EXTENSIONS_REVEAL_FAILED' }), /没有打开.*复制路径/);
+  assert.match(revealErrorMessage({ status: 500, code: 'EXTENSIONS_REVEAL_FAILED' }, { canCopy: true }), /没有打开.*复制路径/);
+  assert.doesNotMatch(revealErrorMessage({ status: 500 }), /复制路径/);
   assert.match(revealErrorMessage({ status: 400 }), /不在 Daylight 管理的扩展目录/);
-  assert.match(revealErrorMessage({ message: '网络断了' }), /网络断了.*复制路径/);
+  assert.match(revealErrorMessage({ message: '网络断了' }, { canCopy: true }), /网络断了.*复制路径/);
   assert.match(revealErrorMessage(undefined), /请求没有完成/);
 });
 
@@ -64,6 +65,8 @@ test('page.js 接线：新模块已登记；检查器按钮门控；reveal 只�
   assert.equal(assets['/extensions/restore-reveal.js'], 'extensions/restore-reveal.js');
   assert.match(page, /revealButton\('skill', item\)/); assert.match(page, /item\.selected \? revealButton\('client', item\)/);
   assert.match(page, /const revealButton = \(kind, item\) => capability\('reveal'\)/);
+  assert.match(page, /revealErrorMessage\(error, \{ canCopy: !!path \}\)/);
+  assert.match(readFileSync(new URL('../public/components/banner.css', import.meta.url), 'utf8'), /\.ui-toast-action \{ flex: none; white-space: nowrap;/);
   assert.match(page, /client\.reveal\(body\)/); assert.doesNotMatch(page, /client\.reveal\(\{[^}]*path/);
   assert.match(page, /data-restore-slot/); assert.match(page, /data-restore-undo/); assert.match(page, /ok\[0\]\.action\?\.type === 'mcp\.restoreBackup'/);
   assert.match(page, /await undoOperations\(restoreNotice \|\| \[\]\)/);

@@ -312,7 +312,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     try { await client.reveal(body); showToast({ message: '已在访达中显示' }); }
     catch (error) {
       const problemPath = $('[data-config-path]')?.textContent || '', path = revealFallbackPath(kind, { item: selected, problemPath });
-      showToast({ message: revealErrorMessage(error), tone: 'warning', duration: 8000, ...(path ? { actionLabel: '复制路径', onAction: async () => { const result = await copyText(path); showToast({ message: result.copied ? '已复制路径' : '无法写入剪贴板，请在详情里手动选择路径', tone: result.copied ? 'success' : 'warning' }); } } : {}) });
+      showToast({ message: revealErrorMessage(error, { canCopy: !!path }), tone: 'warning', duration: 8000, ...(path ? { actionLabel: '复制路径', onAction: async () => { const result = await copyText(path); showToast({ message: result.copied ? '已复制路径' : '无法写入剪贴板，请在详情里手动选择路径', tone: result.copied ? 'success' : 'warning' }); } } : {}) });
     }
   }
   // 从备份恢复：恢复点列表来自 GET /api/extensions/backups?kind=mcpConfig（后端 #36：只返回元数据，不含配置内容或凭据）；选定后走同一套「预览 → 确认」，动作 mcp.restoreBackup。

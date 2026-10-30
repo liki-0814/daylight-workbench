@@ -34,14 +34,15 @@ export function revealBody(kind, ids = {}) {
   return null;
 }
 
-// 失败提示：三段式（发生了什么 / 为什么 / 怎么办）。501 的优先级最高（后端先判环境，参数错误也先回 501）。
-export function revealErrorMessage(error) {
-  const status = Number(error?.status) || 0, code = String(error?.code || '');
-  if (status === 501 || code === 'EXTENSIONS_UNSUPPORTED') return '无法在访达中显示：当前环境不支持（只有 macOS 版 Daylight 可以打开访达）。可以改用「复制路径」。';
+// 失败提示：发生了什么 / 为什么 / 怎么办。501 优先级最高（后端先判环境，参数错误也先回 501）。
+// 「复制路径」的提示只在真有路径可复制（toast 上有这个按钮）时才说，不然是空头指引。
+export function revealErrorMessage(error, { canCopy = false } = {}) {
+  const status = Number(error?.status) || 0, code = String(error?.code || ''), hint = canCopy ? '可以改用「复制路径」。' : '';
+  if (status === 501 || code === 'EXTENSIONS_UNSUPPORTED') return '无法在访达中显示：当前系统不支持，只有 macOS 版 Daylight 可以。' + hint;
   if (status === 404 || code === 'EXTENSIONS_OBJECT_MISSING') return '无法在访达中显示：这个位置已经不存在了。请先点「重新扫描」，再试一次。';
-  if (code === 'EXTENSIONS_REVEAL_FAILED' || status >= 500) return '无法在访达中显示：访达没有打开。可以改用「复制路径」。';
+  if (code === 'EXTENSIONS_REVEAL_FAILED' || status >= 500) return '无法在访达中显示：访达没有打开。' + hint;
   if (status === 400 || code === 'EXTENSIONS_INVALID') return '无法在访达中显示：这个位置不在 Daylight 管理的扩展目录里。';
-  return '无法在访达中显示：' + (error?.message || '请求没有完成') + '。可以改用「复制路径」。';
+  return '无法在访达中显示：' + (error?.message || '请求没有完成') + '。' + hint;
 }
 
 // 失败后给「复制路径」用的路径（只用页面 state 里已有的字段，不向后端要）。
