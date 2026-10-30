@@ -141,7 +141,7 @@ test('reopen clears a kept decision; it needs a record', async t => {
 test('adoptShared replaces the client entry with the shared link and operation.restore brings the original back', async t => {
   const f = await fixture(t), original = await f.tree(f.target('qoder'));
   const plan = await f.service.prepare({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'adoptShared' });
-  assert.equal(plan.conflicts.length, 0); assert.match(plan.impact[0], /用共享版本替换/); assert.match(plan.warnings[0], /对比差异/);
+  assert.equal(plan.conflicts.length, 0); assert.match(plan.impact[0], /用共享版本替换/); assert.match(plan.impact[0], /在操作历史中点「撤销」恢复/); assert.doesNotMatch(plan.impact[0], /撤销这次操作/); assert.match(plan.warnings[0], /对比差异/);
   assert.ok(!JSON.stringify(plan).includes(SECRET), 'a directory plan echoes no file bytes');
   const receipt = await f.service.apply({ requestId: randomUUID(), expectedVersion: plan.expectedVersion, planId: plan.planId, action: plan.normalizedAction });
   assert.ok(receipt.changedIds.includes(f.id)); assert.ok(!JSON.stringify(receipt).includes(SECRET));

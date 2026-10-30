@@ -84,7 +84,7 @@ export function conflictChoiceList(items, choices = {}, { source = 'import', bus
 }
 
 // ---- 文案 ----
-export const REPLACE_NOTE = '可经操作历史撤销：被替换的配置会先记录下来，提示里点「撤销」就能还原。已经生成或已接入软件的配置不会自动更新，需要重新生成。';
+export const REPLACE_NOTE = '被替换的配置会先记录下来，可在操作历史中点「撤销」恢复。已经生成或已接入软件的配置不会自动更新，需要重新生成。';
 export function replaceConfirm(ids, { source = 'import' } = {}) {
   const list = (ids || []).map(id => `<li><code>${esc(shownText(id))}</code></li>`).join('');
   return `<div class="extension-archive-intro extension-conflict-intro" data-mcp-replace-confirm><p><strong>用${source === 'form' ? '新填写' : '导入'}的配置替换现有服务</strong></p><ul>${list}</ul><p>现有服务的位置不变，连接方式、命令、参数、引用整体换成${source === 'form' ? '新填写' : '导入'}的。</p><p>${esc(REPLACE_NOTE)}</p></div>`;

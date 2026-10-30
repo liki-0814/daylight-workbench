@@ -80,7 +80,7 @@ test('选择规则：未选全不能提交；只认两个取值；adoptNew 才�
 });
 test('替换确认：写明可撤销与已接入软件的配置不会自动更新', () => {
   const html = replaceConfirm(['a', '<x>']);
-  assert.match(html, /可经操作历史撤销/); assert.match(html, /不会自动更新/); assert.match(html, /&lt;x&gt;/); assert.equal(REPLACE_NOTE.includes('撤销'), true);
+  assert.match(html, /在操作历史中点「撤销」恢复/); assert.doesNotMatch(html, /可经操作历史撤销|撤销这次操作/); assert.match(html, /不会自动更新/); assert.match(html, /&lt;x&gt;/); assert.equal(REPLACE_NOTE.includes('撤销'), true);
 });
 test('引用状态文字：已设置 / 未设置 / 内部凭据（文字，不只靠颜色）', () => {
   assert.deepEqual([{ set: true }, { set: false }, { internal: true, set: false }].map(refStatusText), ['已设置', '未设置', '内部凭据']);
@@ -167,4 +167,27 @@ test('page.js：选处理方式（change）和打开替换确认时都会清稳�
   const adopt = page.match(/if \(chosen === 'adoptNew'\) \{\s*settleDuplicateFieldError\(\{ messages, setDialogError \}\);\s*const box/);
   assert.ok(adopt, '打开替换确认前清');
   assert.equal((page.match(/settleDuplicateFieldError\(/g) || []).length, 2, '只有这两处调用');
+});
+
+// 替换确认（adoptNew）只是把已经拿到的计划交出去：不再 prepare。导入对话框 = 预览 1 次 + 每次改选择 1 次；确认 / 返回 / 提交都是 0 次。
+// 同 ID 表单 = 第一次（409，发现冲突）+ 选了处理方式后带 onConflict 的那一次；打开确认、点「确认替换」本身只置 conflictChoice 并 requestSubmit。
+const block = (source, name) => {
+  const lines = source.split('\n'), start = lines.findIndex(line => new RegExp('^\\s*(async )?function ' + name + '\\(').test(line)); assert.notEqual(start, -1, name + ' 存在');
+  const indent = lines[start].match(/^\s*/)[0], end = lines.findIndex((line, index) => index > start && line === indent + '}'); assert.notEqual(end, -1, name + ' 有结尾');
+  return lines.slice(start, end + 1).join('\n');
+};
+test('page.js：导入对话框的替换确认 / 提交不再 prepare（只有 runPreview 与 refreshPlan 两处）', () => {
+  const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8'), whole = block(page, 'openImportJson');
+  assert.equal((whole.match(/client\.prepare\(/g) || []).length, 2, 'openImportJson 里只有两处 prepare');
+  assert.match(block(whole, 'runPreview'), /client\.prepare\(base\)/); assert.match(block(whole, 'refreshPlan'), /client\.prepare\(withChoices\(\)\)/);
+  for (const name of ['confirmReplace', 'commit']) assert.doesNotMatch(block(whole, name), /\.prepare\(/, name + ' 不得再 prepare');
+  assert.match(block(whole, 'commit'), /const plan = session\.plan, result = await controller\.submit\(plan\)/, '提交的就是已经确认过的那份计划');
+  assert.match(whole, /\[data-import-replace\]'\)\) void commit\(\);/, '「确认替换」直接提交');
+});
+test('page.js：同 ID 表单的「确认替换」只置 onConflict 并重新提交，自身不 prepare', () => {
+  const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
+  const replaceBranch = page.match(/else if \(button\.matches\('\[data-duplicate-replace\]'\)\) \{[^\n]*\}/)?.[0] || '';
+  assert.ok(replaceBranch, '找到 data-duplicate-replace 分支'); assert.doesNotMatch(replaceBranch, /prepare/);
+  assert.match(replaceBranch, /conflictChoice = 'adoptNew'; editor\.requestSubmit\(\);/);
+  assert.doesNotMatch(block(page, 'showDuplicatePanel'), /\.prepare\(/, '读取现有服务只用 mcp-compare');
 });
