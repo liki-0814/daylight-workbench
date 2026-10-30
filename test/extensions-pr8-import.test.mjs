@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createFolderPicker, folderPickerAvailable, makeRequestId, FOLDER_PICKED_EVENT, FOLDER_REQUEST_ID_PATTERN, FOLDER_PICK_TIMEOUT_MS, FOLDER_PICK_MESSAGES } from '../public/extensions/folder-picker.js';
-import { validateSourcePath, importPhaseView, importFailure, importHasConflict, IMPORT_PHASES } from '../public/extensions/skill-import.js';
+import { validateSourcePath, importUnknownMessage, importPhaseView, importFailure, importHasConflict, IMPORT_PHASES } from '../public/extensions/skill-import.js';
 import { addMenuMarkup, addMenuItems, nextMenuIndex } from '../public/extensions/add-menu.js';
 import { appliedMessage } from '../public/extensions/staging.js';
 
@@ -186,4 +186,8 @@ test('桥接协议常量与契约 §K 一致（消息名、事件名）', () => 
   const source = read('public/extensions/folder-picker.js');
   assert.match(source, /FOLDER_PICKER_HANDLER = 'pickFolder'/); assert.match(source, /FOLDER_PICKED_EVENT = 'daylight-folder-picked'/); assert.match(source, /postMessage\(\{ requestId \}\)/);
   assert.match(source, /TODO/); assert.match(source, /5 \* 60 \* 1000/);
+});
+test('结果未知：提示指向「核对原请求」且不鼓励重复导入；页面在 unknown 时锁定表单', () => {
+  assert.match(importUnknownMessage, /核对原请求/); assert.match(importUnknownMessage, /不要重复/);
+  assert.match(read('public/extensions/page.js'), /\['submitted', 'unknown'\]\.includes\(controller\.getSubmission\(\)\?\.status\)/);
 });
