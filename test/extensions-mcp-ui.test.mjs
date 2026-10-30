@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isShared, hasMcpSwitch, mcpHealth, toolCountLabel, redactArgs, commandLine, refRows, refBadge, refNote, adviceFor, probeCard, probeAllPlan, progressOf, progressText, finishText, mcpErrorMessage, shouldRefresh, disabledProbeHint, activeProbe, finishedProbe } from '../public/extensions/mcp.js';
+import { isShared, hasMcpSwitch, mcpHealth, toolCountLabel, redactArgs, commandLine, refRows, refBadge, refNote, adviceFor, probeCard, probeAllPlan, chunkIds, resumablePlan, PROBE_BATCH_SIZE, progressOf, progressText, finishText, mcpErrorMessage, shouldRefresh, disabledProbeHint, activeProbe, finishedProbe } from '../public/extensions/mcp.js';
 
 const shared = (extra = {}) => ({ id: 's', name: 'S', scope: 'shared', enabled: true, transport: 'stdio', command: 'npx', args: ['-y', 'pkg'], revision: 'r1', ...extra });
 const probe = (status, extra = {}) => ({ id: 'p', serverId: 's', status, configRevision: 'r1', toolCount: null, tools: [], message: '', ...extra });
@@ -136,7 +136,7 @@ test('disabled probe hint wording', () => {
   const assets = JSON.parse(readFileSync(new URL('../core/web-assets.json', import.meta.url), 'utf8'));
   test('page wires the MCP switch through staging (no direct action), probe-all through one confirmation and client.probeAll with the state version', () => {
     assert.match(page, /input\.dataset\.mcpSwitch !== undefined[\s\S]{0,200}stageChange\(staged, \{ kind: 'mcp'/);
-    assert.match(page, /client\.probeAll\(plan\.targets\.map\(server => server\.id\), state\.version\)/);
+    assert.match(page, /client\.probeAll\(ids, state\.version\)/);
     assert.match(page, /button\.hasAttribute\('data-probe-all'\)\) openProbeAll\(\)/);
     assert.match(page, /data-cancel-all-probes/); assert.match(page, /client\.cancelProbe\(probe\.id\)/);
   });
@@ -164,4 +164,31 @@ test('row health chips keep an opaque background (contrast on selected / hover r
 test('probe-all button does not make the MCP list heading taller than the other categories', () => {
   const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
   assert.match(css, /\.extension-list-heading > \.extension-probe-all \{ margin-block: -9px; \}/);
+});
+
+test('probe-all ids go to the backend in batches of at most 50, in order, without duplicates', () => {
+  const ids = Array.from({ length: 120 }, (_, index) => `s${index}`);
+  const batches = chunkIds([...ids, 's3', 's7']);
+  assert.equal(PROBE_BATCH_SIZE, 50);
+  assert.deepEqual(batches.map(batch => batch.length), [50, 50, 20]);
+  assert.deepEqual(batches.flat(), ids);
+  assert.deepEqual(chunkIds(ids.slice(0, 50)).map(batch => batch.length), [50]);
+  assert.deepEqual(chunkIds([]), []);
+  assert.deepEqual(chunkIds(undefined), []);
+});
+
+test('after a reload, two or more queued/running probes in /state resume as a probe-all run', () => {
+  const server = (id, status, extra = {}) => shared({ id, lastProbe: probe(status, { id: `p-${id}`, serverId: id }), ...extra });
+  assert.deepEqual(resumablePlan([server('a', 'queued'), server('b', 'running'), server('c', 'succeeded')]).map(item => item.id), ['p-a', 'p-b']);
+  assert.deepEqual(resumablePlan([server('a', 'running'), server('b', 'succeeded')]), [], 'a single running probe is watched by the inspector, not resumed');
+  assert.deepEqual(resumablePlan([server('a', 'queued', { enabled: false }), server('b', 'running')]), [], 'disabled servers are not counted');
+  assert.deepEqual(resumablePlan([server('a', 'queued', { scope: 'client' }), server('b', 'queued', { scope: 'client' })]), []);
+  assert.deepEqual(resumablePlan(undefined), []);
+});
+
+test('page wiring: the probe-all confirm sends batches and /state resumes active probes', () => {
+  const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
+  assert.match(page, /for \(const \[index, ids\] of chunkIds\(/, 'probe-all must go through chunkIds');
+  assert.match(page, /resumablePlan\(state\.servers\)/, 'the state handler must resume active probes');
+  assert.doesNotMatch(page, /client\.probeAll\(plan\.targets\.map/, 'no single POST with every id');
 });
