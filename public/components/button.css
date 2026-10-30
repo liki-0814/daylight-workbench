@@ -13,7 +13,7 @@ button, [role="button"] {
 button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacity: var(--button-disabled-opacity); }
 :is(button,a,input,textarea,select,summary,[role="button"]):focus-visible { outline: var(--button-focus-width) solid var(--green); outline-offset: var(--button-focus-offset); }
 
-.ui-button, .primary, .secondary, .capture, .small-button, .text-button, .icon-button, .danger-link, .ui-refresh-button {
+.ui-button, .primary, .secondary, .capture, .small-button, .text-button, .icon-button, .danger-link, .ui-refresh-button, .ui-button-destructive {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -61,6 +61,15 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 }
 .ui-button-danger, .danger-button { background: var(--danger); border-color: var(--danger); color: var(--paper); }
 .danger-link { color: var(--danger); }
+/* Destructive role (design-spec §9): outlined danger text. A solid red fill is reserved for the confirmation sheet (.ui-button-danger). */
+.ui-button-destructive {
+  min-height: var(--compact-button-height);
+  padding: var(--compact-button-padding-block) var(--compact-button-padding-inline);
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+}
+.ui-button-destructive:hover:not(:disabled) { background: var(--danger-bg); }
 :is(.ui-button,.primary,.secondary,.small-button,.text-button,.icon-button,.danger-link,.ui-refresh-button):hover:not(:disabled) { filter: brightness(.96); }
 :is(.ui-button-text,.ui-button-icon,.text-button,.icon-button,.ui-refresh-button):hover:not(:disabled) { background: var(--workbench-background); }
 .small-button.selected { background: var(--selection-background); color: var(--accent-text); }

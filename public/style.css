@@ -1171,9 +1171,11 @@ dialog::backdrop {
 }
 
 @media(prefers-reduced-motion:reduce) {
-  * {
+  *, *::before, *::after {
     scroll-behavior: auto!important;
     transition: none!important;
+    animation-duration: .01ms!important;
+    animation-iteration-count: 1!important;
   }
 }
 

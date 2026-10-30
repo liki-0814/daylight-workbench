@@ -7,7 +7,7 @@
 .extension-software-filter .select-field { width: 150px; }
 .extension-category-action { flex: 0 0 140px; }
 .extension-search input { width: 100%; min-height: var(--compact-control-height); padding: var(--space-2) var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-control, 8px); background: var(--paper, #fff); color: var(--ink); font: inherit; }
-.extension-problem-filter { white-space: nowrap; }
+.extension-problem-filter { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; white-space: nowrap; cursor: pointer; }
 .extension-browser { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(310px, 1fr); align-items: start; gap: var(--space-6); }
 .extension-browser:has(.extension-detail[hidden]) { grid-template-columns: 1fr; }
 .extension-list, .extension-detail { min-width: 0; }
