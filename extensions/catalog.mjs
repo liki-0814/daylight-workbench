@@ -7,6 +7,7 @@ import { readClientMcp } from './client-mcp.mjs';
 import { parse as parseJSONC } from 'jsonc-parser';
 import { normalizeServers } from './mcp-server.mjs';
 import { normalizeManifest } from './skill-state.mjs';
+import { findResolution, fingerprintEntry } from './conflicts.mjs';
 
 export function createCatalog({ root, clients, loadClients, environment = process.env, cacheMs = 1000 }) {
   let cache, scannedAt = 0, scanning, generation = 0;
@@ -103,9 +104,13 @@ export function createCatalog({ root, clients, loadClients, environment = proces
         if (info?.isSymbolicLink()) { link = await fs.readlink(target); const identity = skill.realPath || (skill.linked ? null : skill.sourcePath); matches = !!identity && await fs.realpath(target).catch(() => null) === identity; }
         const owned = manifest?.bindings.some(binding => binding.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(binding.clientId) && binding.target === target && binding.source === skill.sourcePath && binding.linkTarget === link);
         const state = skill.scope === 'client' && skill.clientId === client.id ? 'local' : info ? matches ? owned ? 'managed' : 'existing' : 'conflict' : 'not_connected';
-        skill.bindings.push({ clientId: client.id, state, owned: !!owned, target, runtimeVerified: false });
+        // E-11: a conflict the owner chose to keep stays a conflict (nothing is linked) but stops being reported as a problem
+        // until the local content changes. `resolutionStale` marks a remembered choice whose local content changed since.
+        let resolution = null, resolutionStale = false;
+        if (state === 'conflict') { const saved = findResolution(manifest, skill.id, client.id, target); if (saved) { if (await fingerprintEntry(target).catch(() => null) === saved.fingerprint) resolution = 'keepLocal'; else resolutionStale = true; } }
+        skill.bindings.push({ clientId: client.id, state, owned: !!owned, target, runtimeVerified: false, ...(state === 'conflict' ? { resolution, ...(resolutionStale ? { resolutionStale } : {}) } : {}) });
         signatures.push([client.id, target, info ? [info.isSymbolicLink() ? 'link' : 'entity', link, info.ino, info.mtimeMs] : null]);
-        if (state === 'conflict') diagnostics.push({ id: skill.id, clientId: client.id, code: 'BINDING_CONFLICT', message: '同名接入位置已存在其他内容，不能覆盖' });
+        if (state === 'conflict' && !resolution) diagnostics.push({ id: skill.id, clientId: client.id, code: 'BINDING_CONFLICT', message: '同名接入位置已存在其他内容，不能覆盖' });
       }
     }
     // Skill enable state lives in the manifest (`skillStates`); an absent entry means enabled with nothing remembered.
