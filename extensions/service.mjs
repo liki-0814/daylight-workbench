@@ -212,7 +212,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
           if (index === -1) { servers.push(server); added.push(server); }
           else if (choices[server.id] === 'adoptNew') { servers[index] = server; replaced.push(server); }
           else if (choices[server.id] === 'keepExisting') kept.push(server.id);
-          else conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，未选择处理方式，导入不会覆盖。请改名后导入，或在 resolutions 中选择 adoptNew（用导入的配置替换）/ keepExisting（保留现有配置）。');
+          else conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，还没选择处理方式，导入不会覆盖。请改名后导入，或选择「采用新配置」（用导入的配置替换）/「保留现有配置」。');
         }
         if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
         if (added.length || replaced.length) { const next = json({ schemaVersion: 1, servers }); if (Buffer.byteLength(next) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数'); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(next)); }
@@ -226,8 +226,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
           const view = current.servers.find(item => item.serverKey === server.id);
           if (view || current.data?.[client.mcp?.section]?.[server.id]) {
             if (choices[server.id] === 'keepExisting') { kept.push(server.id); continue; }
-            if (choices[server.id] !== 'adoptNew') { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，未选择处理方式，导入不会覆盖。请改名后导入，或在 resolutions 中选择 adoptNew / keepExisting。'); continue; }
-            if (!view?.editable) { conflicts.push(client.name + ' 里的「' + server.id + '」包含无法安全编辑的字段，不能替换；请在 CLI 中修改，或选择 keepExisting。'); continue; }
+            if (choices[server.id] !== 'adoptNew') { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，还没选择处理方式，导入不会覆盖。请改名后导入，或选择「采用新配置」/「保留现有配置」。'); continue; }
+            if (!view?.editable) { conflicts.push(client.name + ' 里的「' + server.id + '」包含无法安全编辑的字段，不能替换；请在 CLI 中修改，或选择「保留现有配置」。'); continue; }
             const content = changeClientMcp(client, current, { type: 'save', server, key: server.id });
             current = { ...current, raw: content, data: configDocument(content, client.mcp.format).data }; replaced.push(server); continue;
           }
@@ -400,9 +400,9 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         action.server = server = normalizeServer(action.server, { nativeKey: true });
         const existing = document.servers.find(item => item.serverKey === server.id);
         const choice = parseResolution(action.onConflict, 'onConflict');
-        if (choice && action.create !== true) throw fieldError('onConflict 只在 create:true 新建时使用。', 'onConflict');
+        if (choice && action.create !== true) throw fieldError('处理方式只在新建服务时使用。', 'onConflict');
         const duplicate = !!(existing || document.data?.[client.mcp?.section]?.[server.id]);
-        if (action.create && duplicate && !choice) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可传 onConflict: adoptNew / keepExisting', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        if (action.create && duplicate && !choice) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可选择「采用新配置」或「保留现有配置」', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
         if (action.create && duplicate && choice === 'keepExisting') { keepExisting = true; resolved.push({ id: server.id, resolution: choice }); impact.push('保留 ' + client.name + ' 里现有的「' + server.id + '」，不做任何修改。'); }
         else {
           warnings.push(...serverWarnings(server));
@@ -444,8 +444,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (action.create !== undefined && typeof action.create !== 'boolean') throw fieldError('create 需要明确的布尔值', 'create');
         action.server = normalizeServer(action.server); const index = servers.findIndex(server => server.id === action.server.id);
         const choice = parseResolution(action.onConflict, 'onConflict');
-        if (choice && action.create !== true) throw fieldError('onConflict 只在 create:true 新建时使用。', 'onConflict');
-        if (index !== -1 && action.create && !choice) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可传 onConflict: adoptNew / keepExisting', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        if (choice && action.create !== true) throw fieldError('处理方式只在新建服务时使用。', 'onConflict');
+        if (index !== -1 && action.create && !choice) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可选择「采用新配置」或「保留现有配置」', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
         if (index !== -1 && action.create && choice === 'keepExisting') {
           resolved.push({ id: action.server.id, resolution: choice }); impact.push('保留现有 MCP「' + action.server.id + '」，不做任何修改。');
         } else {
