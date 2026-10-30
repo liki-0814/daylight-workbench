@@ -102,7 +102,9 @@ export function appliedMessage(action, name = '') {
     case 'mcp.toggle': return `${action.enabled ? '已启用' : '已停用'}${quoted}`;
     case 'mcp.probe': return '已开始检测连接';
     case 'skill.resolveConflict': return action.resolution === 'adoptShared' ? `已采用共享版本${quoted}` : action.resolution === 'keepLocal' ? `已保留软件内版本${quoted}` : `已重新标记为待处理${quoted}`;
-    case 'skill.create': case 'skill.update': case 'mcp.save': case 'client.save': return `已保存${quoted}`;
+    case 'mcp.importJson': return importedMessage(action);
+    case 'mcp.save': if (action.onConflict === 'keepExisting') return `已保留现有配置，没有改动${quoted}`; return action.onConflict === 'adoptNew' ? `已替换${quoted}` : `已保存${quoted}`;
+    case 'skill.create': case 'skill.update': case 'client.save': return `已保存${quoted}`;
     default: return '变更已应用';
   }
 }
@@ -110,3 +112,9 @@ export function appliedMessage(action, name = '') {
 export const undoable = (action, result) => !!result?.operationId && !['mcp.probe', 'operation.restore'].includes(action?.type);
 // 批量撤销：逆序恢复，每个 operationId 一个动作。
 export const undoActions = operationIds => [...operationIds].reverse().map(operationId => ({ type: 'operation.restore', operationId }));
+
+// MCP 导入成功后的 toast 文案（0.7 PR-12）。
+export function importedMessage(action) {
+  const values = Object.values(action?.resolutions || {}), adopted = values.filter(value => value === 'adoptNew').length, kept = values.filter(value => value === 'keepExisting').length;
+  return `已导入 MCP 配置${adopted ? `，替换 ${adopted} 个` : ''}${kept ? `，保留现有 ${kept} 个` : ''}`;
+}
