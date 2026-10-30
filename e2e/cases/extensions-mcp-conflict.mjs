@@ -108,7 +108,7 @@ export default [
     const compared = await dialog.textContent(); check.ok(!compared.includes(FIXTURE_SECRET), '对比里没有凭据值'); check.ok(/已设置/.test(compared), '引用只写已设置 / 未设置');
     await apply.click();
     await dialog.getByRole('button', { name: /确认替换/ }).waitFor();
-    check.ok(/可经操作历史撤销/.test(await dialog.textContent()), '确认里写明可撤销');
+    check.ok(/在操作历史中点「撤销」恢复/.test(await dialog.textContent()), '确认里写明可在操作历史中点「撤销」恢复');
     check.equal((await servers(fixture)).find(item => item.id === 'missing-env-mcp').command, original.command, '确认前不改配置');
     await dialog.getByRole('button', { name: '返回' }).click();
     check.equal((await servers(fixture)).find(item => item.id === 'missing-env-mcp').command, original.command, '返回不改配置');
@@ -163,7 +163,7 @@ export default [
     await fill(); await dialog.locator('[data-duplicate-panel] input[type="radio"]').first().waitFor();
     await dialog.getByRole('radio', { name: /用新填写的替换/ }).check(); await dialog.getByRole('button', { name: /按所选继续/ }).click();
     await dialog.getByRole('button', { name: /确认替换/ }).waitFor();
-    check.ok(/可经操作历史撤销/.test(await dialog.textContent()), '确认里写明可撤销');
+    check.ok(/在操作历史中点「撤销」恢复/.test(await dialog.textContent()), '确认里写明可在操作历史中点「撤销」恢复');
     check.equal((await servers(fixture)).find(item => item.id === 'missing-env-mcp').command, original.command, '确认前不改配置');
     await dialog.getByRole('button', { name: /确认替换/ }).click();
     await finish();
@@ -171,5 +171,34 @@ export default [
     await page.locator('.ui-toast').filter({ hasText: /已替换/ }).getByRole('button', { name: '撤销' }).click(); await dialog.getByRole('button', { name: /撤销变更/ }).click();
     await page.waitForFunction(() => !document.querySelector('dialog[open]'), null, { timeout: 8000 });
     check.equal((await servers(fixture)).find(item => item.id === 'missing-env-mcp').command, original.command, '撤销后回到原配置');
+  } },
+  // 替换确认不再 prepare：数 POST /api/extensions/prepare 的次数。
+  // 导入对话框：预览 1 + 选「用导入的替换」1（带 resolutions）；点「应用导入」、「确认替换」都是 0 次。
+  { id: 'ext-pr12-05', priority: 'P1', widths: [1440], ...UI_GATE, title: '导入 JSON 替换确认：prepare 只在预览和选择时各调用一次，确认替换不再调用', async run({ page, url, fixture, assert: check }) {
+    const calls = []; page.on('request', request => { if (request.method() === 'POST' && /\/api\/extensions\/prepare$/.test(request.url())) calls.push(request.postData() || ''); });
+    await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
+    await clickAdd(page, '导入 JSON'); const dialog = page.getByRole('dialog');
+    await dialog.getByRole('textbox').fill(mcp({ 'missing-env-mcp': { command: 'npx', args: ['-y', 'replace-once'] } })); await dialog.getByRole('button', { name: /预览|下一步/ }).click();
+    await dialog.getByRole('radio', { name: /用导入的替换/ }).waitFor(); check.equal(calls.length, 1, '预览 1 次');
+    await dialog.getByRole('radio', { name: /用导入的替换/ }).check();
+    await page.waitForFunction(() => !document.querySelector('[data-import-apply]')?.disabled, null, { timeout: 8000 }); check.equal(calls.length, 2, '选择后 2 次');
+    await dialog.getByRole('button', { name: /应用导入/ }).click(); await dialog.getByRole('button', { name: /确认替换/ }).waitFor(); check.equal(calls.length, 2, '打开替换确认不 prepare');
+    await dialog.getByRole('button', { name: '返回' }).click(); await dialog.getByRole('button', { name: /应用导入/ }).click(); await dialog.getByRole('button', { name: /确认替换/ }).waitFor(); check.equal(calls.length, 2, '返回再打开也不 prepare');
+    await dialog.getByRole('button', { name: /确认替换/ }).click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'), null, { timeout: 8000 });
+    check.equal(calls.length, 2, '确认替换提交时不再 prepare'); check.equal(calls.filter(body => /adoptNew/.test(body)).length, 1, '带 adoptNew 的 prepare 只有 1 次');
+    check.equal((await servers(fixture)).find(item => item.id === 'missing-env-mcp').command, 'npx', '确实替换了');
+  } },
+  // 新建 MCP 同 ID：第一次（409 发现冲突）+ 选了处理方式后带 onConflict 的一次；点「确认替换」只是重新提交那一次。
+  { id: 'ext-pr12-06', priority: 'P1', widths: [1440], ...UI_GATE, title: '新建 MCP 同 ID 的替换确认：带 onConflict 的 prepare 只有一次，打开确认不调用', async run({ page, url, fixture, assert: check }) {
+    const calls = []; page.on('request', request => { if (request.method() === 'POST' && /\/api\/extensions\/prepare$/.test(request.url())) calls.push(request.postData() || ''); });
+    const dialog = page.locator('dialog[open]');
+    await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
+    await clickAdd(page, '新建 MCP 服务'); await dialog.getByLabel('稳定 ID', { exact: true }).fill('missing-env-mcp'); await dialog.getByLabel('服务名称', { exact: true }).fill('替换一次'); await dialog.getByLabel('可执行命令', { exact: true }).fill('npx');
+    await dialog.locator('[type=submit]').click(); await dialog.locator('[data-duplicate-panel] input[type="radio"]').first().waitFor(); check.equal(calls.length, 1, '第一次 prepare（409）');
+    await dialog.getByRole('radio', { name: /用新填写的替换/ }).check(); await dialog.getByRole('button', { name: /按所选继续/ }).click();
+    await dialog.getByRole('button', { name: /确认替换/ }).waitFor(); check.equal(calls.length, 1, '打开替换确认不 prepare');
+    await dialog.getByRole('button', { name: /确认替换/ }).click();
+    await page.waitForFunction(() => !document.querySelector('dialog[open]') || document.querySelector('dialog[open] [data-preview-apply], dialog[open] [data-batch-apply]'), null, { timeout: 8000 });
+    check.equal(calls.length, 2, '确认后只多一次（带 onConflict）'); check.equal(calls.filter(body => /onConflict/.test(body) && /adoptNew/.test(body)).length, 1, '带 onConflict:adoptNew 的 prepare 只有 1 次');
   } },
 ];
