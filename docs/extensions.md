@@ -92,6 +92,15 @@ npm run dev
 - **替换之后**：已生成或已接入软件的配置不会自动更新，`warnings` 会提示重新生成；已声明依赖这个服务的 Skill 在 `impact` 中列出，不会被修改。
 - 能力探测：`GET /api/v1/capabilities` 的 `extensions.mcpConflictCompare`（以及 `operations` 里没有新动作，只是已有动作多了可选字段）；旧版本没有这一项，前端据此隐藏对比入口。
 
+## 在访达中显示与从备份恢复（§H）
+
+- `POST /api/extensions/reveal`：请求体 `{kind:"skill", id}`、`{kind:"mcpConfig"}` 或 `{kind:"client", clientId}`，成功返回 `{ok:true}`。服务端自己解析位置（Skill 的来源目录、`mcp/servers.json`、软件的 MCP 文件，没有则其 Skills 目录），**不接受任何路径字段**（多余字段 400）。位置必须在已知扩展根内（否则 400 `EXTENSIONS_INVALID`），不存在 404 `EXTENSIONS_OBJECT_MISSING`，执行失败 500 `EXTENSIONS_REVEAL_FAILED`（不回显路径）。独立服务器上通过 `execFile('open', ['-R', 路径])`（无 shell）执行；仅 darwin 支持，其它平台 501 `EXTENSIONS_UNSUPPORTED`。该路由不在 Agent 的 `/api/v1` 下开放。
+- 原生壳中的「在访达中显示」：壳用 `DAYLIGHT_REVEAL=native` 启动 AI helper，helper 仍由服务端解析位置，但不执行 `open -R`，而是回复 `{ok:true, hostReveal:<绝对路径>}`；壳删除该字段后用 NSWorkspace 打开（见 [原生查找与显示](native-reveal-find.md)，在 native 分支；**未在 Mac 上验证**）。独立服务与没有该变量的壳继续用 `open -R`，页面永远只看到 `{ok:true}`。
+- 能力探测（与 `mcpConflictCompare` 同一处）：`GET /api/v1/capabilities` 的 `extensions.restoreBackup`（恒有）与 `extensions.reveal`（**仅在服务器能打开访达时出现**，即 macOS 独立服务器；原生壳的 JavaScriptCore 版本不含，直到 NSWorkspace 路径落地）。Daylight 网页界面无法读取 `/api/v1`，所以 `/state` 与 `/refresh` 的响应也带同样含义的镜像，**嵌套形状与 `/api/v1/capabilities` 一致**：`capabilities: {extensions: {mcpConflictCompare: true, restoreBackup: true, reveal?: true}}`（键名相同，值为 `true` 而不是说明字符串；`reveal` 同样只在支持时出现）。前端读 `state.capabilities.extensions.<名>`，据此显示按钮；平铺的 `capabilities.restoreBackup` 不再提供。
+- `GET /api/extensions/backups?kind=mcpConfig`：恢复点来自操作历史里已应用、且 `servers.json` 快照仍能通过校验的操作，最新在前（最多 10 个，内容相同的合并，与当前文件相同的不列出）。返回 `{kind, version, backups:[{operationId, at, summary, servers}]}`，`servers` 只是个数；**不含配置内容或凭据**。
+- `mcp.restoreBackup {operationId}`：走 prepare→apply（`expectedVersion`、`planId`）。把 `servers.json` 设为该操作应用后的快照；主配置已损坏时也可用（这正是用途）。恢复前的内容成为本次操作的 `before` 快照，所以可用 `operation.restore` 撤销。计划的 `impact` 说明移除/新增/变更数量，`warnings` 提示恢复点之后新增的服务会被移除、已生成的软件配置不会自动更新。无效或无 `servers.json` 快照的 `operationId` 返回 400（`field: "operationId"`）。
+- 原生壳：`TODO(native-mac)` ——在 App 内应改用 `NSWorkspace.shared.activateFileViewerSelecting` 经现有桥接实现；尚未编写、未在 macOS 验证，在此之前独立服务器的 `open -R` 同样适用于 App。
+
 ## MCP 行级启停、批量检测与凭据引用状态
 
 - `mcp.toggle`（`id`、`enabled` 布尔值）现在也适用于共享 MCP：只改主配置 `servers.json` 里的 `enabled`，不启动服务；重复启停返回 409（`EXTENSIONS_ALREADY_ENABLED` / `EXTENSIONS_ALREADY_DISABLED`）；停用后配置版本变化，进行中的检测会被取消，停用的服务不能检测（`POST /probes` 返回 400）。软件作用域的行为不变。

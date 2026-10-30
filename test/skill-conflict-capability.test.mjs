@@ -57,7 +57,7 @@ const conditionalKeys = contracts.extensionsConditionalMirrorKeys || [];
 export function mirrorProblems(keys, mirror, source, conditional = []) {
   const problems = [];
   for (const key of keys) { if (mirror[key] !== true) problems.push(`mirror is missing ${key}`); if (!(key in source)) problems.push(`/api/v1 is missing ${key}`); }
-  for (const key of Object.keys(mirror)) { if (!keys.includes(key) && !conditional.includes(key)) problems.push(`mirror has unlisted ${key}`); if (mirror[key] !== true) problems.push(`mirror ${key} is not true`); if (!(key in source)) problems.push(`/api/v1 is missing mirrored ${key}`); }
+  for (const key of Object.keys(mirror)) { if (!keys.includes(key) && !conditional.includes(key)) problems.push(`mirror has unlisted ${key}`); if (mirror[key] !== true) problems.push(`mirror ${key} is not true`); if (!(key in source) && !conditional.includes(key)) problems.push(`/api/v1 is missing mirrored ${key}`); }
   return problems;
 }
 test('extensionsMirrorKeys: the mirror in /state and /refresh and /api/v1 carry every listed key, and nothing else', async t => {
