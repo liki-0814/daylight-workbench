@@ -216,3 +216,5 @@
 .extension-mcp-import textarea { width: 100%; min-height: 9em; font-family: var(--font-mono, monospace); box-sizing: border-box; }
 .extension-mcp-import-review, .extension-duplicate-panel { display: grid; gap: var(--space-2); }
 .extension-duplicate-panel { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm, 6px); background: var(--warning-background, #fff5e8); color: var(--warning-text, #9a4300); }
+.extension-ref-badge { font-size: var(--font-caption-size); white-space: nowrap; }
+.extension-ref-badge[data-tone="warning"] { font-weight: 600; }

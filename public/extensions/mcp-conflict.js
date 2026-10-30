@@ -1,6 +1,7 @@
 import { escapeButtonText as esc } from '../components/button.js';
 import { shownText, REDACTED } from './conflict.js';
 import { extensionCapability } from './capabilities.js';
+import { refStatusLabels } from './mcp.js';
 
 // 扩展页 MCP 同 ID 冲突（0.7 PR-12）：纯函数，无 DOM；状态、事件、焦点在 page.js。
 // 后端契约：api-contract-skill-enable.md「I. MCP 同 ID 冲突处理」：`POST /mcp-compare`、`mcp.importJson.resolutions`、`mcp.save.onConflict`。
@@ -29,8 +30,8 @@ export function fieldValueText(field, value, { root = '' } = {}) {
 
 // 引用只显示名称与状态，永远没有值：已设置 / 未设置 / 内部引用。
 export function refStatusText(ref) {
-  if (ref?.internal) return '内部引用';
-  return ref?.set === true ? '已设置' : '未设置';
+  if (ref?.internal) return refStatusLabels.internal;
+  return ref?.set === true ? refStatusLabels.set : refStatusLabels.unset;
 }
 const refLine = ref => `<li data-mcp-ref data-ref-set="${ref?.set === true}"><span>${esc(REF_KIND[ref?.kind] || '引用')} <code>${esc(ref?.key ?? '')}</code> → <code>${esc(ref?.ref ?? '')}</code></span> <span class="extension-ref-badge" data-tone="${ref?.internal || ref?.set === true ? 'neutral' : 'warning'}">${esc(refStatusText(ref))}</span></li>`;
 const refList = (refs, label) => Array.isArray(refs) && refs.length ? `<div><small>${esc(label)}</small><ul class="extension-mcp-refs">${refs.map(refLine).join('')}</ul></div>` : '';
