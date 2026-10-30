@@ -67,9 +67,9 @@ export default [
   { id: 'ext-sk-07', priority: 'P0', widths: [1440], expectedFail: 'E-11 需要新 UI（Iris 的 0.7 前端未合入）：检查器冲突动作与禁用原因；UI 落地后按真实选择器修正并移除此标记', title: '冲突项：开关禁用并写明原因；三个冲突动作可达；「对比差异」只读（E-11）', async run({ page, url, fixture, assert: check }) {
     await page.goto(`${url}/#extensions&tab=skills`); await rows(page).first().waitFor({ timeout: 10000 });
     await rows(page).filter({ hasText: 'api-design' }).first().click();
-    const inspector = page.locator('.extension-inspector');
+    const inspector = page.locator('.extension-detail:not([hidden])');
     const versionBefore = json(await fixture.api('/api/extensions/state')).version;
-    const toggle = inspector.getByRole('checkbox', { name: /Qoder/ });
+    const toggle = inspector.getByRole('switch', { name: /Qoder/ });
     check.ok(await toggle.isDisabled(), '冲突位置的开关应禁用');
     check.ok(/已存在其他内容|冲突/.test(await inspector.textContent()), '禁用原因应以文字写明');
     for (const name of [/对比差异/, /采用共享版本/, /保留软件内版本/]) check.ok(await inspector.getByRole('button', { name }).count() > 0, `缺少动作：${name}`);
