@@ -3,6 +3,7 @@ import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
+import { probeAllPlan, chunkIds, PROBE_BATCH_SIZE, resumablePlan, redactArgs, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
@@ -30,13 +31,13 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><span class="extension-visually-hidden" role="status" data-probe-live></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
   const $ = selector => element.querySelector(selector);
-  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, selectionPreviewing = false, staged = new Map(), batchBusy = false, loadView = {}, loadStartedAt = 0, loadStripTimer, focusBeforeLoad = null;
+  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, selectionPreviewing = false, staged = new Map(), batchBusy = false, liveProbes = new Map(), probeWatching = null, probeAllRun = null, probeAllTimer = 0, loadView = {}, loadStartedAt = 0, loadStripTimer, focusBeforeLoad = null;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
-  const probeLabels = { succeeded: '握手成功', failed: '检测失败', running: '正在检测', cancelled: '已取消', timed_out: '检测超时' };
-  const probeTones = { succeeded: 'success', failed: 'danger', timed_out: 'danger', running: 'accent' };
-  const probeChip = item => chip({ label: (item.lastProbe?.stale ? '配置已变更 · 上次' : '') + (probeLabels[item.lastProbe?.status] || (item.scope === 'client' ? '用户级配置' : '尚未检测')), tone: probeTones[item.lastProbe?.status] || 'neutral', dot: !!probeTones[item.lastProbe?.status] });
+  const liveServer = server => state?.servers.find(item => item.id === server.id) || server;
+  // 检测进度的页面内覆盖：进行中的检测每 0.5–0.8s 轮询一次，比 10s 一次的整页刷新快；整页刷新带回 lastProbe 后自动让位。
+  const probeOf = server => liveProbes.get(server.id) || server.lastProbe || null;
   const liveSkill = skill => state?.skills.find(item => item.id === skill.id) || skill;
   // 暂存（只在页面内存里，/prepare 与 /actions 才是真正动手的地方）：总开关和接入开关都先记下想要的值，右下「预览并应用」才逐项预览、应用。
   function masterControl(skill, compact = true) {
@@ -63,13 +64,14 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   // 开关（总开关或接入开关）在清单或检查器里的同一个控件：用于重绘后把焦点还给它。
   function findToggle(data, area) {
     const master = data.masterToggle !== undefined, root = $(area === 'list' ? '.extension-list' : '.extension-detail');
+    if (data.mcpSwitch !== undefined) return [...root.querySelectorAll('[data-mcp-switch]')].find(input => input.dataset.mcp === data.mcp);
     return [...root.querySelectorAll(master ? '[data-master-toggle]' : '[data-binding-toggle]')].find(input => input.dataset.skill === data.skill && (master || input.dataset.client === data.client));
   }
   // 暂存发生变化后重绘清单、检查器和底栏；焦点留在同一个开关上。
   function renderStaged() {
     const inDetail = $('.extension-detail').contains(document.activeElement) ? { ...document.activeElement.dataset } : null;
     listMarkup = undefined; renderList(); if (selected) renderDetail({ keepFocus: true });
-    if (inDetail && (inDetail.bindingToggle !== undefined || inDetail.masterToggle !== undefined)) findToggle(inDetail, 'detail')?.focus({ preventScroll: true });
+    if (inDetail && (inDetail.bindingToggle !== undefined || inDetail.masterToggle !== undefined || inDetail.mcpSwitch !== undefined)) findToggle(inDetail, 'detail')?.focus({ preventScroll: true });
     renderBar();
   }
   function renderBar() {
@@ -80,6 +82,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   }
   function stageToggle(input) {
     if (batchBusy || !state) return;
+    if (input.dataset.mcpSwitch !== undefined) {
+      if (!state.servers.some(item => item.id === input.dataset.mcp)) return;
+      staged = stageChange(staged, { kind: 'mcp', id: input.dataset.mcp, want: input.checked }, state); setError(null); renderStaged(); return;
+    }
     const live = state.skills.find(item => item.id === input.dataset.skill); if (!live) return;
     const change = input.dataset.masterToggle !== undefined ? { kind: 'skill', id: live.id, want: input.checked } : { kind: 'binding', id: live.id, clientId: input.dataset.client, want: input.checked };
     staged = stageChange(staged, change, state); setError(null); renderStaged();
@@ -177,16 +183,51 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   // 共享来源是默认情况，行里不再重复（详情里有完整路径）；只有软件本地配置才在行里标出来。
   const sourceOf = item => item.scope === 'client' ? (state.clients.find(client => client.id === item.clientId)?.name || '') + ' · 本地配置' : '';
   function mcpStatus(item) {
-    const time = probeTime(item.lastProbe);
-    return `<span class="extension-status-stack">${probeChip(item)}<small>${item.enabled ? '配置启用' : '配置禁用'}${time ? ' · 检测于 ' + time : ''}</small></span>`;
+    const probe = probeOf(item), health = mcpHealth(item, probe), time = health.key === 'disabled' ? '' : probeTime(probe), badge = shared(item) ? refBadge(item) : null;
+    const note = [toolCountLabel(probe), time ? '检测于 ' + time : ''].filter(Boolean).join(' · ');
+    return `<span class="extension-status-stack" data-mcp-health="${esc(health.key)}">${chip({ label: health.label, tone: health.tone, dot: health.dot })}${note ? `<small>${esc(note)}</small>` : ''}${badge ? chip({ label: badge.label, tone: badge.tone, className: 'extension-ref-badge' }) : ''}</span>`;
+  }
+  const shared = server => server.scope !== 'client';
+  // 共享 MCP 的启用开关（行里和检查器里是同一个控件）：和 Skill 一样先暂存，应用时才 mcp.toggle。
+  function mcpSwitch(server, compact = true) {
+    const live = liveServer(server);
+    if (!hasMcpSwitch(live)) return compact ? '<span class="extension-master-none"><span aria-hidden="true">—</span><span class="extension-visually-hidden">本地配置的服务在详情里启停</span></span>' : '';
+    const change = { kind: 'mcp', id: live.id }, pending = staged.has(stageKey(change)), checked = stagedValue(staged, change, live.enabled);
+    return switchControl({ label: live.name + ' · 启用', text: checked ? '已启用' : '已停用', checked, pending, busy: batchBusy && pending, disabled: batchBusy, title: '只改配置，不会启动或停止服务；应用前先预览', className: 'extension-binding-control extension-master-control', inputAttrs: { 'data-mcp-switch': true, 'data-mcp': live.id } });
+  }
+  // 检测结果卡片：状态、后端给出的固定文案、工具数、前 8 个工具名（折叠）、可操作的建议。不显示任何环境变量的值。
+  function probeCardMarkup(server) {
+    const card = probeCard(probeOf(server), liveServer(server)); if (!card) return '';
+    const meta = [card.version && '服务版本 ' + card.version, card.protocol && '协议 ' + card.protocol].filter(Boolean).join(' · ');
+    const names = card.tools.length ? `<details class="extension-probe-tools"><summary>工具清单（${card.toolCount ?? card.tools.length}）</summary><ul>${card.tools.map(name => `<li><code>${esc(name)}</code></li>`).join('')}${card.moreTools ? `<li>另有 ${card.moreTools} 个</li>` : ''}</ul></details>` : '';
+    return `<section class="extension-probe-card" data-probe-card data-probe-status="${esc(card.status)}"><div class="extension-probe-card-head">${chip({ label: card.label, tone: card.tone, dot: true })}${probeTime(probeOf(server)) ? `<small>检测于 ${esc(probeTime(probeOf(server)))}</small>` : ''}</div>`
+      + `${card.stale ? '<p class="extension-warning" data-probe-stale>配置已变化，以下为上次配置的检测结果；请重新检测。</p>' : ''}`
+      + `${card.message ? `<p data-probe-message>${esc(card.message)}${card.status === 'succeeded' && card.toolCount !== null ? ` 工具数：${card.toolCount}` : ''}</p>` : ''}${meta ? `<p><small>${esc(meta)}</small></p>` : ''}`
+      + `${card.advice ? `<p class="extension-probe-advice" data-probe-advice><strong>建议 · </strong>${esc(card.advice)}</p>` : ''}${names}`
+      + `${card.cancellable ? `<button type="button" class="text-button" data-cancel-probe data-probe-id="${esc(probeOf(server).id)}">取消检测</button>` : ''}</section>`;
+  }
+  // 环境变量 / 请求头引用表（E-23）：只有「是否存在」，没有值。
+  function refTableMarkup(server) {
+    const rows = refRows(server); if (!rows?.length) return '';
+    return `<section class="extension-refs" data-ref-table aria-labelledby="extension-refs-title"><h3 id="extension-refs-title">环境变量与请求头引用</h3><table class="extension-ref-table"><thead><tr><th scope="col">引用名</th><th scope="col">用途</th><th scope="col">状态</th></tr></thead><tbody>`
+      + rows.map(row => `<tr data-ref-row data-ref-status="${esc(row.status)}"><td><code>${esc(row.ref)}</code></td><td>${esc(row.purpose)}</td><td>${chip({ label: refStatusLabels[row.status], tone: row.status === 'set' ? 'success' : row.status === 'unknown' ? 'neutral' : 'warning', dot: row.status !== 'unknown' })}${refHints[row.status] ? `<small>${esc(refHints[row.status])}</small>` : ''}</td></tr>`).join('')
+      + `</tbody></table><p class="extension-ref-note"><small>${esc(refNote)}</small></p></section>`;
+  }
+  // 「测试连接」按钮不可用时要说明原因（不能只是灰的）。
+  function probeAvailability(server) {
+    const live = liveServer(server);
+    if (!shared(live)) return { ok: false, hint: '本地配置的服务由对应软件启动，这里不检测。' };
+    if (activeProbe(probeOf(live))) return { ok: false, hint: '正在检测；可以在下面取消。' };
+    const hint = disabledProbeHint(live.enabled, staged.get(stageKey({ kind: 'mcp', id: live.id }))?.want === true);
+    return { ok: !hint, hint };
   }
   function rowFor(item) {
     const active = item.id === route.id, query = route.query || '';
-    const summary = route.tab === 'skills' ? (item.valid ? item.description : item.problem) : route.tab === 'mcp' ? '' : item.note;
+    const summary = route.tab === 'skills' ? (item.valid ? item.description : item.problem) : route.tab === 'mcp' ? commandLine(item) : item.note;
     const statusCells = route.tab === 'skills' ? [masterControl(item), item.bindings.length ? `<span class="extension-binding-group">${item.bindings.map(binding => bindingControl(item, binding, true)).join('')}</span>` : '<small>未选择软件</small>']
-      : route.tab === 'mcp' ? [chip({ label: item.transport, tone: 'neutral' }), mcpStatus(item)]
+      : route.tab === 'mcp' ? [chip({ label: item.transport, tone: 'neutral' }), mcpSwitch(item), mcpStatus(item)]
       : [switchControl({ label: item.name + ' · 接入扩展管理', text: item.selected ? '已接入' : '选择接入', hint: item.installed ? '已发现命令' : '未找到命令', checked: !!item.selected, disabled: selectionPreviewing, className: 'extension-binding-control', inputAttrs: { 'data-cli-selection': true, 'data-client': item.id } })];
-    return rowMarkup({ tab: route.tab, item, active, query, summary, sourceText: sourceOf(item), statusCells });
+    return rowMarkup({ tab: route.tab, item, active, query, summary, summaryClass: route.tab === 'mcp' ? 'extension-row-command' : '', sourceText: sourceOf(item), statusCells });
   }
   function renderList() {
     clearTimeout(loadingTimers.pop()); loadingTimers.length = 0;
@@ -207,14 +248,16 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     updateCreateAvailability(banner);
     // 配置文件读不出来时列表为空只是表象，横幅已说明原因，不再叠一个“还没有 MCP 服务”。
     const empty = !filtered.length ? (!all.length && nothingFiltered() ? (banner?.blocksCreate ? '' : emptyState(route.tab)) : noMatchState()) : '';
-    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span></div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
     if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
     if (markup === listMarkup) { applyRoving(); return; }
     const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
     $('.extension-list').innerHTML = markup; listMarkup = markup;
     [...$('.extension-list').querySelectorAll('details')].forEach((details,index)=>{if(disclosures[index]!==undefined)details.open=disclosures[index];});
-    if (focus?.bindingToggle !== undefined || focus?.masterToggle !== undefined) findToggle(focus, 'list')?.focus({preventScroll:true});
+    if (focus?.bindingToggle !== undefined || focus?.masterToggle !== undefined || focus?.mcpSwitch !== undefined) findToggle(focus, 'list')?.focus({preventScroll:true});
+    else if (focus?.cancelAllProbes !== undefined) $('[data-cancel-all-probes]')?.focus({ preventScroll: true });
+    else if (focus?.probeAll !== undefined) $('[data-probe-all]')?.focus({ preventScroll: true });
     else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
     applyRoving();
   }
@@ -238,11 +281,11 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     let content;
     if (route.operation) content = `<p>状态：${esc(item.status)}</p><p>${esc(item.error || '')}</p><code>${esc(item.requestId)}</code><div class="extension-actions"><button type="button" class="secondary" data-restore-operation="${esc(item.requestId)}" ${item.status === 'applied' && item.steps.length ? '' : 'disabled'}>预览恢复修改前内容</button></div><details><summary>操作与步骤</summary><pre>${esc(JSON.stringify(item, null, 2))}</pre></details>`;
     else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre>${dangerZone(item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件', item.linked ? '只移除软件里的链接，源文件保留。' : '归档后，使用它的软件会失去这个 Skill。')}`;
-    else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${item.enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p>${(w => w ? `<p class="extension-warning" data-insecure-http><strong>警告 · </strong>${esc(w)}</p>` : '')(insecureHttpWarning(item.url, { hasHeaders: !!Object.keys(item.headerRefs || {}).length }))}<p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${item.enabled && item.scope !== 'client' ? '' : 'disabled'}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div><div data-probe-result role="status">${item.lastProbe?`<p>${item.lastProbe.stale ? "配置已变化，以下为上次配置的检测结果：" : ""}${esc(item.lastProbe.message)}${item.lastProbe.toolCount!==null?' 工具数：'+item.lastProbe.toolCount:''}</p>`:''}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', 'envRefs', 'headerRefs'].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(value, null, 2) : value)}</dd>`).join('')}</dl><p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : `<h3>接入软件</h3>${state.clients.filter(client => client.selected && client.mcpMode === 'native').map(client => `<button type="button" class="secondary" data-install-mcp="${esc(client.id)}">接入 ${esc(client.name)}</button>`).join(' ') || chooseClientsPrompt}`}${dangerZone(item.scope === 'client' ? '移除软件 MCP 配置' : '归档 MCP 主配置', '归档后，使用它的软件会失去这个 MCP 服务。')}`;
+    else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${liveServer(item).enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p>${shared(item) ? `<div class="extension-mcp-switch">${mcpSwitch(item, false)}</div>` : ''}${(w => w ? `<p class="extension-warning" data-insecure-http><strong>警告 · </strong>${esc(w)}</p>` : '')(insecureHttpWarning(item.url, { hasHeaders: !!Object.keys(item.headerRefs || {}).length }))}<p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${(a => a.ok ? '' : 'disabled aria-describedby="extension-probe-hint"')(probeAvailability(item))}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div>${(a => a.ok ? '' : `<p class="extension-probe-hint" id="extension-probe-hint" data-probe-hint><small>${esc(a.hint)}</small></p>`)(probeAvailability(item))}<div data-probe-result role="status">${probeCardMarkup(item)}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', ...(refRows(item) ? [] : ['envRefs', 'headerRefs'])].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(key === 'args' ? redactArgs(value) : value, null, 2) : value)}</dd>`).join('')}</dl>${refTableMarkup(item)}<p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : `<h3>接入软件</h3>${state.clients.filter(client => client.selected && client.mcpMode === 'native').map(client => `<button type="button" class="secondary" data-install-mcp="${esc(client.id)}">接入 ${esc(client.name)}</button>`).join(' ') || chooseClientsPrompt}`}${dangerZone(item.scope === 'client' ? '移除软件 MCP 配置' : '归档 MCP 主配置', '归档后，使用它的软件会失去这个 MCP 服务。')}`;
     else content = `<p>${esc(item.note)}</p><dl><dt>软件主目录</dt><dd>${esc(item.root)}</dd><dt>软件 Skills 目录</dt><dd>${esc(item.skillsRoot)}</dd><dt>Daylight 管理的共享来源</dt><dd>${esc(state.root)}/skills</dd><dt>CLI 命令</dt><dd>${esc(item.command)}</dd></dl><p>${esc(item.refresh)}</p><p>${item.installed ? '可执行文件：' + esc(item.executable) : '未找到命令，可填写可执行文件的绝对路径。'}</p><div class="extension-actions"><button type="button" class="secondary" data-cli-selection data-client="${esc(item.id)}" ${selectionPreviewing ? 'disabled' : ''}>${item.selected ? '取消接入' : '选择接入'}</button>${item.registrationId ? '<button type="button" class="secondary" data-remove-client>删除旧登记，使用自动识别</button>' : ''}${item.custom ? '<button type="button" class="secondary" data-edit>编辑 CLI</button><button type="button" class="ui-button-destructive" data-remove-client>移除登记</button>' : ''}${item.selected && item.mcpMode !== 'unsupported' ? `<button type="button" class="secondary" data-generate>预览生成 MCP 配置</button>` : ''}<button type="button" class="text-button" data-discuss>让 AI 解释接入情况</button>${item.id === 'pi' ? '<a class="text-button" href="#cli">Pi 模型配置</a>' : ''}</div><p>${item.discovered ? '自动识别' : item.custom ? '手动登记' : '内置适配器'} · MCP ${item.mcpMode === 'native' ? '直接管理' : item.mcpMode === 'manual' ? '仅生成片段' : '未接入'}</p>${item.mcpPath ? `<p>用户级 MCP 文件：<code>${esc(item.mcpPath)}</code></p>` : ''}${item.selected ? `<h3>Skills</h3>${item.skills.map(skill => bindingRow(skill, skill.binding, true)).join('') || '<p>主目录暂无 Skill。</p>'}<h3>用户级 MCP</h3>${item.servers?.map(server => `<p><a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">${esc(server.name)}</a> · ${server.enabled ? '启用' : '禁用'}</p>`).join('') || `<p>${item.mcpValid === false ? '配置读取失败，请修复后重新扫描。' : item.mcpMode === 'native' ? '暂无用户级 MCP。可在 MCP 分类新增，选择此软件。' : '尚无已核实的原生 MCP 适配器。'}</p>`}${item.generated ? `<h3>MCP 导出片段</h3><p>${item.generated.current ? '与主配置一致' : '主配置已变化或格式不能生成，请重新核对'}</p><code>${esc(item.generated.path)}</code><p>${esc(item.integration)}</p><pre>${esc(item.generated.content)}</pre>` : `<p>${item.mcpMode === 'unsupported' ? '该软件暂未设置支持的 MCP 配置格式。' : '尚未生成 MCP 适配文件；生成后仍需在客户端接入。'}</p>`}` : '<p>尚未选择接入。选择后才读取和管理此软件的 Skills、MCP；取消接入会保留原有文件和链接。</p>'}`;
     $('.extension-detail').innerHTML = heading + content;
     if (focusDetailOnRender) { focusDetailOnRender = false; focusDetail(); }
-    if (item.kind === 'mcp' && item.lastProbe?.status === 'running') watchProbe(item.lastProbe.id);
+    if (item.kind === 'mcp' && activeProbe(probeOf(item)) && probeWatching !== probeOf(item).id) watchProbe(probeOf(item).id);
   }
   // 复制路径：navigator.clipboard；失败时选中横幅里的路径文字让用户按 ⌘C，两种结果都用 toast（role=status）播报。
   async function copyBannerPath(button) {
@@ -296,7 +339,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     setError(null);
     let plans;
     try { plans = await Promise.all((chained ? entries.slice(0, 1) : entries).map(entry => client.prepare(entry.action))); }   // chained：后一项依赖前一项的结果（撤销多步），只能预览第一项；其余在应用时逐项重新预览
-    catch (error) { setError(error); return; }
+    catch (error) { const mcp = entries.some(entry => entry.action?.type?.startsWith('mcp.')); setError(mcp ? new Error(mcpErrorMessage(error, entries.length === 1 ? entries[0].name || entries[0].label : '')) : error); if (mcp && shouldRefresh(error)) void controller.refresh(true); return; }
     if (!visible) return;
     const root = state?.root || '', tilde = plan => ({ ...plan, impact: (plan.impact || []).map(text => tildeText(text, root)), conflicts: (plan.conflicts || []).map(text => tildeText(text, root)), files: (plan.files || []).map(file => ({ ...file, path: tildePath(file.path, root), ...(file.linkTarget ? { linkTarget: tildePath(file.linkTarget, root) } : {}) })) });
     const conflicts = plans.flatMap((plan, index) => (plan.conflicts || []).map(text => `${entries[index].label}：${tildeText(text, root)}`));
@@ -318,7 +361,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
           if (plans[index] && JSON.stringify(plan.normalizedAction) !== JSON.stringify(plans[index].normalizedAction)) throw new Error('这一项在预览之后发生了变化，请重新预览');
           const result = await controller.submit(plan);
           done.push({ ...entry, action: plan.normalizedAction, result }); mark(index, 'done', '已应用');
-        } catch (error) { failed = { index, error }; mark(index, 'failed', error.message); break; }
+        } catch (error) { const text = entry.action?.type?.startsWith('mcp.') ? mcpErrorMessage(error, entry.name || entry.label) : error.message; failed = { index, error: Object.assign(new Error(text), { status: error.status, code: error.code }) }; mark(index, 'failed', text); if (entry.action?.type?.startsWith('mcp.') && shouldRefresh(error)) void controller.refresh(true); break; }
       }
       for (const item of done) if (item.change) staged.delete(stageKey(item.change));
       batchBusy = false;
@@ -333,7 +376,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   // 暂存的变更 → 预览并应用。
   async function reviewStaged() {
     if (batchBusy || !staged.size || !state) return;
-    const entries = [...staged.values()].map(change => ({ change, action: actionFor(change, state), ...describeChange(change, state), name: state.skills.find(item => item.id === change.id)?.name || '' }));
+    const entries = [...staged.values()].map(change => ({ change, action: actionFor(change, state), ...describeChange(change, state), name: (change.kind === 'mcp' ? state.servers : state.skills).find(item => item.id === change.id)?.name || '' }));
     await openBatch({ title: batchTitle(entries.length), entries });
   }
   const archiveIntro = (action, name) => {
@@ -360,22 +403,102 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
         detailKey = ''; await loadDetail(); dialog.setBusy(false); dialog.close();
         receipt([{ action: plan.normalizedAction, result, name }]);
       }
-      catch (error) { dialog.element.querySelector('[data-dialog-error]').textContent = error.message + '；输入与原请求已保留。'; }
+      catch (error) { dialog.element.querySelector('[data-dialog-error]').textContent = (action.type.startsWith('mcp.') ? mcpErrorMessage(error, name) : error.message) + '；输入与原请求已保留。'; if (action.type.startsWith('mcp.') && shouldRefresh(error)) void controller.refresh(true); }
       finally { dialog.setBusy(false); dialog.element.querySelector('[data-preview-apply]').disabled = false; }
     };
   }
+  // 单个检测的轮询：排队（queued）和运行（running）都要继续轮询；页面隐藏时停下，回来时由 setVisible 接着查。
   function watchProbe(id) {
-    clearTimeout(probeTimer);
+    clearTimeout(probeTimer); probeWatching = id;
     async function poll() {
-      if (!visible) return;
+      if (!visible || probeWatching !== id) return;
+      if (document.hidden) { probeTimer = setTimeout(poll, 2000); return; }
       try {
-        const probe = await client.probe(id), output = selected?.kind==='mcp'&&selected.id===probe.serverId?$('[data-probe-result]'):null;
-        if (output) output.innerHTML = `<p>${probe.configRevision !== selected.revision ? "配置已变化，以下为上次配置的检测结果：" : ""}${esc(probe.message)}${probe.toolCount !== null ? ' 工具数：' + probe.toolCount : ''}</p>${probe.status === 'running' ? '<button type="button" class="text-button" data-cancel-probe>取消检测</button>' : ''}`;
-        output?.querySelector('[data-cancel-probe]')?.addEventListener('click', () => void client.cancelProbe(id).then(poll).catch(setError));
-        if (probe.status === 'running') probeTimer = setTimeout(poll, 500);
-      } catch (error) { setError(error); }
+        const probe = await client.probe(id), before = liveProbes.get(probe.serverId);
+        liveProbes.set(probe.serverId, probe);
+        if (probe.status !== before?.status || probe.id !== before?.id) renderList();
+        if (selected?.kind === 'mcp' && selected.id === probe.serverId) { const output = $('[data-probe-result]'), markup = probeCardMarkup(selected); if (output && output.innerHTML !== markup) output.innerHTML = markup; if (!activeProbe(probe)) renderDetail({ keepFocus: true }); }
+        if (activeProbe(probe)) probeTimer = setTimeout(poll, probe.status === 'queued' ? 800 : 500);
+        else { probeWatching = null; void controller.refresh(); }
+      } catch (error) { probeWatching = null; setError(error); }
     }
     void poll();
+  }
+  // ---- 检测全部服务（E-12）：对话框确认后 POST /probes；后端最多同时跑 2 个，其余排队；这里逐个轮询、可整体取消 ----
+  function probeAllMarkup(filtered) {
+    if (probeAllRun) return `<div class="extension-probe-all"><span class="extension-probe-progress" aria-hidden="true" data-probe-progress>${esc(probeAllRun.cancelling ? '正在取消…' : progressText(progressOf(probeAllRun.probes.values())))}</span><button type="button" class="secondary" data-cancel-all-probes ${probeAllRun.cancelling ? 'disabled' : ''}>取消全部检测</button></div>`;
+    const plan = probeAllPlan(filtered), ok = plan.targets.length > 0;
+    return `<div class="extension-probe-all"><button type="button" class="secondary" data-probe-all ${ok ? '' : 'disabled aria-describedby="extension-probe-all-hint"'}>检测全部服务</button>${ok ? '' : '<small class="extension-probe-progress" id="extension-probe-all-hint">没有已启用的共享服务可检测</small>'}</div>`;
+  }
+  function announceProbeAll(text) { const live = $('[data-probe-live]'); if (live && live.textContent !== text) live.textContent = text; }
+  function openProbeAll() {
+    if (!state || probeAllRun) return;
+    const plan = probeAllPlan(visibleItems()); if (!plan.targets.length) return;
+    const names = list => list.map(server => `<li><strong>${esc(server.name)}</strong> <code>${esc(commandLine(server))}</code></li>`).join('');
+    const dialog = openShell('检测全部服务', `<p>将逐个启动下面 ${plan.targets.length} 个已启用服务的命令（或连接它们的端点）并读取工具清单。同时最多检测 2 个，其余排队，可以随时取消。${plan.targets.length > PROBE_BATCH_SIZE ? `服务较多，将分 ${chunkIds(plan.targets.map(server => server.id)).length} 批提交（每批最多 ${PROBE_BATCH_SIZE} 个）。` : ''}</p><ul class="extension-probe-list" data-probe-targets>${names(plan.targets)}</ul>${plan.skipped.length ? `<p>不检测（已停用）：${plan.skipped.map(server => esc(server.name)).join('、')}</p>` : ''}${plan.clientLocal ? `<p>另有 ${plan.clientLocal} 个本地配置的服务由对应软件管理，不在这里检测。</p>` : ''}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply>开始检测</button></div>`);
+    dialog.element.querySelector('[data-preview-cancel]').onclick = () => dialog.close();
+    dialog.element.querySelector('[data-preview-apply]').onclick = async () => {
+      dialog.setBusy(true); dialog.element.querySelector('[data-preview-apply]').disabled = true;
+      try {
+        const started = [], skipped = [];
+        for (const [index, ids] of chunkIds(plan.targets.map(server => server.id)).entries()) {   // 后端一次最多 50 个
+          try { const result = await client.probeAll(ids, state.version); started.push(...(result.probes || [])); skipped.push(...(result.skipped || [])); }
+          catch (error) { if (index === 0) throw error; dialog.setBusy(false); dialog.close(); startProbeAll(started, skipped); showToast({ message: `只提交了前 ${started.length + skipped.length} 个服务：${mcpErrorMessage(error)}`, tone: 'warning' }); if (shouldRefresh(error)) void controller.refresh(true); return; }
+        }
+        dialog.setBusy(false); dialog.close();
+        startProbeAll(started, skipped);
+      } catch (error) {
+        dialog.element.querySelector('[data-dialog-error]').textContent = mcpErrorMessage(error) + (error?.status === 409 && !error.code ? '（清单已变化，已刷新，请重新确认）' : '');
+        if (shouldRefresh(error)) void controller.refresh(true);
+        dialog.setBusy(false); dialog.element.querySelector('[data-preview-apply]').disabled = false;
+      }
+    };
+  }
+  function startProbeAll(probes, skipped) {
+    if (!probes.length) { showToast({ message: skipped.length ? `没有可检测的服务（${skipped.length} 个已停用，已跳过）` : '没有可检测的服务', tone: 'info' }); return; }
+    probeAllRun = { probes: new Map(probes.map(probe => [probe.id, probe])), skipped: skipped.length, cancelling: false, lastText: '' };
+    for (const probe of probes) liveProbes.set(probe.serverId, probe);
+    renderList(); setTimeout(() => $('[data-cancel-all-probes]')?.focus(), 0);
+    announceProbeAll(progressText(progressOf(probeAllRun.probes.values()))); pollProbeAll();
+  }
+  function resumeProbeAll(probes) {
+    probeAllRun = { probes: new Map(probes.map(probe => [probe.id, probe])), skipped: 0, cancelling: false, lastText: '' };
+    for (const probe of probes) liveProbes.set(probe.serverId, probe);
+    if (visible) pollProbeAll();
+  }
+  async function pollProbeAll() {
+    clearTimeout(probeAllTimer); const run = probeAllRun; if (!run || !visible) return;
+    if (document.hidden) { probeAllTimer = setTimeout(pollProbeAll, 2000); return; }
+    try {
+      for (const probe of [...run.probes.values()].filter(activeProbe)) {   // 逐个查询，不并发
+        if (probeAllRun !== run || !visible) return;
+        try { const next = await client.probe(probe.id); run.probes.set(probe.id, next); liveProbes.set(next.serverId, next); }
+        catch (error) { if (error?.status === 404) { run.probes.delete(probe.id); liveProbes.delete(probe.serverId); } else throw error; }
+      }
+    } catch (error) { setError(error); finishProbeAll(); return; }
+    const progress = progressOf(run.probes.values()), text = run.cancelling ? '正在取消…' : progressText(progress);
+    renderList();
+    if (text !== run.lastText) { run.lastText = text; announceProbeAll(text); }
+    if (!progress.active) { finishProbeAll(); return; }
+    probeAllTimer = setTimeout(pollProbeAll, 600);
+  }
+  async function finishProbeAll() {
+    const run = probeAllRun; if (!run) return; clearTimeout(probeAllTimer);
+    const progress = progressOf(run.probes.values()), wasFocused = document.activeElement?.hasAttribute?.('data-cancel-all-probes') || document.activeElement === document.body;
+    probeAllRun = null;
+    try { await controller.refresh(); } catch { /* 读取失败会走常规的失败提示 */ }
+    renderList(); if (wasFocused) $('[data-probe-all]')?.focus({ preventScroll: true });
+    const message = finishText(progress) + (run.skipped ? `；${run.skipped} 个已停用，已跳过` : ''); announceProbeAll(message); showToast({ message, tone: progress.failed ? 'warning' : 'success' });
+  }
+  async function cancelProbeAll() {
+    const run = probeAllRun; if (!run || run.cancelling) return; run.cancelling = true; renderList();
+    for (const probe of [...run.probes.values()].filter(activeProbe)) { try { await client.cancelProbe(probe.id); } catch (error) { if (![404, 409].includes(error?.status)) { setError(error); break; } } }
+    pollProbeAll();
+  }
+  async function cancelOneProbe(id) {
+    try { await client.cancelProbe(id); } catch (error) { setError(error); if (shouldRefresh(error)) void controller.refresh(); }
+    if (probeWatching === id) { clearTimeout(probeTimer); probeTimer = setTimeout(() => watchProbe(id), 0); }
+    else if (liveProbes.size) void client.probe(id).then(probe => { liveProbes.set(probe.serverId, probe); renderList(); }).catch(() => {});
   }
   function edit(create = false) {
     const item = create ? null : selected, isMcp = create ? route.tab === 'mcp' : item.kind === 'mcp', isClient = create ? route.tab === 'clients' : item.kind === 'client', key = create ? 'new:' + route.tab : item.id + ':' + (item.file || ''), draft = controller.drafts.get(key);
@@ -496,6 +619,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (!value.loading) clearTimeout(loadStripTimer);
     loadView = { loading: !!value.loading, cancellable: !!value.cancellable, cancelled: !!value.cancelled };
     state = value.snapshot; readFailure = value.failure; setError(value.failure); setRefreshState($('[data-extension-refresh]'), { loading: value.loading }); renderClientFilter();
+    if (state && liveProbes.size) for (const [id, live] of liveProbes) { const server = state.servers.find(item => item.id === id); if (!server || (finishedProbe(live) && server.lastProbe?.id === live.id)) liveProbes.delete(id); }   // 整页刷新带回了同一个检测的最终结果，覆盖层让位
+    if (state && !probeAllRun) { const resumed = resumablePlan(state.servers); if (resumed.length) resumeProbeAll(resumed); }   // 刷新 / 重新打开页面后，后端还在排队 / 检测的服务继续显示进度
     if (state && staged.size) { const { staged: kept } = pruneStaged(staged, state); if (kept !== staged) staged = kept; }   // pruneStaged 返回 { staged, dropped }，不是 Map
     renderList(); renderBar(); renderLoadStrip(); renderCancelled();
     if (loadView.cancelled && !wasCancelled && visible) {   // 焦点回到读取前的位置（取消按钮已经消失）
@@ -543,7 +668,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       void loadDetail().then(() => { if (visible && route.id === id) $('#extension-file-select .select-trigger')?.focus(); });
     }
     else if (event.target.matches('input[data-cli-selection]')) void toggleClientSelection(event.target);
-    else if (event.target.matches('[data-binding-toggle], [data-master-toggle]')) stageToggle(event.target);
+    else if (event.target.matches('[data-binding-toggle], [data-master-toggle], [data-mcp-switch]')) stageToggle(event.target);
   });
   element.addEventListener('click', async event => {
     const button = event.target.closest('button'); if (!button) return;
@@ -572,6 +697,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.hasAttribute('data-mcp-toggle')) await preview({ type: 'mcp.toggle', id: selected.id, enabled: !selected.enabled });
       else if (button.hasAttribute('data-generate')) await preview({ type: 'mcp.generate', clientId: selected.id });
       else if (button.hasAttribute('data-probe')) await preview({ type: 'mcp.probe', id: selected.id });
+      else if (button.hasAttribute('data-probe-all')) openProbeAll();
+      else if (button.hasAttribute('data-cancel-all-probes')) await cancelProbeAll();
+      else if (button.hasAttribute('data-cancel-probe')) await cancelOneProbe(button.dataset.probeId);
       else if (button.dataset.restoreOperation) await preview({ type: 'operation.restore', operationId: button.dataset.restoreOperation });
       else if (button.hasAttribute('data-retry-submission')) { button.disabled = true; await controller.retry(); }
       else if (button.hasAttribute('data-clear-submission')) controller.clearSubmission();
@@ -579,7 +707,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     } catch (error) { setError(error); } finally { button.disabled = false; }
   });
   renderTabs();
-  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { document.removeEventListener('keydown', onFind); clearTimeout(detailTimer); unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); element.remove(); } };
+  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { if (!probeAllRun) liveProbes.clear(); probeWatching = null; clearTimeout(probeAllTimer); detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); if (probeAllRun) void pollProbeAll(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { document.removeEventListener('keydown', onFind); clearTimeout(detailTimer); unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); clearTimeout(probeAllTimer); element.remove(); } };
 }
 
 // 字段旁错误/警告（0.7 PR-1）：并入本文件以免新增静态资源（新文件需登记 core/web-assets.json，属打包相关）

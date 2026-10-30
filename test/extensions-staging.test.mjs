@@ -132,3 +132,38 @@ test('multi-step undo is chained: only the first restore is previewed up front (
   assert.match(source, /confirmLabel: '撤销变更', chained: true/);
   assert.match(source, /plans\[index\] && JSON\.stringify\(plan\.normalizedAction\)/);
 });
+
+// ---- 0.7 PR-7：共享 MCP 行开关也走暂存 ----
+const mcpState = { ...state, servers: [
+  { id: 'gh', name: 'GitHub', scope: 'shared', enabled: true },
+  { id: 'off', name: 'Old', scope: 'shared', enabled: false },
+  { id: 'loc', name: 'Local', scope: 'client', enabled: true },
+  { id: 'a', name: 'same-id-as-skill', scope: 'shared', enabled: true },
+] };
+const mcp = (id, want) => ({ kind: 'mcp', id, want });
+test('mcp switch: stage, toggle back removes, same value as actual is never staged', () => {
+  let staged = stageChange(new Map(), mcp('gh', false), mcpState);
+  assert.deepEqual([...staged.keys()], ['mcp:gh']); assert.equal(stagedValue(staged, mcp('gh'), true), false);
+  assert.equal(stageChange(staged, mcp('gh', true), mcpState).size, 0);
+  assert.equal(stageChange(new Map(), mcp('gh', true), mcpState).size, 0);
+  assert.equal(stageChange(new Map(), mcp('loc', false), mcpState).size, 0, '客户端本地服务没有行开关');
+  assert.equal(stageChange(new Map(), mcp('ghost', false), mcpState).size, 0);
+});
+test('mcp switch: action, description and toast', () => {
+  assert.deepEqual(actionFor(mcp('gh', false), mcpState), { type: 'mcp.toggle', id: 'gh', enabled: false });
+  assert.deepEqual(actionFor(mcp('off', true), mcpState), { type: 'mcp.toggle', id: 'off', enabled: true });
+  assert.deepEqual(describeChange(mcp('gh', false), mcpState), { tag: '停用', label: 'GitHub' });
+  assert.deepEqual(describeChange(mcp('off', true), mcpState), { tag: '启用', label: 'Old' });
+  assert.deepEqual(describeChange(mcp('zzz', true), mcpState), { tag: '启用', label: 'zzz' });
+  assert.equal(appliedMessage({ type: 'mcp.toggle', enabled: true }, 'GitHub'), '已启用「GitHub」');
+  assert.equal(appliedMessage({ type: 'mcp.toggle', enabled: false }, 'GitHub'), '已停用「GitHub」');
+  assert.equal(undoable({ type: 'mcp.toggle' }, { operationId: 'op' }), true);
+});
+test('mcp switch: pruning removes applied / vanished / no-longer-switchable entries; an mcp id equal to a skill id does not interfere with skill staging', () => {
+  const staged = new Map([['mcp:gh', mcp('gh', false)], ['mcp:off', mcp('off', false)], ['mcp:ghost', mcp('ghost', false)], ['mcp:loc', mcp('loc', false)]]);
+  const { staged: next, dropped } = pruneStaged(staged, mcpState);
+  assert.deepEqual([...next.keys()], ['mcp:gh']); assert.equal(dropped, 3);
+  const mixed = new Map([['mcp:a', mcp('a', false)]]);
+  assert.equal(stagedKindFor(mixed, 'a'), null, 'MCP 暂存不占用同名 Skill');
+  assert.equal(stageKey({ kind: 'skill', id: 'a' }) !== stageKey(mcp('a')), true);
+});

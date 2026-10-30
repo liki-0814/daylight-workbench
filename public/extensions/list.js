@@ -6,7 +6,7 @@ import { escapeButtonText as esc } from '../components/button.js';
 
 export const columnTitles = {
   skills: ['名称与用途', '启用', '接入软件'],
-  mcp: ['名称与 ID', '传输', '状态'],
+  mcp: ['名称与 ID', '传输', '启用', '状态'],
   clients: ['名称与说明', '接入'],
 };
 export const emptyCopy = {
@@ -39,12 +39,12 @@ export function tableHeader(tab) {
   return `<div class="extension-table-head" role="row">${(columnTitles[tab] || columnTitles.skills).map(title => `<span role="columnheader">${esc(title)}</span>`).join('')}</div>`;
 }
 // 一行。statusCells 是已经拼好的 HTML 数组（skills 一个格：开关组；mcp 两格：传输 + 状态；clients 一格），由 page.js 提供，
-// 因为开关/chip 的转义与属性都在组件里。
-export function rowMarkup({ tab, item, active, query = '', summary = '', sourceText = '', statusCells = [], tabindex = null }) {
+// 因为开关/chip 的转义与属性都在组件里。MCP 行的 summary 是命令/URL 一行（等宽，summaryClass）。
+export function rowMarkup({ tab, item, active, query = '', summary = '', summaryClass = '', sourceText = '', statusCells = [], tabindex = null }) {
   const attrs = (active ? ' aria-current="true"' : '') + (tabindex === null ? '' : ` tabindex="${tabindex}"`);
   const idLine = tab === 'mcp' ? `<code class="extension-row-id">${highlight(item.id, query)}</code>` : '';
   const source = tab !== 'clients' && sourceText ? `<small>${highlight(sourceText, query)}</small>` : '';
-  return `<div class="extension-row ${active ? 'selected' : ''}" role="row"><span role="cell" class="extension-row-main"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}"${attrs}><span class="extension-row-copy"><strong>${highlight(item.name, query)}</strong>${idLine}<span>${highlight(summary, query)}</span>${source}</span></button></span>${statusCells.map((cell, index) => `<span role="cell" class="extension-row-status extension-row-cell-${index}">${cell}</span>`).join('')}</div>`;
+  return `<div class="extension-row ${active ? 'selected' : ''}" role="row"><span role="cell" class="extension-row-main"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}"${attrs}><span class="extension-row-copy"><strong>${highlight(item.name, query)}</strong>${idLine}<span${summaryClass ? ` class="${esc(summaryClass)}"` : ''}>${highlight(summary, query)}</span>${source}</span></button></span>${statusCells.map((cell, index) => `<span role="cell" class="extension-row-status extension-row-cell-${index}">${cell}</span>`).join('')}</div>`;
 }
 
 // 骨架：只在加载超过 300ms 才渲染（页面决定何时调用）；装饰性，对读屏隐藏。

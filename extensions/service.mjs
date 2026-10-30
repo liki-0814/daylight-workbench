@@ -6,7 +6,10 @@ import { body, send } from '../ai/http.mjs';
 import { error, fieldError, hash, stat, within, safePath, snapshot, fileSnapshot, readText } from './files.mjs';
 import { metadata, skillId, skillFile } from './skill-files.mjs';
 import { setSkillState } from './skill-state.mjs';
-import { normalizeServer, serverWarnings } from './mcp-server.mjs';
+import { readSkillFolder } from './skill-import.mjs';
+import { parseMcpJson } from './mcp-import.mjs';
+import { configDocument } from './config-document.mjs';
+import { normalizeServer, serverWarnings, privateEnvironmentNames } from './mcp-server.mjs';
 import { renderMcpConfig } from './mcp-config.mjs';
 import { changeClientMcp } from './client-mcp.mjs';
 import { createProbes } from './mcp-probes.mjs';
@@ -16,7 +19,7 @@ import { createTransactions } from './transactions.mjs';
 
 const json = value => canonicalJSON(value, 2) + '\n';
 const fields = {
-  'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'], 'skill.disable': ['type', 'id'], 'skill.enable': ['type', 'id', 'clientIds'],
+  'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'], 'skill.disable': ['type', 'id'], 'skill.enable': ['type', 'id', 'clientIds'], 'skill.import': ['type', 'sourcePath', 'scope', 'clientId'], 'mcp.importJson': ['type', 'json', 'scope', 'clientId'],
   'mcp.save': ['type', 'server', 'clientId', 'create'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
   'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
   'client.save': ['type', 'client'], 'client.remove': ['type', 'clientId'], 'client.select': ['type', 'clientId', 'selected'],
@@ -41,13 +44,22 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   };
   const transactions = createTransactions({ root, assertTarget, fault });
   const probeReport = server => { const value = probes.latest(server.id); return value ? { ...value, stale: value.configRevision !== server.revision } : null; };
-  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), lastProbe: probeReport(server) })) }; };
+  // Reference table for the UI: names only. The value of a variable is never read into any response.
+  const refStatus = server => [...Object.entries(server.envRefs || {}).map(([key, ref]) => ['env', key, ref]), ...Object.entries(server.headerRefs || {}).map(([key, ref]) => ['header', key, ref])].map(([kind, key, ref]) => ({ kind, key, ref, set: !!environment[ref], internal: privateEnvironmentNames.includes(ref) || privateEnvironmentNames.includes(key) }));
+  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
   // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
   const missingMessage = kind => kind === 'mcp' ? 'MCP 服务已归档、被移除或配置已变化，请返回清单重新选择' : kind === 'client' ? '软件未登记或已移除，请返回清单重新选择' : kind === 'skill' ? 'Skill 已归档、移动或不存在，请返回清单重新选择' : '该对象已归档、移动或不存在，请返回清单重新选择';
   const absent = (id, kind) => Object.assign(error(missingMessage(kind || (/^skill_/.test(id) ? 'skill' : undefined)), 404, 'EXTENSIONS_OBJECT_MISSING'), { kind: kind || (/^skill_/.test(id) ? 'skill' : null) });
   const getSkill = (state, id, kind) => { const skill = state.skills.find(item => item.id === id); if (!skill) throw absent(id, kind || 'skill'); return skill; };
   const getServer = (state, id) => { const server = state.servers.find(item => item.id === id); if (!server) throw error('MCP 服务已归档或不存在', 404, 'EXTENSIONS_OBJECT_MISSING'); if (server.scope === 'client') throw error('软件本地 MCP 的检测请在对应 CLI 中执行；管理配置不会启动服务'); const { kind, revision, dependencies, scope, ...config } = server; return config; };
   const getClient = (state, id, requireSelected = true) => { if (!state.clientsValid) throw error(state.diagnostics.find(issue => issue.code === 'CLIENTS_FORMAT')?.message || 'CLI 登记文件无效', 409); const client = state.registry.find(item => item.id === id || item.registrationId === id); if (!client) throw error('软件未登记或已移除', 404, 'EXTENSIONS_OBJECT_MISSING'); if (requireSelected && !client.selected) throw error('请先在接入软件中选择此 CLI，再管理其 Skills 或 MCP', 409, 'EXTENSIONS_CLIENT_NOT_SELECTED'); return client; };
+  // Shared scope/clientId validation for the import actions. Returns the selected client for scope 'client', else null.
+  const importTarget = (state, action) => {
+    if (!['shared', 'client'].includes(action.scope)) throw fieldError('scope 需要是 shared 或 client。', 'scope');
+    if (action.scope === 'shared') { if (action.clientId !== undefined) throw fieldError('导入到共享来源时不需要 clientId。', 'clientId'); return null; }
+    if (typeof action.clientId !== 'string' || !action.clientId) throw fieldError('导入到软件需要选择 clientId。', 'clientId');
+    return getClient(state, action.clientId);
+  };
   const generatedPath = client => path.join(root, 'mcp', 'generated', client.id, 'servers.' + (client.format === 'toml' ? 'toml' : 'json'));
   async function detail(id, file, kind) {
     const state = await catalog.state();
@@ -59,7 +71,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       return { kind: 'client', ...state.clients.find(item => item.id === id), version: state.version, servers: state.servers.filter(server => server.clientId === id), skills: state.skills.map(skill => ({ id: skill.id, name: skill.name, binding: skill.bindings.find(binding => binding.clientId === id) })), generated: generated === null ? null : { path: generatedPath(client), content: generated, current }, integration: client.mcp ? '可直接管理该软件的用户级 MCP。生成片段仅供导出；项目、插件与兼容来源须在 CLI 中核对。' : '此 CLI 尚无已核实的 MCP 适配器；生成片段需自行接入。' };
     }
     const server = state.servers.find(item => item.id === id);
-    if (server) return { ...server, version: state.version, runtimeVerified: false, lastProbe: probeReport(server) };
+    if (server) return { ...server, version: state.version, runtimeVerified: false, refStatus: refStatus(server), lastProbe: probeReport(server) };
     const skill = state.skills.find(item => item.id === id);
     if (!skill) throw absent(id, kind);
     if (skill.readOnly) return { ...skill, version: state.version, files: [], content: null, file: null };
@@ -124,6 +136,43 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       if (await stat(directory)) conflicts.push('主目录已存在同名内容，不能覆盖');
       await add(path.join(directory, 'SKILL.md'), fileSnapshot(action.content)); changedIds.push(skillId(client ? [client.id, directory] : action.directory));
       impact.push(client ? '保存到 ' + client.name + ' 的本地 Skills 目录；刷新 CLI 后读取。' : '保存到共享来源；在软件勾选框确认后建立对应链接。');
+    } else if (action.type === 'skill.import') {
+      const client = importTarget(state, action);
+      const found = await readSkillFolder(action.sourcePath); action.sourcePath = found.source;
+      if (within(root, found.source) && within(path.join(root, 'daylight'), found.source)) throw fieldError('不能从 Daylight 内部记录目录导入。', 'sourcePath');
+      if (within(found.source, root)) throw fieldError('不能导入包含 ~/.agents 管理目录的文件夹。请选择单个 Skill 的文件夹。', 'sourcePath');
+      const base = client ? client.skillsRoot : path.join(root, 'skills'), directory = path.join(base, found.name);
+      await safePath(client ? client.root : root, directory);
+      if (within(found.source, directory)) throw fieldError('导入来源包含目标位置，请选择单个 Skill 的文件夹。', 'sourcePath');
+      if (await stat(directory)) conflicts.push('已存在同名 Skill（' + found.name + '），导入不会覆盖：' + directory + '。请先归档现有 Skill，或改用其他文件夹名称。');
+      await add(directory, found.tree); changedIds.push(skillId(client ? [client.id, directory] : found.name));
+      impact.push('复制 ' + found.files.length + ' 个文件（' + Math.ceil(found.bytes / 1024) + ' KB）到 ' + directory + '；来源文件夹不会被修改。' + (path.basename(found.source) !== found.name ? '目录名使用 SKILL.md 中的 name：' + found.name + '。' : ''));
+      impact.push('文件：' + found.files.slice(0, 20).join('、') + (found.files.length > 20 ? ' 等 ' + found.files.length + ' 个' : ''));
+      if (found.ignored.length) impact.push('已忽略隐藏文件和 node_modules：' + found.ignored.slice(0, 10).join('、') + (found.ignored.length > 10 ? ' 等' : ''));
+      impact.push(client ? '保存到 ' + client.name + ' 的本地 Skills 目录；刷新 CLI 后读取。' : '保存到共享来源；导入后在软件勾选框确认才会建立链接。');
+    } else if (action.type === 'mcp.importJson') {
+      const client = importTarget(state, action), parsed = parseMcpJson(action.json, { nativeKey: !!client });
+      for (const server of parsed) for (const warning of serverWarnings(server)) warnings.push({ ...warning, message: '「' + server.id + '」' + warning.message });
+      let added = [];
+      if (!client) {
+        if (!state.mcpValid) throw error('请先修复 MCP 主文件；管理操作不会覆盖格式错误的配置', 409);
+        const servers = state.servers.filter(server => server.scope !== 'client').map(({ kind, revision, dependencies, scope, ...config }) => config);
+        for (const server of parsed) { if (servers.some(item => item.id === server.id)) conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，导入不会覆盖。请改名后导入，或先编辑现有服务。'); else { servers.push(server); added.push(server); } }
+        if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
+        if (added.length) { const next = json({ schemaVersion: 1, servers }); if (Buffer.byteLength(next) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数'); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(next)); }
+        impact.push('将新增 ' + added.length + ' 个 MCP 服务到主配置，不启动服务；已有 ID 不会被覆盖。');
+      } else {
+        const document = state.clientDocuments.find(item => item.clientId === client.id);
+        let current = document;
+        for (const server of parsed) {
+          if (current.servers.some(item => item.serverKey === server.id) || current.data?.[client.mcp?.section]?.[server.id]) { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，导入不会覆盖。请改名后导入，或先编辑现有服务。'); continue; }
+          const content = changeClientMcp(client, current, { type: 'save', server, key: server.id });
+          current = { ...current, raw: content, data: configDocument(content, client.mcp.format).data, servers: [...current.servers, { serverKey: server.id }] }; added.push(server);
+        }
+        if (added.length) { await add(client.mcpPath, fileSnapshot(current.raw)); }
+        impact.push('将新增 ' + added.length + ' 个 MCP 服务到 ' + client.name + ' 的用户级配置，只改对应字段；不启动服务。' + client.refresh);
+      }
+      for (const server of added) changedIds.push(client ? 'mcp_' + hash([client.id, server.id]).slice(0, 24) : server.id);
     } else if (action.type.startsWith('skill.')) {
       const skill = getSkill(state, action.id); changedIds.push(skill.id);
       if (!skill.readOnly) await safePath(skill.scope === 'client' ? getClient(state, skill.clientId).skillsRoot : root, skill.sourcePath);
@@ -232,7 +281,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         await add(clientsFile(root), fileSnapshot(json({ schemaVersion: 1, clients: profiles.filter(profile => profile.id !== action.clientId), selectedClients }))); changedIds.push(client.id);
         impact.push('仅移除 ' + client.name + ' 的登记；CLI 程序、主来源、软件目录和未接管的链接保留。');
       }
-    } else if (action.type === 'mcp.install' || action.type === 'mcp.toggle' || action.type === 'mcp.save' && action.clientId || action.type === 'mcp.archive' && state.servers.find(server => server.id === action.id)?.scope === 'client') {
+    } else if (action.type === 'mcp.install' || action.type === 'mcp.toggle' && state.servers.find(server => server.id === action.id)?.scope === 'client' || action.type === 'mcp.save' && action.clientId || action.type === 'mcp.archive' && state.servers.find(server => server.id === action.id)?.scope === 'client') {
       const item = action.id ? state.servers.find(server => server.id === action.id) : null;
       if (action.id && !item) throw error('MCP 服务不存在', 404);
       const client = getClient(state, action.clientId || item.clientId), document = state.clientDocuments.find(document => document.clientId === client.id);
@@ -294,6 +343,14 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         await add(archive, fileSnapshot(json(server))); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(json({ schemaVersion: 1, servers: servers.filter(item => item.id !== action.id) })));
         changedIds.push(server.id); impact.push('归档 MCP 主配置，已经运行的外部客户端不会立即断连。');
         for (const skill of state.skills.filter(item => item.dependencies?.includes(server.id))) impact.push('已声明依赖的 Skill：' + skill.name + '（不会删除）。');
+      } else if (action.type === 'mcp.toggle') {
+        if (typeof action.enabled !== 'boolean') throw fieldError('启停需要明确布尔值', 'enabled');
+        const index = servers.findIndex(server => server.id === action.id); if (index === -1) throw error('MCP 服务不存在', 404, 'EXTENSIONS_OBJECT_MISSING');
+        if (servers[index].enabled === action.enabled) throw error(action.enabled ? '该服务已经是启用状态，请刷新后查看' : '该服务已经是停用状态，请刷新后查看', 409, action.enabled ? 'EXTENSIONS_ALREADY_ENABLED' : 'EXTENSIONS_ALREADY_DISABLED');
+        servers[index] = { ...servers[index], enabled: action.enabled };
+        await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(json({ schemaVersion: 1, servers }))); changedIds.push(action.id);
+        impact.push((action.enabled ? '启用 ' : '停用 ') + servers[index].name + '：仅修改 MCP 主配置，不启动服务；已生成或已接入软件的配置需重新生成/接入后才会变化。' + (action.enabled ? '' : '正在进行的检测会取消，停用期间不能检测。'));
+        for (const skill of state.skills.filter(item => item.dependencies?.includes(action.id))) impact.push('已声明依赖的 Skill：' + skill.name + '（不会修改）。');
       } else if (action.type === 'mcp.generate') {
         const client = getClient(state, action.clientId); await add(generatedPath(client), fileSnapshot(renderMcpConfig(client, servers)));
         impact.push('为 ' + client.name + ' 生成独立适配文件；需在客户端接入，不修改全局配置。');
@@ -337,12 +394,17 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       else if (route.startsWith('/objects/')) value = await detail(route.slice('/objects/'.length), url.searchParams.get('file') || undefined, ['skill', 'mcp', 'client'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : undefined);
       else if (route.startsWith('/operations/')) value = await transactions.receipt(route.slice('/operations/'.length));
       else if (route === '/probes') {
-        if (Object.keys(input).some(key => !['id', 'expectedVersion'].includes(key))) throw error('检测只接受 id 和 expectedVersion');
+        if (Object.keys(input).some(key => !['id', 'ids', 'expectedVersion'].includes(key))) throw error('检测只接受 id（或 ids）和 expectedVersion');
         const state = await catalog.state(true); if (state.version !== input.expectedVersion) throw error('配置已变化，请刷新后重新确认检测', 409);
-        const server = getServer(state, input.id); if (!server.enabled) throw error('服务已禁用'); value = probes.start(server);
+        if (input.ids !== undefined) {
+          // "Test all": one explicit confirmation for a visible list. At most two connections run at once, the rest wait in a queue.
+          if (input.id !== undefined || !Array.isArray(input.ids) || !input.ids.length || input.ids.length > 50 || new Set(input.ids).size !== input.ids.length || input.ids.some(id => typeof id !== 'string')) throw fieldError('ids 需为 1–50 个不重复的服务 ID', 'ids');
+          const targets = input.ids.map(id => getServer(state, id)), skipped = targets.filter(server => !server.enabled).map(server => ({ id: server.id, reason: 'disabled' }));
+          value = { probes: targets.filter(server => server.enabled).map(server => probes.start(server, undefined, { queue: true })), skipped };
+        } else { const server = getServer(state, input.id); if (!server.enabled) throw error('服务已禁用'); value = probes.start(server); }
       } else value = req.method === 'DELETE' ? await probes.cancel(route.slice('/probes/'.length)) : probes.get(route.slice('/probes/'.length));
       send(res, 200, value);
-    } catch (failure) { send(res, failure.status || 500, { error: failure.status ? failure.message : '扩展操作失败，请核对回执后用原请求重试', code: failure.code || 'EXTENSIONS_IO', ...(failure.status && failure.field ? { field: failure.field } : {}), ...(failure.status && failure.kind ? { kind: failure.kind } : {}) }); }
+    } catch (failure) { send(res, failure.status || 500, { error: failure.status ? failure.message : '扩展操作失败，请核对回执后用原请求重试', code: failure.code || 'EXTENSIONS_IO', ...(failure.status && failure.field ? { field: failure.field } : {}), ...(failure.status && Number.isInteger(failure.line) ? { line: failure.line, column: failure.column } : {}), ...(failure.status && failure.kind ? { kind: failure.kind } : {}) }); }
   }
   return { handle, state: async force => publicState(await catalog.state(force)), detail, prepare: async action => publicPlan(await prepare(action)), apply, operation: transactions.receipt, probes, close: probes.close };
 }

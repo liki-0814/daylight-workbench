@@ -67,7 +67,7 @@
 .extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .extension-table { --cols: minmax(0, 1fr) minmax(120px, 48%); }
 .extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 104px minmax(120px, 36%); }
-.extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 72px 200px; }
+.extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 64px 104px 176px; }
 .extension-table[data-tab=clients] { --cols: minmax(0, 1fr) 160px; }
 .extension-table-head, .extension-row { display: grid; grid-template-columns: var(--cols); column-gap: var(--space-4); align-items: center; padding-inline: var(--space-3); }
 .extension-table-head { min-height: 28px; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); border-bottom: 1px solid var(--line); }
@@ -76,6 +76,9 @@
 .extension-row.selected, .extension-row.selected:hover { background: var(--fill-selected); }
 /* 中性 chip 的底色是半透明灰，叠在选中行底色上对比度只有 4.32:1；选中行里的中性 chip 改用主文字色（对比度巡检 ext-mcp-inspector 发现）。 */
 .extension-row.selected .ui-chip:not(.ui-chip-success):not(.ui-chip-warning):not(.ui-chip-danger):not(.ui-chip-accent) { color: var(--text); }
+/* 选中 / 悬停行的底色会把半透明的 danger / info 底色压暗，药丸文字对比度跌到 <4.5（4.06 / 4.23 / 4.45）：行内这两种药丸改成白底 + 同样的色调（对比度巡检 ext7-probe-ok / ext7-probe-fail / ext7-probe-all-progress） */
+.extension-row .ui-chip-danger { background: linear-gradient(var(--danger-bg), var(--danger-bg)) #fff; }
+.extension-row .ui-chip-accent { background: linear-gradient(var(--info-bg), var(--info-bg)) #fff; }
 .extension-row-main { min-width: 0; align-self: stretch; display: flex; }
 .extension-row-open { display: flex; flex: 1; min-width: 0; min-height: 56px; align-items: center; text-align: left; background: transparent; border: 0; padding: var(--space-2) 0; color: var(--ink); font: inherit; cursor: pointer; border-radius: 6px; }
 .extension-row-open:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
@@ -141,3 +144,34 @@
 .extension-batch-detail { margin: var(--space-2) 0; }
 .extension-batch-summary:empty { display: none; }
 .extension-batch-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+
+/* 0.7 PR-7：MCP 行（命令行 / 启用开关 / 状态 + 引用徽标）、检测结果卡片、引用表（E-12/E-20/E-23） */
+.extension-row-command { display: block; font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.extension-row-copy > .extension-row-command:empty { display: none; }
+.extension-mcp-switch { margin: var(--space-2) 0 var(--space-3); }
+.extension-probe-hint { margin: var(--space-1) 0 var(--space-2); color: var(--text-secondary, var(--muted)); }
+.extension-probe-card { display: grid; gap: var(--space-2); margin: var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.extension-probe-card p { margin: 0; }
+.extension-probe-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.extension-probe-card-head small { color: var(--text-secondary, var(--muted)); }
+.extension-probe-tools ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); }
+.extension-probe-advice strong { color: var(--ink); }
+.extension-refs { margin: var(--space-3) 0; }
+.extension-refs h3 { margin: 0 0 var(--space-2); font-size: var(--font-section-size); }
+.extension-ref-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--font-caption-size); }
+.extension-ref-table th { text-align: left; font-weight: 600; color: var(--text-secondary, var(--muted)); padding: var(--space-1) var(--space-2) var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.extension-ref-table td { padding: var(--space-2) var(--space-2) var(--space-2) 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.extension-ref-table td:last-child { display: grid; gap: var(--space-1); justify-items: start; }
+.extension-ref-table th:nth-child(1) { width: 38%; } .extension-ref-table th:nth-child(2) { width: 27%; }
+.extension-ref-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); }
+.extension-probe-all { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.extension-probe-progress { color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+@container (max-width: 560px) { .extension-table[data-tab=mcp] .extension-row { row-gap: var(--space-1); } }
+.extension-probe-all { margin-left: auto; }
+/* 「检测全部服务」按钮（36px）比 h2 行高，会让 MCP 页的清单标题比另外两个分类高 18px，三个分类共享的布局锚点（LAY-溢出+锚点）就移位了：用负的块方向外边距把它的占位收回到标题行高内，点击区域仍是 36px */
+.extension-list-heading > .extension-probe-all { margin-block: -9px; }
+.extension-probe-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; max-height: 240px; overflow: auto; display: grid; gap: var(--space-2); }
+.extension-probe-list li { overflow-wrap: anywhere; }
+.extension-probe-list code { display: block; color: var(--text-secondary, var(--muted)); }
+/* MCP 行：名称单行省略（完整名称在检查器里，DOM 里仍是全文），长名字不把行撑到 90px 以上（R13） */
+.extension-table[data-tab=mcp] .extension-row-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

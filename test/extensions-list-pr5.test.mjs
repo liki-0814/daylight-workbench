@@ -31,7 +31,7 @@ test('a row keeps the selectors the suites rely on and puts the mono id in MCP r
   assert.doesNotMatch(skill, /extension-row-id|aria-current/); assert.match(skill, /class="extension-row "/);
 });
 test('table headers: one column title per cell, per tab', () => {
-  for (const [tab, cells] of [['skills', 3], ['mcp', 3], ['clients', 2]]) assert.equal((tableHeader(tab).match(/role="columnheader"/g) || []).length, cells, tab);
+  for (const [tab, cells] of [['skills', 3], ['mcp', 4], ['clients', 2]]) assert.equal((tableHeader(tab).match(/role="columnheader"/g) || []).length, cells, tab);
 });
 test('loading: text stays in the DOM, skeleton only after 300ms, text visible only after 1s', () => {
   assert.doesNotMatch(loadingState({ elapsed: 0 }), /extension-skeleton/); assert.match(loadingState({ elapsed: 0 }), /extension-visually-hidden[^>]*>正在读取扩展来源/);

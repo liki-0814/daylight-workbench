@@ -2,10 +2,13 @@
 // 暂存 = 开关只记下“想要的值”，不弹窗、不请求；底部栏出现后，一次预览覆盖所有暂存项（方案 §4.1，E-09 / E-10）。
 //   总开关：{ kind: 'skill', id, want }            → skill.enable / skill.disable
 //   接入开关：{ kind: 'binding', id, clientId, want } → binding.connect / binding.disconnect
+//   MCP 开关：{ kind: 'mcp', id, want }               → mcp.toggle（0.7 PR-7；只改 enabled，不启动也不停止服务）
 // 后端没有批量动作，所以“应用”由 page.js 逐项提交（见计划 §3.1）；这里只负责数据与文案。
 
+import { hasMcpSwitch } from './mcp.js';
+
 export const connectedState = state => ['managed', 'existing'].includes(state);
-export const stageKey = change => change.kind === 'skill' ? `skill:${change.id}` : `binding:${change.id}:${change.clientId}`;
+export const stageKey = change => change.kind === 'skill' ? `skill:${change.id}` : change.kind === 'mcp' ? `mcp:${change.id}` : `binding:${change.id}:${change.clientId}`;
 
 // 只有共享来源且非只读的 Skill 才有总开关（契约 B：其余行 enabled 恒为 true、不可停用）。后端没有 enabled 字段（旧服务）也不显示。
 export const hasMasterSwitch = skill => !!skill && skill.scope === 'shared' && !skill.readOnly && typeof skill.enabled === 'boolean';
@@ -13,6 +16,7 @@ export const skillEnabled = skill => skill?.enabled !== false;   // 缺字段按
 export const rememberedIds = skill => Array.isArray(skill?.rememberedClientIds) ? skill.rememberedClientIds : [];
 
 function actualFor(change, state) {
+  if (change.kind === 'mcp') { const server = state?.servers?.find(item => item.id === change.id); return hasMcpSwitch(server) ? server.enabled : undefined; }
   const skill = state?.skills?.find(item => item.id === change.id);
   if (!skill) return undefined;
   if (change.kind === 'skill') return hasMasterSwitch(skill) ? skillEnabled(skill) : undefined;
@@ -31,7 +35,7 @@ export const stagedValue = (staged, change, fallback) => staged.has(stageKey(cha
 // 同一个 Skill 不能同时暂存总开关和接入变更：返回当前占用的是哪一类（'skill' | 'binding' | null）。
 export function stagedKindFor(staged, skillId) {
   let kind = null;
-  for (const change of staged.values()) if (change.id === skillId) { if (change.kind === 'skill') return 'skill'; kind = 'binding'; }
+  for (const change of staged.values()) if (change.kind !== 'mcp' && change.id === skillId) { if (change.kind === 'skill') return 'skill'; kind = 'binding'; }
   return kind;
 }
 
@@ -47,6 +51,7 @@ export function pruneStaged(staged, state) {
 }
 
 export function actionFor(change, state) {
+  if (change.kind === 'mcp') return { type: 'mcp.toggle', id: change.id, enabled: change.want };
   if (change.kind === 'skill') return { type: change.want ? 'skill.enable' : 'skill.disable', id: change.id };
   const skill = state?.skills?.find(item => item.id === change.id), binding = skill?.bindings?.find(item => item.clientId === change.clientId);
   return { type: change.want ? 'binding.connect' : 'binding.disconnect', id: change.id, clientId: change.clientId, ...(!change.want && binding?.state === 'existing' ? { includeExisting: true } : {}) };
@@ -59,6 +64,7 @@ export const rememberedLabel = (skill, state) => rememberedIds(skill).length ? '
 
 // 预览里一行的人话：{ tag: '接入', label: 'review-code → Codex' }
 export function describeChange(change, state) {
+  if (change.kind === 'mcp') return { tag: change.want ? '启用' : '停用', label: state?.servers?.find(item => item.id === change.id)?.name || change.id };
   const skill = state?.skills?.find(item => item.id === change.id), name = skill?.name || change.id;
   if (change.kind === 'skill') return { tag: change.want ? '启用' : '停用', label: name };
   return { tag: change.want ? '接入' : '取消接入', label: `${name} → ${clientName(state, change.clientId)}` };
@@ -93,6 +99,7 @@ export function appliedMessage(action, name = '') {
     case 'skill.disable': return `已停用${quoted}`;
     case 'binding.connect': return `已接入${quoted}`;
     case 'binding.disconnect': return `已取消接入${quoted}`;
+    case 'mcp.toggle': return `${action.enabled ? '已启用' : '已停用'}${quoted}`;
     case 'mcp.probe': return '已开始检测连接';
     case 'skill.create': case 'skill.update': case 'mcp.save': case 'client.save': return `已保存${quoted}`;
     default: return '变更已应用';
