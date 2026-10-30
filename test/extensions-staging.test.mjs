@@ -119,3 +119,9 @@ test('appliedMessage covers probe and save receipts', () => {
   assert.equal(appliedMessage({ type: 'mcp.probe' }), '已开始检测连接');
   assert.equal(appliedMessage({ type: 'skill.create' }, 'a'), '已保存「a」');
 });
+test('page.js reads pruneStaged as { staged, dropped } (not as a Map) — a Map-style read once replaced the staged Map with that object (staged.has is not a function, caught by e2e ext-pr6-01)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
+  assert.match(source, /const \{ staged: kept \} = pruneStaged\(staged, state\)/);
+  assert.doesNotMatch(source, /const kept = pruneStaged\(/);
+});

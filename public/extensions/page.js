@@ -496,7 +496,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (!value.loading) clearTimeout(loadStripTimer);
     loadView = { loading: !!value.loading, cancellable: !!value.cancellable, cancelled: !!value.cancelled };
     state = value.snapshot; readFailure = value.failure; setError(value.failure); setRefreshState($('[data-extension-refresh]'), { loading: value.loading }); renderClientFilter();
-    if (state && staged.size) { const kept = pruneStaged(staged, state); if (kept.size !== staged.size) staged = kept; }
+    if (state && staged.size) { const { staged: kept } = pruneStaged(staged, state); if (kept !== staged) staged = kept; }   // pruneStaged 返回 { staged, dropped }，不是 Map
     renderList(); renderBar(); renderLoadStrip(); renderCancelled();
     if (loadView.cancelled && !wasCancelled && visible) {   // 焦点回到读取前的位置（取消按钮已经消失）
       const active = document.activeElement;
