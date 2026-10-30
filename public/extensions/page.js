@@ -46,7 +46,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     input.checked = connected;
     const data = { ...input.dataset }, area = input.closest('.extension-list') ? 'list' : 'detail';
     const restore = () => {
-      bindingPreviewing = false; renderList(); if (selected) renderDetail();
+      bindingPreviewing = false; listMarkup = undefined; renderList(); if (selected) renderDetail();   // 预览期间控件被脚本置灰，但清单 HTML 没变；不清缓存会被 renderList 的相同标记早退保留为灰色（E-26）
       if (visible) findBindingControl(data, area)?.focus();
     };
     bindingPreviewing = true; input.disabled = true; setError(null);
@@ -61,7 +61,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const area = control.closest('.extension-list') ? '.extension-list' : '.extension-detail';
     if (control.type === 'checkbox') control.checked = item.selected;
     const restore = () => {
-      selectionPreviewing = false; renderList(); if (selected) renderDetail();
+      selectionPreviewing = false; listMarkup = undefined; renderList(); if (selected) renderDetail();   // 同 toggleBinding：强制重绘以解除脚本置灰（E-26）
       if (visible) [...$(area).querySelectorAll('[data-cli-selection]')].find(input => input.dataset.client === item.id)?.focus();
     };
     selectionPreviewing = true; control.disabled = true;
