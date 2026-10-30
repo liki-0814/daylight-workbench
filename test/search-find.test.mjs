@@ -12,7 +12,8 @@ const input = ({ shown = true, hiddenAncestor = false, disabled = false, name = 
 const scope = inputs => ({ querySelectorAll: () => inputs, querySelector: () => null });
 globalThis.getComputedStyle = () => ({ visibility: 'visible' });
 const events = new Map();
-const fakeWindow = { addEventListener: (name, fn) => events.set(name, fn), removeEventListener: name => events.delete(name) };
+const captures = new Map();
+const fakeWindow = { addEventListener: (name, fn, capture) => { events.set(name, fn); captures.set(name, capture); }, removeEventListener: name => events.delete(name) };
 const { focusVisibleSearchField, installFindListener, findEventName } = await import('../public/components/search-field.js');
 
 test('focuses and selects the first visible search field in DOM order', () => {
@@ -47,6 +48,7 @@ test('the daylight-find listener is installed once, handles the event, and can b
   assert.equal(findEventName, 'daylight-find');
   const remove = installFindListener(fakeWindow);
   assert.equal(events.has('daylight-find'), true);
+  assert.equal(captures.get('daylight-find'), true, 'capture phase on window: also sees events dispatched on document that do not bubble');
   assert.equal(installFindListener(fakeWindow), remove, 'second install is a no-op');
   remove(); assert.equal(events.has('daylight-find'), false);
   assert.equal(installFindListener(fakeWindow) === remove, false, 'can be installed again after removal'); events.clear();

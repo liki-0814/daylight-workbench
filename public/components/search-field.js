@@ -18,9 +18,9 @@ export function mountSearchField(root, { onClear = () => {} } = {}) {
   return { sync, dispose: () => abort.abort() };
 }
 
-// ⌘F（0.7 PR-6）：原生菜单只负责触发——在网页里 window.dispatchEvent(new CustomEvent('daylight-find', { cancelable: true }))；
-// 网页把焦点放到当前页可见的搜索框并全选；没有可见搜索框就什么都不做（dispatchEvent 返回 true，原生侧可据此回退到系统查找）；
-// 处理了则对事件 preventDefault()（dispatchEvent 返回 false）。有打开的对话框时只在对话框里找（背景是 inert）。
+// ⌘F（0.7 PR-6）：原生菜单只负责触发——#38 在主 WKWebView 里执行 window.dispatchEvent(new CustomEvent('daylight-find'))（不可取消、不冒泡）；
+// 网页把焦点放到当前页可见的搜索框并全选；没有可见搜索框就什么都不做。可取消的事件被处理时会 preventDefault()
+// （dispatchEvent 返回 false，没有搜索框则返回 true）；#38 发的不可取消，不依赖返回值。有打开的对话框时只在对话框里找（背景是 inert）。
 export const findEventName = 'daylight-find';
 const searchInputSelector = 'input[type="search"]';   // searchField 组件的输入框，以及模型路由 / CLI 页自带的 type=search 输入框
 const isShown = el => el.isConnected && !el.disabled && !el.closest('[hidden], [inert]') && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
@@ -39,7 +39,7 @@ export function installFindListener(target = globalThis.window) {
   if (!target?.addEventListener) return () => {};
   const key = Symbol.for('daylight.find.installed');
   if (target[key]) return target[key];
-  target.addEventListener(findEventName, onDaylightFind);
+  target.addEventListener(findEventName, onDaylightFind, true);   // 捕获阶段：派发到 document 且不冒泡的事件也收得到；派发到 window 本身同样触发
   const remove = () => { target.removeEventListener(findEventName, onDaylightFind); delete target[key]; };
   target[key] = remove; return remove;
 }
