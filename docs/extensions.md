@@ -57,3 +57,7 @@ npm run dev
 ```
 
 这些变量隔离 Daylight 管理写入，CLI 的认证和原生 Skill 发现继续遵循本机 CLI 自己的目录规则。不要将测试来源中的链接状态作为真实 CLI 已加载的证明。
+
+## Skill 启用与停用
+
+仅共享来源（`~/.agents/skills`）的 Skill 支持。`skill.disable(id)` 移除该 Skill 在所有已接入软件中的链接（Daylight 管理的链接，以及指向主来源的已有正确链接），并把这些接入记入 `~/.agents/daylight/bindings.json` 的 `skillStates`，主来源文件不变。`skill.enable(id, clientIds?)` 按记忆重建链接；目标位置被占用时进入冲突，不覆盖，可用 `clientIds` 只恢复其中一部分，其余保留在记忆中。停用的 Skill 不能接入新软件。`bindings.json` 仍为 `schemaVersion: 1`，`skillStates` 缺省即启用；旧版本只读取 `bindings` 并保留未知字段。`state.skills[]` 返回 `enabled` 与 `rememberedClientIds`。

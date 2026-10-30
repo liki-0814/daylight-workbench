@@ -6,6 +6,7 @@ import { clientAdapters } from './client-adapters.mjs';
 import { readClientMcp } from './client-mcp.mjs';
 import { parse as parseJSONC } from 'jsonc-parser';
 import { normalizeServers } from './mcp-server.mjs';
+import { normalizeManifest } from './skill-state.mjs';
 
 export function createCatalog({ root, clients, loadClients, environment = process.env, cacheMs = 1000 }) {
   let cache, scannedAt = 0, scanning, generation = 0;
@@ -89,7 +90,7 @@ export function createCatalog({ root, clients, loadClients, environment = proces
       }
       diagnostics.push({ code: 'MCP_FORMAT', message: 'MCP 主配置无效；请修复 servers.json，原文件不会被覆盖', path: path.join(root, 'mcp', 'servers.json'), ...(position ? { line: Number(position[1]), column: Number(position[2]) } : {}), ...(failure instanceof SyntaxError ? { reason: 'JSON 语法错误' } : failure.status ? { reason: failure.message } : {}) });
     }
-    try { await safePath(root, path.join(root, 'daylight', 'bindings.json')); manifest = await readJSON(path.join(root, 'daylight', 'bindings.json'), manifest); if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.bindings)) throw error('接入记录格式错误'); }
+    try { await safePath(root, path.join(root, 'daylight', 'bindings.json')); manifest = await readJSON(path.join(root, 'daylight', 'bindings.json'), manifest); if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.bindings)) throw error('接入记录格式错误'); manifest = normalizeManifest(manifest); }
     catch { diagnostics.push({ code: 'BINDINGS_FORMAT', message: '接入记录格式错误，接入写入已暂停' }); manifest = null; }
     const clientDocuments = await Promise.all(connected.map(readClientMcp));
     for (const document of clientDocuments) { signatures.push(['mcp', document.clientId, document.raw, document.valid]); if (!document.valid) diagnostics.push({ clientId: document.clientId, code: 'CLIENT_MCP_FORMAT', message: document.message }); }
@@ -106,6 +107,12 @@ export function createCatalog({ root, clients, loadClients, environment = proces
         signatures.push([client.id, target, info ? [info.isSymbolicLink() ? 'link' : 'entity', link, info.ino, info.mtimeMs] : null]);
         if (state === 'conflict') diagnostics.push({ id: skill.id, clientId: client.id, code: 'BINDING_CONFLICT', message: '同名接入位置已存在其他内容，不能覆盖' });
       }
+    }
+    // Skill enable state lives in the manifest (`skillStates`); an absent entry means enabled with nothing remembered.
+    for (const skill of skills) {
+      const saved = skill.scope === 'shared' && !skill.readOnly ? manifest?.skillStates?.[skill.id] : null;
+      skill.enabled = !saved?.disabled;
+      skill.rememberedClientIds = (saved?.rememberedBindings || []).map(item => item.clientId);
     }
     for (const skill of skills) for (const id of skill.dependencies || []) if (!servers.some(server => server.id === id && server.enabled)) diagnostics.push({ id: skill.id, code: 'DEPENDENCY_UNAVAILABLE', message: '明确依赖的 MCP 不存在或主配置禁用：' + id });
     for (const server of servers) for (const ref of Object.values(server.envRefs || server.headerRefs || {})) if (!environment[ref]) diagnostics.push({ id: server.id, code: 'ENV_MISSING', message: '检测环境缺少变量：' + ref + '（客户端环境须另外核对）' });

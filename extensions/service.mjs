@@ -5,6 +5,7 @@ import { extensionActions, extensionMethod, canonicalJSON } from '../core/extens
 import { body, send } from '../ai/http.mjs';
 import { error, fieldError, hash, stat, within, safePath, snapshot, fileSnapshot, readText } from './files.mjs';
 import { metadata, skillId, skillFile } from './skill-files.mjs';
+import { setSkillState } from './skill-state.mjs';
 import { normalizeServer, serverWarnings } from './mcp-server.mjs';
 import { renderMcpConfig } from './mcp-config.mjs';
 import { changeClientMcp } from './client-mcp.mjs';
@@ -15,7 +16,7 @@ import { createTransactions } from './transactions.mjs';
 
 const json = value => canonicalJSON(value, 2) + '\n';
 const fields = {
-  'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'],
+  'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'], 'skill.disable': ['type', 'id'], 'skill.enable': ['type', 'id', 'clientIds'],
   'mcp.save': ['type', 'server', 'clientId', 'create'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
   'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
   'client.save': ['type', 'client'], 'client.remove': ['type', 'clientId'], 'client.select': ['type', 'clientId', 'selected'],
@@ -87,7 +88,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       if (hash(before) !== hash(after)) steps.push({ path: target, before, after, ...(state.registry.some(client => client.mcpPath === target) ? { private: true } : {}) });
     };
     let manifest = state.manifest ? structuredClone(state.manifest) : null, manifestChanged = false;
-    const binding = async (skill, client, type) => {
+    const binding = async (skill, client, type, { includeExisting = action.includeExisting, restoring = false } = {}) => {
       if (!manifest) throw error('接入记录损坏，请修复 bindings.json 后操作', 409);
       const source = skill.sourcePath, target = path.join(client.skillsRoot, path.basename(skill.relativePath));
       const identity = skill.realPath || (skill.linked ? null : source);
@@ -96,6 +97,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       await assertTarget(target);
       const actual = await snapshot(target), matches = actual.kind === 'link' && !!identity && await fs.realpath(target).catch(() => null) === identity;
       const owned = manifest.bindings.find(item => item.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(item.clientId) && item.target === target && item.source === source);
+      if (!restoring && type !== 'binding.disconnect' && manifest.skillStates?.[skill.id]?.disabled) throw error('该 Skill 已停用，不能接入软件。请先启用它，再选择要接入的软件。', 409, 'EXTENSIONS_SKILL_DISABLED');
       if (type === 'binding.connect') {
         if (!skill.valid) throw error('请先修复 Skill 元数据再接入');
         if (actual.kind !== 'missing') { if (matches) impact.push('已有正确链接，可直接预览移除；不需要先接管。'); else conflicts.push(client.name + ' 的同名位置存在其他内容：' + target); return; }
@@ -105,7 +107,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (!matches) { conflicts.push('只能接管已经指向主来源的正确链接'); return; }
         if (!owned || owned.linkTarget !== actual.target) { manifest.bindings = manifest.bindings.filter(item => item !== owned); manifest.bindings.push({ skillId: skill.id, clientId: client.id, source, target, linkTarget: actual.target }); manifestChanged = true; }
       } else {
-        if (!owned && !action.includeExisting) { conflicts.push('该链接不属于 Daylight；请先预览接管，或明确确认移除已有正确链接'); return; }
+        if (!owned && !includeExisting) { conflicts.push('该链接不属于 Daylight；请先预览接管，或明确确认移除已有正确链接'); return; }
         if (!matches || owned && owned.linkTarget !== actual.target) { conflicts.push('链接目标已被外部修改或不指向主来源，已停止解除'); return; }
         await add(target, { kind: 'missing' });
         if (owned) { manifest.bindings = manifest.bindings.filter(item => item !== owned); manifestChanged = true; }
@@ -131,6 +133,49 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (action.file === 'SKILL.md') metadata(action.content);
         const selected = await skillFile(root, skill, action.file); await add(selected.target, fileSnapshot(action.content));
         impact.push('修改 ' + skill.sourcePath + '；现有正确链接继续指向它。受影响软件：' + skill.bindings.filter(binding => ['managed', 'existing', 'local'].includes(binding.state)).map(binding => getClient(state, binding.clientId).name).join('、') + '。已加载会话需刷新。');
+      } else if (action.type === 'skill.disable') {
+        if (!manifest) throw error('接入记录损坏，请修复 bindings.json 后操作', 409);
+        if (skill.scope !== 'shared' || skill.readOnly) throw fieldError('只有共享来源中的 Skill 可以停用；软件自带的 Skill 请在对应软件中管理，或归档。', 'id');
+        if (manifest.skillStates?.[skill.id]?.disabled) throw error('该 Skill 已经是停用状态。如需恢复接入，请选择“启用”。', 409, 'EXTENSIONS_ALREADY_DISABLED');
+        const remembered = [], names = [];
+        for (const item of skill.bindings.filter(entry => ['managed', 'existing'].includes(entry.state))) {
+          const client = getClient(state, item.clientId), before = conflicts.length;
+          const owned = manifest.bindings.find(entry => entry.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(entry.clientId) && entry.target === item.target && entry.source === skill.sourcePath);
+          const linkTarget = await fs.readlink(item.target).catch(() => null);
+          await binding(skill, client, 'binding.disconnect', { includeExisting: true });
+          if (conflicts.length === before && linkTarget !== null) { remembered.push({ clientId: client.id, source: skill.sourcePath, target: item.target, linkTarget: owned?.linkTarget ?? linkTarget }); names.push(client.name); }
+        }
+        setSkillState(manifest, skill.id, { disabled: true, rememberedBindings: remembered }); manifestChanged = true;
+        impact.unshift(remembered.length ? '将取消 ' + remembered.length + ' 个软件的链接（' + names.join('、') + '）；Skill 源文件保留，可随时启用恢复。' : '该 Skill 当前没有接入任何软件；停用后不能再接入新软件，可随时启用。');
+      } else if (action.type === 'skill.enable') {
+        if (!manifest) throw error('接入记录损坏，请修复 bindings.json 后操作', 409);
+        if (skill.scope !== 'shared' || skill.readOnly) throw fieldError('只有共享来源中的 Skill 支持启用与停用。', 'id');
+        const saved = manifest.skillStates?.[skill.id] || { disabled: false, rememberedBindings: [] };
+        if (!saved.disabled && !saved.rememberedBindings.length) throw error('该 Skill 已经是启用状态，没有需要恢复的接入。', 409, 'EXTENSIONS_ALREADY_ENABLED');
+        let wanted = null;
+        if (action.clientIds !== undefined) {
+          const resolve = id => state.registry.find(client => client.id === id || client.registrationId === id)?.id || id;
+          if (!Array.isArray(action.clientIds) || action.clientIds.length > 50 || action.clientIds.some(id => typeof id !== 'string' || !id)) throw fieldError('clientIds 需要软件 ID 数组', 'clientIds');
+          wanted = new Set(action.clientIds.map(resolve));
+          const known = new Set(saved.rememberedBindings.map(item => resolve(item.clientId)));
+          const unknown = [...wanted].find(id => !known.has(id));
+          if (unknown) throw fieldError('该软件不在这个 Skill 停用前的接入记录中：' + String(unknown).slice(0, 80) + '。请从已记住的软件中选择。', 'clientIds');
+        }
+        const remaining = [], restored = [], skipped = [];
+        for (const item of saved.rememberedBindings) {
+          let client = null; try { client = getClient(state, item.clientId, false); } catch {}
+          if (wanted && !wanted.has(client?.id || item.clientId)) { remaining.push(item); continue; }
+          if (!client || !client.selected) { remaining.push(item); skipped.push(client?.name || item.clientId); continue; }
+          if (item.source !== skill.sourcePath || item.target !== path.join(client.skillsRoot, path.basename(skill.relativePath))) { impact.push(client.name + '：来源或接入位置已变化，旧记录已丢弃，请手动重新接入。'); continue; }
+          const target = item.target, identity = skill.realPath || skill.sourcePath;
+          const matches = (await snapshot(target)).kind === 'link' && await fs.realpath(target).catch(() => null) === identity;
+          const before = conflicts.length;
+          await binding(skill, client, matches ? 'binding.adopt' : 'binding.connect', { restoring: true });
+          if (conflicts.length === before) restored.push(client.name);
+        }
+        if (skipped.length) impact.push('以下软件当前未接入 Daylight，暂未恢复（记录已保留）：' + skipped.join('、') + '。');
+        setSkillState(manifest, skill.id, { disabled: false, rememberedBindings: remaining }); manifestChanged = true;
+        impact.unshift(restored.length ? '将恢复 ' + restored.length + ' 个软件的链接（' + restored.join('、') + '）；已启用的 Skill 可随时再次停用。' : '将启用该 Skill；没有需要恢复的软件链接。');
       } else {
         const source = skill.sourcePath, archive = path.join(root, 'archive', 'skills', skill.id + '_' + state.version.slice(0, 12));
         if (await stat(archive)) conflicts.push('归档位置已有内容，请先核对恢复记录');
@@ -138,6 +183,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         for (const item of affected) {
           changedIds.push(item.id);
           for (const owned of manifest?.bindings.filter(binding => binding.skillId === item.id) || []) await binding(item, getClient(state, owned.clientId), 'binding.disconnect');
+          if (manifest && setSkillState(manifest, item.id, null)) manifestChanged = true;
           impact.push(item.linked ? '仅移除 ' + item.sourcePath + ' 的链接，保留其源文件。' : '归档 ' + item.name + '；移除由 Daylight 管理的链接，已有其他链接保留且可能失效。');
         }
         await add(archive, await snapshot(source)); await add(source, { kind: 'missing' });
