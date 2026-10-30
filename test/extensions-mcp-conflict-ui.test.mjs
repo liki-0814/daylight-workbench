@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { mcpCompareSupported, mcpCompareView, mcpItemView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, refStatusText, fieldValueText, importedMessage, REPLACE_NOTE } from '../public/extensions/mcp-conflict.js';
+import { mcpCompareSupported, mcpCompareView, mcpItemView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, refStatusText, fieldValueText, importedMessage, REPLACE_NOTE, settleDuplicateFieldError } from '../public/extensions/mcp-conflict.js';
 import { REDACTED } from '../public/extensions/conflict.js';
 import { appliedMessage, undoable } from '../public/extensions/staging.js';
 import { createExtensionsClient } from '../public/extensions/client.js';
@@ -135,4 +135,36 @@ test('「导入 JSON…」在列表标题行（不进工具栏，避免挪动共
   const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
   assert.match(css, /\.extension-list-heading > \.extension-import-action \{ margin-left: auto;/);
   assert.doesNotMatch(css, /extension-category-action\[hidden\]/);
+});
+
+// ---- 同 ID 冲突：处理方式一选，稳定 ID 下的字段错误就清掉（不依赖后端文案的具体字句）----
+const fakeMessages = (has = true) => { const calls = []; return { calls, has: name => (calls.push(['has', name]), has), clear: name => calls.push(['clear', name]) }; };
+
+test('settleDuplicateFieldError：有字段错误 → 清掉稳定 ID 的错误并清掉「有字段需要修改」那行；没有 → 什么都不动', () => {
+  const messages = fakeMessages(true), dialog = [];
+  assert.equal(settleDuplicateFieldError({ messages, setDialogError: text => dialog.push(text) }), true);
+  assert.deepEqual(messages.calls, [['has', 'id'], ['clear', 'id']]);
+  assert.deepEqual(dialog, ['']);
+  const none = fakeMessages(false), dialogNone = [];
+  assert.equal(settleDuplicateFieldError({ messages: none, setDialogError: text => dialogNone.push(text) }), false);
+  assert.deepEqual(none.calls, [['has', 'id']], '没有错误就不 clear');
+  assert.deepEqual(dialogNone, [], '没有错误就不动对话框级提示（可能是别的失败）');
+  assert.equal(settleDuplicateFieldError(), false); assert.equal(settleDuplicateFieldError({ messages: {} }), false);
+});
+
+test('settleDuplicateFieldError：只清指定字段，默认是稳定 ID；对话框提示回调可省略', () => {
+  const messages = fakeMessages(true);
+  assert.equal(settleDuplicateFieldError({ messages, field: 'name' }), true);
+  assert.deepEqual(messages.calls, [['has', 'name'], ['clear', 'name']]);
+  assert.equal(settleDuplicateFieldError({ messages: fakeMessages(true) }), true);
+});
+
+test('page.js：选处理方式（change）和打开替换确认时都会清稳定 ID 的字段错误；不在其他地方偷偷清', () => {
+  const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
+  assert.match(page, /import \{[^}]*settleDuplicateFieldError[^}]*\} from '\.\/mcp-conflict\.js'/);
+  const onchange = page.match(/panel\.onchange = event => \{[^\n]*\}/)?.[0] || '';
+  assert.match(onchange, /\[data-mcp-resolution\]/); assert.match(onchange, /settleDuplicateFieldError\(\{ messages, setDialogError \}\)/, '选处理方式时清');
+  const adopt = page.match(/if \(chosen === 'adoptNew'\) \{\s*settleDuplicateFieldError\(\{ messages, setDialogError \}\);\s*const box/);
+  assert.ok(adopt, '打开替换确认前清');
+  assert.equal((page.match(/settleDuplicateFieldError\(/g) || []).length, 2, '只有这两处调用');
 });
