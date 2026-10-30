@@ -4,7 +4,7 @@ import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
-import { probeAllPlan, redactArgs, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
+import { probeAllPlan, chunkIds, PROBE_BATCH_SIZE, resumablePlan, redactArgs, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
@@ -470,14 +470,18 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (!state || probeAllRun) return;
     const plan = probeAllPlan(visibleItems()); if (!plan.targets.length) return;
     const names = list => list.map(server => `<li><strong>${esc(server.name)}</strong> <code>${esc(commandLine(server))}</code></li>`).join('');
-    const dialog = openShell('检测全部服务', `<p>将逐个启动下面 ${plan.targets.length} 个已启用服务的命令（或连接它们的端点）并读取工具清单。同时最多检测 2 个，其余排队，可以随时取消。</p><ul class="extension-probe-list" data-probe-targets>${names(plan.targets)}</ul>${plan.skipped.length ? `<p>不检测（已停用）：${plan.skipped.map(server => esc(server.name)).join('、')}</p>` : ''}${plan.clientLocal ? `<p>另有 ${plan.clientLocal} 个本地配置的服务由对应软件管理，不在这里检测。</p>` : ''}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply>开始检测</button></div>`);
+    const dialog = openShell('检测全部服务', `<p>将逐个启动下面 ${plan.targets.length} 个已启用服务的命令（或连接它们的端点）并读取工具清单。同时最多检测 2 个，其余排队，可以随时取消。${plan.targets.length > PROBE_BATCH_SIZE ? `服务较多，将分 ${chunkIds(plan.targets.map(server => server.id)).length} 批提交（每批最多 ${PROBE_BATCH_SIZE} 个）。` : ''}</p><ul class="extension-probe-list" data-probe-targets>${names(plan.targets)}</ul>${plan.skipped.length ? `<p>不检测（已停用）：${plan.skipped.map(server => esc(server.name)).join('、')}</p>` : ''}${plan.clientLocal ? `<p>另有 ${plan.clientLocal} 个本地配置的服务由对应软件管理，不在这里检测。</p>` : ''}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply>开始检测</button></div>`);
     dialog.element.querySelector('[data-preview-cancel]').onclick = () => dialog.close();
     dialog.element.querySelector('[data-preview-apply]').onclick = async () => {
       dialog.setBusy(true); dialog.element.querySelector('[data-preview-apply]').disabled = true;
       try {
-        const result = await client.probeAll(plan.targets.map(server => server.id), state.version);
+        const started = [], skipped = [];
+        for (const [index, ids] of chunkIds(plan.targets.map(server => server.id)).entries()) {   // 后端一次最多 50 个
+          try { const result = await client.probeAll(ids, state.version); started.push(...(result.probes || [])); skipped.push(...(result.skipped || [])); }
+          catch (error) { if (index === 0) throw error; dialog.setBusy(false); dialog.close(); startProbeAll(started, skipped); showToast({ message: `只提交了前 ${started.length + skipped.length} 个服务：${mcpErrorMessage(error)}`, tone: 'warning' }); if (shouldRefresh(error)) void controller.refresh(true); return; }
+        }
         dialog.setBusy(false); dialog.close();
-        startProbeAll(result.probes || [], result.skipped || []);
+        startProbeAll(started, skipped);
       } catch (error) {
         dialog.element.querySelector('[data-dialog-error]').textContent = mcpErrorMessage(error) + (error?.status === 409 && !error.code ? '（清单已变化，已刷新，请重新确认）' : '');
         if (shouldRefresh(error)) void controller.refresh(true);
@@ -491,6 +495,11 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     for (const probe of probes) liveProbes.set(probe.serverId, probe);
     renderList(); setTimeout(() => $('[data-cancel-all-probes]')?.focus(), 0);
     announceProbeAll(progressText(progressOf(probeAllRun.probes.values()))); pollProbeAll();
+  }
+  function resumeProbeAll(probes) {
+    probeAllRun = { probes: new Map(probes.map(probe => [probe.id, probe])), skipped: 0, cancelling: false, lastText: '' };
+    for (const probe of probes) liveProbes.set(probe.serverId, probe);
+    if (visible) pollProbeAll();
   }
   async function pollProbeAll() {
     clearTimeout(probeAllTimer); const run = probeAllRun; if (!run || !visible) return;
@@ -646,6 +655,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     loadView = { loading: !!value.loading, cancellable: !!value.cancellable, cancelled: !!value.cancelled };
     state = value.snapshot; readFailure = value.failure; setError(value.failure); setRefreshState($('[data-extension-refresh]'), { loading: value.loading }); renderClientFilter();
     if (state && liveProbes.size) for (const [id, live] of liveProbes) { const server = state.servers.find(item => item.id === id); if (!server || (finishedProbe(live) && server.lastProbe?.id === live.id)) liveProbes.delete(id); }   // 整页刷新带回了同一个检测的最终结果，覆盖层让位
+    if (state && !probeAllRun) { const resumed = resumablePlan(state.servers); if (resumed.length) resumeProbeAll(resumed); }   // 刷新 / 重新打开页面后，后端还在排队 / 检测的服务继续显示进度
     if (state && staged.size) { const { staged: kept } = pruneStaged(staged, state); if (kept !== staged) staged = kept; }   // pruneStaged 返回 { staged, dropped }，不是 Map
     renderList(); renderBar(); renderLoadStrip(); renderCancelled();
     if (loadView.cancelled && !wasCancelled && visible) {   // 焦点回到读取前的位置（取消按钮已经消失）

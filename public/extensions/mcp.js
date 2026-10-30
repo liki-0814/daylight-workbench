@@ -112,6 +112,18 @@ export function probeCard(probe, server) {
 
 // ---- 检测全部服务 ----
 // 对象 = 当前可见的共享服务；已停用的单列为“不检测”；客户端本地配置不检测（后端没有对应入口）。
+// 后端 POST /probes 的 ids 只收 1–50 个不重复的 ID：超出的分批提交（顺序保持，批与批之间不重叠）。
+export const PROBE_BATCH_SIZE = 50;
+export function chunkIds(ids, size = PROBE_BATCH_SIZE) {
+  const list = [...new Set(ids || [])], out = [];
+  for (let at = 0; at < list.length; at += size) out.push(list.slice(at, at + size));
+  return out;
+}
+// 刷新后 /state 里仍在排队 / 检测的服务：两个以上时当作一次「检测全部」接着显示进度（只有一个时由检查器自己 watch）。
+export function resumablePlan(servers) {
+  const active = (servers || []).filter(server => isShared(server) && server.enabled !== false && activeProbe(server.lastProbe)).map(server => server.lastProbe);
+  return active.length >= 2 ? active : [];
+}
 export function probeAllPlan(visibleServers) {
   const shared = (visibleServers || []).filter(isShared);
   return { targets: shared.filter(server => server.enabled !== false), skipped: shared.filter(server => server.enabled === false), clientLocal: (visibleServers || []).length - shared.length };
