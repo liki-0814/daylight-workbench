@@ -14,8 +14,8 @@ export function extensionMethod(route, method) {
 }
 // The one list of `extensions.*` capability keys that the web UI also reads from the /state & /refresh mirror (`capabilities.extensions`,
 // value `true`). Every key here must exist in `extensionsCapability` below (the /api/v1/capabilities source); service.mjs derives the mirror from this
-// list and a test fails if a listed key is missing from either side. Add a key here, not in service.mjs. Optional keys: the web client hides a
-// feature only on a literal `false`; a missing key means "unknown, keep working".
+// list and a test fails if a listed key is missing from either side. Add a key here, not in service.mjs. The web client shows a
+// feature only on a literal `true`; a missing key (or anything else) means "not supported", so a backend without the capability just omits the key.
 export const extensionsMirrorKeys = Object.freeze(['skillConflict', 'mcpConflictCompare']);
 export const extensionsCapability = {
   source: '~/.agents', skills: '~/.agents/skills', mcp: '~/.agents/mcp/servers.json',
