@@ -114,7 +114,9 @@ export default [
     const file = path.join(fixture.agents, 'mcp/servers.json'), good = await fs.readFile(file, 'utf8'), broken = '{ "schemaVersion": 1, "servers": [ ';
     await open(page, url, 'mcp');
     await rows(page).filter({ hasText: '本地 MCP 测试服务' }).locator('[data-extension-id]').first().click(); await page.locator('.extension-detail:not([hidden])').waitFor();
-    await fs.writeFile(file, broken); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click();
+    await fs.writeFile(file, broken);
+    // 760 下检查器是覆盖层，会盖住页头的「重新扫描扩展」；这里只需要触发一次重扫，用 DOM click 与覆盖层无关。
+    await page.getByRole('button', { name: '重新扫描扩展', exact: true }).evaluate(el => el.click());
     const failure = page.locator('.extension-detail-error'); await failure.waitFor(); const text = await failure.innerText();
     check.match(text, /MCP/); check.doesNotMatch(text, /Skill/); check.equal(await failure.getAttribute('role'), 'alert');
     await failure.getByRole('button', { name: '返回清单', exact: true }).click();

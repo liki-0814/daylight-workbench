@@ -62,7 +62,9 @@ export default [
   } },
   { id: 'ext-a11y-02', priority: 'P0', widths: [1440], title: '启发式：键盘 Tab 焦点始终可见、不丢到 body', async run({ page, url, assert: check }) {
     await open(page, url, 'skills');
-    const visited = await focusWalk(page, 24);
+    // roving tabindex（PR-5）之后清单里只有一个停靠点，Tab 停靠点总数可能 < 24；走满 24 步会正常地走出页面落到 body。只走到停靠点总数为止。
+    const stops = await page.evaluate(() => [...document.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]')].filter(el => el.tabIndex >= 0 && !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden').length);
+    const visited = await focusWalk(page, Math.min(24, stops));
     check.ok(!visited.some(step => step.onBody), '焦点落到 body');
     const invisible = visited.filter(step => !step.focusVisible);
     check.deepEqual(invisible.map(step => step.tag + ':' + step.name), [], '无可见焦点指示');

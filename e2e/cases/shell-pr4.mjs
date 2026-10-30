@@ -29,7 +29,7 @@ export default [
     await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
     const bar = page.locator('.topbar').first();
     check.equal(Math.round((await bar.boundingBox()).height), 52, '工具栏高度 52px');
-    await page.evaluate(() => { const s = document.createElement('div'); s.id = 'e2e-spacer'; s.style.cssText = 'height:3000px;width:1px'; (document.querySelector('main') || document.body).append(s); window.scrollTo(0, 400); });
+    await page.evaluate(() => { const s = document.createElement('div'); s.id = 'e2e-spacer'; s.style.cssText = 'height:3000px;width:1px'; ([...document.querySelectorAll('main')].find(m => m.getClientRects().length) || document.body).append(s); window.scrollTo(0, 400); });
     await page.waitForFunction(() => window.scrollY > 100 || document.documentElement.scrollTop > 100);
     const style = await bar.evaluate(el => { const c = getComputedStyle(el); return { top: el.getBoundingClientRect().top, position: c.position, bg: c.backgroundColor, filter: c.backdropFilter || c.webkitBackdropFilter }; });
     check.equal(style.position, 'sticky');
