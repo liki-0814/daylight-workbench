@@ -4,7 +4,7 @@ const token = process.env.DAYLIGHT_AI_TOKEN;
 if (!token || !process.env.DAYLIGHT_WORKBENCH_URL || !process.env.WORKBENCH_DATA_DIR) throw new Error('Missing AI runtime configuration');
 let aiPromise, extensionsPromise;
 const getAI = () => aiPromise ||= import('./service.mjs').then(({ createAIService }) => createAIService({ dataDir: process.env.WORKBENCH_DATA_DIR, endpoint: process.env.DAYLIGHT_WORKBENCH_URL }));
-const getExtensions = () => extensionsPromise ||= import('../extensions/service.mjs').then(({ createExtensionsService }) => createExtensionsService({ agentsRoot: process.env.WORKBENCH_AGENTS_ROOT, ...(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS ? { clientRoots: JSON.parse(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS) } : {}) }));
+const getExtensions = () => extensionsPromise ||= Promise.all([import('../extensions/service.mjs'), import('../extensions/reveal.mjs')]).then(([{ createExtensionsService }, { revealFromEnvironment }]) => createExtensionsService({ agentsRoot: process.env.WORKBENCH_AGENTS_ROOT, reveal: revealFromEnvironment(process.env), ...(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS ? { clientRoots: JSON.parse(process.env.WORKBENCH_EXTENSION_CLIENT_ROOTS) } : {}) }));
 const server = http.createServer(async (req, res) => {
   if (req.headers.host !== `127.0.0.1:${server.address().port}` || req.headers.origin || !equalSecret(req.headers['x-workbench-token'], token)) return send(res, 403, { error: '认证失败' });
   try { await (await (req.url.startsWith('/api/extensions/') ? getExtensions() : getAI())).handle(req, res); }

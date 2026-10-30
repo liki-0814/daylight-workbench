@@ -52,7 +52,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   const probeReport = server => { const value = probes.latest(server.id); return value ? { ...value, stale: value.configRevision !== server.revision } : null; };
   // Reference table for the UI: names only. The value of a variable is never read into any response.
   const refStatus = server => [...Object.entries(server.envRefs || {}).map(([key, ref]) => ['env', key, ref]), ...Object.entries(server.headerRefs || {}).map(([key, ref]) => ['header', key, ref])].map(([kind, key, ref]) => ({ kind, key, ref, set: !!environment[ref], internal: privateEnvironmentNames.includes(ref) || privateEnvironmentNames.includes(key) }));
-  const capabilities = () => ({ restoreBackup: true, ...(reveal.supported ? { reveal: true } : {}) });
+  // Web mirror of GET /api/v1/capabilities `extensions.*` (the web UI cannot read /api/v1): same nesting and key names, `true` instead of the descriptive strings.
+  const capabilities = () => ({ extensions: { mcpConflictCompare: true, restoreBackup: true, ...(reveal.supported ? { reveal: true } : {}) } });
   const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, capabilities: capabilities(), servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
   // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
   const missingMessage = kind => kind === 'mcp' ? 'MCP 服务已归档、被移除或配置已变化，请返回清单重新选择' : kind === 'client' ? '软件未登记或已移除，请返回清单重新选择' : kind === 'skill' ? 'Skill 已归档、移动或不存在，请返回清单重新选择' : '该对象已归档、移动或不存在，请返回清单重新选择';
@@ -175,8 +176,10 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
     else { if (typeof input.clientId !== 'string' || !input.clientId) throw fieldError('client 需要 clientId。', 'clientId'); const client = getClient(state, input.clientId); target = client.mcpPath && await stat(client.mcpPath) ? client.mcpPath : client.skillsRoot; }
     try { const registration = await loadClients(); if (!(registration.valid && registration.clients.some(item => item.selected && (item.mcpPath === target || item.skillsRoot === target)))) await assertTarget(target); } catch (failure) { throw failure.status === 403 ? error('位置不在已知的扩展目录内', 400, 'EXTENSIONS_INVALID') : failure; }
     if (typeof target !== 'string' || !path.isAbsolute(target) || !(await stat(target))) throw error('位置不存在，请重新扫描后再试', 404, 'EXTENSIONS_OBJECT_MISSING');
-    try { await reveal.run(target); } catch { throw error('无法在访达中显示，请改为复制路径', 500, 'EXTENSIONS_REVEAL_FAILED'); }
-    return { ok: true };
+    let outcome;
+    try { outcome = await reveal.run(target); } catch { throw error('无法在访达中显示，请改为复制路径', 500, 'EXTENSIONS_REVEAL_FAILED'); }
+    // Native shell only: the helper hands the resolved path to the shell, which removes it from the reply.
+    return { ok: true, ...(typeof outcome?.hostReveal === 'string' ? { hostReveal: outcome.hostReveal } : {}) };
   }
   async function prepare(input) {
     if (!input || !extensionActions.includes(input.type) || Object.keys(input).some(key => !fields[input.type].includes(key))) throw error('扩展动作或字段无效');
