@@ -129,7 +129,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     return null;
   }
   // 「在访达中显示」「从备份恢复…」要后端能力（§H，后端 #36）：读 /state、/refresh 里 capabilities 镜像的 extensions.reveal / extensions.restoreBackup，
-  // 明确为 true 才显示（读法见 capabilities.js）；没有时用「复制路径」代替（路径来自 state 已有字段），不显示会失败的按钮。revealKind 只有 MCP 主配置在契约里。
+  // 明确为 true 才显示（只认嵌套的 extensions.*，没有扁平键兜底，读法见 capabilities.js）；没有时用「复制路径」代替（路径来自 state 已有字段），不显示会失败的按钮。revealKind 只有 MCP 主配置在契约里。
   const capability = name => extensionCapability(state?.capabilities, name);
   const bannerActions = banner => [
     { label: '重新扫描', attrs: { 'data-extension-refresh': true } },
