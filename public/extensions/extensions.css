@@ -67,7 +67,7 @@
 .extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .extension-table { --cols: minmax(0, 1fr) minmax(120px, 48%); }
 .extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 104px minmax(120px, 36%); }
-.extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 72px 200px; }
+.extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 64px 104px 176px; }
 .extension-table[data-tab=clients] { --cols: minmax(0, 1fr) 160px; }
 .extension-table-head, .extension-row { display: grid; grid-template-columns: var(--cols); column-gap: var(--space-4); align-items: center; padding-inline: var(--space-3); }
 .extension-table-head { min-height: 28px; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); border-bottom: 1px solid var(--line); }
@@ -141,3 +141,26 @@
 .extension-batch-detail { margin: var(--space-2) 0; }
 .extension-batch-summary:empty { display: none; }
 .extension-batch-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+
+/* 0.7 PR-7：MCP 行（命令行 / 启用开关 / 状态 + 引用徽标）、检测结果卡片、引用表（E-12/E-20/E-23） */
+.extension-row-command { display: block; font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.extension-row-copy > .extension-row-command:empty { display: none; }
+.extension-mcp-switch { margin: var(--space-2) 0 var(--space-3); }
+.extension-probe-hint { margin: var(--space-1) 0 var(--space-2); color: var(--text-secondary, var(--muted)); }
+.extension-probe-card { display: grid; gap: var(--space-2); margin: var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.extension-probe-card p { margin: 0; }
+.extension-probe-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.extension-probe-card-head small { color: var(--text-secondary, var(--muted)); }
+.extension-probe-tools ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); }
+.extension-probe-advice strong { color: var(--ink); }
+.extension-refs { margin: var(--space-3) 0; }
+.extension-refs h3 { margin: 0 0 var(--space-2); font-size: var(--font-section-size); }
+.extension-ref-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--font-caption-size); }
+.extension-ref-table th { text-align: left; font-weight: 600; color: var(--text-secondary, var(--muted)); padding: var(--space-1) var(--space-2) var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.extension-ref-table td { padding: var(--space-2) var(--space-2) var(--space-2) 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.extension-ref-table td:last-child { display: grid; gap: var(--space-1); justify-items: start; }
+.extension-ref-table th:nth-child(1) { width: 38%; } .extension-ref-table th:nth-child(2) { width: 27%; }
+.extension-ref-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); }
+.extension-probe-all { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.extension-probe-progress { color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+@container (max-width: 560px) { .extension-table[data-tab=mcp] .extension-row { row-gap: var(--space-1); } }
