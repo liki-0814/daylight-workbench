@@ -50,7 +50,7 @@ export function mcpItemView(item, { root = '', open = true } = {}) {
   const refsDiff = refRows ? `<div><small>引用差异</small><ul class="extension-mcp-refs">${refRows}</ul></div>` : '';
   const same = identical ? '<p class="extension-compare-empty" role="status" data-mcp-identical>两边的内容完全一致，提交不会改动任何文件。</p>' : '';
   const locked = item?.editable === false ? '<p class="extension-compare-note" role="status" data-mcp-not-editable><small>这一项在软件自己的配置里，含有不能安全替换的内容：只能「保留现有」。需要修改请在对应的 CLI 里改。</small></p>' : '';
-  const secrets = Array.isArray(item?.secretKeys) && item.secretKeys.length ? `<p class="extension-compare-note" data-mcp-secret-keys><small>软件配置里还有 ${item.secretKeys.length} 个读不出的凭据；即使替换，它们也保持原样，不会被删除，也不会显示在这里。</small></p>` : '';
+  const secrets = Array.isArray(item?.existing?.secretKeys) && item.existing.secretKeys.length ? `<p class="extension-compare-note" data-mcp-secret-keys><small>软件配置里还有 ${item.existing.secretKeys.length} 个读不出的凭据；即使替换，它们也保持原样，不会被删除，也不会显示在这里。</small></p>` : '';
   return `<details class="extension-compare-file extension-mcp-compare-item" data-mcp-compare-item data-id="${esc(item?.id)}" ${open ? 'open' : ''}><summary><span class="extension-compare-path">${esc(shownText(item?.id))}</span><span class="extension-compare-status" data-tone="${identical ? 'neutral' : 'warning'}">${status}</span></summary>${same}${locked}${table}${refsDiff}<div class="extension-mcp-refsets">${refList(item?.existing?.refs, '现有的引用')}${refList(item?.incoming?.refs, `${item?.incomingLabel || '导入的'}引用`)}</div>${secrets}</details>`;
 }
 
