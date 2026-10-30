@@ -6,7 +6,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createExtensionsService } from '../extensions/service.mjs';
-import { extensionMethod, extensionsCapability, extensionActions } from '../core/extensions-contracts.js';
+import { extensionMethod, extensionsCapability, extensionActions, extensionsMirrorKeys, extensionsConditionalMirrorKeys } from '../core/extensions-contracts.js';
 import { resolveRoute } from '../core/contracts.js';
 import { nativeReveal, revealFromEnvironment } from '../extensions/reveal.mjs';
 
@@ -222,7 +222,11 @@ test('/api/v1/capabilities: extensions.restoreBackup always, extensions.reveal o
   for (const [side, source] of [[on, capsOn], [off, capsOff]]) {
     const mirror = (await side.api('/api/extensions/state')).value.capabilities;
     assert.deepEqual(Object.keys(mirror), ['extensions']);
-    const shared = ['skillConflict', 'mcpConflictCompare', 'restoreBackup', 'reveal'].filter(key => key in source);
+    // the keys come from the exported lists: every listed key is in both surfaces, the conditional one (reveal) only where supported
+    for (const key of extensionsMirrorKeys) assert.ok(key in source && key in mirror.extensions, `${key} must be in /api/v1 and in the mirror`);
+    for (const key of extensionsConditionalMirrorKeys) assert.equal(key in source, key in mirror.extensions, `${key} is advertised on both surfaces or on neither`);
+    assert.deepEqual([...extensionsMirrorKeys].sort(), ['mcpConflictCompare', 'restoreBackup', 'skillConflict']); assert.deepEqual([...extensionsConditionalMirrorKeys], ['reveal']);
+    const shared = [...extensionsMirrorKeys, ...extensionsConditionalMirrorKeys].filter(key => key in source);
     assert.deepEqual(Object.keys(mirror.extensions).sort(), shared.sort()); assert.ok(Object.values(mirror.extensions).every(value => value === true));
   }
   await fs.mkdir(path.join(on.extensionsOptions.agentsRoot, 'mcp'), { recursive: true }); await fs.writeFile(path.join(on.extensionsOptions.agentsRoot, 'mcp/servers.json'), '{"schemaVersion":1,"servers":[]}');
