@@ -5,7 +5,11 @@ import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
 import { sectionHeading, refreshButton, setRefreshState } from '../components/section.js';
 import { segmentedControl, mountSegmentedControl } from '../components/segmented-control.js';
-import { createDialogShell } from '../components/dialog-shell.js';
+import { createSheet, sheetFooter } from '../components/sheet.js';
+import { switchControl } from '../components/switch.js';
+import { searchField, mountSearchField } from '../components/search-field.js';
+import { chip } from '../components/chip.js';
+import { bannerMarkup, copyText, showToast } from '../components/banner.js';
 import { selectField, updateSelectField } from '../components/select.js';
 import { validateExtensionForm, findDuplicateServer, duplicateMessage, insecureHttpWarning, mcpIdError, skillDirectoryError, mcpUrlError, fieldInputName, diagnosticsForTab, corruptMcpConfig, detailErrorMessage, tabKinds } from './controller.js';
 
@@ -23,15 +27,19 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar"><label class="extension-search"><span class="sr-only">搜索扩展</span><input type="search" placeholder="搜索名称、用途或路径" aria-label="搜索扩展"></label><div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" hidden></aside></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" hidden></aside></div></div>`;
   const $ = selector => element.querySelector(selector);
   let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, submitting = false, bindingPreviewing = false, selectionPreviewing = false;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
+  const probeLabels = { succeeded: '握手成功', failed: '检测失败', running: '正在检测', cancelled: '已取消', timed_out: '检测超时' };
+  const probeTones = { succeeded: 'success', failed: 'danger', timed_out: 'danger', running: 'accent' };
+  const probeChip = item => chip({ label: (item.lastProbe?.stale ? '配置已变更 · 上次' : '') + (probeLabels[item.lastProbe?.status] || (item.scope === 'client' ? '用户级配置' : '尚未检测')), tone: probeTones[item.lastProbe?.status] || 'neutral', dot: !!probeTones[item.lastProbe?.status] });
   function bindingControl(skill, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);
     if (binding.state === 'local') return `<span>${esc(software.name)} · 本地专有${skill.linked ? '链接' : ''}</span>`;
     const conflict = binding.state === 'conflict', checked = ['managed', 'existing'].includes(binding.state), note = bindingLabel[binding.state];
-    return `<label class="extension-binding-control" title="${esc(note)}"><input type="checkbox" data-binding-toggle data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}" aria-label="${esc(skill.name + ' · ' + software.name)}" ${checked ? 'checked' : ''} ${conflict || bindingPreviewing || (skill.readOnly && !skill.valid) ? 'disabled' : ''}><span>${esc(software.name)}${!compact ? `<small>${esc(note)}</small>` : conflict ? '<small>冲突</small>' : ''}</span></label>`;
+    const disabled = conflict || bindingPreviewing || (skill.readOnly && !skill.valid);
+    return switchControl({ label: skill.name + ' · ' + software.name, text: software.name, hint: !compact ? note : conflict ? '冲突' : '', checked, disabled, title: note, className: 'extension-binding-control', inputAttrs: { 'data-binding-toggle': true, 'data-skill': skill.id, 'data-client': binding.clientId } });
   }
   function bindingRow(skill, binding, showSkillName = false) {
     return `<div class="extension-binding"><div>${showSkillName ? `<a href="${extensionsRoute({ tab: 'skills', id: skill.id })}">${esc(skill.name)}</a>` : ''}${bindingControl(skill, binding)}</div>${binding.state === 'existing' ? `<details><summary>管理记录</summary><button type="button" class="text-button" data-binding="adopt" data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}">记录链接归属（可选）</button></details>` : ''}</div>`;
@@ -79,7 +87,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     tabsDispose = mountSegmentedControl($('#extensions-tabs'), { onChange: tab => changeRoute({ tab, id: null, operation: null, file: null }) });
     if(restoreFocus)$('#extensions-tabs [aria-selected="true"]').focus({preventScroll:true});
     $('[data-create]').textContent = category().action;
-    $('#extensions-client-filter').value = route.client || ''; $('[data-problems]').checked = !!route.problems; $('.extension-search input').value = route.query || '';
+    $('#extensions-client-filter').value = route.client || ''; $('[data-problems]').checked = !!route.problems; $('.extension-search input').value = route.query || ''; searchControl?.sync();
   }
   function renderClientFilter() {
     if (!state) return;
@@ -95,7 +103,15 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (route.tab === 'skills' && state.bindingsValid === false) { const problem = state.diagnostics.find(item => item.code === 'BINDINGS_FORMAT') || {}; return { code: 'BINDINGS_FORMAT', title: '接入记录无法读取', blocksCreate: false, problem, where: problem.path || '', reason: problem.message || '' }; }
     return null;
   }
-  const bannerMarkup = banner => `<section class="extension-banner" role="alert" data-config-banner="${esc(banner.code)}"><h3>${esc(banner.title)}</h3><p>${banner.where ? `位置：<code>${esc(banner.where)}</code>${banner.reason ? ' · ' + esc(banner.reason) : ''}。` : esc(banner.reason || '')}${banner.where || banner.reason ? '' : '请检查配置文件。'}</p><p>Daylight 不会覆盖或改写这个文件。${banner.blocksCreate ? '修复之前“' + category().action + '”已暂停。' : '修复之前接入写入已暂停。'}修好后重新扫描，提示会自动消失。</p><div class="extension-actions"><button type="button" class="secondary" data-extension-refresh>重新扫描</button></div></section>`;
+  // 「在访达中显示」「从备份恢复…」要后端能力（api-contract-skill-enable.md §H，尚未实现）：state.capabilities 里明确为 true 才显示；
+  // 没有时用「复制路径」代替（路径来自 state 已有字段），不显示会失败的按钮。revealKind 只有 MCP 主配置在契约里。
+  const capability = name => state?.capabilities?.[name] === true;
+  const bannerActions = banner => [
+    { label: '重新扫描', attrs: { 'data-extension-refresh': true } },
+    ...(capability('reveal') && banner.code === 'MCP_FORMAT' ? [{ label: '在访达中显示', attrs: { 'data-extension-reveal': 'mcpConfig' } }] : banner.problem?.path ? [{ label: '复制路径', attrs: { 'data-copy-path': true } }] : []),
+    ...(capability('restoreBackup') && banner.code === 'MCP_FORMAT' ? [{ label: '从备份恢复…', attrs: { 'data-extension-restore-backup': true } }] : []),
+  ];
+  const bannerMarkupFor = banner => bannerMarkup({ tone: 'error', title: banner.title, attrs: { 'data-config-banner': banner.code }, actions: bannerActions(banner), messageHtml: `<p>${banner.where ? `位置：${banner.problem?.path ? `<code data-config-path>${esc(banner.problem.path)}</code>${esc(banner.where.slice(banner.problem.path.length))}` : esc(banner.where)}${banner.reason ? ' · ' + esc(banner.reason) : ''}。` : esc(banner.reason || '')}${banner.where || banner.reason ? '' : '请检查配置文件。'}</p><p>Daylight 不会覆盖或改写这个文件。${banner.blocksCreate ? '修复之前“' + category().action + '”已暂停。' : '修复之前接入写入已暂停。'}修好后重新扫描，提示会自动消失。</p>` });
   function updateCreateAvailability(banner) {
     const button = $('[data-create]'); if (!button) return;
     button.disabled = !!banner?.blocksCreate; button.title = banner?.blocksCreate ? '配置文件无法读取，修复并重新扫描后才能新建。' : '';
@@ -117,10 +133,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const filtered = visibleItems();
     const banner = configBanner(), tabProblems = diagnosticsForTab(state.diagnostics, route.tab).filter(problem => !(banner && problem.code === banner.code));
     updateCreateAvailability(banner);
-    const markup = `${banner ? bannerMarkup(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
       const active = item.id === route.id;
       const summary = route.tab === 'skills' ? item.valid ? item.description : item.problem : route.tab === 'mcp' ? (item.enabled ? '配置启用' : '配置禁用') + ' · ' + item.transport : item.note;
-      return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' · 本地配置' : '共享来源')}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? `<span>${item.lastProbe?.stale ? "配置已变更 · 上次" : ""}${({succeeded:'握手成功',failed:'检测失败',running:'正在检测',cancelled:'已取消',timed_out:'检测超时'})[item.lastProbe?.status] || (item.scope === 'client' ? '用户级配置' : '尚未检测')}</span>` : `<label class="extension-binding-control"><input type="checkbox" data-cli-selection data-client="${esc(item.id)}" aria-label="${esc(item.name + ' · 接入扩展管理')}" ${item.selected ? 'checked' : ''} ${selectionPreviewing ? 'disabled' : ''}><span>${item.selected ? '已接入' : '选择接入'}<small>${item.installed ? '已发现命令' : '未找到命令'}</small></span></label>`}</div></div>`;
+      return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' · 本地配置' : '共享来源')}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? `${probeChip(item)}` : switchControl({ label: item.name + ' · 接入扩展管理', text: item.selected ? '已接入' : '选择接入', hint: item.installed ? '已发现命令' : '未找到命令', checked: !!item.selected, disabled: selectionPreviewing, className: 'extension-binding-control', inputAttrs: { 'data-cli-selection': true, 'data-client': item.id } })}</div></div>`;
     }).join('')}${!filtered.length ? '<p class="extension-empty">没有匹配项。可调整搜索或筛选。</p>' : ''}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     if (markup === listMarkup) return;
     const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
@@ -150,8 +166,31 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     $('.extension-detail').innerHTML = heading + content;
     if (item.kind === 'mcp' && item.lastProbe?.status === 'running') watchProbe(item.lastProbe.id);
   }
+  // 复制路径：navigator.clipboard；失败时选中横幅里的路径文字让用户按 ⌘C，两种结果都用 toast（role=status）播报。
+  async function copyBannerPath(button) {
+    const target = button.closest('[data-config-banner]')?.querySelector('[data-config-path]'), text = target?.textContent || '';
+    if (!text) return;
+    const result = await copyText(text, { selectTarget: target });
+    if (result.copied) showToast({ message: '已复制路径' });
+    else showToast({ message: result.selected ? '无法写入剪贴板，路径已选中，请按 ⌘C 复制' : '无法复制路径，请手动选择上方的文字', tone: 'warning', duration: 8000 });
+  }
+  async function revealInFinder(kind) {
+    await client.reveal({ kind });
+    showToast({ message: '已在访达中显示' });
+  }
+  // 从备份恢复：恢复点列表来自 GET /api/extensions/backups?kind=mcpConfig（契约建议，后端未实现）；选定后走同一套「预览 → 确认」，动作 mcp.restoreBackup。
+  async function chooseBackup() {
+    const result = await client.backups('mcpConfig'), list = Array.isArray(result) ? result : result.backups || [];
+    if (!list.length) { showToast({ message: '没有可用的恢复点', tone: 'warning' }); return; }
+    const sheet = openShell('从备份恢复', `<fieldset class="ui-sheet-list" role="radiogroup" aria-label="恢复点">${list.map((backup, index) => `<label><input type="radio" name="backup" value="${esc(backup.operationId)}" ${index === 0 ? 'checked' : ''}><span>${esc(backup.summary || backup.operationId)}<small>${esc(backup.at || '')}${backup.servers != null ? ' · ' + esc(backup.servers) + ' 个服务' : ''}</small></span></label>`).join('')}</fieldset>${sheetFooter({ confirmLabel: '预览恢复' })}`);
+    sheet.element.querySelector('[data-sheet-cancel]').onclick = () => sheet.close();
+    sheet.element.querySelector('[data-sheet-confirm]').onclick = async () => {
+      const operationId = sheet.element.querySelector('input[name=backup]:checked')?.value; if (!operationId) return;
+      try { sheet.close(); await preview({ type: 'mcp.restoreBackup', operationId }, { title: '预览从备份恢复' }); } catch (error) { setError(error); }
+    };
+  }
   function openShell(title, content, onClose = () => {}) {
-    shell?.dispose(); shell = createDialogShell({ title, onClose }); shell.element.classList.add('extension-dialog'); shell.setContent(content); shell.open(); return shell;
+    shell?.dispose(); shell = createSheet({ title, size: 'form', onClose }); shell.element.classList.add('extension-dialog'); shell.setContent(content); shell.open(); return shell;
   }
   // 归档 / 移除登记成功后，被删行会消失；焦点要落到相邻行（先下一行，再上一行），都没有就落到清单标题（E-27）。
   const removalTarget = action => ['skill.archive', 'mcp.archive'].includes(action.type) ? action.id : action.type === 'client.remove' ? selected?.id : null;
@@ -298,6 +337,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     $('[data-submission]').innerHTML = record ? `<div class="extension-receipt"><span>${record.status === 'applied' ? '变更已保存。' : record.status === 'needs_review' ? '需要重新预览：' + esc(record.error) : '提交结果待核对：请使用原请求，避免重复写入。'}</span><div>${record.status === 'submitted' || record.status === 'unknown' ? '<button type="button" class="secondary" data-retry-submission>核对原请求</button>' : '<button type="button" class="text-button" data-clear-submission>关闭提示</button>'}<a class="text-button" href="${extensionsRoute({ tab: route.tab, operation: record.request.requestId })}">查看回执</a></div></div>` : '';
     if (visible) void loadDetail();
   });
+  const searchControl = mountSearchField($('.extension-search'));
   $('.extension-search input').addEventListener('input', event => changeRoute({ query: event.target.value }, true));
   $('[data-problems]').addEventListener('change', event => changeRoute({ problems: event.target.checked }));
   element.addEventListener('change', event => {
@@ -315,6 +355,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       if (button.dataset.extensionId) changeRoute({ id: button.dataset.extensionId, operation: null, file: null });
       else if (button.hasAttribute('data-close-detail')) changeRoute({ id: null, operation: null, file: null });
       else if (button.hasAttribute('data-extension-refresh')) await controller.refresh(true);
+      else if (button.hasAttribute('data-copy-path')) await copyBannerPath(button);
+      else if (button.dataset.extensionReveal) await revealInFinder(button.dataset.extensionReveal);
+      else if (button.hasAttribute('data-extension-restore-backup')) await chooseBackup(button);
       else if (button.hasAttribute('data-create')) edit(true);
       else if (button.hasAttribute('data-edit')) edit();
       else if (button.hasAttribute('data-cli-selection')) await toggleClientSelection(button);
