@@ -74,3 +74,22 @@ test('editing or archiving a MCP cancels only its obsolete diagnostic and marks 
   const second = await apply({ type: 'mcp.probe', id: 'changing' }); await apply({ type: 'mcp.archive', id: 'changing' });
   assert.equal(service.probes.get(second.probeId).status, 'cancelled'); assert.equal(service.probes.get(other.probeId).status, 'running');
 });
+
+test('probe queue: batch start runs two at a time, queued probes start automatically and can be cancelled', async t => {
+  const dir = await fs.mkdtemp(path.join(tmpdir(), 'daylight-mcp-queue-')), probes = createProbes({ environment: { PATH: process.env.PATH }, timeoutMs: 3000 });
+  t.after(async () => { await probes.close(); await fs.rm(dir, { recursive: true, force: true }); });
+  const server = id => ({ id, command: process.execPath, args: [fixture, path.join(dir, id)], transport: 'stdio', envRefs: {} });
+  const started = ['a', 'b', 'c', 'd'].map(id => probes.start(server(id), undefined, { queue: true }));
+  assert.deepEqual(started.map(probe => probe.status), ['running', 'running', 'queued', 'queued']);
+  assert.throws(() => probes.start(server('e')), /最多/);   // the explicit single-probe path keeps its refusal
+  const cancelled = await probes.cancel(started[3].id); assert.equal(cancelled.status, 'cancelled'); assert.ok(cancelled.finishedAt);
+  for (const probe of started.slice(0, 3)) assert.equal((await wait(probes, probe.id)).status, 'succeeded');
+  await assert.rejects(fs.stat(path.join(dir, 'd') + '.pid'), { code: 'ENOENT' });   // a cancelled queued probe never spawned a process
+  assert.ok(await fs.stat(path.join(dir, 'c') + '.pid'));
+  // configuration changes cancel queued probes too
+  const slow = id => ({ ...server(id), args: [fixture, path.join(dir, id), 'slow'] });
+  const first = probes.start(slow('s1'), undefined, { queue: true }), second = probes.start(slow('s2'), undefined, { queue: true }), waiting = probes.start(slow('s3'), undefined, { queue: true });
+  assert.equal(waiting.status, 'queued');
+  await probes.reconcile([{ id: 's1', revision: first.configRevision }, { id: 's2', revision: second.configRevision }, { id: 's3', revision: 'changed' }]);
+  assert.equal(probes.get(waiting.id).status, 'cancelled'); assert.match(probes.get(waiting.id).message, /主配置已变化/);
+});
