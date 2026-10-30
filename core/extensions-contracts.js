@@ -12,6 +12,11 @@ export function extensionMethod(route, method) {
   if (/^\/probes\/[a-zA-Z0-9_-]{1,100}$/.test(route)) return ['GET', 'DELETE'].includes(method);
   return false;
 }
+// The one list of `extensions.*` capability keys that the web UI also reads from the /state & /refresh mirror (`capabilities.extensions`,
+// value `true`). Every key here must exist in `extensionsCapability` below (the /api/v1/capabilities source); service.mjs derives the mirror from this
+// list and a test fails if a listed key is missing from either side. Add a key here, not in service.mjs. Optional keys: the web client hides a
+// feature only on a literal `false`; a missing key means "unknown, keep working".
+export const extensionsMirrorKeys = Object.freeze(['skillConflict', 'mcpConflictCompare']);
 export const extensionsCapability = {
   source: '~/.agents', skills: '~/.agents/skills', mcp: '~/.agents/mcp/servers.json',
   reads: 'GET /api/v1/extensions/state', prepare: 'POST /api/v1/extensions/prepare',
