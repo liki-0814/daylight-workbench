@@ -3,7 +3,7 @@ import { shownText, conflictOf, isOpenConflict, conflictSupported, conflictNote,
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
-import { mcpCompareSupported, mcpCompareView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel } from './mcp-conflict.js';
+import { mcpCompareSupported, mcpCompareView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, settleDuplicateFieldError } from './mcp-conflict.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
 import { probeAllPlan, chunkIds, PROBE_BATCH_SIZE, resumablePlan, redactArgs, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
@@ -704,7 +704,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       panel.querySelector('[data-mcp-compare]')?.focus();
       let chosen = '';
       const renderActions = () => { const box = panel.querySelector('[data-duplicate-actions]'); box.innerHTML = '<div class="dialog-footer"><button type="button" class="primary" data-duplicate-continue>按所选继续</button></div>'; };
-      panel.onchange = event => { const input = event.target.closest('[data-mcp-resolution]'); if (!input) return; chosen = input.value; panel.querySelector('[data-duplicate-continue]')?.removeAttribute('disabled'); };
+      panel.onchange = event => { const input = event.target.closest('[data-mcp-resolution]'); if (!input) return; chosen = input.value; settleDuplicateFieldError({ messages, setDialogError }); panel.querySelector('[data-duplicate-continue]')?.removeAttribute('disabled'); };
       panel.onclick = async event => {
         const button = event.target.closest('button'); if (!button) return;
         if (button.matches('[data-mcp-compare]')) {
@@ -713,6 +713,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
           body.innerHTML = mcpCompareView({ items: [item], newIds: [] }, { root, incomingLabel: '新填写的', only: item.id }); button.setAttribute('aria-expanded', 'true');
         } else if (button.matches('[data-duplicate-continue]')) {
           if (chosen === 'adoptNew') {
+            settleDuplicateFieldError({ messages, setDialogError });
             const box = panel.querySelector('[data-duplicate-actions]');
             box.innerHTML = `${replaceConfirm([item.id], { source: 'form' })}<div class="dialog-footer"><button type="button" class="secondary" data-duplicate-back>返回</button><button type="button" class="ui-button ui-button-danger" data-duplicate-replace>确认替换</button></div>`;
             box.querySelector('[data-duplicate-back]').focus();

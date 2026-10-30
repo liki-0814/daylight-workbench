@@ -98,6 +98,13 @@ export function mcpCompareErrorMessage(error) {
     default: return error?.message || '对比失败，没有改动任何文件。';
   }
 }
+// 新建表单遇到同 ID（409）时，稳定 ID 下面会先出一条后端的「已存在…」字段错误。用户一旦选了处理方式（或打开了替换确认），
+// 这条错误就过时了：把它连同 aria-invalid / aria-describedby 一起清掉。只清稳定 ID 这一个字段；返回是否真的清了。
+export function settleDuplicateFieldError({ messages, setDialogError, field = 'id' } = {}) {
+  if (!messages?.has?.(field)) return false;
+  messages.clear(field); setDialogError?.('');
+  return true;
+}
 export const mcpShouldRefresh = error => ['EXTENSIONS_VERSION_CONFLICT', 'EXTENSIONS_CONFLICT'].includes(error?.code);
 
 export { importedMessage } from './staging.js';
