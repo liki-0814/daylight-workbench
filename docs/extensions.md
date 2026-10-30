@@ -65,3 +65,9 @@ npm run dev
 ## 导入
 
 `skill.import` 从本地文件夹复制 Skill（不支持 URL）：路径需为绝对路径，顶层有合法 `SKILL.md`；目录名取其中的 `name`；不跟随符号链接，忽略隐藏文件和 `node_modules`，最多 500 个文件、5 MB、6 层目录；目标同名时进入冲突，不覆盖。`scope` 为 `shared` 或 `client`（需 `clientId`）。`mcp.importJson` 解析粘贴的 `{"mcpServers": {...}}` 或带 `id`/`name` 的单个服务对象，`env`/`headers` 只接受 `${变量名}` 形式的引用，明文凭据会被拒绝且不回显；JSON 语法错误返回 `line`/`column`；已有 ID 一律是冲突，不覆盖。
+
+## MCP 行级启停、批量检测与凭据引用状态
+
+- `mcp.toggle`（`id`、`enabled` 布尔值）现在也适用于共享 MCP：只改主配置 `servers.json` 里的 `enabled`，不启动服务；重复启停返回 409（`EXTENSIONS_ALREADY_ENABLED` / `EXTENSIONS_ALREADY_DISABLED`）；停用后配置版本变化，进行中的检测会被取消，停用的服务不能检测（`POST /probes` 返回 400）。软件作用域的行为不变。
+- `POST /api/extensions/probes` 除 `{id, expectedVersion}` 外接受 `{ids:[…], expectedVersion}`（1–50 个不重复 ID，一次确认一批可见的服务）。已停用的服务不会启动，列在 `skipped`（`reason: "disabled"`）；响应 `{probes, skipped}`。同时最多 2 个连接，其余 `status: "queued"` 排队、轮到自动开始，可用 `DELETE /probes/:id` 取消。单个检测的行为不变，满 2 个仍返回 409 `EXTENSIONS_PROBE_BUSY`。
+- 每个 MCP 服务（`/state` 与 `/objects/:id`）带 `refStatus: [{kind: "env"|"header", key, ref, set, internal}]`：`ref` 是引用的环境变量名，`set` 表示 Daylight 进程环境中是否已设置，`internal` 表示属于 Daylight 内部凭据（检测会拒绝）。变量的值永远不会出现在响应里。

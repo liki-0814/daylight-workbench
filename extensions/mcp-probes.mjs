@@ -57,9 +57,18 @@ export function createProbes({ environment = process.env, timeoutMs = 15000 } = 
       probe.finishedAt = new Date().toISOString();
     }
   }
-  function start(server, id = randomUUID(), { confirmed = false } = {}) {
+  const maxConcurrent = 2, maxQueued = 50, waiting = [];
+  const active = () => [...probes.values()].filter(probe => !probe.finishedAt && probe.status !== 'queued').length;
+  function launch(probe, server) { probe.status = 'running'; probe.startedAt = new Date().toISOString(); probe.message = '正在握手并读取工具清单…'; probe.task = run(probe, server).finally(pump); }
+  function pump() { while (waiting.length && active() < maxConcurrent) { const { probe, server } = waiting.shift(); if (probe.status === 'queued') launch(probe, server); } }
+  function start(server, id = randomUUID(), { confirmed = false, queue = false } = {}) {
     if (probes.has(id)) return publicProbe(probes.get(id));
-    if ([...probes.values()].filter(probe => !probe.finishedAt).length >= 2) {
+    if (active() >= maxConcurrent && queue && !confirmed) {
+      if (waiting.length >= maxQueued) throw error('检测队列已满，请等待现有检测完成', 409, 'EXTENSIONS_PROBE_BUSY');
+      const probe = { id, serverId: server.id, configRevision: hash(server), status: 'queued', startedAt: null, controller: new AbortController(), tools: [], toolCount: null, message: '排队中：同时最多检测两个服务，轮到时自动开始。' };
+      remember(probe); waiting.push({ probe, server }); return publicProbe(probe);
+    }
+    if (active() >= maxConcurrent) {
       if (!confirmed) throw error('最多同时检测两个 MCP 服务，请等待或取消现有检测', 409, 'EXTENSIONS_PROBE_BUSY');
       // The approval receipt is already durable. Retain an explicit failure instead
       // of making that successful submission look like an unknown write result.
@@ -68,11 +77,15 @@ export function createProbes({ environment = process.env, timeoutMs = 15000 } = 
       remember(probe); return publicProbe(probe);
     }
     const probe = { id, serverId: server.id, configRevision: hash(server), status: 'running', startedAt: new Date().toISOString(), controller: new AbortController(), tools: [], toolCount: null, message: '正在握手并读取工具清单…' };
-    remember(probe); probe.task = run(probe, server);
+    remember(probe); probe.task = run(probe, server).finally(pump);
     return publicProbe(probe);
   }
   function get(id) { const probe = probes.get(id); if (!probe) throw error('检测记录不存在或进程已重启，请明确发起新的检测', 404, 'EXTENSIONS_PROBE_MISSING'); return publicProbe(probe); }
-  async function cancel(id, reason = 'cancelled') { const probe = probes.get(id); get(id); if (probe.status === 'running') probe.controller.abort(reason); await probe.task; return get(id); }
+  async function cancel(id, reason = 'cancelled') {
+    const probe = probes.get(id); get(id);
+    if (probe.status === 'queued') { probe.status = 'cancelled'; probe.finishedAt = new Date().toISOString(); probe.message = reason === 'configuration_changed' ? '主配置已变化，旧配置的检测已取消。' : '检测已取消。'; const index = waiting.findIndex(item => item.probe === probe); if (index !== -1) waiting.splice(index, 1); return get(id); }
+    if (probe.status === 'running') probe.controller.abort(reason); await probe.task; return get(id);
+  }
   async function reconcile(servers) {
     const current = new Map(servers.map(server => [server.id, server.revision]));
     await Promise.all([...probes.values()].filter(probe => !probe.finishedAt && probe.configRevision !== current.get(probe.serverId)).map(probe => cancel(probe.id, 'configuration_changed')));

@@ -168,3 +168,5 @@ CLI 自动发现只提供候选项，state.clients.selected 表示用户是否�
 扩展错误与诊断契约：校验失败（400）与重复 ID（409）的响应在 `error`、`code` 之外带 `field`（点分字段路径，如 `server.url`、`server.envRefs`、`directory`、`content`），前端据此把错误贴到字段旁。计划（prepare 响应）与 `servers[]` 带 `warnings`（如 `{code:'INSECURE_HTTP',field:'server.url',message}`：http:// 非本机地址），警告不阻止应用。`GET /objects/:id?kind=skill|mcp|client` 的 404 文案按类型区分并回传 `kind`。`diagnostics[]` 每项带 `tab`（skills/mcp/clients）；`MCP_FORMAT` 另带 `path`、`line`、`column`、`reason`（不回显文件内容）。
 
 导入：skill.import 仅支持本地绝对路径文件夹（无 URL 导入）；顶层需有合法 SKILL.md，目录名取 SKILL.md 的 name，不跟随任何符号链接，忽略隐藏文件与 node_modules，限制 500 个文件 / 5 MB / 6 层；同名为 conflicts（409 EXTENSIONS_CONFLICT），无效来源 400 field=sourcePath（code EXTENSIONS_IMPORT_NO_SKILL/SYMLINK/LIMIT/SPECIAL）。mcp.importJson 接受 {mcpServers:{…}} 或带 id/name 的单个服务对象（最多 100 个），env/headers 的值只能是 `${VAR}`/`$VAR`，明文值 400（field 形如 mcpServers.<id>.env.<KEY>，响应不回显该值）；JSON 语法错误 400 field=json 并带 `line`、`column`；已有 ID 为 conflicts，不覆盖。
+
+MCP 交互：mcp.toggle 共享服务行级启停（只改主配置，不启动服务）；POST /probes 支持 {ids:[…],expectedVersion} 批量检测（同时最多 2 个，其余 status=queued；已停用的列入 skipped）；服务带 refStatus（变量名与是否已设置，永不含值）。
