@@ -9,7 +9,7 @@ import { sectionHeading, refreshButton, setRefreshState } from '../components/se
 import { segmentedControl, mountSegmentedControl } from '../components/segmented-control.js';
 import { createSheet, sheetFooter } from '../components/sheet.js';
 import { switchControl } from '../components/switch.js';
-import { searchField, mountSearchField } from '../components/search-field.js';
+import { searchField, mountSearchField, focusVisibleSearchField } from '../components/search-field.js';
 import { chip } from '../components/chip.js';
 import { bannerMarkup, copyText, showToast } from '../components/banner.js';
 import { selectField, updateSelectField } from '../components/select.js';
@@ -417,7 +417,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   });
   const onFind = event => {
     if (!visible || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'f' || document.querySelector('dialog[open]')) return;
-    event.preventDefault(); const input = $('.extension-search input'); input.focus(); input.select();
+    if (focusVisibleSearchField(document)) event.preventDefault();   // 与原生菜单发出的 daylight-find 共用同一个函数
   };
   document.addEventListener('keydown', onFind);
   $('.extension-search input').addEventListener('input', event => changeRoute({ query: event.target.value }, true));
