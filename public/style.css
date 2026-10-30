@@ -192,7 +192,7 @@ main {
 }
 
 .slash {
-  color: #c6cec0;
+  color: var(--text-secondary);
   margin: 0 var(--space-3);
 }
 
