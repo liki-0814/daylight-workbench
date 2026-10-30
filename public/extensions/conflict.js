@@ -83,7 +83,7 @@ export function summaryText(summary = {}) {
 function diffMarkup(hunks, root) {
   if (!Array.isArray(hunks) || !hunks.length) return '';
   const sign = { same: ' ', shared: '−', local: '+' }, word = { same: '相同行', shared: '只在共享版本', local: '只在软件内' };
-  return hunks.map(hunk => `<div class="extension-compare-hunk" data-compare-hunk><small class="extension-compare-hunk-head">共享版本第 ${Number(hunk.sharedStart) || 0} 行 · 软件内第 ${Number(hunk.localStart) || 0} 行</small><pre class="extension-compare-lines">${(hunk.lines || []).map(line => { const op = sign[line.op] ? line.op : 'same'; return `<span class="extension-compare-line extension-compare-${op}" data-op="${op}"><span class="extension-compare-sign" aria-hidden="true">${sign[op]}</span><span class="extension-visually-hidden">${word[op]}：</span>${esc(shownText(line.text, { root }))}</span>`; }).join('\n')}</pre></div>`).join('');
+  return hunks.map(hunk => `<div class="extension-compare-hunk" data-compare-hunk><small class="extension-compare-hunk-head">共享版本第 ${Number(hunk.sharedStart) || 0} 行 · 软件内第 ${Number(hunk.localStart) || 0} 行</small><pre class="extension-compare-lines">${(hunk.lines || []).map(line => { const op = sign[line.op] ? line.op : 'same'; return `<span class="extension-compare-line extension-compare-${op}" data-op="${op}"><span class="extension-compare-sign" aria-hidden="true">${sign[op]}</span><span class="extension-visually-hidden">${word[op]}：</span>${esc(shownText(line.text, { root }))}</span>`; }).join('')}</pre></div>`).join('');
 }
 
 function fileMarkup(file, { root, open }) {
