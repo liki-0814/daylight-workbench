@@ -289,20 +289,20 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   }
   async function undoOperations(items) {
     const actions = undoActions(items.map(item => item.operationId));
-    await openBatch({ title: items.length > 1 ? `撤销 ${items.length} 项变更` : '撤销上一步变更', confirmLabel: '撤销变更', entries: actions.map((action, index) => ({ action, tag: '撤销', label: items[items.length - 1 - index]?.label || '恢复到变更前', name: '' })) });
+    await openBatch({ title: items.length > 1 ? `撤销 ${items.length} 项变更` : '撤销上一步变更', confirmLabel: '撤销变更', chained: true, entries: actions.map((action, index) => ({ action, tag: '撤销', label: items[items.length - 1 - index]?.label || '恢复到变更前', name: '' })) });
   }
   // 批量预览/应用：每一项各自 /prepare（只读），应用时逐项重新 /prepare 再 /actions（后端没有批量接口，也不是原子的）；中途失败时停下，如实显示已应用 / 失败 / 未执行。
-  async function openBatch({ title, entries, confirmLabel = '应用变更', destructive = false, intro = '', onSettled }) {
+  async function openBatch({ title, entries, confirmLabel = '应用变更', destructive = false, intro = '', chained = false, onSettled }) {
     setError(null);
     let plans;
-    try { plans = await Promise.all(entries.map(entry => client.prepare(entry.action))); }
+    try { plans = await Promise.all((chained ? entries.slice(0, 1) : entries).map(entry => client.prepare(entry.action))); }   // chained：后一项依赖前一项的结果（撤销多步），只能预览第一项；其余在应用时逐项重新预览
     catch (error) { setError(error); return; }
     if (!visible) return;
     const root = state?.root || '', tilde = plan => ({ ...plan, impact: (plan.impact || []).map(text => tildeText(text, root)), conflicts: (plan.conflicts || []).map(text => tildeText(text, root)), files: (plan.files || []).map(file => ({ ...file, path: tildePath(file.path, root), ...(file.linkTarget ? { linkTarget: tildePath(file.linkTarget, root) } : {}) })) });
     const conflicts = plans.flatMap((plan, index) => (plan.conflicts || []).map(text => `${entries[index].label}：${tildeText(text, root)}`));
     const rows = entries.map((entry, index) => `<li data-batch-item="${index}" data-status="pending"><span class="extension-batch-tag">${esc(entry.tag)}</span><span class="extension-batch-label">${esc(entry.label)}</span><small data-batch-result></small></li>`).join('');
     const details = plans.map((plan, index) => `<details class="extension-batch-detail"><summary>${esc(entries[index].tag + ' · ' + entries[index].label)}</summary>${extensionPlanContent(tilde(plan))}</details>`).join('');
-    const dialog = openShell(title, `${intro}<ul class="extension-batch-list" data-batch-list>${rows}</ul>${conflicts.length ? `<div class="extension-batch-conflicts" role="alert" data-batch-conflicts><strong>有冲突，不能应用</strong>${conflicts.map(text => `<p>${esc(text)}</p>`).join('')}</div>` : ''}<details class="extension-batch-detail-group"><summary>查看每一项的详细改动</summary>${details}</details><p class="extension-batch-summary" role="status" data-batch-summary></p>${sheetFooter({ confirmLabel, destructive, confirmAttrs: 'data-batch-apply', cancelAttrs: 'data-batch-cancel' })}`, () => { batchBusy = false; renderStaged(); });
+    const dialog = openShell(title, `${intro}<ul class="extension-batch-list" data-batch-list>${rows}</ul>${chained && entries.length > 1 ? '<p class="extension-batch-note" data-batch-chained>这几步按顺序进行：后面的步骤会在前一步完成后再检查，不满足条件会停下。</p>' : ''}${conflicts.length ? `<div class="extension-batch-conflicts" role="alert" data-batch-conflicts><strong>有冲突，不能应用</strong>${conflicts.map(text => `<p>${esc(text)}</p>`).join('')}</div>` : ''}<details class="extension-batch-detail-group"><summary>查看每一项的详细改动</summary>${details}</details><p class="extension-batch-summary" role="status" data-batch-summary></p>${sheetFooter({ confirmLabel, destructive, confirmAttrs: 'data-batch-apply', cancelAttrs: 'data-batch-cancel' })}`, () => { batchBusy = false; renderStaged(); });
     const confirm = dialog.element.querySelector('[data-batch-apply]'), cancel = dialog.element.querySelector('[data-batch-cancel]'), summary = dialog.element.querySelector('[data-batch-summary]');
     const mark = (index, status, text = '') => { const row = dialog.element.querySelector(`[data-batch-item="${index}"]`); row.dataset.status = status; row.querySelector('[data-batch-result]').textContent = text; };
     if (conflicts.length) confirm.disabled = true;
@@ -315,7 +315,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
         try {
           const plan = await client.prepare(entry.action);
           if ((plan.conflicts || []).length) throw new Error(plan.conflicts.map(text => tildeText(text, root)).join('；'));
-          if (JSON.stringify(plan.normalizedAction) !== JSON.stringify(plans[index].normalizedAction)) throw new Error('这一项在预览之后发生了变化，请重新预览');
+          if (plans[index] && JSON.stringify(plan.normalizedAction) !== JSON.stringify(plans[index].normalizedAction)) throw new Error('这一项在预览之后发生了变化，请重新预览');
           const result = await controller.submit(plan);
           done.push({ ...entry, action: plan.normalizedAction, result }); mark(index, 'done', '已应用');
         } catch (error) { failed = { index, error }; mark(index, 'failed', error.message); break; }

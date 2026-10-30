@@ -125,3 +125,10 @@ test('page.js reads pruneStaged as { staged, dropped } (not as a Map) — a Map-
   assert.match(source, /const \{ staged: kept \} = pruneStaged\(staged, state\)/);
   assert.doesNotMatch(source, /const kept = pruneStaged\(/);
 });
+test('multi-step undo is chained: only the first restore is previewed up front (later ones depend on it and report a false conflict if prepared early); page.js passes chained for undo and skips the equality check where no preview exists', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
+  assert.match(source, /chained \? entries\.slice\(0, 1\) : entries/);
+  assert.match(source, /confirmLabel: '撤销变更', chained: true/);
+  assert.match(source, /plans\[index\] && JSON\.stringify\(plan\.normalizedAction\)/);
+});

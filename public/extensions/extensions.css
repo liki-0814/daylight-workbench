@@ -137,3 +137,4 @@
 .extension-batch-conflicts p { margin: var(--space-1) 0 0; }
 .extension-batch-detail { margin: var(--space-2) 0; }
 .extension-batch-summary:empty { display: none; }
+.extension-batch-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
