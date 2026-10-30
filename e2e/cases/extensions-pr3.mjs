@@ -22,6 +22,7 @@ const withCapabilities = (page, capabilities) => page.route(/\/api\/extensions\/
 export default [
   { id: 'ext-pr3-01', priority: 'P0', title: '后端没有 capabilities 时：不显示「在访达中显示」「从备份恢复」，改用「复制路径」；复制成功 / 失败都用 role=status 播报，失败时选中路径文字', async run({ page, url, assert: check, fixture }) {
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+    await withCapabilities(page, { reveal: false, restoreBackup: false, mcpConflictCompare: false });   // 「没有 capability」要显式造出来：含 #36 的后端会真实声明 restoreBackup:true
     await open(page, url, 'mcp');
     const broken = await breakMcp(page, fixture);
     check.equal(await banner(page).getAttribute('role'), 'alert', '错误横幅是 role=alert');
