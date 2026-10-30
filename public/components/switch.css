@@ -1,0 +1,16 @@
+/* 开关：38×22，开启 --accent，关闭 --switch-off + 1px --control-border；命中区 ≥ 28px 高（label 整行可点）。 */
+.ui-switch { display: flex; align-items: center; gap: var(--space-2); min-height: var(--compact-control-height); cursor: pointer; }
+.ui-switch:has(.ui-switch-input:disabled) { cursor: default; }
+.ui-switch .ui-switch-input { appearance: none; -webkit-appearance: none; position: relative; flex: 0 0 38px; box-sizing: border-box; width: 38px; height: 22px; margin: 0; border: 1px solid var(--control-border); border-radius: 11px; background: var(--switch-off); cursor: inherit; transition: background-color .15s, border-color .15s; }
+.ui-switch .ui-switch-input::after { content: ""; position: absolute; top: 1px; left: 1px; width: 18px; height: 18px; border-radius: 50%; background: var(--on-accent); box-shadow: 0 1px 2px var(--scrim); transition: transform .15s; }
+.ui-switch .ui-switch-input:hover:not(:disabled) { border-color: var(--text); }
+.ui-switch .ui-switch-input:checked { border-color: var(--accent); background: var(--accent); }
+.ui-switch .ui-switch-input:checked::after { transform: translateX(16px); }
+.ui-switch .ui-switch-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ui-switch .ui-switch-input:disabled { opacity: var(--button-disabled-opacity, .5); }
+.ui-switch.is-pending .ui-switch-input { border-color: var(--warning); box-shadow: 0 0 0 1px var(--warning); }
+.ui-switch.is-busy .ui-switch-input { opacity: .6; }
+.ui-switch-copy { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); min-width: 0; }
+.ui-switch-copy small { color: var(--text-secondary); font-size: var(--font-caption-size); }
+.ui-switch-copy .ui-switch-note { color: var(--warning-text); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .ui-switch .ui-switch-input, .ui-switch .ui-switch-input::after { transition: none; } }
