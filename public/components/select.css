@@ -86,7 +86,7 @@ workbench-select {
   border-radius: 4px;
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
-  color: #57694c;
+  color: var(--text-secondary);
   cursor: pointer;
   overflow-wrap: anywhere;
 }
@@ -100,7 +100,7 @@ workbench-select {
 }
 
 .select-option[aria-selected="true"] {
-  color: var(--green);
+  color: var(--accent-text);
   font-weight: 550;
 }
 
