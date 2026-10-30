@@ -87,8 +87,6 @@
 .extension-detail { position: sticky; top: calc(var(--toolbar-height, 52px) + var(--space-4)); max-height: calc(100dvh - var(--toolbar-height, 52px) - var(--space-6)); overflow: auto; background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); padding: var(--space-5); }
 .extension-inspector-top { margin: calc(var(--space-2) * -1) 0 var(--space-3); }
 .extension-back { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; }
-.extension-detail:focus { outline: none; }
-.extension-detail:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
 /* 空 / 无匹配 / 失败 / 加载 */
 .extension-empty h3 { margin: 0 0 var(--space-2); font-size: var(--font-section-size); color: var(--ink); }
 .extension-empty p { margin: 0 0 var(--space-2); }
@@ -111,3 +109,7 @@
   .extension-table .extension-row { grid-template-columns: minmax(0, 1fr); row-gap: 0; padding-bottom: var(--space-2); }
   .extension-row-open { min-height: 44px; }
 }
+
+/* PR-5 step B：键盘滚动时避开 52px 吸顶工具栏；检查器可被程序聚焦（Return 进入）。 */
+.extension-row, .extension-row-open { scroll-margin-block: calc(var(--toolbar-height, 52px) + var(--space-3)) var(--space-3); }
+.extension-detail:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }

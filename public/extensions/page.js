@@ -28,9 +28,9 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" hidden></aside></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div></div>`;
   const $ = selector => element.querySelector(selector);
-  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, submitting = false, bindingPreviewing = false, selectionPreviewing = false;
+  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, bindingPreviewing = false, selectionPreviewing = false;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
   const probeLabels = { succeeded: '握手成功', failed: '检测失败', running: '正在检测', cancelled: '已取消', timed_out: '检测超时' };
   const probeTones = { succeeded: 'success', failed: 'danger', timed_out: 'danger', running: 'accent' };
@@ -79,9 +79,32 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     catch (error) { restore(); setError(error); }
   }
   function setError(error) { $('[data-error]').textContent = error?.message || ''; }
-  function changeRoute(next, replace = false) {
+  function changeRoute(next, replace = false, { soon = false } = {}) {
     route = { ...route, ...next };
-    history[replace ? 'replaceState' : 'pushState'](null, '', '/' + extensionsRoute(route)); renderClientFilter(); renderTabs(); renderList(); void loadDetail();
+    history[replace ? 'replaceState' : 'pushState'](null, '', '/' + extensionsRoute(route)); renderClientFilter(); renderTabs(); renderList();
+    if (soon) loadDetailSoon(); else void loadDetail();
+  }
+  // 方向键连续移动时不要每一行都请求详情：停下 150ms 后再读（清单高亮立即更新）。
+  function loadDetailSoon() { clearTimeout(detailTimer); detailTimer = setTimeout(() => { if (visible) void loadDetail(); }, 150); }
+  // ≤999 检查器是覆盖层：打开后焦点必须进去；关闭（按钮或 Esc）后焦点回到刚才那一行。
+  const overlayMode = () => window.matchMedia('(max-width: 999px)').matches;
+  const rowButton = id => [...$('.extension-list').querySelectorAll('.extension-row-open')].find(button => button.dataset.extensionId === id);
+  function closeDetail() {
+    const id = route.id; changeRoute({ id: null, operation: null, file: null });
+    if (id) { const button = rowButton(id); if (button) { rovingId = id; applyRoving(); button.focus({ preventScroll: true }); } }
+  }
+  function focusDetail() { ((overlayMode() && $('.extension-back')) || $('.extension-detail')).focus({ preventScroll: true }); }
+  // roving tabindex（E-14）：清单里只有当前行是 Tab 停靠点（当前行 = 已选中行，否则最近聚焦行，否则第一行）；其余行及其开关 tabindex=-1，仍可被脚本聚焦、被鼠标点。
+  function applyRoving() {
+    const opens = [...$('.extension-list').querySelectorAll('.extension-row-open')]; if (!opens.length) return;
+    const current = opens.find(button => button.dataset.extensionId === route.id) || opens.find(button => button.dataset.extensionId === rovingId) || opens[0];
+    rovingId = current.dataset.extensionId;
+    for (const button of opens) {
+      // 只在值真的变了才写：对同一个值赋 tabIndex 也会产生 attributes 变动记录，重新扫描时清单会被视为“动过”（E-19）。
+      const want = button === current ? 0 : -1, set = el => { if (el.tabIndex !== want) el.tabIndex = want; };
+      set(button);
+      for (const control of button.closest('.extension-row').querySelectorAll('input, button:not(.extension-row-open), a[href]')) set(control);
+    }
   }
   function renderTabs() {
     const restoreFocus=$('#extensions-tabs')?.contains(document.activeElement); tabsDispose?.(); $('.extension-tabs').innerHTML = segmentedControl({ id: 'extensions-tabs', label: '扩展分类', value: route.tab, options: categories, mode: 'tabs' });
@@ -165,24 +188,25 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span></div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
     if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
-    if (markup === listMarkup) return;
+    if (markup === listMarkup) { applyRoving(); return; }
     const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
     $('.extension-list').innerHTML = markup; listMarkup = markup;
     [...$('.extension-list').querySelectorAll('details')].forEach((details,index)=>{if(disclosures[index]!==undefined)details.open=disclosures[index];});
     if (focus?.bindingToggle !== undefined) findBindingControl(focus, 'list')?.focus({preventScroll:true});
     else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
+    applyRoving();
   }
   // 检查器顶部的「‹ 返回清单」（design-spec §3：≤999 覆盖层必须有；宽屏下同一个按钮收起检查器）。‹ 对读屏隐藏，可访问名称仍是「返回清单」。
   const backBar = () => '<div class="extension-inspector-top"><button type="button" class="text-button extension-back" data-close-detail><span aria-hidden="true">‹</span>返回清单</button></div>';
   async function loadDetail() {
     const id = route.operation || route.id;
-    if (!id) { detailTicket++; selected = null; $('.extension-detail').hidden = true; detailKey = ''; return; }
+    if (!id) { detailTicket++; focusDetailOnRender = false; selected = null; $('.extension-detail').hidden = true; detailKey = ''; return; }
     const key = [route.tab, id, state?.version, route.file].join(':'); if (key === detailKey) return;
     const ticket = ++detailTicket; $('.extension-detail').hidden = false; $('.extension-detail').innerHTML = backBar() + '<p role="status">正在读取详情…</p>';
     try {
       const value = route.operation ? await client.operation(id) : await client.detail(id, route.file, tabKinds[route.tab]);
       if (ticket !== detailTicket || !visible) return; selected = value; detailKey = key; renderDetail();
-    } catch (error) { if (ticket !== detailTicket) return; $('.extension-detail').innerHTML = `<div class="extension-detail-error" role="alert"><h3>无法打开${route.operation ? '操作回执' : '详情'}</h3><p>${esc(detailErrorMessage(error, { tab: route.tab, operation: !!route.operation, mcpValid: state?.mcpValid }))}</p><div class="extension-actions"><button type="button" class="secondary" data-close-detail>返回清单</button><button type="button" class="text-button" data-extension-refresh>重新扫描</button></div></div>`; }
+    } catch (error) { if (ticket !== detailTicket) return; focusDetailOnRender = false; $('.extension-detail').innerHTML = `<div class="extension-detail-error" role="alert"><h3>无法打开${route.operation ? '操作回执' : '详情'}</h3><p>${esc(detailErrorMessage(error, { tab: route.tab, operation: !!route.operation, mcpValid: state?.mcpValid }))}</p><div class="extension-actions"><button type="button" class="secondary" data-close-detail>返回清单</button><button type="button" class="text-button" data-extension-refresh>重新扫描</button></div></div>`; }
   }
   function renderDetail() {
     const item = selected; if (!item) return;
@@ -193,6 +217,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${item.enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p>${(w => w ? `<p class="extension-warning" data-insecure-http><strong>警告 · </strong>${esc(w)}</p>` : '')(insecureHttpWarning(item.url, { hasHeaders: !!Object.keys(item.headerRefs || {}).length }))}<p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${item.enabled && item.scope !== 'client' ? '' : 'disabled'}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div><div data-probe-result role="status">${item.lastProbe?`<p>${item.lastProbe.stale ? "配置已变化，以下为上次配置的检测结果：" : ""}${esc(item.lastProbe.message)}${item.lastProbe.toolCount!==null?' 工具数：'+item.lastProbe.toolCount:''}</p>`:''}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', 'envRefs', 'headerRefs'].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(value, null, 2) : value)}</dd>`).join('')}</dl><p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : `<h3>接入软件</h3>${state.clients.filter(client => client.selected && client.mcpMode === 'native').map(client => `<button type="button" class="secondary" data-install-mcp="${esc(client.id)}">接入 ${esc(client.name)}</button>`).join(' ') || chooseClientsPrompt}`}<button type="button" class="ui-button-destructive" data-archive>${item.scope === 'client' ? '移除软件 MCP 配置' : '归档 MCP 主配置'}</button>`;
     else content = `<p>${esc(item.note)}</p><dl><dt>软件主目录</dt><dd>${esc(item.root)}</dd><dt>软件 Skills 目录</dt><dd>${esc(item.skillsRoot)}</dd><dt>Daylight 管理的共享来源</dt><dd>${esc(state.root)}/skills</dd><dt>CLI 命令</dt><dd>${esc(item.command)}</dd></dl><p>${esc(item.refresh)}</p><p>${item.installed ? '可执行文件：' + esc(item.executable) : '未找到命令，可填写可执行文件的绝对路径。'}</p><div class="extension-actions"><button type="button" class="secondary" data-cli-selection data-client="${esc(item.id)}" ${selectionPreviewing ? 'disabled' : ''}>${item.selected ? '取消接入' : '选择接入'}</button>${item.registrationId ? '<button type="button" class="secondary" data-remove-client>删除旧登记，使用自动识别</button>' : ''}${item.custom ? '<button type="button" class="secondary" data-edit>编辑 CLI</button><button type="button" class="ui-button-destructive" data-remove-client>移除登记</button>' : ''}${item.selected && item.mcpMode !== 'unsupported' ? `<button type="button" class="secondary" data-generate>预览生成 MCP 配置</button>` : ''}<button type="button" class="text-button" data-discuss>让 AI 解释接入情况</button>${item.id === 'pi' ? '<a class="text-button" href="#cli">Pi 模型配置</a>' : ''}</div><p>${item.discovered ? '自动识别' : item.custom ? '手动登记' : '内置适配器'} · MCP ${item.mcpMode === 'native' ? '直接管理' : item.mcpMode === 'manual' ? '仅生成片段' : '未接入'}</p>${item.mcpPath ? `<p>用户级 MCP 文件：<code>${esc(item.mcpPath)}</code></p>` : ''}${item.selected ? `<h3>Skills</h3>${item.skills.map(skill => bindingRow(skill, skill.binding, true)).join('') || '<p>主目录暂无 Skill。</p>'}<h3>用户级 MCP</h3>${item.servers?.map(server => `<p><a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">${esc(server.name)}</a> · ${server.enabled ? '启用' : '禁用'}</p>`).join('') || `<p>${item.mcpValid === false ? '配置读取失败，请修复后重新扫描。' : item.mcpMode === 'native' ? '暂无用户级 MCP。可在 MCP 分类新增，选择此软件。' : '尚无已核实的原生 MCP 适配器。'}</p>`}${item.generated ? `<h3>MCP 导出片段</h3><p>${item.generated.current ? '与主配置一致' : '主配置已变化或格式不能生成，请重新核对'}</p><code>${esc(item.generated.path)}</code><p>${esc(item.integration)}</p><pre>${esc(item.generated.content)}</pre>` : `<p>${item.mcpMode === 'unsupported' ? '该软件暂未设置支持的 MCP 配置格式。' : '尚未生成 MCP 适配文件；生成后仍需在客户端接入。'}</p>`}` : '<p>尚未选择接入。选择后才读取和管理此软件的 Skills、MCP；取消接入会保留原有文件和链接。</p>'}`;
     $('.extension-detail').innerHTML = heading + content;
+    if (focusDetailOnRender) { focusDetailOnRender = false; focusDetail(); }
     if (item.kind === 'mcp' && item.lastProbe?.status === 'running') watchProbe(item.lastProbe.id);
   }
   // 复制路径：navigator.clipboard；失败时选中横幅里的路径文字让用户按 ⌘C，两种结果都用 toast（role=status）播报。
@@ -367,6 +392,33 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (visible) void loadDetail();
   });
   const searchControl = mountSearchField($('.extension-search'));
+  // 键盘（design-spec §11）：↑↓/Home/End 在清单里移动（检查器已打开且是并排布局时，选中行跟着走）；Esc 收起检查器并把焦点还给那一行；⌘F 聚焦搜索。
+  element.addEventListener('focusin', event => {
+    const row = event.target.closest?.('.extension-list .extension-row'), id = row?.querySelector('.extension-row-open')?.dataset.extensionId;
+    if (id && id !== rovingId) { rovingId = id; applyRoving(); }
+  });
+  element.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target;
+    if (event.key === 'Escape') {
+      if (!(route.id || route.operation) || $('.extension-detail').hidden || target.closest('dialog, [role="listbox"], [role="menu"]') || target.matches('input, textarea, select') || target.getAttribute('aria-expanded') === 'true') return;
+      event.preventDefault(); closeDetail(); return;
+    }
+    if (!target.matches?.('.extension-row-open')) return;
+    const opens = [...$('.extension-list').querySelectorAll('.extension-row-open')], at = opens.indexOf(target);
+    const to = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: opens.length - 1 }[event.key];
+    if (to === undefined) return;
+    event.preventDefault();
+    const next = opens[Math.max(0, Math.min(opens.length - 1, to))]; if (!next || next === target) return;
+    const id = next.dataset.extensionId; rovingId = id; applyRoving(); next.focus({ preventScroll: true });   // 先移焦点：renderList 会按当前焦点所在行恢复焦点
+    if (route.id && !overlayMode()) changeRoute({ id, operation: null, file: null }, true, { soon: true });
+    rowButton(id)?.scrollIntoView({ block: 'nearest' });
+  });
+  const onFind = event => {
+    if (!visible || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'f' || document.querySelector('dialog[open]')) return;
+    event.preventDefault(); const input = $('.extension-search input'); input.focus(); input.select();
+  };
+  document.addEventListener('keydown', onFind);
   $('.extension-search input').addEventListener('input', event => changeRoute({ query: event.target.value }, true));
   $('[data-problems]').addEventListener('change', event => changeRoute({ problems: event.target.checked }));
   element.addEventListener('change', event => {
@@ -381,8 +433,12 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   element.addEventListener('click', async event => {
     const button = event.target.closest('button'); if (!button) return;
     try {
-      if (button.dataset.extensionId) changeRoute({ id: button.dataset.extensionId, operation: null, file: null });
-      else if (button.hasAttribute('data-close-detail')) changeRoute({ id: null, operation: null, file: null });
+      if (button.dataset.extensionId) {
+        const id = button.dataset.extensionId; rovingId = id;
+        if (id === route.id && !$('.extension-detail').hidden) focusDetail();   // 已选中的行再按 Return/点击：焦点进检查器（§11）
+        else { focusDetailOnRender = overlayMode(); changeRoute({ id, operation: null, file: null }); }
+      }
+      else if (button.hasAttribute('data-close-detail')) closeDetail();
       else if (button.hasAttribute('data-extension-refresh')) await controller.refresh(true);
       else if (button.hasAttribute('data-copy-path')) await copyBannerPath(button);
       else if (button.dataset.extensionReveal) await revealInFinder(button.dataset.extensionReveal);
@@ -405,7 +461,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     } catch (error) { setError(error); } finally { button.disabled = false; }
   });
   renderTabs();
-  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); element.remove(); } };
+  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { document.removeEventListener('keydown', onFind); clearTimeout(detailTimer); unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); element.remove(); } };
 }
 
 // 字段旁错误/警告（0.7 PR-1）：并入本文件以免新增静态资源（新文件需登记 core/web-assets.json，属打包相关）
