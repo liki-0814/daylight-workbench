@@ -153,3 +153,9 @@ test('disabled probe hint wording', () => {
   });
   test('mcp.js is a registered web asset', () => { assert.equal(assets['/extensions/mcp.js'], 'extensions/mcp.js'); });
 }
+
+// 对比度守卫：行内 danger / accent 药丸必须是不透明（白底 + 色调）。半透明底色叠在选中 / 悬停行上，文字对比度会跌到 <4.5（巡检 ext7-probe-*）。
+test('row health chips keep an opaque background (contrast on selected / hover rows)', () => {
+  const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
+  for (const tone of ['danger', 'accent']) assert.match(css, new RegExp(`\\.extension-row \\.ui-chip-${tone} \\{ background: linear-gradient\\(var\\(--\\w+-bg\\), var\\(--\\w+-bg\\)\\) #fff; \\}`), tone);
+});
