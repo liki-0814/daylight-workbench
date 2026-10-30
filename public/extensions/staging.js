@@ -101,6 +101,7 @@ export function appliedMessage(action, name = '') {
     case 'binding.disconnect': return `已取消接入${quoted}`;
     case 'mcp.toggle': return `${action.enabled ? '已启用' : '已停用'}${quoted}`;
     case 'mcp.probe': return '已开始检测连接';
+    case 'skill.resolveConflict': return action.resolution === 'adoptShared' ? `已采用共享版本${quoted}` : action.resolution === 'keepLocal' ? `已保留软件内版本${quoted}` : `已重新标记为待处理${quoted}`;
     case 'skill.create': case 'skill.update': case 'mcp.save': case 'client.save': return `已保存${quoted}`;
     default: return '变更已应用';
   }
