@@ -725,7 +725,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     }
     form.onsubmit = event => { event.preventDefault(); if (phase === 'previewing' || phase === 'importing' || phase === 'picking') return; void runPreview(); };
     form.querySelector('[data-import-cancel]').onclick = () => dialog.close();
-    form.addEventListener('input', event => { if (event.target === input && (session || messages.has('sourcePath') || phase === 'failed')) reset(); });
+    form.addEventListener('input', event => { if (event.target === input && (session || messages.has('sourcePath') || phase === 'failed' || form.querySelector('[data-dialog-error]').textContent)) reset(); });
     form.addEventListener('click', event => {
       const button = event.target.closest('button'); if (!button) return;
       if (button.matches('[data-pick-folder]')) void pickFolder(); else if (button.matches('[data-import-apply]')) void commit();
