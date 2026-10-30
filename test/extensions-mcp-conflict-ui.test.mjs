@@ -95,7 +95,9 @@ test('回执文案与撤销：导入 / 替换 / 保留；有 operationId 才可�
   assert.equal(importedMessage({ resolutions: { a: 'adoptNew', b: 'keepExisting' } }), '已导入 MCP 配置，替换 1 个，保留现有 1 个');
   assert.equal(appliedMessage({ type: 'mcp.importJson', resolutions: { a: 'adoptNew' } }, ''), '已导入 MCP 配置，替换 1 个');
   assert.equal(appliedMessage({ type: 'mcp.importJson' }, ''), '已导入 MCP 配置');
-  assert.match(appliedMessage({ type: 'mcp.save', onConflict: 'keepExisting' }, 'x'), /已保留现有配置，没有改动/);
+  assert.equal(appliedMessage({ type: 'mcp.save', onConflict: 'keepExisting', server: { id: 'dup', name: '新名字' } }, '新名字'), '已保留现有配置，没有改动「dup」');
+  assert.equal(undoable({ type: 'mcp.save', onConflict: 'keepExisting' }, { operationId: 'op1' }), false, '保留现有没改文件，不给撤销');
+  assert.equal(undoable({ type: 'mcp.save', onConflict: 'adoptNew' }, { operationId: 'op1' }), true);
   assert.match(appliedMessage({ type: 'mcp.save', onConflict: 'adoptNew' }, 'x'), /已替换/); assert.match(appliedMessage({ type: 'mcp.save' }, 'x'), /已保存/);
   assert.equal(undoable({ type: 'mcp.importJson' }, { operationId: 'op1' }), true); assert.equal(undoable({ type: 'mcp.importJson' }, {}), false);
 });

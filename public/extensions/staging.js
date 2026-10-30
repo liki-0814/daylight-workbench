@@ -103,13 +103,13 @@ export function appliedMessage(action, name = '') {
     case 'mcp.probe': return '已开始检测连接';
     case 'skill.resolveConflict': return action.resolution === 'adoptShared' ? `已采用共享版本${quoted}` : action.resolution === 'keepLocal' ? `已保留软件内版本${quoted}` : `已重新标记为待处理${quoted}`;
     case 'mcp.importJson': return importedMessage(action);
-    case 'mcp.save': if (action.onConflict === 'keepExisting') return `已保留现有配置，没有改动${quoted}`; return action.onConflict === 'adoptNew' ? `已替换${quoted}` : `已保存${quoted}`;
+    case 'mcp.save': /* 保留现有：写现有那条的 ID，不写新填写的名称 */ if (action.onConflict === 'keepExisting') return `已保留现有配置，没有改动${action.server?.id ? `「${action.server.id}」` : ''}`;  return action.onConflict === 'adoptNew' ? `已替换${quoted}` : `已保存${quoted}`;
     case 'skill.create': case 'skill.update': case 'client.save': return `已保存${quoted}`;
     default: return '变更已应用';
   }
 }
 // 能撤销的动作：只有产生了回执（operationId）、不是检测、不是撤销自己的成功。
-export const undoable = (action, result) => !!result?.operationId && !['mcp.probe', 'operation.restore'].includes(action?.type);
+export const undoable = (action, result) => !!result?.operationId && !['mcp.probe', 'operation.restore'].includes(action?.type) && !(action?.type === 'mcp.save' && action.onConflict === 'keepExisting');   // 保留现有没有改任何文件，不给「撤销」
 // 批量撤销：逆序恢复，每个 operationId 一个动作。
 export const undoActions = operationIds => [...operationIds].reverse().map(operationId => ({ type: 'operation.restore', operationId }));
 
