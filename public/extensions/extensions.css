@@ -64,3 +64,17 @@
 @media (max-width: 1050px) { .extension-browser { grid-template-columns: 1fr; } .extension-browser:has(.extension-detail:not([hidden])) .extension-list { display: none; } }
 @container (max-width: 720px) { .extension-browser { grid-template-columns: 1fr; } .extension-browser:has(.extension-detail:not([hidden])) .extension-list { display: none; } }
 @media (max-width: 600px) { .extension-form-grid, .extension-diff-columns { grid-template-columns: 1fr; } .extension-row { flex-direction: column; gap: var(--space-2); } .extension-row-status { flex-basis: auto; flex-direction: row; flex-wrap: wrap; gap: var(--space-3); } .extension-detail { padding: var(--space-4); } .extension-binding { align-items: start; flex-direction: column; } .extension-dialog { width: calc(100vw - var(--space-6)); } }
+
+/* —— 0.7 PR-1：字段级错误、警告、配置损坏横幅（只在出错/警告状态出现，不改变常态外观）—— */
+.extension-field-error, .extension-field-warning { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--font-body-size, 13px); line-height: 1.5; overflow-wrap: anywhere; }
+.extension-field-error { color: var(--danger, #a04436); }
+.extension-field-warning { color: var(--warning, #9c5b24); }
+.extension-field-error .text-button { font-size: inherit; }
+.extension-editor [aria-invalid="true"] { border-color: var(--danger, #a04436); }
+.extension-warning { color: var(--warning, #9c5b24); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); padding: var(--space-2) var(--space-3); overflow-wrap: anywhere; }
+.extension-banner { margin: 0 0 var(--space-4); padding: var(--space-4); border: 1px solid var(--danger, #a04436); border-radius: var(--radius-md, 8px); background: var(--warning-background, #fff5e8); overflow-wrap: anywhere; }
+.extension-banner h3 { margin: 0 0 var(--space-2); color: var(--danger, #a04436); font-size: var(--font-body-size, 13px); }
+.extension-banner p { margin: 0 0 var(--space-2); }
+.extension-detail-error { padding: var(--space-4); border: 1px solid var(--danger, #a04436); border-radius: var(--radius-md, 8px); }
+.extension-detail-error h3 { margin: 0 0 var(--space-2); color: var(--danger, #a04436); }
+.extension-list-heading h2:focus { outline: var(--button-focus-width, 2px) solid var(--green); outline-offset: var(--button-focus-offset, 3px); }
