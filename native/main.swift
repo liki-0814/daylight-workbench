@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var timer: Timer?
     var focusTray: FocusTray!
     var focusNotifications: FocusNotifications!
+    var folderPicker: NativeFolderPicker!
     var displayAccessibility: DisplayAccessibility!
     var wakeObserver: NSObjectProtocol?
     var traySnapshot: [String: Any]?
@@ -61,9 +62,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         focusNotifications = FocusNotifications(server: server, show: { [weak self] in self?.show($0) })
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         config.userContentController.add(focusNotifications, name: "focusNotifications")
+        folderPicker = NativeFolderPicker(port: Int(server.port), window: { [weak self] in self?.window })
+        config.userContentController.add(folderPicker, name: NativeFolderPicker.messageName)
         displayAccessibility = DisplayAccessibility(); displayAccessibility.install(into: config.userContentController)
         web = WKWebView(frame: .zero, configuration: config); web.navigationDelegate = self; web.uiDelegate = self; window.contentView = web
         focusNotifications.attach(web)
+        folderPicker.attach(web)
         displayAccessibility.attach(web)
         web.load(URLRequest(url: URL(string: server.endpoint + "/")!))
         launcher = Launcher(server: server, displayAccessibility: displayAccessibility); launcher.install()
@@ -100,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { server.updater.markHealthy() }
     func applicationWillTerminate(_ notification: Notification) {
-        timer?.invalidate(); focusNotifications?.stop(); launcher?.stop(); displayAccessibility?.stop()
+        timer?.invalidate(); focusNotifications?.stop(); folderPicker?.stop(); launcher?.stop(); displayAccessibility?.stop()
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         server.queue.async { self.server.focus.close() }
         server.updater.installOnQuit()
