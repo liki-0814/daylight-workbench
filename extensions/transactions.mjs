@@ -99,5 +99,13 @@ export function createTransactions({ root, assertTarget, fault = () => {} }) {
       }
     } finally { await release(); }
   }
-  return { execute, read, receipt: async id => publicReceipt(await read(id)), publicReceipt };
+  // Newest-first applied operations, for recovery points. Bounded: only the most recent files are read.
+  async function history(limit = 50) {
+    let names; try { names = (await fs.readdir(operations)).filter(name => /^[a-zA-Z0-9_-]{8,100}\.json$/.test(name)); } catch (e) { if (e.code === 'ENOENT') return []; throw e; }
+    const dated = (await Promise.all(names.map(async name => ({ name, time: (await stat(path.join(operations, name)))?.mtimeMs || 0 })))).sort((a, b) => b.time - a.time).slice(0, limit);
+    const records = [];
+    for (const { name } of dated) { try { const record = await read(name.slice(0, -5)); if (record?.status === 'applied' && Array.isArray(record.steps)) records.push(record); } catch { /* unreadable history is skipped, never listed */ } }
+    return records;
+  }
+  return { execute, read, history, receipt: async id => publicReceipt(await read(id)), publicReceipt };
 }

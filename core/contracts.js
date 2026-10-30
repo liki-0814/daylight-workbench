@@ -19,7 +19,7 @@ const focusMethods = { state: 'GET', prepare: 'POST', actions: 'POST', statistic
 export function resolveRoute(path, method) {
   if (path.startsWith('/api/extensions/') || path.startsWith('/api/v1/extensions/')) {
     const agent = path.startsWith('/api/v1/'), target = path.replace('/api/v1/extensions/', '/api/extensions/');
-    return { auth: agent ? 'agent' : method === 'GET' ? 'web' : 'webOrigin', handler: extensionMethod(target.slice('/api/extensions'.length), method) ? 'ai' : 'missing', service: 'extensions', target };
+    return { auth: agent ? 'agent' : method === 'GET' ? 'web' : 'webOrigin', handler: extensionMethod(target.slice('/api/extensions'.length), method) && !(agent && target === '/api/extensions/reveal') ? 'ai' : 'missing', service: 'extensions', target };
   }
   if (/^\/api\/ai\/conversations\/[a-f0-9-]+\/extension-submission$/.test(path)) return { auth: 'webOrigin', handler: method === 'POST' ? 'ai' : 'missing', target: path };
   if (/^\/api\/ai\/conversations\/[a-f0-9-]+\/focus-submission$/.test(path)) return { auth: 'webOrigin', handler: method === 'POST' ? 'ai' : 'missing', target: path };
