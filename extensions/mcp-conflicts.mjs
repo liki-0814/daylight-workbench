@@ -9,16 +9,16 @@ const sensitive = value => /(?:token|password|secret|api[-_]?key|authorization)\
 const plain = value => value && typeof value === 'object' && !Array.isArray(value);
 
 export function parseResolution(value, field) {
-  if (value !== undefined && !MCP_RESOLUTIONS.includes(value)) throw fieldError('冲突处理方式只能是 adoptNew（用导入的配置替换）或 keepExisting（保留现有配置）。', field);
+  if (value !== undefined && !MCP_RESOLUTIONS.includes(value)) throw fieldError('冲突处理方式只能是「采用新配置」（用导入的配置替换）或「保留现有配置」。', field);
   return value;
 }
 // `resolutions` maps a server ID to its choice. Unknown IDs are rejected so a typo cannot silently overwrite nothing.
 export function parseResolutions(value, ids) {
   if (value === undefined) return {};
-  if (!plain(value) || Object.keys(value).length > MCP_RESOLUTION_LIMIT) throw fieldError('resolutions 需要是 {服务ID: "adoptNew"|"keepExisting"} 对象，最多 ' + MCP_RESOLUTION_LIMIT + ' 项。', 'resolutions');
+  if (!plain(value) || Object.keys(value).length > MCP_RESOLUTION_LIMIT) throw fieldError('冲突处理的选择格式不对：需要为每个同 ID 的服务各选一个处理方式（「采用新配置」或「保留现有配置」），最多 ' + MCP_RESOLUTION_LIMIT + ' 项。', 'resolutions');
   const result = {};
   for (const [id, choice] of Object.entries(value)) {
-    if (!ids.includes(id)) throw fieldError('resolutions 里的「' + id.slice(0, 60) + '」不在导入内容中。', 'resolutions.' + id.slice(0, 60));
+    if (!ids.includes(id)) throw fieldError('「' + id.slice(0, 60) + '」不在导入内容中，无法为它选择处理方式。', 'resolutions.' + id.slice(0, 60));
     result[id] = parseResolution(choice, 'resolutions.' + id.slice(0, 60));
   }
   return result;

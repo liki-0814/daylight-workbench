@@ -153,3 +153,26 @@ test('mcp.save on a client entry honours onConflict', async t => {
   await f.apply({ type: 'mcp.save', clientId: 'codex', create: true, server, onConflict: 'adoptNew' }, 'client-save'); assert.match(await fs.readFile(file, 'utf8'), /deno/);
   await f.apply({ type: 'operation.restore', operationId: 'client-save' }); assert.equal(await fs.readFile(file, 'utf8'), original);
 });
+
+// User-visible copy: conflict warnings, impact lines and validation errors speak plain Chinese. The API field names and values
+// (resolutions / onConflict / adoptNew / keepExisting) stay exactly as they are, but they never appear inside a message.
+test('user-visible conflict copy has no API jargon and names the two choices in plain Chinese', async t => {
+  const f = await fixture(t); await seed(f); const messages = [];
+  const rejected = async (action) => { try { await f.plan(action); assert.fail('expected a rejection'); } catch (error) { assert.ok(error.message, 'has a message'); messages.push(error.message); } };
+  const json = mcp({ alpha: { command: 'node' } }), incoming = shared('alpha', { name: 'Again' });
+  messages.push(...(await f.plan({ type: 'mcp.importJson', scope: 'shared', json })).conflicts);
+  await rejected({ type: 'mcp.importJson', scope: 'shared', json, resolutions: { alpha: 'overwrite' } });
+  await rejected({ type: 'mcp.importJson', scope: 'shared', json, resolutions: { zzz: 'adoptNew' } });
+  await rejected({ type: 'mcp.importJson', scope: 'shared', json, resolutions: ['alpha'] });
+  await rejected({ type: 'mcp.save', create: true, server: incoming });
+  await rejected({ type: 'mcp.save', create: true, server: incoming, onConflict: 'merge' });
+  await rejected({ type: 'mcp.save', server: incoming, onConflict: 'adoptNew' });
+  await f.apply({ type: 'mcp.importJson', scope: 'client', clientId: 'codex', json });
+  messages.push(...(await f.plan({ type: 'mcp.importJson', scope: 'client', clientId: 'codex', json })).conflicts);
+  await rejected({ type: 'mcp.save', clientId: 'codex', create: true, server: incoming });
+  const keep = await f.plan({ type: 'mcp.save', create: true, server: incoming, onConflict: 'keepExisting' }), adopt = await f.plan({ type: 'mcp.save', create: true, server: incoming, onConflict: 'adoptNew' });
+  messages.push(...keep.impact, ...adopt.impact, ...adopt.warnings);
+  assert.ok(messages.length >= 9, 'covered ' + messages.length + ' messages');
+  for (const message of messages) assert.doesNotMatch(message, /adoptNew|keepExisting|resolutions|onConflict|create:true/, message);
+  const joined = messages.join('\n'); assert.match(joined, /采用新配置/); assert.match(joined, /保留现有配置/);
+});
