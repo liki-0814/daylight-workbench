@@ -667,8 +667,11 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const dialog = openShell('从文件夹导入 Skill', `<form class="extension-editor extension-skill-import" data-skill-import-form novalidate>${importDialogIntro({ pickerAvailable: pickerOn })}<label>${sourcePathLabel}<input name="sourcePath" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="4096" placeholder="/Users/…/my-skill" data-import-path></label><p class="extension-field-hint" id="skill-import-path-hint">${esc(sourcePathHint)}</p>${pickerOn ? '<div class="extension-import-pick"><button type="button" class="secondary" data-pick-folder>选择文件夹…</button></div>' : ''}<p class="extension-import-status" role="status" data-import-status></p><p class="extension-error" role="alert" data-dialog-error></p><div class="extension-skill-import-review" data-import-review aria-live="polite"></div><div class="dialog-footer"><button type="button" class="secondary" data-import-cancel>取消</button><button type="submit" class="primary" data-import-preview>预览导入</button></div></form>`, () => { closed = true; });
     dialog.element.classList.add('extension-compare-dialog');
     const form = dialog.element.querySelector('[data-skill-import-form]'), review = form.querySelector('[data-import-review]'), input = form.querySelector('[data-import-path]'), pickButton = form.querySelector('[data-pick-folder]'), previewButton = form.querySelector('[data-import-preview]'), statusLine = form.querySelector('[data-import-status]');
-    input.setAttribute('aria-describedby', 'skill-import-path-hint');
-    const messages = createFieldMessages(form);
+    // createFieldMessages 会把 aria-describedby 整个改写成「只含错误」；这里每次都补上常驻的格式提示，不让提示在错误清掉后丢了关联。
+    const fieldMessages = createFieldMessages(form);
+    const describe = () => input.setAttribute('aria-describedby', [...(fieldMessages.has('sourcePath') ? ['field-error-sourcePath'] : []), 'skill-import-path-hint'].join(' '));
+    const messages = { has: name => fieldMessages.has(name), error: (...args) => { const done = fieldMessages.error(...args); describe(); return done; }, clearAll: () => { fieldMessages.clearAll(); describe(); } };
+    describe();
     const setError = message => { form.querySelector('[data-dialog-error]').textContent = message || ''; };
     let phase = 'idle', session = null;
     const setPhase = next => {
