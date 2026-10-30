@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const built = file => { try { return fs.readFileSync(fileURLToPath(new URL('../../' + file, import.meta.url)), 'utf8'); } catch { return ''; } };
 const GATE = built('public/extensions/restore-reveal.js') !== '' ? {} : { expectedFail: '后续项需要新 UI（public/extensions/restore-reveal.js 未合入）：合入后自动变为必须通过' };
 const FIX05 = built('public/extensions/page.js').includes('conflictChoice = null;') ? {} : { expectedFail: 'PR-12 小问题修复（e1143a8）未合入：合入后自动变为必须通过' };
+const FIX06 = built('public/extensions/mcp-conflict.js').includes('settleDuplicateFieldError') ? {} : { expectedFail: '字段错误清理（settleDuplicateFieldError）未合入：合入后自动变为必须通过' };
 const json = response => JSON.parse(response.text);
 const rows = page => page.locator('.extension-row');
 const open = async (page, url, tab) => { await page.goto(`${url}/#extensions&tab=${tab}`); await rows(page).first().waitFor({ timeout: 10000 }); };
@@ -102,5 +103,28 @@ export default [
     const last = requests.at(-1); check.ok(!JSON.stringify(last).includes('onConflict'), '再次提交的请求不带 onConflict：' + JSON.stringify(last).slice(0, 200));
     check.equal(requests.some(body => body?.action?.onConflict === 'keepExisting'), true, '第一次带选择的请求确实发出过');
     await dialog.getByRole('button', { name: /取消|关闭/ }).first().click().catch(() => {});
+  } },
+  { id: 'ext-fu-05', priority: 'P0', widths: [1440], ...FIX06, title: '新建 MCP 同 ID（409）：选了处理方式 / 打开替换确认后，稳定 ID 下的字段错误连同 aria-invalid、aria-describedby 一起清掉；重新提交再出现（断言不依赖后端文案）', async run({ page, url, fixture, assert: check }) {
+    const dialog = page.locator('dialog[open]'), idInput = dialog.getByLabel('稳定 ID', { exact: true });
+    const state = async () => idInput.evaluate(input => { const errors = [...input.closest('form').querySelectorAll('[data-field-error="id"]')]; return { errors: errors.length, text: errors.map(node => node.textContent.trim()).join(''), invalid: input.getAttribute('aria-invalid'), described: input.getAttribute('aria-describedby'), errorIds: errors.map(node => node.id), dialogError: input.closest('form').querySelector('[data-dialog-error]')?.textContent.trim() || '', value: input.value }; });
+    const submit = async () => { await dialog.locator('form button[type="submit"]').first().click(); await dialog.locator('[data-duplicate-panel] input[type="radio"]').first().waitFor(); };
+    const shown = async label => { const now = await state(); check.equal(now.errors, 1, label + '：稳定 ID 下有一条字段错误'); check.ok(now.text.length > 0, label + '：错误不是空的'); check.equal(now.invalid, 'true', label + '：aria-invalid=true'); check.ok(now.errorIds.length === 1 && (now.described || '').split(/\s+/).includes(now.errorIds[0]), label + '：aria-describedby 指向这条错误：' + now.described); check.ok(now.dialogError.length > 0, label + '：对话框里有「有字段需要修改」那一行'); };
+    const cleared = async label => { const now = await state(); check.equal(now.errors, 0, label + '：字段错误已清掉'); check.equal(now.invalid, null, label + '：aria-invalid 已移除'); check.ok(!(now.described || '').includes('field-error'), label + '：aria-describedby 不再指向错误：' + now.described); check.equal(now.dialogError, '', label + '：对话框级提示也清掉'); check.equal(now.value, 'missing-env-mcp', label + '：输入保留'); };
+    const commandOf = async () => json(await fixture.api('/api/extensions/state')).servers.find(item => item.id === 'missing-env-mcp' && item.scope !== 'client')?.command, original = await commandOf();
+    await open(page, url, 'mcp');
+    await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click();
+    await idInput.fill('missing-env-mcp'); await dialog.getByLabel('服务名称', { exact: true }).fill('字段错误测试'); await dialog.getByLabel('可执行命令', { exact: true }).fill('npx');
+    await submit(); await shown('409 之后');
+    check.equal(await dialog.locator('[data-duplicate-panel] input[type="radio"]:checked').count(), 0, '没预选，字段错误不会因为面板出现而消失');
+    // 选「保留现有」：change 一触发就清
+    await dialog.getByRole('radio', { name: /保留现有/ }).check(); await cleared('选了保留现有');
+    // 重新提交：再次 409，字段错误应当重新出现（不能被永久压住）
+    await dialog.locator('form button[type="submit"]').first().click(); await page.waitForFunction(() => !document.querySelector('[data-duplicate-panel]:not([hidden]) input[type="radio"]:checked') && !!document.querySelector('[data-duplicate-panel]:not([hidden]) input[type="radio"]'), null, { timeout: 8000 });
+    await shown('再次提交 409 之后');
+    // 选「替换」→ 打开确认：仍然干净；返回也不会把旧错误请回来
+    await dialog.getByRole('radio', { name: /用新填写的替换/ }).check(); await cleared('选了替换');
+    await dialog.getByRole('button', { name: /按所选继续/ }).click(); await dialog.getByRole('button', { name: /确认替换/ }).waitFor(); await cleared('打开替换确认后');
+    await dialog.getByRole('button', { name: '返回', exact: true }).click(); await cleared('返回之后');
+    check.equal(await commandOf(), original, '整个过程没写盘');
   } },
 ];
