@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { stageKey, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, describeChange, tildePath, rememberedLabel, hasMasterSwitch, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions, clientNames } from '../public/extensions/staging.js';
+import { stageKey, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, describeChange, tildePath, tildeText, rememberedLabel, hasMasterSwitch, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions, clientNames } from '../public/extensions/staging.js';
 
 const state = {
   root: '/Users/li/.agents',
@@ -90,7 +90,7 @@ test('titles, bar label, partial success and receipt wording', () => {
   assert.equal(partialSummary({ done: 3, failed: 0 }), '已应用 3 项变更');
   assert.equal(appliedMessage({ type: 'skill.archive' }, 'review-code'), '已归档「review-code」');
   assert.equal(appliedMessage({ type: 'operation.restore' }), '已撤销上一步变更');
-  assert.equal(appliedMessage({ type: 'mcp.save' }), '变更已应用');
+  assert.equal(appliedMessage({ type: 'mcp.install' }), '变更已应用');
 });
 
 test('undo: only for receipts that are not probes and not undo themselves; batches restore in reverse', () => {
@@ -105,4 +105,17 @@ test('the module is a registered web asset and has no DOM access', () => {
   const source = readFileSync(new URL('../public/extensions/staging.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source.replace(/^\s*\/\/.*$/gm, ''), /document\.|window\.|localStorage/);
   assert.equal(JSON.parse(readFileSync(new URL('../core/web-assets.json', import.meta.url), 'utf8'))['/extensions/staging.js'], 'extensions/staging.js');
+});
+
+test('tildeText shortens the home directory in prose, using the shared root to find it', () => {
+  const root = '/Users/li/.agents';
+  assert.equal(tildeText('写入 /Users/li/.agents/skills/a 与 /Users/li/.codex/skills/a', root), '写入 ~/.agents/skills/a 与 ~/.codex/skills/a');
+  assert.equal(tildeText('/opt/x/y', root), '/opt/x/y');
+  assert.equal(tildeText('/Users/li/a', ''), '/Users/li/a', 'no root: do not guess');
+  assert.equal(tildeText(undefined, root), '');
+});
+
+test('appliedMessage covers probe and save receipts', () => {
+  assert.equal(appliedMessage({ type: 'mcp.probe' }), '已开始检测连接');
+  assert.equal(appliedMessage({ type: 'skill.create' }, 'a'), '已保存「a」');
 });

@@ -2,6 +2,7 @@ import { createExtensionsClient } from './client.js';
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
+import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
@@ -20,7 +21,7 @@ const categories = [
   { value: 'mcp', label: 'MCP 服务', collection: 'servers', title: 'MCP 配置', action: '新建 MCP 服务' },
   { value: 'clients', label: '接入软件', collection: 'clients', title: '本地 CLI', action: '添加 CLI' },
 ];
-const bindingLabel = { managed: '链接由 Daylight 管理', existing: '已有正确链接', conflict: '同名位置冲突，未改动', not_connected: '勾选后预览接入' };
+const bindingLabel = { managed: '链接由 Daylight 管理', existing: '已有正确链接', conflict: '同名位置冲突，未改动', not_connected: '打开后加入待应用的变更' };
 const textField = (name, label, value = '', attrs = '') => `<label>${label}<input name="${name}" value="${esc(value)}" ${attrs}></label>`;
 const chooseClientsPrompt = `<p>请先在<a href="${extensionsRoute({ tab: 'clients' })}">接入软件</a>中选择要管理的 CLI。</p>`;
 const refText = refs => Object.entries(refs || {}).map(([key, ref]) => key + '=' + ref).join('\n');
@@ -29,42 +30,61 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
   const $ = selector => element.querySelector(selector);
-  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, bindingPreviewing = false, selectionPreviewing = false;
+  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, selectionPreviewing = false, staged = new Map(), batchBusy = false, loadView = {}, loadStartedAt = 0, loadStripTimer, focusBeforeLoad = null;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
   const probeLabels = { succeeded: '握手成功', failed: '检测失败', running: '正在检测', cancelled: '已取消', timed_out: '检测超时' };
   const probeTones = { succeeded: 'success', failed: 'danger', timed_out: 'danger', running: 'accent' };
   const probeChip = item => chip({ label: (item.lastProbe?.stale ? '配置已变更 · 上次' : '') + (probeLabels[item.lastProbe?.status] || (item.scope === 'client' ? '用户级配置' : '尚未检测')), tone: probeTones[item.lastProbe?.status] || 'neutral', dot: !!probeTones[item.lastProbe?.status] });
+  const liveSkill = skill => state?.skills.find(item => item.id === skill.id) || skill;
+  // 暂存（只在页面内存里，/prepare 与 /actions 才是真正动手的地方）：总开关和接入开关都先记下想要的值，右下「预览并应用」才逐项预览、应用。
+  function masterControl(skill, compact = true) {
+    const live = liveSkill(skill);
+    if (!hasMasterSwitch(live)) return compact ? '<span class="extension-master-none"><span aria-hidden="true">—</span><span class="extension-visually-hidden">此 Skill 不能停用</span></span>' : '';
+    const change = { kind: 'skill', id: live.id }, pending = staged.has(stageKey(change)), checked = stagedValue(staged, change, skillEnabled(live));
+    const reason = stagedKindFor(staged, live.id) === 'binding' ? '已暂存接入变更，先应用或还原' : '';
+    const remembered = !checked && !pending ? rememberedLabel(live, state) : '';
+    return switchControl({ label: live.name + ' · 启用', text: checked ? '已启用' : '已停用', hint: reason ? (compact ? '接入待应用' : reason) : remembered, checked, pending, busy: batchBusy && pending, disabled: !!reason || batchBusy, title: reason || (checked ? '停用后软件里的链接会被移除，重新启用时恢复' : '启用后会恢复之前接入的软件'), className: 'extension-binding-control extension-master-control', inputAttrs: { 'data-master-toggle': true, 'data-skill': live.id } });
+  }
   function bindingControl(skill, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);
     if (binding.state === 'local') return `<span>${esc(software.name)} · 本地专有${skill.linked ? '链接' : ''}</span>`;
-    const conflict = binding.state === 'conflict', checked = ['managed', 'existing'].includes(binding.state), note = bindingLabel[binding.state];
-    const disabled = conflict || bindingPreviewing || (skill.readOnly && !skill.valid);
-    return switchControl({ label: skill.name + ' · ' + software.name, text: software.name, hint: !compact ? note : conflict ? '冲突' : '', checked, disabled, title: note, className: 'extension-binding-control', inputAttrs: { 'data-binding-toggle': true, 'data-skill': skill.id, 'data-client': binding.clientId } });
+    const live = liveSkill(skill), conflict = binding.state === 'conflict', actual = connectedState(binding.state), note = bindingLabel[binding.state];
+    const change = { kind: 'binding', id: skill.id, clientId: binding.clientId }, pending = staged.has(stageKey(change)), checked = stagedValue(staged, change, actual);
+    const masterStaged = stagedKindFor(staged, skill.id) === 'skill', offSkill = !skillEnabled(live) && !actual && !pending;
+    const reason = conflict ? '' : masterStaged ? '已暂存总开关变更，先应用或还原' : offSkill ? '已停用，启用后才能接入' : '';
+    const disabled = conflict || batchBusy || !!reason || (skill.readOnly && !skill.valid);
+    return switchControl({ label: skill.name + ' · ' + software.name, text: software.name, hint: !compact ? (reason || note) : conflict ? '冲突' : masterStaged ? '总开关待应用' : offSkill ? '已停用' : '', checked, pending, busy: batchBusy && pending, disabled, title: reason || note, className: 'extension-binding-control', inputAttrs: { 'data-binding-toggle': true, 'data-skill': skill.id, 'data-client': binding.clientId } });
   }
   function bindingRow(skill, binding, showSkillName = false) {
     return `<div class="extension-binding"><div>${showSkillName ? `<a href="${extensionsRoute({ tab: 'skills', id: skill.id })}">${esc(skill.name)}</a>` : ''}${bindingControl(skill, binding)}</div>${binding.state === 'existing' ? `<details><summary>管理记录</summary><button type="button" class="text-button" data-binding="adopt" data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}">记录链接归属（可选）</button></details>` : ''}</div>`;
   }
-  function findBindingControl(data, area) {
-    return [...$(area === 'list' ? '.extension-list' : '.extension-detail').querySelectorAll('[data-binding-toggle]')].find(input => input.dataset.skill === data.skill && input.dataset.client === data.client);
+  // 开关（总开关或接入开关）在清单或检查器里的同一个控件：用于重绘后把焦点还给它。
+  function findToggle(data, area) {
+    const master = data.masterToggle !== undefined, root = $(area === 'list' ? '.extension-list' : '.extension-detail');
+    return [...root.querySelectorAll(master ? '[data-master-toggle]' : '[data-binding-toggle]')].find(input => input.dataset.skill === data.skill && (master || input.dataset.client === data.client));
   }
-  async function toggleBinding(input) {
-    if (bindingPreviewing) return;
-    const skill = state.skills.find(item => item.id === input.dataset.skill), binding = skill?.bindings.find(item => item.clientId === input.dataset.client);
-    if (!binding) return;
-    const connected = ['managed', 'existing'].includes(binding.state);
-    input.checked = connected;
-    const data = { ...input.dataset }, area = input.closest('.extension-list') ? 'list' : 'detail';
-    const restore = () => {
-      bindingPreviewing = false; listMarkup = undefined; renderList(); if (selected) renderDetail();   // 预览期间控件被脚本置灰，但清单 HTML 没变；不清缓存会被 renderList 的相同标记早退保留为灰色（E-26）
-      if (visible) findBindingControl(data, area)?.focus();
-    };
-    bindingPreviewing = true; input.disabled = true; setError(null);
-    try {
-      await preview({ type: connected ? 'binding.disconnect' : 'binding.connect', id: skill.id, clientId: binding.clientId, ...(binding.state === 'existing' ? { includeExisting: true } : {}) }, { title: connected ? '确认移除软件链接' : '确认接入软件', onClose: restore });
-    } catch (error) { restore(); setError(error); }
+  // 暂存发生变化后重绘清单、检查器和底栏；焦点留在同一个开关上。
+  function renderStaged() {
+    const inDetail = $('.extension-detail').contains(document.activeElement) ? { ...document.activeElement.dataset } : null;
+    listMarkup = undefined; renderList(); if (selected) renderDetail({ keepFocus: true });
+    if (inDetail && (inDetail.bindingToggle !== undefined || inDetail.masterToggle !== undefined)) findToggle(inDetail, 'detail')?.focus({ preventScroll: true });
+    renderBar();
   }
+  function renderBar() {
+    const bar = $('[data-staging-bar]'), count = staged.size;
+    bar.hidden = !count;
+    $('[data-staging-count]').textContent = count ? barLabel(count) : '';
+    for (const button of bar.querySelectorAll('button')) button.disabled = batchBusy;
+  }
+  function stageToggle(input) {
+    if (batchBusy || !state) return;
+    const live = state.skills.find(item => item.id === input.dataset.skill); if (!live) return;
+    const change = input.dataset.masterToggle !== undefined ? { kind: 'skill', id: live.id, want: input.checked } : { kind: 'binding', id: live.id, clientId: input.dataset.client, want: input.checked };
+    staged = stageChange(staged, change, state); setError(null); renderStaged();
+  }
+  function revertStaged() { staged = new Map(); renderStaged(); }
   async function toggleClientSelection(control) {
     if (selectionPreviewing) return;
     const item = state.clients.find(item => item.id === control.dataset.client);
@@ -163,7 +183,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   function rowFor(item) {
     const active = item.id === route.id, query = route.query || '';
     const summary = route.tab === 'skills' ? (item.valid ? item.description : item.problem) : route.tab === 'mcp' ? '' : item.note;
-    const statusCells = route.tab === 'skills' ? [item.bindings.length ? `<span class="extension-binding-group">${item.bindings.map(binding => bindingControl(item, binding, true)).join('')}</span>` : '<small>未选择软件</small>']
+    const statusCells = route.tab === 'skills' ? [masterControl(item), item.bindings.length ? `<span class="extension-binding-group">${item.bindings.map(binding => bindingControl(item, binding, true)).join('')}</span>` : '<small>未选择软件</small>']
       : route.tab === 'mcp' ? [chip({ label: item.transport, tone: 'neutral' }), mcpStatus(item)]
       : [switchControl({ label: item.name + ' · 接入扩展管理', text: item.selected ? '已接入' : '选择接入', hint: item.installed ? '已发现命令' : '未找到命令', checked: !!item.selected, disabled: selectionPreviewing, className: 'extension-binding-control', inputAttrs: { 'data-cli-selection': true, 'data-client': item.id } })];
     return rowMarkup({ tab: route.tab, item, active, query, summary, sourceText: sourceOf(item), statusCells });
@@ -173,9 +193,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (!state) {
       listMarkup = undefined; updateCreateAvailability(null);
       if (readFailure) { loadingSince = 0; $('.extension-list').innerHTML = failureState({ reason: readFailure.message }); return; }
+      if (loadView.cancelled) { loadingSince = 0; $('.extension-list').innerHTML = ''; return; }   // 取消后没有数据可显示：上方「已取消」横幅带重试
       loadingSince ||= Date.now();
       const elapsed = Date.now() - loadingSince;
-      $('.extension-list').innerHTML = loadingState({ elapsed });
+      $('.extension-list').innerHTML = loadingState({ elapsed, cancellable: !!loadView.cancellable });
       if (elapsed < 1000) loadingTimers.push(setTimeout(() => { if (!state && visible) renderList(); }, elapsed < 300 ? 300 - elapsed : 1000 - elapsed));
       return;
     }
@@ -193,7 +214,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
     $('.extension-list').innerHTML = markup; listMarkup = markup;
     [...$('.extension-list').querySelectorAll('details')].forEach((details,index)=>{if(disclosures[index]!==undefined)details.open=disclosures[index];});
-    if (focus?.bindingToggle !== undefined) findBindingControl(focus, 'list')?.focus({preventScroll:true});
+    if (focus?.bindingToggle !== undefined || focus?.masterToggle !== undefined) findToggle(focus, 'list')?.focus({preventScroll:true});
     else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
     applyRoving();
   }
@@ -209,13 +230,15 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       if (ticket !== detailTicket || !visible) return; selected = value; detailKey = key; renderDetail();
     } catch (error) { if (ticket !== detailTicket) return; focusDetailOnRender = false; $('.extension-detail').innerHTML = `<div class="extension-detail-error" role="alert"><h3>无法打开${route.operation ? '操作回执' : '详情'}</h3><p>${esc(detailErrorMessage(error, { tab: route.tab, operation: !!route.operation, mcpValid: state?.mcpValid }))}</p><div class="extension-actions"><button type="button" class="secondary" data-close-detail>返回清单</button><button type="button" class="text-button" data-extension-refresh>重新扫描</button></div></div>`; }
   }
-  function renderDetail() {
+  // 危险操作单独成组（design-spec：破坏性动作不与普通操作并排）；按钮仍是 [data-archive]，点开后是带影响说明的确认。
+  const dangerZone = (label, hint) => `<section class="extension-danger-zone" aria-labelledby="extension-danger-title"><h3 id="extension-danger-title">危险操作</h3><p>${esc(hint)}</p><button type="button" class="ui-button-destructive" data-archive>${esc(label)}</button></section>`;
+  function renderDetail({ keepFocus = false } = {}) {
     const item = selected; if (!item) return;
     const heading = backBar() + sectionHeading({ title: item.name || '操作回执' });
     let content;
     if (route.operation) content = `<p>状态：${esc(item.status)}</p><p>${esc(item.error || '')}</p><code>${esc(item.requestId)}</code><div class="extension-actions"><button type="button" class="secondary" data-restore-operation="${esc(item.requestId)}" ${item.status === 'applied' && item.steps.length ? '' : 'disabled'}>预览恢复修改前内容</button></div><details><summary>操作与步骤</summary><pre>${esc(JSON.stringify(item, null, 2))}</pre></details>`;
-    else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre><button type="button" class="ui-button-destructive" data-archive>${item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件'}</button>`;
-    else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${item.enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p>${(w => w ? `<p class="extension-warning" data-insecure-http><strong>警告 · </strong>${esc(w)}</p>` : '')(insecureHttpWarning(item.url, { hasHeaders: !!Object.keys(item.headerRefs || {}).length }))}<p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${item.enabled && item.scope !== 'client' ? '' : 'disabled'}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div><div data-probe-result role="status">${item.lastProbe?`<p>${item.lastProbe.stale ? "配置已变化，以下为上次配置的检测结果：" : ""}${esc(item.lastProbe.message)}${item.lastProbe.toolCount!==null?' 工具数：'+item.lastProbe.toolCount:''}</p>`:''}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', 'envRefs', 'headerRefs'].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(value, null, 2) : value)}</dd>`).join('')}</dl><p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : `<h3>接入软件</h3>${state.clients.filter(client => client.selected && client.mcpMode === 'native').map(client => `<button type="button" class="secondary" data-install-mcp="${esc(client.id)}">接入 ${esc(client.name)}</button>`).join(' ') || chooseClientsPrompt}`}<button type="button" class="ui-button-destructive" data-archive>${item.scope === 'client' ? '移除软件 MCP 配置' : '归档 MCP 主配置'}</button>`;
+    else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre>${dangerZone(item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件', item.linked ? '只移除软件里的链接，源文件保留。' : '归档后，使用它的软件会失去这个 Skill。')}`;
+    else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${item.enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p>${(w => w ? `<p class="extension-warning" data-insecure-http><strong>警告 · </strong>${esc(w)}</p>` : '')(insecureHttpWarning(item.url, { hasHeaders: !!Object.keys(item.headerRefs || {}).length }))}<p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${item.enabled && item.scope !== 'client' ? '' : 'disabled'}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div><div data-probe-result role="status">${item.lastProbe?`<p>${item.lastProbe.stale ? "配置已变化，以下为上次配置的检测结果：" : ""}${esc(item.lastProbe.message)}${item.lastProbe.toolCount!==null?' 工具数：'+item.lastProbe.toolCount:''}</p>`:''}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', 'envRefs', 'headerRefs'].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(value, null, 2) : value)}</dd>`).join('')}</dl><p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : `<h3>接入软件</h3>${state.clients.filter(client => client.selected && client.mcpMode === 'native').map(client => `<button type="button" class="secondary" data-install-mcp="${esc(client.id)}">接入 ${esc(client.name)}</button>`).join(' ') || chooseClientsPrompt}`}${dangerZone(item.scope === 'client' ? '移除软件 MCP 配置' : '归档 MCP 主配置', '归档后，使用它的软件会失去这个 MCP 服务。')}`;
     else content = `<p>${esc(item.note)}</p><dl><dt>软件主目录</dt><dd>${esc(item.root)}</dd><dt>软件 Skills 目录</dt><dd>${esc(item.skillsRoot)}</dd><dt>Daylight 管理的共享来源</dt><dd>${esc(state.root)}/skills</dd><dt>CLI 命令</dt><dd>${esc(item.command)}</dd></dl><p>${esc(item.refresh)}</p><p>${item.installed ? '可执行文件：' + esc(item.executable) : '未找到命令，可填写可执行文件的绝对路径。'}</p><div class="extension-actions"><button type="button" class="secondary" data-cli-selection data-client="${esc(item.id)}" ${selectionPreviewing ? 'disabled' : ''}>${item.selected ? '取消接入' : '选择接入'}</button>${item.registrationId ? '<button type="button" class="secondary" data-remove-client>删除旧登记，使用自动识别</button>' : ''}${item.custom ? '<button type="button" class="secondary" data-edit>编辑 CLI</button><button type="button" class="ui-button-destructive" data-remove-client>移除登记</button>' : ''}${item.selected && item.mcpMode !== 'unsupported' ? `<button type="button" class="secondary" data-generate>预览生成 MCP 配置</button>` : ''}<button type="button" class="text-button" data-discuss>让 AI 解释接入情况</button>${item.id === 'pi' ? '<a class="text-button" href="#cli">Pi 模型配置</a>' : ''}</div><p>${item.discovered ? '自动识别' : item.custom ? '手动登记' : '内置适配器'} · MCP ${item.mcpMode === 'native' ? '直接管理' : item.mcpMode === 'manual' ? '仅生成片段' : '未接入'}</p>${item.mcpPath ? `<p>用户级 MCP 文件：<code>${esc(item.mcpPath)}</code></p>` : ''}${item.selected ? `<h3>Skills</h3>${item.skills.map(skill => bindingRow(skill, skill.binding, true)).join('') || '<p>主目录暂无 Skill。</p>'}<h3>用户级 MCP</h3>${item.servers?.map(server => `<p><a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">${esc(server.name)}</a> · ${server.enabled ? '启用' : '禁用'}</p>`).join('') || `<p>${item.mcpValid === false ? '配置读取失败，请修复后重新扫描。' : item.mcpMode === 'native' ? '暂无用户级 MCP。可在 MCP 分类新增，选择此软件。' : '尚无已核实的原生 MCP 适配器。'}</p>`}${item.generated ? `<h3>MCP 导出片段</h3><p>${item.generated.current ? '与主配置一致' : '主配置已变化或格式不能生成，请重新核对'}</p><code>${esc(item.generated.path)}</code><p>${esc(item.integration)}</p><pre>${esc(item.generated.content)}</pre>` : `<p>${item.mcpMode === 'unsupported' ? '该软件暂未设置支持的 MCP 配置格式。' : '尚未生成 MCP 适配文件；生成后仍需在客户端接入。'}</p>`}` : '<p>尚未选择接入。选择后才读取和管理此软件的 Skills、MCP；取消接入会保留原有文件和链接。</p>'}`;
     $('.extension-detail').innerHTML = heading + content;
     if (focusDetailOnRender) { focusDetailOnRender = false; focusDetail(); }
@@ -255,12 +278,78 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const target = [id, ...order.slice(at + 1), ...order.slice(0, Math.max(at, 0)).reverse()].map(candidate => rows.get(candidate)).find(Boolean);
     (target || $('.extension-list-heading h2') || $('.extension-search input'))?.focus();
   }
+  const nameFor = action => (state?.skills.find(item => item.id === action.id) || state?.servers.find(item => item.id === action.id) || state?.clients.find(item => item.id === (action.clientId || action.id)))?.name || '';
+  // 成功回执：toast 说明结果；能撤销的（不是检测、不是撤销本身）带「撤销」按钮，走同一套预览确认（operation.restore）。
+  function receipt(done) {
+    const ok = done.filter(item => item.result); if (!ok.length) return;
+    const message = ok.length === 1 ? appliedMessage(ok[0].action, ok[0].name) : `已应用 ${ok.length} 项变更`;
+    const undo = ok.every(item => undoable(item.action, item.result)) ? ok.map(item => ({ operationId: item.result.operationId, label: item.label || appliedMessage(item.action, item.name) })) : [];
+    showToast({ message, tone: 'success', ...(undo.length ? { actionLabel: '撤销', onAction: () => void undoOperations(undo).catch(setError) } : {}) });
+    controller.clearSubmission();
+  }
+  async function undoOperations(items) {
+    const actions = undoActions(items.map(item => item.operationId));
+    await openBatch({ title: items.length > 1 ? `撤销 ${items.length} 项变更` : '撤销上一步变更', confirmLabel: '撤销变更', entries: actions.map((action, index) => ({ action, tag: '撤销', label: items[items.length - 1 - index]?.label || '恢复到变更前', name: '' })) });
+  }
+  // 批量预览/应用：每一项各自 /prepare（只读），应用时逐项重新 /prepare 再 /actions（后端没有批量接口，也不是原子的）；中途失败时停下，如实显示已应用 / 失败 / 未执行。
+  async function openBatch({ title, entries, confirmLabel = '应用变更', destructive = false, intro = '', onSettled }) {
+    setError(null);
+    let plans;
+    try { plans = await Promise.all(entries.map(entry => client.prepare(entry.action))); }
+    catch (error) { setError(error); return; }
+    if (!visible) return;
+    const root = state?.root || '', tilde = plan => ({ ...plan, impact: (plan.impact || []).map(text => tildeText(text, root)), conflicts: (plan.conflicts || []).map(text => tildeText(text, root)), files: (plan.files || []).map(file => ({ ...file, path: tildePath(file.path, root), ...(file.linkTarget ? { linkTarget: tildePath(file.linkTarget, root) } : {}) })) });
+    const conflicts = plans.flatMap((plan, index) => (plan.conflicts || []).map(text => `${entries[index].label}：${tildeText(text, root)}`));
+    const rows = entries.map((entry, index) => `<li data-batch-item="${index}" data-status="pending"><span class="extension-batch-tag">${esc(entry.tag)}</span><span class="extension-batch-label">${esc(entry.label)}</span><small data-batch-result></small></li>`).join('');
+    const details = plans.map((plan, index) => `<details class="extension-batch-detail"><summary>${esc(entries[index].tag + ' · ' + entries[index].label)}</summary>${extensionPlanContent(tilde(plan))}</details>`).join('');
+    const dialog = openShell(title, `${intro}<ul class="extension-batch-list" data-batch-list>${rows}</ul>${conflicts.length ? `<div class="extension-batch-conflicts" role="alert" data-batch-conflicts><strong>有冲突，不能应用</strong>${conflicts.map(text => `<p>${esc(text)}</p>`).join('')}</div>` : ''}<details class="extension-batch-detail-group"><summary>查看每一项的详细改动</summary>${details}</details><p class="extension-batch-summary" role="status" data-batch-summary></p>${sheetFooter({ confirmLabel, destructive, confirmAttrs: 'data-batch-apply', cancelAttrs: 'data-batch-cancel' })}`, () => { batchBusy = false; renderStaged(); });
+    const confirm = dialog.element.querySelector('[data-batch-apply]'), cancel = dialog.element.querySelector('[data-batch-cancel]'), summary = dialog.element.querySelector('[data-batch-summary]');
+    const mark = (index, status, text = '') => { const row = dialog.element.querySelector(`[data-batch-item="${index}"]`); row.dataset.status = status; row.querySelector('[data-batch-result]').textContent = text; };
+    if (conflicts.length) confirm.disabled = true;
+    cancel.onclick = () => dialog.close();
+    confirm.onclick = async () => {
+      batchBusy = true; confirm.disabled = true; dialog.setBusy(true); dialog.setError(''); renderStaged();
+      const done = []; let failed = null;
+      for (const [index, entry] of entries.entries()) {
+        mark(index, 'working', '应用中…');
+        try {
+          const plan = await client.prepare(entry.action);
+          if ((plan.conflicts || []).length) throw new Error(plan.conflicts.map(text => tildeText(text, root)).join('；'));
+          if (JSON.stringify(plan.normalizedAction) !== JSON.stringify(plans[index].normalizedAction)) throw new Error('这一项在预览之后发生了变化，请重新预览');
+          const result = await controller.submit(plan);
+          done.push({ ...entry, action: plan.normalizedAction, result }); mark(index, 'done', '已应用');
+        } catch (error) { failed = { index, error }; mark(index, 'failed', error.message); break; }
+      }
+      for (const item of done) if (item.change) staged.delete(stageKey(item.change));
+      batchBusy = false;
+      if (failed) for (let index = failed.index + 1; index < entries.length; index++) mark(index, 'skipped', '未执行');
+      summary.textContent = failed ? partialSummary({ done: done.length, failed: 1, pending: entries.length - done.length - 1 }) : '';
+      onSettled?.(done, failed);
+      if (!failed) { dialog.setBusy(false); dialog.close(); receipt(done); return; }
+      dialog.setBusy(false); dialog.setError(failed.error.message + '；已应用的项不会回滚，可在完成提示里撤销。'); confirm.hidden = true; cancel.textContent = '关闭'; cancel.focus();
+      receipt(done);   // 已应用的部分仍给出回执（可撤销）
+    };
+  }
+  // 暂存的变更 → 预览并应用。
+  async function reviewStaged() {
+    if (batchBusy || !staged.size || !state) return;
+    const entries = [...staged.values()].map(change => ({ change, action: actionFor(change, state), ...describeChange(change, state), name: state.skills.find(item => item.id === change.id)?.name || '' }));
+    await openBatch({ title: batchTitle(entries.length), entries });
+  }
+  const archiveIntro = (action, name) => {
+    const skill = action.type === 'skill.archive' ? state?.skills.find(item => item.id === action.id) : null;
+    const users = skill ? skill.bindings.filter(binding => connectedState(binding.state)).map(binding => state.clients.find(item => item.id === binding.clientId)?.name || binding.clientId) : [];
+    const used = action.type === 'skill.archive' ? (users.length ? `正在使用它的软件：${users.map(esc).join('、')}。归档后这些软件不再有它。` : '目前没有软件接入它。') : '归档后，使用它的软件会失去这个 MCP 服务。';
+    return `<div class="extension-archive-intro" data-archive-affected><p><strong>归档「${esc(name)}」</strong></p><p>${used}</p><p>归档不是永久删除：完成后可以在提示里点「撤销」，也可以稍后在操作回执里恢复。</p></div>`;
+  };
   async function preview(action, { title, onClose } = {}) {
     const plan = await client.prepare(action);
     if (!visible) { onClose?.(); return; }
     const removedId = removalTarget(action); let removal = null;
+    const archive = ['skill.archive', 'mcp.archive'].includes(action.type), name = nameFor(action);
     const closed = () => { onClose?.(); if (removal) focusAfterRemoval(removal); };   // 对话框先把焦点还给触发按钮（已被移除），随后才走到这里
-    const dialog = openShell(title || (action.type === 'mcp.probe' ? '确认检测 MCP 连接' : '预览扩展变更'), `${extensionPlanContent(plan)}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply ${plan.conflicts.length ? 'disabled' : ''}>${action.type === 'mcp.probe' ? '确认并检测' : '应用变更'}</button></div>`, closed);
+    const applyLabel = action.type === 'mcp.probe' ? '确认并检测' : archive ? '归档' : '应用变更';
+    const dialog = openShell(title || (action.type === 'mcp.probe' ? '确认检测 MCP 连接' : archive ? `确认归档「${name}」` : '预览扩展变更'), `${archive ? archiveIntro(action, name) : ''}${extensionPlanContent(plan)}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="${archive ? 'ui-button ui-button-danger' : 'primary'}" data-preview-apply ${plan.conflicts.length ? 'disabled' : ''}>${applyLabel}</button></div>`, closed);
     dialog.element.querySelector('[data-preview-cancel]').onclick = () => dialog.close();
     dialog.element.querySelector('[data-preview-apply]').onclick = async () => {
       dialog.setBusy(true); dialog.element.querySelector('[data-preview-apply]').disabled = true;
@@ -269,6 +358,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
         const result = await controller.submit(plan); if (result.probeId) watchProbe(result.probeId);
         if (removedId) { removal = { id: removedId, order }; changeRoute({ id: null, operation: null }); }
         detailKey = ''; await loadDetail(); dialog.setBusy(false); dialog.close();
+        receipt([{ action: plan.normalizedAction, result, name }]);
       }
       catch (error) { dialog.element.querySelector('[data-dialog-error]').textContent = error.message + '；输入与原请求已保留。'; }
       finally { dialog.setBusy(false); dialog.element.querySelector('[data-preview-apply]').disabled = false; }
@@ -355,7 +445,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       if (failure) reportFailure(failure);
     }
     async function commit(plan) {
-      const result = await controller.submit(plan); controller.drafts.delete(key); dialog.setBusy(false); dialog.close();
+      const savedName = controller.drafts.get(key)?.name || item?.name || '', result = await controller.submit(plan); controller.drafts.delete(key); dialog.setBusy(false); dialog.close(); receipt([{ action: plan.normalizedAction, result, name: savedName }]);
       changeRoute({ id: isClient ? result.changedIds[0] : isMcp ? result.changedIds[0] : create ? result.changedIds[0] : item.id, operation: null });
     }
     editor.onsubmit = async event => {
@@ -386,10 +476,34 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       });
     };
   }
+  // 读取超过 1 秒才出现「取消」（controller.cancel）：取消后回到读取前的状态（数据与焦点不变），上方出「已取消」横幅带「重试」。
+  function renderLoadStrip() {
+    const strip = $('[data-load-status]'), show = !!(loadView.loading && loadView.cancellable && state && Date.now() - loadStartedAt >= 1000);
+    const markup = show ? '<span role="status">正在读取扩展来源…</span><button type="button" class="text-button" data-cancel-load>取消</button>' : '';
+    if (strip.dataset.shown !== String(show)) { strip.dataset.shown = String(show); strip.innerHTML = markup; strip.hidden = !show; }
+  }
+  function renderCancelled() {
+    const slot = $('[data-cancelled-slot]');
+    const markup = loadView.cancelled ? bannerMarkup({ tone: 'info', title: '已取消', message: state ? '已停止读取，下面仍是读取前的内容。' : '已停止读取，还没有内容。', attrs: { 'data-cancelled-banner': true }, actions: [{ label: '重试', attrs: { 'data-retry-load': true } }] }) : '';
+    if (slot.innerHTML !== markup) slot.innerHTML = markup;
+  }
   const unsubscribe = controller.subscribe(value => {
-    state = value.snapshot; readFailure = value.failure; setError(value.failure); setRefreshState($('[data-extension-refresh]'), { loading: value.loading }); renderClientFilter(); renderList();
+    const wasLoading = !!loadView.loading, wasCancelled = !!loadView.cancelled;
+    if (value.loading && !wasLoading) {   // 在刷新按钮被置灰之前记下焦点
+      const active = document.activeElement; focusBeforeLoad = active && active !== document.body && element.contains(active) ? active : null;
+      loadStartedAt = Date.now(); clearTimeout(loadStripTimer); loadStripTimer = setTimeout(() => { renderLoadStrip(); if (!state && visible) renderList(); }, 1000);
+    }
+    if (!value.loading) clearTimeout(loadStripTimer);
+    loadView = { loading: !!value.loading, cancellable: !!value.cancellable, cancelled: !!value.cancelled };
+    state = value.snapshot; readFailure = value.failure; setError(value.failure); setRefreshState($('[data-extension-refresh]'), { loading: value.loading }); renderClientFilter();
+    if (state && staged.size) { const kept = pruneStaged(staged, state); if (kept.size !== staged.size) staged = kept; }
+    renderList(); renderBar(); renderLoadStrip(); renderCancelled();
+    if (loadView.cancelled && !wasCancelled && visible) {   // 焦点回到读取前的位置（取消按钮已经消失）
+      const active = document.activeElement;
+      if ((!active || active === document.body || active === element || !element.contains(active) || active.hasAttribute?.('data-cancel-load')) && focusBeforeLoad?.isConnected && !focusBeforeLoad.disabled) focusBeforeLoad.focus({ preventScroll: true });
+    }
     const record = value.submission;
-    $('[data-submission]').innerHTML = record ? `<div class="extension-receipt"><span>${record.status === 'applied' ? '变更已保存。' : record.status === 'needs_review' ? '需要重新预览：' + esc(record.error) : '提交结果待核对：请使用原请求，避免重复写入。'}</span><div>${record.status === 'submitted' || record.status === 'unknown' ? '<button type="button" class="secondary" data-retry-submission>核对原请求</button>' : '<button type="button" class="text-button" data-clear-submission>关闭提示</button>'}<a class="text-button" href="${extensionsRoute({ tab: route.tab, operation: record.request.requestId })}">查看回执</a></div></div>` : '';
+    $('[data-submission]').innerHTML = record && record.status !== 'applied' ? `<div class="extension-receipt"><span>${record.status === 'applied' ? '变更已保存。' : record.status === 'needs_review' ? '需要重新预览：' + esc(record.error) : '提交结果待核对：请使用原请求，避免重复写入。'}</span><div>${record.status === 'submitted' || record.status === 'unknown' ? '<button type="button" class="secondary" data-retry-submission>核对原请求</button>' : '<button type="button" class="text-button" data-clear-submission>关闭提示</button>'}<a class="text-button" href="${extensionsRoute({ tab: route.tab, operation: record.request.requestId })}">查看回执</a></div></div>` : '';
     if (visible) void loadDetail();
   });
   const searchControl = mountSearchField($('.extension-search'));
@@ -429,7 +543,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       void loadDetail().then(() => { if (visible && route.id === id) $('#extension-file-select .select-trigger')?.focus(); });
     }
     else if (event.target.matches('input[data-cli-selection]')) void toggleClientSelection(event.target);
-    else if (event.target.matches('[data-binding-toggle]')) void toggleBinding(event.target);
+    else if (event.target.matches('[data-binding-toggle], [data-master-toggle]')) stageToggle(event.target);
   });
   element.addEventListener('click', async event => {
     const button = event.target.closest('button'); if (!button) return;
@@ -440,7 +554,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
         else { focusDetailOnRender = overlayMode(); changeRoute({ id, operation: null, file: null }); }
       }
       else if (button.hasAttribute('data-close-detail')) closeDetail();
-      else if (button.hasAttribute('data-extension-refresh')) await controller.refresh(true);
+      else if (button.hasAttribute('data-cancel-load')) controller.cancel();
+      else if (button.hasAttribute('data-retry-load') || button.hasAttribute('data-extension-refresh')) await controller.refresh(true);
+      else if (button.hasAttribute('data-staging-review')) await reviewStaged();
+      else if (button.hasAttribute('data-staging-revert')) revertStaged();
       else if (button.hasAttribute('data-copy-path')) await copyBannerPath(button);
       else if (button.dataset.extensionReveal) await revealInFinder(button.dataset.extensionReveal);
       else if (button.hasAttribute('data-extension-restore-backup')) await chooseBackup(button);

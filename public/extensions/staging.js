@@ -70,6 +70,12 @@ export function tildePath(path, root = '') {
   return home && (text === home || text.startsWith(home + '/')) ? '~' + text.slice(home.length) : text;
 }
 
+// 一段话里的家目录缩成 ~（只用于预览里的说明文字和路径，不改文件内容）。
+export function tildeText(text, root = '') {
+  const value = String(text ?? ''), home = (/^(.*?)\/\.agents(\/|$)/.exec(String(root)) || [])[1] || (/^(\/Users\/[^/]+|\/home\/[^/]+)/.exec(String(root)) || [])[1];
+  return home ? value.split(home + '/').join('~/') : value;
+}
+
 export const batchTitle = count => `应用 ${count} 项变更`;
 export const barLabel = count => `${count} 项待应用的变更`;
 // 部分成功（design-spec §6）：「已应用 2 项，1 项未完成」。
@@ -87,6 +93,8 @@ export function appliedMessage(action, name = '') {
     case 'skill.disable': return `已停用${quoted}`;
     case 'binding.connect': return `已接入${quoted}`;
     case 'binding.disconnect': return `已取消接入${quoted}`;
+    case 'mcp.probe': return '已开始检测连接';
+    case 'skill.create': case 'skill.update': case 'mcp.save': case 'client.save': return `已保存${quoted}`;
     default: return '变更已应用';
   }
 }

@@ -66,6 +66,7 @@
 .extension-list { min-width: 0; container-type: inline-size; }
 .extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .extension-table { --cols: minmax(0, 1fr) minmax(120px, 48%); }
+.extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 132px minmax(120px, 44%); }
 .extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 72px 200px; }
 .extension-table[data-tab=clients] { --cols: minmax(0, 1fr) 160px; }
 .extension-table-head, .extension-row { display: grid; grid-template-columns: var(--cols); column-gap: var(--space-4); align-items: center; padding-inline: var(--space-3); }
@@ -113,3 +114,26 @@
 /* PR-5 step B：键盘滚动时避开 52px 吸顶工具栏；检查器可被程序聚焦（Return 进入）。 */
 .extension-row, .extension-row-open { scroll-margin-block: calc(var(--toolbar-height, 52px) + var(--space-3)) var(--space-3); }
 .extension-detail:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
+
+/* 0.7 PR-6：暂存底栏、读取条、批量预览、危险操作组 */
+.extension-staging-bar[hidden], .extension-load-strip[hidden], [data-cancelled-slot]:empty { display: none; }
+.extension-staging-bar { position: sticky; bottom: var(--space-4); z-index: 15; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); }
+.extension-staging-count { font-weight: 600; }
+.extension-staging-actions { display: flex; align-items: center; gap: var(--space-3); }
+.extension-load-strip { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+.extension-master-none { color: var(--text-secondary, var(--muted)); }
+.extension-danger-zone { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.extension-danger-zone h3 { margin: 0 0 var(--space-2); color: var(--danger-text, var(--danger)); font-size: var(--font-section-size); }
+.extension-danger-zone p { margin: 0 0 var(--space-3); }
+.extension-archive-intro p { margin: 0 0 var(--space-2); }
+.extension-batch-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-2); }
+.extension-batch-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.extension-batch-tag { color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+.extension-batch-list small { grid-column: 2; color: var(--text-secondary, var(--muted)); }
+.extension-batch-list li[data-status=failed] small { color: var(--danger-text, var(--danger)); font-weight: 600; }
+.extension-batch-list li[data-status=done] small { color: var(--success-text, inherit); }
+.extension-batch-list small:empty { display: none; }
+.extension-batch-conflicts { margin: 0 0 var(--space-3); color: var(--danger-text, var(--danger)); }
+.extension-batch-conflicts p { margin: var(--space-1) 0 0; }
+.extension-batch-detail { margin: var(--space-2) 0; }
+.extension-batch-summary:empty { display: none; }
