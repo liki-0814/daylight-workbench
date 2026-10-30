@@ -51,7 +51,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   const refStatus = server => [...Object.entries(server.envRefs || {}).map(([key, ref]) => ['env', key, ref]), ...Object.entries(server.headerRefs || {}).map(([key, ref]) => ['header', key, ref])].map(([kind, key, ref]) => ({ kind, key, ref, set: !!environment[ref], internal: privateEnvironmentNames.includes(ref) || privateEnvironmentNames.includes(key) }));
   // Web mirror of GET /api/v1/capabilities `extensions.*` (the web UI cannot read /api/v1): same nesting and key names, `true` instead of the descriptive strings.
   // Optional keys: a client treats a missing key as "unknown, keep working" and hides a feature only on a literal `false`.
-  const capabilities = () => ({ extensions: { skillConflict: true } });
+  const capabilities = () => ({ extensions: { skillConflict: true, mcpConflictCompare: true } });
   const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, capabilities: capabilities(), servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
   // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
   const missingMessage = kind => kind === 'mcp' ? 'MCP 服务已归档、被移除或配置已变化，请返回清单重新选择' : kind === 'client' ? '软件未登记或已移除，请返回清单重新选择' : kind === 'skill' ? 'Skill 已归档、移动或不存在，请返回清单重新选择' : '该对象已归档、移动或不存在，请返回清单重新选择';
