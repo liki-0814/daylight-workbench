@@ -103,6 +103,9 @@
 @media (max-width: 999px) {
   .extension-browser, .extension-browser:has(.extension-detail[hidden]) { grid-template-columns: minmax(0, 1fr); }
   .extension-detail:not([hidden]) { position: fixed; top: var(--toolbar-height, 52px); right: 0; bottom: 0; width: min(400px, 100vw); max-height: none; z-index: 20; border-width: 0 0 0 1px; border-radius: 0; box-shadow: -12px 0 32px rgba(0, 0, 0, .12); }
+  /* PR-6：检查器是覆盖层时，暂存底栏要浮在它上面（否则在检查器里改开关后「预览并应用」被盖住点不到）；检查器底部留出底栏的高度，内容不会被挡。 */
+  .extension-staging-bar { z-index: 25; }
+  .extension-browser:has(.extension-staging-bar:not([hidden])) .extension-detail:not([hidden]) { padding-bottom: calc(var(--space-6) + 120px); }
 }
 /* 清单容器窄（检查器打开、或窗口窄）：去掉表头，状态格换到名称下面 */
 @container (max-width: 560px) {
