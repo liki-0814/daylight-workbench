@@ -40,6 +40,7 @@ final class WorkbenchServer {
     var onChange: (() -> Void)?
     var onFocusChange: (() -> Void)?
     var focus: Focus!
+    var updater: AppUpdater!
     private var requestStarted: TimeInterval?
     private var releaseCache: [String: Any]?
     private var releaseCachedUntil = Date.distantPast
@@ -109,6 +110,7 @@ final class WorkbenchServer {
                 DispatchQueue.main.async { self?.onFocusChange?() }
             })
         }
+        updater = AppUpdater(server: self)
     }
 
     func js(_ expression: String) throws -> Any {
@@ -231,29 +233,38 @@ final class WorkbenchServer {
         autoreleasepool { handleRequest(connection, method: method, path: path, headers: headers, body: body, query: query) }
     }
     private func serveAppUpdate(_ connection: NWConnection, refresh: Bool) {
+        fetchRelease(refresh: refresh) { [weak self] record in self?.reply(connection, 200, record) }
+    }
+    /// Shared by the page's check and the updater's background check. Must be called on the server queue.
+    func fetchRelease(refresh: Bool, completion: @escaping ([String: Any]) -> Void) {
         dispatchPrecondition(condition: .onQueue(queue))
-        if !refresh, let cached = releaseCache, Date() < releaseCachedUntil { reply(connection, 200, cached); return }
+        if !refresh, let cached = releaseCache, Date() < releaseCachedUntil { completion(cached); return }
         if releaseFlight {
-            releaseWaiters.append { [weak self] value in self?.reply(connection, 200, value) }
+            releaseWaiters.append(completion)
             return
         }
         releaseFlight = true
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        let deliver: (Any) -> Void = { [weak self] value in
+        let finish: ([String: Any]) -> Void = { [weak self] record in
             guard let self else { return }
-            let record = value as? [String: Any] ?? ["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布"]
             self.releaseCache = record
             self.releaseCachedUntil = Date().addingTimeInterval((record["status"] as? String) == "unavailable" ? 15 * 60 : 6 * 60 * 60)
             self.releaseFlight = false
             let waiters = self.releaseWaiters
             self.releaseWaiters = []
-            self.reply(connection, 200, record)
+            completion(record)
             waiters.forEach { $0(record) }
         }
+        let deliver: (Any) -> Void = { [weak self] value in
+            guard let self else { return }
+            let record = value as? [String: Any] ?? ["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布"]
+            // For an available release this also verifies the signed manifest and records whether it can be installed in place.
+            self.updater.resolve(record, completion: finish)
+        }
         let urlText: String
-        do { urlText = try js("latestReleaseURL()") as! String }
+        do { urlText = updater.mapAPI(try js("latestReleaseURL()") as! String) }
         catch { deliver(["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布", "checkedAt": formatter.string(from: Date())]); return }
         guard let url = URL(string: urlText) else {
             deliver(["current": version, "status": "unavailable", "latest": NSNull(), "error": "暂时无法读取 GitHub 发布", "checkedAt": formatter.string(from: Date())]); return
@@ -312,6 +323,12 @@ final class WorkbenchServer {
             }
             if handler == "appUpdate" {
                 serveAppUpdate(connection, refresh: queryPairs(query).contains { $0.count == 2 && $0[0] == "refresh" && $0[1] == "1" })
+                return
+            }
+            if handler == "appUpdater" {
+                if method == "GET" { reply(connection, 200, updater.status()); return }
+                guard let input = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] else { reply(connection, 400, ["error": "请求必须是 JSON 对象"]); return }
+                updater.perform(input) { code, object in self.queue.async { self.reply(connection, code, object) } }
                 return
             }
             if handler == "calendar" {

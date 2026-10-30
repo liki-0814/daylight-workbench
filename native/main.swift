@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu(); appItem.submenu = appMenu; menu.addItem(appItem)
         appMenu.addItem(withTitle: "关于 Daylight", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(item("检查更新…") { self.show("update&check=1") })
         appMenu.addItem(item("设置…", key: ",") { self.show("settings") })
         appMenu.addItem(.separator()); appMenu.addItem(withTitle: "隐藏 Daylight", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(withTitle: "退出 Daylight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -72,15 +73,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         RunLoop.main.add(timer!, forMode: .common)
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.focusNotifications.refreshPermission(); self?.updateTray() }
+        server.updater.onPrompt = { [weak self] version in self?.promptRestart(version) }
+        server.updater.start()
         show()
     }
+    /// "Download automatically, prompt to restart" mode: only asked while no proxy request or AI conversation is running.
+    func promptRestart(_ version: String) {
+        let alert = NSAlert()
+        alert.messageText = "Daylight \(version) 已准备好"
+        alert.informativeText = "重启后即可完成更新。当前设置和数据都保存在本机，不会丢失。"
+        alert.addButton(withTitle: "立即重启")
+        alert.addButton(withTitle: "稍后")
+        alert.addButton(withTitle: "查看详情")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: server.updater.restartNow()
+        case .alertThirdButtonReturn: show("update")
+        default: break
+        }
+    }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { server.updater.markHealthy() }
     func applicationWillTerminate(_ notification: Notification) {
         timer?.invalidate(); focusNotifications?.stop(); launcher?.stop()
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         server.queue.async { self.server.focus.close() }
+        server.updater.installOnQuit()
         server.proxy.shutdown(); server.ai.shutdown()
     }
-    func applicationDidBecomeActive(_ notification: Notification) { focusNotifications?.refreshPermission(); if status != nil { updateTray() } }
+    func applicationDidBecomeActive(_ notification: Notification) { focusNotifications?.refreshPermission(); if status != nil { updateTray(); server.updater.foreground() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { show(); return true }
     func show(_ route: String? = nil) {

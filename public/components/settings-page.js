@@ -1,10 +1,11 @@
 export const settingsPage = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 设置</span></header>
     <div class="workspace settings-workspace">
-      <section class="page-heading"><div><h1>设置</h1><p>反向代理、AI 对话、专注计时、快捷键与应用更新</p></div></section>
+      <section class="page-heading"><div><h1>设置</h1><p>反向代理、AI 对话、专注计时与快捷键</p></div></section>
       <div class="ui-panel-grid settings-grid">
         <div class="ui-panel-stack">
           <section class="settings-panel" aria-labelledby="extensions-settings-heading"><div class="settings-heading"><h2 id="extensions-settings-heading">本地扩展</h2><p>主来源位于 ~/.agents。管理 Skills、MCP 与本机软件接入。</p></div><a class="text-button" href="#extensions">打开扩展管理</a></section>
+          <section class="settings-panel" aria-labelledby="update-settings-heading"><div class="settings-heading"><h2 id="update-settings-heading">应用更新</h2><p>检查新版本、自动更新方式与回滚已移到独立的更新页面。</p></div><a class="text-button" href="#update">打开更新页面</a></section>
           <section class="settings-panel" aria-labelledby="shortcuts-heading">
             <div class="settings-heading"><h2 id="shortcuts-heading">快捷键</h2><p>在快捷面板和主窗口中使用</p></div>
             <ul class="shortcut-list">

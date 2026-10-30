@@ -13,7 +13,7 @@
 - **AI 对话**：自动识别并连接本机 Codex、Qoder 或 Pi CLI，支持流式回答、历史会话、项目/任务关联与引用、可编辑变更草稿。
 - **模型中转**：Qoder、AGY、Grok、Codex、Kimi、GitHub Copilot 与自定义上游共用接入地址、API Key 和服务开关，以及模型/额度组件。
 - **快捷问答**：`⌥Space` 面板中的临时单轮 AI 问答，支持粘贴剪贴板图片。
-- **检查更新**：对照 GitHub Releases 的正式发布提示新版本，不自动安装。
+- **应用内更新**：侧栏「更新」页检查 GitHub Releases 的正式发布，经 Ed25519 签名与 SHA-256 校验后在应用内替换并保留回滚；默认仅提醒，详见 [应用内更新](docs/updates.md)。
 - **请求诊断**：统一查看来源状态、请求结果、阶段耗时、模型映射及上游实际返回的用量。
 
 ## 快速启动
@@ -69,7 +69,7 @@ npm run dist:mac
 
 产物位于 `dist/`。原生外壳使用 AppKit、WKWebView 和 JavaScriptCore；任务、日历与专注管理无需 Node.js，AI、扩展管理与反向代理需要本机 Node.js。Node、Codex 和 Qoder CLI 均不内置。
 
-当前使用本地 ad-hoc 签名，尚未配置 Apple Developer ID 签名和公证。桌面应用与网页服务默认共用 4318 端口，请分别启动。详见 [macOS 应用说明](docs/native-app.md)。
+发布版使用固定的自签名证书（未配置 Apple Developer ID 签名和公证），本地和 CI 构建默认 ad-hoc 签名；首次迁移到自签名版本需手动安装一次 DMG，见 [应用内更新](docs/updates.md)。桌面应用与网页服务默认共用 4318 端口，请分别启动。详见 [macOS 应用说明](docs/native-app.md)。
 
 ## AI 与反向代理
 
@@ -100,9 +100,9 @@ POST /v1/messages
 
 ### 检查更新 / Check for updates
 
-启动后读取 GitHub Releases 的最新正式发布（`/repos/liki-0814/daylight-workbench/releases/latest`，忽略草稿与预发布），在「设置 → 应用更新」显示结果并提供发布页和 DMG 链接，优先选择文件名含 `arm64` 的 `.dmg`，没有时使用第一个 `.dmg`。成功结果缓存 6 小时；接口受限或网络失败的结果缓存 15 分钟后重试；「重新检查」会跳过缓存。只检查，不下载或替换 App。
+「更新」页（侧栏，位于「设置」之前；菜单「检查更新…」同样打开）读取 GitHub Releases 的最新正式发布（`/repos/liki-0814/daylight-workbench/releases/latest`，忽略草稿与预发布）。启动 30 秒后、每 6 小时及窗口回到前台且结果过期时自动检查；成功结果缓存 6 小时，接口受限或网络失败缓存 15 分钟后退避重试，「检查更新」跳过缓存。发布带有签名清单时可在应用内下载、校验（Ed25519、SHA-256、代码签名、签名身份）并替换，保留上一版本供回滚；自动更新默认「仅提醒」，也可选「退出时安装」或「下载后提示重启」。无法应用内更新时（ad-hoc 签名、网页版等）保留发布页和 DMG 链接。细节见 [应用内更新](docs/updates.md)。
 
-On startup Daylight reads the latest published GitHub Release (drafts and prereleases ignored) and shows it under Settings → 应用更新 with release-page and DMG links, preferring a `.dmg` whose name contains `arm64` and otherwise the first `.dmg`. Successful results are cached for 6 hours; rate-limited or failed checks are cached for 15 minutes and then retried; “重新检查” (check again) bypasses the cache. It never downloads or replaces the app.
+The Update page (sidebar, before Settings; the “检查更新…” menu item opens it too) reads the latest published GitHub Release (drafts and prereleases ignored). It checks 30 s after launch, every 6 hours, and on returning to the foreground when the result is stale; successful results are cached for 6 hours, rate-limited or failed checks for 15 minutes with backoff, and “检查更新” bypasses the cache. When the release carries a signed manifest, Daylight downloads and verifies it (Ed25519, SHA-256, code signature, signing identity), swaps the app in place and keeps the previous version for rollback. The default mode only notifies; “install on quit” and “prompt to restart” are opt-in. Where in-app install is impossible (ad-hoc signed builds, the web edition) the release-page and DMG links remain. See [docs/updates.md](docs/updates.md).
 
 ### 常见问题 / Troubleshooting
 
@@ -168,6 +168,7 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | [日历与专注](docs/focus.md) | 计时行为、统计口径、恢复、提醒和模块边界 |
 | [扩展管理](docs/extensions.md) | 唯一主来源、软件接入、AI 联动、MCP 检测与恢复 |
 | [AI 对话](docs/ai.md) | CLI 运行时、会话关联、草稿与管理工具 |
+| [应用内更新](docs/updates.md) | 更新流程、签名与校验、迁移、发布步骤、测试 |
 | [反向代理](docs/reverse-proxy.md) | 来源接入、参数限制、模型路由与 Pi |
 | [中转架构](docs/proxy-architecture.md) | 后端/前端文件职责、公共契约、502 问题记录与验证边界 |
 | [开发说明](docs/development.md) | 数据存储、Skill 安装、公共组件与开发约定 |

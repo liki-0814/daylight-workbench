@@ -2,7 +2,7 @@
 
 原生 AppKit + WKWebView 外壳，复用系统 JavaScriptCore 运行任务逻辑。安装包不包含 Electron、Chromium、Node.js、Pi SDK、Codex/Qoder CLI 或个人 skill；窗口标题栏固定为与页面一致的亮色。需要 macOS 13 或更高版本。
 
-构建需要 Node.js 22+、Xcode Command Line Tools（Swift）及 Python 3。Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动。任务管理不依赖 Node.js；AI 和反向代理模块需要本机 Node.js 22 或更新版本。当前使用本地 ad-hoc 签名，未配置 Apple Developer ID 签名及公证。
+构建需要 Node.js 22+、Xcode Command Line Tools（Swift）及 Python 3。Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动。任务管理不依赖 Node.js；AI 和反向代理模块需要本机 Node.js 22 或更新版本。发布版使用固定自签名证书「Daylight Release Code Signing」，本地与 CI 构建默认 ad-hoc 签名；均未配置 Apple Developer ID 签名及公证。首次从 ad-hoc 迁移到自签名版本需手动安装一次 DMG（一次性重新授权），见 [应用内更新](updates.md)。
 
 菜单栏显示待办总数，展开可查看今日任务和其他待办，每组最多 8 项，更多任务可打开主窗口查看。任务子菜单支持完成、开始/暂停、加入/移出今天和查看任务。关闭主窗口后继续驻留，菜单栏“退出 Daylight”或 ⌘Q 才退出并停止本地接口。再次启动只激活已有实例。
 
@@ -14,7 +14,7 @@ Google 模式输入关键词后用 Google Chrome 打开结果页，输入网址�
 
 桌面版占用本机 4318 端口。开发网页服务与桌面应用不能同时占用该端口；如提示占用，先停止开发服务。`PORT` 和 `WORKBENCH_DATA_DIR` 可用于隔离验证。
 
-启动后会检查 [GitHub Releases](https://github.com/liki-0814/daylight-workbench/releases) 的最新正式发布（不含草稿和预发布）。当前版本来自 package.json；已安装 App 使用 Info.plist 的短版本号。设置页显示结果，有更新时侧栏「设置」标出「有更新」，并给出发布页和 Apple Silicon DMG 链接。检查不下载、不替换已安装的 App。窗口回到前台且距上次成功检查超过 6 小时会再查一次；接口受限或网络失败时 15 分钟后重试，设置页也可手动重新检查。
+侧栏「更新」页和菜单「检查更新…」负责检查 [GitHub Releases](https://github.com/liki-0814/daylight-workbench/releases) 的最新正式发布（不含草稿和预发布），有更新时侧栏「更新」标出「有更新」。发布带有签名清单时，应用内下载、校验并原子替换自身，失败或新版本不健康时自动回到旧版本；窗口回到前台且距上次成功检查超过 6 小时会再查一次，接口受限或网络失败时退避重试。机制、迁移与发布流程见 [应用内更新](updates.md)。测试更新器使用隔离 Bundle ID、数据目录和端口，不会替换 /Applications/Daylight.app。
 
 
 原生服务通过构建生成的 `native-core.js` 加载共享业务与接口契约，不再改写源码的 import/export；具体职责见 [开发说明](development.md#网页与原生共享契约)。原生服务提供 `/api/v1/tasks` 并发布 capabilities.taskQuery，加载与网页相同的 task-view.js 选择器；routes.js 和 AI 上下文模块随资源打包。菜单中使用“未归类”名称。任务与链接契约见 [任务与导航](tasks.md)。重新打包和原生隔离测试不会自动替换 /Applications/Daylight.app。
