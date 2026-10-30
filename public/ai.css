@@ -43,7 +43,7 @@
 .ai-history-title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .ai-history-title h1 { margin:0; }
 .ai-history-heading p { margin-top:6px; font-size:12px; }
-.ai-new { width:32px; height:32px; padding:0; border:1px solid var(--line); background:white; color:var(--green); border-radius:8px; font-size:22px; line-height:1; flex-shrink:0; }
+.ai-new { width:32px; height:32px; padding:0; border:1px solid var(--line); background:white; color:var(--accent-text); border-radius:8px; font-size:22px; line-height:1; flex-shrink:0; }
 .ai-new:hover { background:#e8eee2; }
 
 .ai-settings label,.ai-card label {
@@ -855,7 +855,7 @@
 }
 
 .ai-history-filters .chosen {
-  color: var(--green);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
