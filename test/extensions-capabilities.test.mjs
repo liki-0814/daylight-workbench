@@ -5,7 +5,7 @@ import { extensionCapability } from '../public/extensions/capabilities.js';
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 
-test('extensions.* in the capabilities mirror is the source; only a literal true counts', () => {
+test('extensions.* in the capabilities mirror is the only source; only a literal true counts', () => {
   assert.equal(extensionCapability({ extensions: { reveal: true, restoreBackup: true } }, 'reveal'), true);
   assert.equal(extensionCapability({ extensions: { reveal: true, restoreBackup: true } }, 'restoreBackup'), true);
   assert.equal(extensionCapability({ extensions: { restoreBackup: true } }, 'reveal'), false, 'reveal is absent where Finder cannot be opened');
@@ -19,12 +19,24 @@ test('missing or malformed mirrors hide both buttons', () => {
   }
 });
 
-test('the nested value wins; the flat mirror (what #36 498c48f returns today) is only a fallback when extensions is absent', () => {
+test('the flat mirror (the old shape) is no longer read: no extensions.* means no button', () => {
+  assert.equal(extensionCapability({ restoreBackup: true, reveal: true }, 'reveal'), false);
+  assert.equal(extensionCapability({ restoreBackup: true, reveal: true }, 'restoreBackup'), false);
+  assert.equal(extensionCapability({ extensions: { other: true }, reveal: true }, 'reveal'), false, 'extensions present but without this key: the flat key is ignored too');
   assert.equal(extensionCapability({ extensions: { reveal: false }, reveal: true }, 'reveal'), false);
   assert.equal(extensionCapability({ extensions: { reveal: true }, reveal: false }, 'reveal'), true);
-  assert.equal(extensionCapability({ restoreBackup: true, reveal: true }, 'reveal'), true);
-  assert.equal(extensionCapability({ restoreBackup: true }, 'reveal'), false);
-  assert.equal(extensionCapability({ extensions: { other: true }, reveal: true }, 'reveal'), true, 'extensions present but without this key: fall back to the flat key');
+});
+
+test('mcpConflictCompare is read the same way (only a literal true)', () => {
+  assert.equal(extensionCapability({ extensions: { mcpConflictCompare: true } }, 'mcpConflictCompare'), true);
+  assert.equal(extensionCapability({ extensions: { mcpConflictCompare: 'yes' } }, 'mcpConflictCompare'), false);
+  assert.equal(extensionCapability({ mcpConflictCompare: true }, 'mcpConflictCompare'), false);
+});
+
+test('capabilities.js has no flat-key fallback left in its code', () => {
+  const code = read('public/extensions/capabilities.js').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /capabilities\??\.\[name\]|capabilities\?\.\[/, 'no read of capabilities[name]');
+  assert.match(code, /extensions\[name\] === true/);
 });
 
 test('page.js gates through capabilities.js and the asset is registered', () => {

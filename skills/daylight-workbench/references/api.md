@@ -149,13 +149,15 @@ start/switch 必须带 expectedTaskVersion；所有动作带 expectedVersion。�
 
 prepare 请求 {"action":...}，返回 normalizedAction、expectedVersion（字符串）、planId、files（真实前后内容/链接）、conflicts、impact。actions 请求 {"requestId":"UUID","expectedVersion":"...","planId":"...","action":规范化动作}；必须使用同一份审阅结果。文件、来源或接入目标变化时 409，保留输入并重新预览。相同 ID 不同内容拒绝，相同原请求成功回执可跨重启重放。
 
-动作：skill.create(directory,content完整SKILL.md,clientId?省略为共享来源)、skill.update(id,file?,content)、skill.archive(id)、mcp.save(server,clientId?省略为共享来源,create?新建时传 true：ID 已存在返回 409 EXTENSIONS_DUPLICATE_ID，省略则编辑并替换同 ID 服务)、mcp.install(id共享MCP,clientId)、mcp.toggle(id软件MCP,enabled)、mcp.archive(id)、mcp.generate(clientId)、mcp.probe(id)、binding.connect/adopt/disconnect(id,clientId)、client.save(client)、client.select(clientId,selected布尔值)、client.remove(clientId)、operation.restore(operationId)。Skill ID 从清单读取，MCP ID 与名称分别存储。archive 可用 operation.restore 恢复，恢复遇到后续文件变化不覆盖。receipt 状态 applying/applied/rolled_back/recovery_required 明确区分；外部漂移须核对文件后重试原请求。
+动作：skill.create(directory,content完整SKILL.md,clientId?省略为共享来源)、skill.update(id,file?,content)、skill.archive(id)、skill.disable(id)、skill.enable(id,clientIds?)、mcp.save(server,clientId?省略为共享来源,create?新建时传 true：ID 已存在返回 409 EXTENSIONS_DUPLICATE_ID，省略则编辑并替换同 ID 服务)、mcp.install(id共享MCP,clientId)、mcp.toggle(id软件MCP,enabled)、mcp.archive(id)、mcp.generate(clientId)、mcp.probe(id)、binding.connect/adopt/disconnect(id,clientId)、client.save(client)、client.select(clientId,selected布尔值)、client.remove(clientId)、operation.restore(operationId)。Skill ID 从清单读取，MCP ID 与名称分别存储。archive 可用 operation.restore 恢复，恢复遇到后续文件变化不覆盖。receipt 状态 applying/applied/rolled_back/recovery_required 明确区分；外部漂移须核对文件后重试原请求。
 
 server 字段 id/name/transport/enabled；stdio 使用 command/args/cwd/envRefs，HTTP 使用 url/headerRefs。凭据引用格式 {"请求头或变量名称":"环境变量名称"}，不接受 env/headers 明文。stdio 不经 shell 执行。mcp.probe 须明确授权，仅 initialize 和 tools/list；实际命令/端点在预览中呈现，不能作为静态诊断的隐式动作。
 
 软件详情的 root 为软件主目录，skillsRoot 为该软件自身的 Skills 目录；state.root/skills 为 Daylight 管理来源。Codex 主目录默认 ~/.codex，可由 CODEX_HOME 指定；Codex 链接位置为 ~/.codex/skills；Pi 主目录默认 ~/.pi，链接位置为 ~/.pi/agent/skills。PI_CODING_AGENT_DIR 显式覆盖时代表 agent 目录，Skills 在其 skills 下。只发现 ~/.agents/skills 的一级子目录。
 
 各软件按 Skill 链接，软件本地目录也可用 skill.update/archive 管理；未知外部链接归档只移除链接，不读取或删除其目标。已有正确链接可用 binding.disconnect(includeExisting:true) 预览移除，adopt 只是可选的归属记录。同名实体或外部漂移不能覆盖。
+
+Skill 启用/停用（仅共享来源的 Skill）：skill.disable 取消该 Skill 在所有软件中的链接（Daylight 管理的与已有的正确链接都会移除），把这些接入记入 bindings.json 的 `skillStates[skillId] = {disabled, rememberedBindings:[{clientId,source,target,linkTarget}]}`，源文件不动；停用中的 Skill 不能 connect/adopt（409 EXTENSIONS_SKILL_DISABLED）。skill.enable 按记忆重建链接；目标位置被占用进入 conflicts（apply 返回 409 EXTENSIONS_CONFLICT），可用 clientIds 只恢复其中一部分，其余继续保留在记忆中。已停用再停用 409 EXTENSIONS_ALREADY_DISABLED；没有可恢复内容时再启用 409 EXTENSIONS_ALREADY_ENABLED；软件自带（client scope）或只读链接 Skill 返回 400 field=id。state.skills[] 增加 `enabled`（布尔）与 `rememberedClientIds`（字符串数组）。
 
 MCP 清单通过 scope(shared/client)、clientId、serverKey、sourcePath 区分来源。软件 mcp.save 使用 serverKey 作为 server.id；mcp.install 拒绝覆盖同名服务；mcp.toggle 仅用于 toggleSupported 服务；mcp.generate 仍仅导出到 ~/.agents/mcp/generated。原生 MCP 修改只改变目标字段，其他设置、未知字段和既有凭据保留。公开计划不展开整个软件配置，secretKeys 表示隐藏并保留的字段；新凭据仅填环境变量引用。Qoder 的插值未核实，不写新引用。软件 MCP 握手和运行发现由 CLI 核对；mcp.probe 用于共享 MCP。
 

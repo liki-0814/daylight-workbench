@@ -2,6 +2,7 @@ import { selectTasks } from './task-view.js';
 import { parseRoute, taskRoute, calendarRoute, focusRoute, conversationRoute, viewProjectId } from './routes.js';
 import { change, localDate } from './model.js';
 import { selectField } from './components/select.js';
+import './components/search-field.js';   // 副作用：安装 daylight-find（⌘F）监听，所有页面共用
 import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
 import { sidebarContent } from './components/sidebar.js';

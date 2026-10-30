@@ -5,7 +5,7 @@ import { escapeButtonText as esc } from '../components/button.js';
 // 约定的选择器（套件和 e2e 依赖，不要改名）：.extension-row、[data-extension-id]、.extension-row-open、.extension-row-status。
 
 export const columnTitles = {
-  skills: ['名称与用途', '接入软件'],
+  skills: ['名称与用途', '启用', '接入软件'],
   mcp: ['名称与 ID', '传输', '状态'],
   clients: ['名称与说明', '接入'],
 };
@@ -51,9 +51,9 @@ export function rowMarkup({ tab, item, active, query = '', summary = '', sourceT
 export function skeletonRows(count = 5) {
   return `<div class="extension-skeleton" aria-hidden="true">${Array.from({ length: count }, () => '<div class="extension-skeleton-row"><span class="skeleton-bar skeleton-title"></span><span class="skeleton-bar skeleton-line"></span></div>').join('')}</div>`;
 }
-export function loadingState({ elapsed = 0, label = '正在读取扩展来源…' } = {}) {
+export function loadingState({ elapsed = 0, label = '正在读取扩展来源…', cancellable = false } = {}) {
   // 文字始终在 DOM 里（读屏与旧套件依赖），>1s 才变为可见；骨架 >300ms 才出现。
-  return `<div class="extension-empty extension-loading" role="status" aria-busy="true"><p class="extension-loading-text ${elapsed >= 1000 ? '' : 'extension-visually-hidden'}">${esc(label)}</p>${elapsed >= 300 ? skeletonRows() : ''}</div>`;
+  return `<div class="extension-empty extension-loading" role="status" aria-busy="true"><p class="extension-loading-text ${elapsed >= 1000 ? '' : 'extension-visually-hidden'}">${esc(label)}</p>${elapsed >= 300 ? skeletonRows() : ''}${elapsed >= 1000 && cancellable ? '<div class="extension-actions"><button type="button" class="secondary" data-cancel-load>取消</button></div>' : ''}</div>`;
 }
 // 三段式错误（出了什么 / 为什么 / 怎么办）；有旧数据时不会走到这里（页面保留旧清单，只在 [data-error] 提示）。
 export function failureState({ reason = '', hasCache = false } = {}) {
