@@ -2,6 +2,7 @@
 // 全部先要求页面里有暂存栏（[data-staging-bar]）/ 表格清单：在 0.6.1 UI 上会因前置条件失败，所以 index.mjs 的 expectedFail 门控是真实的，不会"空过"。
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { clickAdd, addDisabled, addItemVisible } from '../add-menu.mjs';
 
 const rows = page => page.locator('.extension-row');
 const open = async (page, url, tab = 'skills') => { await page.goto(`${url}/#extensions&tab=${tab}`); await rows(page).first().waitFor({ timeout: 10000 }); };
@@ -172,7 +173,7 @@ export default [
     check.equal(await search.evaluate(el => document.activeElement === el), false, '前置：再次失焦');
     await page.evaluate(() => document.dispatchEvent(new CustomEvent('daylight-find')));
     check.deepEqual(await focusState(), { focused: true, start: 0, end: 6, length: 6 }, '派发到 document（不冒泡）也聚焦并全选');
-    await search.fill(''); await page.locator('[data-create]').click(); await dialog(page).waitFor();
+    await search.fill(''); await clickAdd(page, '新建 Skill'); await dialog(page).waitFor();
     check.equal(await find(), true, '对话框里没有搜索框：什么都不做（dispatchEvent 返回 true，原生侧可回退）');
     check.equal(await page.evaluate(() => !!document.activeElement?.closest('dialog[open]')), true, '焦点没有被抢出对话框');
     await page.keyboard.press('Escape'); await gone(page);

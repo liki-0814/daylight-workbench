@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { clickAdd, addDisabled, addItemVisible } from '../add-menu.mjs';
 const built = file => { try { return fs.readFileSync(fileURLToPath(new URL('../../' + file, import.meta.url)), 'utf8'); } catch { return ''; } };
 const GATE = built('public/extensions/restore-reveal.js') !== '' ? {} : { expectedFail: '后续项需要新 UI（public/extensions/restore-reveal.js 未合入）：合入后自动变为必须通过' };
 const FIX05 = built('public/extensions/page.js').includes('conflictChoice = null;') ? {} : { expectedFail: 'PR-12 小问题修复（e1143a8）未合入：合入后自动变为必须通过' };
@@ -91,7 +92,7 @@ export default [
     const dialog = page.locator('dialog[open]'), requests = []; let failNext = false;
     await page.route(/\/api\/extensions\/prepare$/, async route => { requests.push(route.request().postDataJSON()); if (failNext) { failNext = false; await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: '临时失败', code: 'EXTENSIONS_INTERNAL' }) }); } else await route.continue(); });
     await open(page, url, 'mcp');
-    await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click();
+    await clickAdd(page, '新建 MCP 服务');
     await dialog.getByLabel('稳定 ID', { exact: true }).fill('missing-env-mcp'); await dialog.getByLabel('服务名称', { exact: true }).fill('残留测试'); await dialog.getByLabel('可执行命令', { exact: true }).fill('npx');
     await dialog.locator('form button[type="submit"]').first().click(); await dialog.locator('[data-duplicate-panel] input[type="radio"]').first().waitFor();
     await dialog.getByRole('radio', { name: /保留现有/ }).check(); failNext = true;
@@ -112,7 +113,7 @@ export default [
     const cleared = async label => { const now = await state(); check.equal(now.errors, 0, label + '：字段错误已清掉'); check.equal(now.invalid, null, label + '：aria-invalid 已移除'); check.ok(!(now.described || '').includes('field-error'), label + '：aria-describedby 不再指向错误：' + now.described); check.equal(now.dialogError, '', label + '：对话框级提示也清掉'); check.equal(now.value, 'missing-env-mcp', label + '：输入保留'); };
     const commandOf = async () => json(await fixture.api('/api/extensions/state')).servers.find(item => item.id === 'missing-env-mcp' && item.scope !== 'client')?.command, original = await commandOf();
     await open(page, url, 'mcp');
-    await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click();
+    await clickAdd(page, '新建 MCP 服务');
     await idInput.fill('missing-env-mcp'); await dialog.getByLabel('服务名称', { exact: true }).fill('字段错误测试'); await dialog.getByLabel('可执行命令', { exact: true }).fill('npx');
     await submit(); await shown('409 之后');
     check.equal(await dialog.locator('[data-duplicate-panel] input[type="radio"]:checked').count(), 0, '没预选，字段错误不会因为面板出现而消失');

@@ -2,6 +2,7 @@
 // These run on all three desktop widths unless noted. They assert behaviour the user can see: focus, enabled state, inline errors, files left untouched.
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { clickAdd, addDisabled, addItemVisible } from '../add-menu.mjs';
 
 const rows = page => page.locator('.extension-row');
 const open = async (page, url, tab) => { await page.goto(`${url}/#extensions&tab=${tab}`); await rows(page).first().waitFor({ timeout: 10000 }); };
@@ -85,7 +86,7 @@ export default [
   } },
   { id: 'ext-sk-09', priority: 'P0', title: '新建 Skill：空提交、非法名称实时提示（E-04）、重名被拒且不覆盖、成功', async run({ page, url, assert: check, fixture, errors }) {
     await open(page, url, 'skills');
-    await page.getByRole('button', { name: '新建 Skill', exact: true }).click();
+    await clickAdd(page, '新建 Skill');
     check.equal(await dialog(page).locator('form').evaluate(form => form.noValidate), true, '不应依赖浏览器原生气泡');
     await save(page).click();
     check.equal((await fieldErrors(page)).length, 2); check.equal(await activeName(page), 'directory', '首个错误应获得焦点');
@@ -94,7 +95,7 @@ export default [
     await save(page).click(); await gone(page);
     await fs.access(path.join(fixture.agents, 'skills/e2e-new-skill/SKILL.md'));
     const original = await fs.readFile(path.join(fixture.agents, 'skills/review-code/SKILL.md'), 'utf8');
-    await page.getByRole('button', { name: '新建 Skill', exact: true }).click(); await fieldIn(page, 'Skill 名称 / 目录').fill('review-code'); await fieldIn(page, '用途说明').fill('不应覆盖');
+    await clickAdd(page, '新建 Skill'); await fieldIn(page, 'Skill 名称 / 目录').fill('review-code'); await fieldIn(page, '用途说明').fill('不应覆盖');
     await save(page).click(); await dialog(page).locator('[data-field-error="directory"]').waitFor();
     check.equal(await activeName(page), 'directory'); check.equal(await fieldIn(page, '用途说明').inputValue(), '不应覆盖', '输入应保留');
     check.equal(await fs.readFile(path.join(fixture.agents, 'skills/review-code/SKILL.md'), 'utf8'), original, '重名不得覆盖');
@@ -102,7 +103,7 @@ export default [
   } },
   { id: 'ext-mcp-02', priority: 'P0', title: '新建 MCP：字段级错误（E-16）、非法 URL、http:// 警告（E-17）、成功后详情带警告', async run({ page, url, assert: check, fixture }) {
     await open(page, url, 'mcp');
-    await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click(); await save(page).click();
+    await clickAdd(page, '新建 MCP 服务'); await save(page).click();
     check.equal((await fieldErrors(page)).length, 3, JSON.stringify(await fieldErrors(page))); check.equal(await activeName(page), 'id');
     await fieldIn(page, '稳定 ID').fill('bad id!'); check.match((await fieldErrors(page)).join(' '), /字母、数字、下划线和短横线/);
     await fieldIn(page, '稳定 ID').fill('e2e-http'); await fieldIn(page, '服务名称').fill('E2E HTTP');
@@ -119,7 +120,7 @@ export default [
   { id: 'ext-mcp-03', priority: 'P0', title: '新建同 ID：字段下提示 + 「查看现有服务」，不写盘、不丢输入；服务端 409 兜底（E-01）', async run({ page, url, assert: check, fixture }) {
     const file = path.join(fixture.agents, 'mcp/servers.json'), original = await fs.readFile(file, 'utf8');
     await open(page, url, 'mcp');
-    await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click();
+    await clickAdd(page, '新建 MCP 服务');
     await fieldIn(page, '稳定 ID').fill('fixture-mcp'); await fieldIn(page, '服务名称').fill('重复'); await fieldIn(page, '可执行命令').fill('node');
     await dialog(page).locator('[data-field-action="view-existing"]').waitFor(); check.match((await fieldErrors(page)).join(' '), /已存在 ID 为 fixture-mcp/);
     await save(page).click(); await dialog(page).locator('[data-field-error="id"]').waitFor();
@@ -133,7 +134,7 @@ export default [
     // 服务端 409：本地状态过期时（这里用路由模拟），错误同样贴在 ID 字段上并保留输入
     await page.route('**/api/extensions/prepare', route => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: '已存在 ID 为 ghost 的 MCP 服务；请改用其他 ID，或编辑现有服务', code: 'EXTENSIONS_DUPLICATE_ID', field: 'server.id' }) }));
     await page.getByRole('button', { name: '返回清单', exact: true }).click().catch(() => {});
-    await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click(); await fieldIn(page, '稳定 ID').fill('ghost'); await fieldIn(page, '服务名称').fill('幽灵'); await fieldIn(page, '可执行命令').fill('node');
+    await clickAdd(page, '新建 MCP 服务'); await fieldIn(page, '稳定 ID').fill('ghost'); await fieldIn(page, '服务名称').fill('幽灵'); await fieldIn(page, '可执行命令').fill('node');
     await save(page).click(); await dialog(page).locator('[data-field-error="id"]').waitFor();
     check.match((await fieldErrors(page)).join(' '), /已存在 ID 为 ghost/); check.equal(await activeName(page), 'id', 'ghost 焦点'); check.equal(await fieldIn(page, '服务名称').inputValue(), '幽灵');
   } },
@@ -148,10 +149,10 @@ export default [
     check.match(text, /MCP/); check.doesNotMatch(text, /Skill/); check.equal(await failure.getAttribute('role'), 'alert');
     await failure.getByRole('button', { name: '返回清单', exact: true }).click();
     const banner = page.locator('[data-config-banner="MCP_FORMAT"]'); await banner.waitFor(); check.match(await banner.innerText(), /不会覆盖/);
-    check.equal(await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).isDisabled(), true);
+    check.equal(await addDisabled(page, '新建 MCP 服务'), true);
     check.equal(await fs.readFile(file, 'utf8'), broken, '原文件不得被改写');
     check.equal(await page.locator('.extension-static-diagnostics').filter({ hasText: /broken-skill|SKILL\.md/ }).count(), 0, 'Skill 问题不应出现在 MCP 页');
     await fs.writeFile(file, good); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await banner.waitFor({ state: 'detached' });
-    check.equal(await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).isDisabled(), false);
+    check.equal(await addDisabled(page, '新建 MCP 服务'), false);
   } },
 ];

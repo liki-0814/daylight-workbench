@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { extensionsCapability } from '../../core/extensions-contracts.js';
 import { FIXTURE_SECRET } from '../fixture.mjs';
+import { clickAdd, addDisabled, addItemVisible } from '../add-menu.mjs';
 
 // UI 用例（ext-mcpc-02、ext-pr12-*）自门控：构建里没有 PR-12 前端（public/extensions/mcp-conflict.js），或后端没有把
 // capabilities.extensions.mcpConflictCompare:true 镜像进 /api/extensions/state（extensions/service.mjs），就标 expectedFail；
@@ -67,7 +68,7 @@ export default [
   } },
   { id: 'ext-mcpc-02', priority: 'P1', widths: [1440], ...UI_GATE, title: '导入 JSON 遇到同 ID：可对比，逐项选择「用导入的替换 / 保留现有」，对比只读且不泄密', async run({ page, url, fixture, assert: check }) {
     await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
-    await page.getByRole('button', { name: /导入.*JSON/ }).click();
+    await clickAdd(page, '导入 JSON');
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').fill(mcp({ 'missing-env-mcp': { command: 'npx', args: ['-y', 'replacement'] } }));
     await dialog.getByRole('button', { name: /预览|下一步/ }).click();
@@ -87,10 +88,10 @@ export default [
     const incoming = { 'missing-env-mcp': { command: 'npx', args: ['-y', 'replacement'], env: { E2E_OTHER_TOKEN: '${E2E_OTHER_TOKEN}' } }, 'github-remote': { url: 'http://127.0.0.1:9/mcp', headers: { Authorization: '${E2E_GITHUB_AUTH}' } }, 'brand-new': { command: 'node' } };
     const original = (await servers(fixture)).find(item => item.id === 'missing-env-mcp'), remoteBefore = (await servers(fixture)).find(item => item.id === 'github-remote');
     await page.goto(`${url}/#extensions`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
-    check.equal(await page.getByRole('button', { name: /导入.*JSON/ }).isVisible(), false, 'Skill 页签不显示「导入 JSON…」');
+    check.equal(await addItemVisible(page, '导入 JSON'), false, 'Skill 页签不显示「导入 JSON…」');
     await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
-    check.equal(await page.getByRole('button', { name: /导入.*JSON/ }).isVisible(), true, 'MCP 页签显示「导入 JSON…」');
-    await page.getByRole('button', { name: /导入.*JSON/ }).click();
+    check.equal(await addItemVisible(page, '导入 JSON'), true, 'MCP 页签显示「导入 JSON…」');
+    await clickAdd(page, '导入 JSON');
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').fill(mcp(incoming)); await dialog.getByRole('button', { name: /预览|下一步/ }).click();
     await dialog.getByRole('button', { name: /应用导入/ }).waitFor();
@@ -126,7 +127,7 @@ export default [
   { id: 'ext-pr12-02', priority: 'P1', widths: [1440], ...UI_GATE, title: '导入 JSON：全部选「保留现有」不需要二次确认，不改任何文件', async run({ page, url, fixture, assert: check }) {
     const before = JSON.stringify(await servers(fixture));
     await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
-    await page.getByRole('button', { name: /导入.*JSON/ }).click();
+    await clickAdd(page, '导入 JSON');
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').fill(mcp({ 'missing-env-mcp': { command: 'npx', args: ['-y', 'keep-me-out'] } })); await dialog.getByRole('button', { name: /预览|下一步/ }).click();
     await dialog.getByRole('radio', { name: /保留现有/ }).check();
@@ -137,7 +138,7 @@ export default [
   { id: 'ext-pr12-03', priority: 'P0', widths: [1440], ...UI_GATE, title: '后端没有 mcpConflictCompare 能力：只显示文字冲突，没有「对比」和选择，不能应用', async run({ page, url, fixture, assert: check }) {
     await page.route(/\/api\/extensions\/(state|refresh)(\?.*)?$/, async route => { const response = await route.fetch(); const body = await response.json(); if (body.capabilities?.extensions) delete body.capabilities.extensions.mcpConflictCompare; await route.fulfill({ response, json: body }); });
     await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
-    await page.getByRole('button', { name: /导入.*JSON/ }).click();
+    await clickAdd(page, '导入 JSON');
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').fill(mcp({ 'missing-env-mcp': { command: 'npx' } })); await dialog.getByRole('button', { name: /预览|下一步/ }).click();
     await dialog.getByText(/已存在/).first().waitFor();
@@ -149,7 +150,7 @@ export default [
     await page.goto(`${url}/#extensions&tab=mcp`); await page.locator('.extension-row').first().waitFor({ timeout: 10000 });
     // 新建表单：有警告时会出预览（点应用），没有就直接应用；两种都接受。
     const finish = async () => { await page.waitForFunction(() => !document.querySelector('dialog[open]') || document.querySelector('dialog[open] [data-preview-apply], dialog[open] [data-batch-apply]'), null, { timeout: 8000 }); const apply = dialog.locator('[data-preview-apply], [data-batch-apply]').first(); if (await apply.count()) await apply.click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'), null, { timeout: 8000 }); };
-    const fill = async () => { await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click(); await dialog.getByLabel('稳定 ID', { exact: true }).fill('missing-env-mcp'); await dialog.getByLabel('服务名称', { exact: true }).fill('替换用'); await dialog.getByLabel('可执行命令', { exact: true }).fill('npx'); await dialog.locator('form button[type="submit"]').first().click(); };
+    const fill = async () => { await clickAdd(page, '新建 MCP 服务'); await dialog.getByLabel('稳定 ID', { exact: true }).fill('missing-env-mcp'); await dialog.getByLabel('服务名称', { exact: true }).fill('替换用'); await dialog.getByLabel('可执行命令', { exact: true }).fill('npx'); await dialog.locator('form button[type="submit"]').first().click(); };
     await fill(); await dialog.locator('[data-duplicate-panel] input[type="radio"]').first().waitFor();
     check.ok(await dialog.getByRole('radio', { name: /用新填写的替换/ }).count() > 0 && await dialog.getByRole('radio', { name: /保留现有/ }).count() > 0, '有两个选择');
     check.equal(await dialog.getByRole('button', { name: /按所选继续/ }).isDisabled(), true, '没选不能继续');
