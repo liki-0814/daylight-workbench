@@ -61,3 +61,7 @@ npm run dev
 ## Skill 启用与停用
 
 仅共享来源（`~/.agents/skills`）的 Skill 支持。`skill.disable(id)` 移除该 Skill 在所有已接入软件中的链接（Daylight 管理的链接，以及指向主来源的已有正确链接），并把这些接入记入 `~/.agents/daylight/bindings.json` 的 `skillStates`，主来源文件不变。`skill.enable(id, clientIds?)` 按记忆重建链接；目标位置被占用时进入冲突，不覆盖，可用 `clientIds` 只恢复其中一部分，其余保留在记忆中。停用的 Skill 不能接入新软件。`bindings.json` 仍为 `schemaVersion: 1`，`skillStates` 缺省即启用；旧版本只读取 `bindings` 并保留未知字段。`state.skills[]` 返回 `enabled` 与 `rememberedClientIds`。
+
+## 导入
+
+`skill.import` 从本地文件夹复制 Skill（不支持 URL）：路径需为绝对路径，顶层有合法 `SKILL.md`；目录名取其中的 `name`；不跟随符号链接，忽略隐藏文件和 `node_modules`，最多 500 个文件、5 MB、6 层目录；目标同名时进入冲突，不覆盖。`scope` 为 `shared` 或 `client`（需 `clientId`）。`mcp.importJson` 解析粘贴的 `{"mcpServers": {...}}` 或带 `id`/`name` 的单个服务对象，`env`/`headers` 只接受 `${变量名}` 形式的引用，明文凭据会被拒绝且不回显；JSON 语法错误返回 `line`/`column`；已有 ID 一律是冲突，不覆盖。
