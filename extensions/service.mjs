@@ -11,23 +11,24 @@ import { compareEntries, fingerprintEntry, setResolution, dropResolutions, findR
 import { readSkillFolder } from './skill-import.mjs';
 import { parseMcpJson } from './mcp-import.mjs';
 import { configDocument } from './config-document.mjs';
-import { normalizeServer, serverWarnings, privateEnvironmentNames } from './mcp-server.mjs';
+import { normalizeServer, normalizeServers, serverWarnings, privateEnvironmentNames } from './mcp-server.mjs';
 import { renderMcpConfig } from './mcp-config.mjs';
 import { changeClientMcp } from './client-mcp.mjs';
 import { createProbes } from './mcp-probes.mjs';
 import { readClientRegistry, clientsFile, normalizeClient, normalizeClientConfig, validateClientRegistry } from './clients.mjs';
 import { createCatalog } from './catalog.mjs';
 import { createTransactions } from './transactions.mjs';
+import { createReveal } from './reveal.mjs';
 
 const json = value => canonicalJSON(value, 2) + '\n';
 const plain = value => value && typeof value === 'object' && !Array.isArray(value);
 const fields = {
   'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'], 'skill.disable': ['type', 'id'], 'skill.enable': ['type', 'id', 'clientIds'], 'skill.resolveConflict': ['type', 'id', 'clientId', 'resolution'], 'skill.import': ['type', 'sourcePath', 'scope', 'clientId'], 'mcp.importJson': ['type', 'json', 'scope', 'clientId', 'resolutions'],
   'mcp.save': ['type', 'server', 'clientId', 'create', 'onConflict'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
-  'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
+  'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'], 'mcp.restoreBackup': ['type', 'operationId'],
   'client.save': ['type', 'client'], 'client.remove': ['type', 'clientId'], 'client.select': ['type', 'clientId', 'selected'],
 };
-export async function createExtensionsService({ agentsRoot = path.join(os.homedir(), '.agents'), clientRoots, home, environment = process.env, cacheMs, probeTimeoutMs, fault, onChanged = () => {} } = {}) {
+export async function createExtensionsService({ agentsRoot = path.join(os.homedir(), '.agents'), clientRoots, home, environment = process.env, cacheMs, probeTimeoutMs, fault, reveal: revealOptions, onChanged = () => {} } = {}) {
   // Canonicalize existing ancestors (macOS /var -> /private/var) without creating roots.
   let ancestor = path.resolve(agentsRoot); const missing = [];
   while (!(await stat(ancestor))) { missing.unshift(path.basename(ancestor)); ancestor = path.dirname(ancestor); }
@@ -46,10 +47,13 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
     await safePath(client.root, path.dirname(target));
   };
   const transactions = createTransactions({ root, assertTarget, fault });
+  const reveal = createReveal(revealOptions);
+  const serversFile = path.join(root, 'mcp', 'servers.json');
   const probeReport = server => { const value = probes.latest(server.id); return value ? { ...value, stale: value.configRevision !== server.revision } : null; };
   // Reference table for the UI: names only. The value of a variable is never read into any response.
   const refStatus = server => [...Object.entries(server.envRefs || {}).map(([key, ref]) => ['env', key, ref]), ...Object.entries(server.headerRefs || {}).map(([key, ref]) => ['header', key, ref])].map(([kind, key, ref]) => ({ kind, key, ref, set: !!environment[ref], internal: privateEnvironmentNames.includes(ref) || privateEnvironmentNames.includes(key) }));
-  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
+  const capabilities = () => ({ restoreBackup: true, ...(reveal.supported ? { reveal: true } : {}) });
+  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, capabilities: capabilities(), servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
   // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
   const missingMessage = kind => kind === 'mcp' ? 'MCP 服务已归档、被移除或配置已变化，请返回清单重新选择' : kind === 'client' ? '软件未登记或已移除，请返回清单重新选择' : kind === 'skill' ? 'Skill 已归档、移动或不存在，请返回清单重新选择' : '该对象已归档、移动或不存在，请返回清单重新选择';
   const absent = (id, kind) => Object.assign(error(missingMessage(kind || (/^skill_/.test(id) ? 'skill' : undefined)), 404, 'EXTENSIONS_OBJECT_MISSING'), { kind: kind || (/^skill_/.test(id) ? 'skill' : null) });
@@ -136,6 +140,43 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
     }
     await list(directory);
     return { ...skill, version: state.version, file: selected.relative, content: selected.content, files };
+  }
+  // A servers.json snapshot is a recovery point only if it still parses as a valid MCP main file. Returns the normalized servers or null.
+  function backupServers(snap) {
+    try {
+      if (snap?.kind !== 'file' || Buffer.from(snap.data, 'base64').length > 2_000_000) return null;
+      return normalizeServers(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.from(snap.data, 'base64'))));
+    } catch { return null; }
+  }
+  const backupLabels = { 'mcp.save': '保存 MCP', 'mcp.importJson': '导入 MCP JSON', 'mcp.archive': '归档 MCP', 'mcp.toggle': '启停 MCP', 'operation.restore': '恢复操作', 'mcp.restoreBackup': '从备份恢复' };
+  // GET /backups?kind=mcpConfig: recovery points from operation history. Metadata only (no configuration content, no credentials).
+  async function backups(query) {
+    if (query.get('kind') !== 'mcpConfig') throw fieldError('kind 目前只支持 mcpConfig。', 'kind');
+    await assertTarget(serversFile); const currentHash = hash(await snapshot(serversFile)), seen = new Set(), list = [];
+    for (const record of await transactions.history()) {
+      const step = record.steps.find(item => item.path === serversFile), servers = step && backupServers(step.after);
+      if (!servers || hash(step.after) === currentHash || seen.has(hash(step.after))) continue;
+      seen.add(hash(step.after));
+      const id = record.action?.id || record.action?.server?.id;
+      list.push({ operationId: record.requestId, at: record.createdAt, summary: '操作后：' + (backupLabels[record.action?.type] || record.action?.type || '未知操作') + (typeof id === 'string' && /^[a-zA-Z0-9_.-]{1,100}$/.test(id) ? '「' + id + '」' : ''), servers: servers.length });
+      if (list.length >= 10) break;
+    }
+    return { kind: 'mcpConfig', version: (await catalog.state(false)).version, backups: list };
+  }
+  // POST /reveal: the server resolves the location itself; a path is never accepted from the caller.
+  async function revealTarget(input) {
+    if (!reveal.supported) throw error('当前环境不支持在访达中显示', 501, 'EXTENSIONS_UNSUPPORTED');
+    const allowed = { skill: ['kind', 'id'], mcpConfig: ['kind'], client: ['kind', 'clientId'] };
+    if (!plain(input) || !Object.hasOwn(allowed, input.kind)) throw fieldError('kind 需要是 skill、mcpConfig 或 client。', 'kind');
+    const extra = Object.keys(input).find(key => !allowed[input.kind].includes(key)); if (extra) throw fieldError('该 kind 不接受 ' + extra + '。', extra);
+    const state = await catalog.state(false); let target;
+    if (input.kind === 'skill') { if (typeof input.id !== 'string' || !input.id) throw fieldError('skill 需要 id。', 'id'); target = getSkill(state, input.id, 'skill').sourcePath; }
+    else if (input.kind === 'mcpConfig') target = serversFile;
+    else { if (typeof input.clientId !== 'string' || !input.clientId) throw fieldError('client 需要 clientId。', 'clientId'); const client = getClient(state, input.clientId); target = client.mcpPath && await stat(client.mcpPath) ? client.mcpPath : client.skillsRoot; }
+    try { const registration = await loadClients(); if (!(registration.valid && registration.clients.some(item => item.selected && (item.mcpPath === target || item.skillsRoot === target)))) await assertTarget(target); } catch (failure) { throw failure.status === 403 ? error('位置不在已知的扩展目录内', 400, 'EXTENSIONS_INVALID') : failure; }
+    if (typeof target !== 'string' || !path.isAbsolute(target) || !(await stat(target))) throw error('位置不存在，请重新扫描后再试', 404, 'EXTENSIONS_OBJECT_MISSING');
+    try { await reveal.run(target); } catch { throw error('无法在访达中显示，请改为复制路径', 500, 'EXTENSIONS_REVEAL_FAILED'); }
+    return { ok: true };
   }
   async function prepare(input) {
     if (!input || !extensionActions.includes(input.type) || Object.keys(input).some(key => !fields[input.type].includes(key))) throw error('扩展动作或字段无效');
@@ -434,6 +475,22 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         await add(original.path, original.before);
       }
       impact.push('恢复该操作的修改前内容，包括归档来源和属于 Daylight 的接入关系。后续变更造成的差异不会被覆盖。');
+    } else if (action.type === 'mcp.restoreBackup') {
+      // api-contract §H2. Works even while servers.json is damaged: that is the point. The damaged bytes become the step's `before`,
+      // so the restore is itself undoable with operation.restore. Only an applied operation's validated servers.json snapshot qualifies.
+      if (typeof action.operationId !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(action.operationId)) throw fieldError('operationId 无效。', 'operationId');
+      const record = await transactions.read(action.operationId), step = record?.status === 'applied' ? record.steps.find(item => item.path === serversFile) : null;
+      const backup = step && backupServers(step.after);
+      if (!backup) throw fieldError('该操作没有可用的 MCP 主配置恢复点，或其内容无效。', 'operationId');
+      await add(serversFile, step.after);
+      const current = state.mcpValid ? state.servers.filter(server => server.scope !== 'client').map(({ kind, revision, dependencies, scope, ...config }) => config) : null;
+      const now = new Map((current || []).map(server => [server.id, canonicalJSON(server)])), then = new Map(backup.map(server => [server.id, canonicalJSON(server)]));
+      const removed = [...now.keys()].filter(id => !then.has(id)), added = [...then.keys()].filter(id => !now.has(id)), changed = [...then.keys()].filter(id => now.has(id) && now.get(id) !== then.get(id));
+      changedIds.push(...removed, ...added, ...changed);
+      if (!steps.length) warnings.push('当前 MCP 主配置已与该恢复点相同，提交不会修改任何文件。');
+      impact.push('把 MCP 主配置（servers.json）恢复为 ' + record.createdAt + ' 的版本，共 ' + backup.length + ' 个服务。' + (current ? '移除 ' + removed.length + ' 个、新增 ' + added.length + ' 个、变更 ' + changed.length + ' 个现有服务。' : '当前文件无法读取，恢复前的内容会记录在操作快照里。') + '可用 operation.restore 撤销。');
+      if (removed.length) warnings.push('恢复点之后新增的服务会从主配置移除：' + removed.join('、') + '（可撤销）。');
+      warnings.push('已生成或已接入软件的 MCP 配置不会自动更新；恢复后请重新生成或接入。');
     } else {
       if (!state.mcpValid) throw error('请先修复 MCP 主文件；管理操作不会覆盖格式错误的配置', 409);
       const servers = state.servers.filter(server => server.scope !== 'client').map(({ kind, revision, dependencies, scope, ...config }) => config);
@@ -509,6 +566,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       else if (route === '/prepare') { if (Object.keys(input).some(key => key !== 'action')) throw error('prepare 只接受 action'); value = publicPlan(await prepare(input.action)); }
       else if (route === '/compare') value = await compare(url.searchParams);
       else if (route === '/mcp-compare') value = await mcpCompare(input);
+      else if (route === '/backups') value = await backups(url.searchParams);
+      else if (route === '/reveal') value = await revealTarget(input);
       else if (route === '/actions') value = await apply(input);
       else if (route.startsWith('/objects/')) value = await detail(route.slice('/objects/'.length), url.searchParams.get('file') || undefined, ['skill', 'mcp', 'client'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : undefined);
       else if (route.startsWith('/operations/')) value = await transactions.receipt(route.slice('/operations/'.length));

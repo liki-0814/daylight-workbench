@@ -172,4 +172,6 @@ CLI 自动发现只提供候选项，state.clients.selected 表示用户是否�
 MCP 同 ID 冲突（PR-12）：POST /mcp-compare {scope,clientId?,json|server,expectedVersion?} 只读对比（脱敏，只有引用名与 refStatus，不含值）。mcp.importJson 加 resolutions:{id:adoptNew|keepExisting}，mcp.save(create:true) 加 onConflict；未选择的 ID 仍是冲突。adoptNew 整体替换（原配置进快照，可 operation.restore），keepExisting 不改文件。软件配置里不可安全编辑的条目不能 adoptNew，读不出的明文凭据保持原样。
 导入：skill.import 仅支持本地绝对路径文件夹（无 URL 导入）；顶层需有合法 SKILL.md，目录名取 SKILL.md 的 name，不跟随任何符号链接，忽略隐藏文件与 node_modules，限制 500 个文件 / 5 MB / 6 层；同名为 conflicts（409 EXTENSIONS_CONFLICT），无效来源 400 field=sourcePath（code EXTENSIONS_IMPORT_NO_SKILL/SYMLINK/LIMIT/SPECIAL）。mcp.importJson 接受 {mcpServers:{…}} 或带 id/name 的单个服务对象（最多 100 个），env/headers 的值只能是 `${VAR}`/`$VAR`，明文值 400（field 形如 mcpServers.<id>.env.<KEY>，响应不回显该值）；JSON 语法错误 400 field=json 并带 `line`、`column`；已有 ID 为 conflicts，不覆盖。
 
+从备份恢复（§H）：GET /backups?kind=mcpConfig 列出 MCP 主配置恢复点（{operationId,at,summary,servers}，无内容）；动作 mcp.restoreBackup(operationId) 走 prepare→apply，可用 operation.restore 撤销。POST /reveal（在访达中显示）仅 Daylight 界面可用，Agent 不开放。
+
 MCP 交互：mcp.toggle 共享服务行级启停（只改主配置，不启动服务）；POST /probes 支持 {ids:[…],expectedVersion} 批量检测（同时最多 2 个，其余 status=queued；已停用的列入 skipped）；服务带 refStatus（变量名与是否已设置，永不含值）。
