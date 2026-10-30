@@ -35,4 +35,11 @@ test('shell wiring: observer, user script before first load, packaging list, no 
   assert.ok(main.indexOf('displayAccessibility.install') < main.indexOf('web.load('));
   assert.match(main, /displayAccessibility\?\.stop\(\)/);
   assert.match(await readFile(new URL('../scripts/build-native.py', import.meta.url), 'utf8'), /'DisplayAccessibility\.swift'/);
+  // quick panel (Launcher.swift) follows the same setting: installed before its web view exists, attached after, handed over from main.swift
+  const launcher = await readFile(new URL('../native/Launcher.swift', import.meta.url), 'utf8');
+  assert.match(launcher, /displayAccessibility: DisplayAccessibility\? = nil/); assert.match(main, /Launcher\(server: server, displayAccessibility: displayAccessibility\)/);
+  assert.ok(launcher.indexOf('displayAccessibility?.install(into: configuration.userContentController)') > 0);
+  assert.ok(launcher.indexOf('displayAccessibility?.install(') < launcher.indexOf('let web = WKWebView('), 'quick panel: install before the web view exists');
+  assert.ok(launcher.indexOf('displayAccessibility?.attach(web)') > launcher.indexOf('let web = WKWebView(') && launcher.indexOf('displayAccessibility?.attach(web)') < launcher.indexOf('web.load('), 'quick panel: attach before its first load');
+  assert.match(swift, /NSHashTable<WKUserContentController>\.weakObjects\(\)/); assert.match(swift, /NSHashTable<WKWebView>\.weakObjects\(\)/);
 });

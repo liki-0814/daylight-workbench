@@ -12,8 +12,9 @@ final class DisplayAccessibility {
     static let attribute = "data-reduce-transparency"
     static let event = "daylight-display-accessibility"
     private let read: () -> Bool
-    private weak var controller: WKUserContentController?
-    private weak var web: WKWebView?
+    /// Every web view that follows the setting: the main window and the quick-panel (Launcher). Weak, so a released view never lingers.
+    private let controllers = NSHashTable<WKUserContentController>.weakObjects()
+    private let webs = NSHashTable<WKWebView>.weakObjects()
     private var observer: NSObjectProtocol?
     private(set) var reduceTransparency = false
 
@@ -31,17 +32,18 @@ final class DisplayAccessibility {
         """#
     }
 
-    /// Call before the first navigation so every main-frame load starts with the right attribute.
-    /// The controller must carry no other user scripts: a change replaces them all.
+    /// Call before the first navigation so every main-frame load starts with the right attribute. Safe to call once per web view.
+    /// A controller must carry no other user scripts: a change replaces them all (neither the main window nor the quick panel has any).
     func install(into controller: WKUserContentController) {
-        self.controller = controller
         reduceTransparency = read()
-        addScript()
+        controllers.add(controller)
+        resync()
     }
 
-    /// Start following system changes and keep the already-loaded page in sync.
+    /// Start following system changes (one observer for all views) and keep the already-loaded pages in sync.
     func attach(_ web: WKWebView) {
-        self.web = web
+        webs.add(web)
+        guard observer == nil else { return }
         observer = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in self?.refresh() }
     }
 
@@ -49,16 +51,21 @@ final class DisplayAccessibility {
         let next = read()
         guard next != reduceTransparency else { return }
         reduceTransparency = next
-        controller?.removeAllUserScripts(); addScript()
-        web?.evaluateJavaScript(DisplayAccessibility.script(reduceTransparency: next))
+        resync()
+        for web in webs.allObjects { web.evaluateJavaScript(DisplayAccessibility.script(reduceTransparency: next)) }
     }
 
     func stop() {
         if let observer { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
-        observer = nil; controller?.removeAllUserScripts(); web = nil
+        observer = nil
+        for controller in controllers.allObjects { controller.removeAllUserScripts() }
+        controllers.removeAllObjects(); webs.removeAllObjects()
     }
 
-    private func addScript() {
-        controller?.addUserScript(WKUserScript(source: DisplayAccessibility.script(reduceTransparency: reduceTransparency), injectionTime: .atDocumentStart, forMainFrameOnly: true))
+    private func resync() {
+        for controller in controllers.allObjects {
+            controller.removeAllUserScripts()
+            controller.addUserScript(WKUserScript(source: DisplayAccessibility.script(reduceTransparency: reduceTransparency), injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
     }
 }

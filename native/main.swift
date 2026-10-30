@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         focusNotifications.attach(web)
         displayAccessibility.attach(web)
         web.load(URLRequest(url: URL(string: server.endpoint + "/")!))
-        launcher = Launcher(server: server); launcher.install()
+        launcher = Launcher(server: server, displayAccessibility: displayAccessibility); launcher.install()
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         status.button?.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Daylight")
         server.onChange = { [weak self] in self?.updateTray() }

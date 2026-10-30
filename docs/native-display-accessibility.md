@@ -10,5 +10,7 @@ macOS 13 (Safari 16 / WKWebView) has no `prefers-reduced-transparency`. The nati
 - One-way only: no script message handler is registered. In a plain browser (no shell) the attribute is never set, so CSS
   should also honour `@media (prefers-reduced-transparency: reduce)` where available.
 
-Source: `native/DisplayAccessibility.swift`, wired in `native/main.swift`. Manual check (needs a Mac, not covered by CI):
-System Settings → Accessibility → Display → Reduce transparency, then confirm the toolbar/sticky bar becomes opaque live.
+Both web views follow it: the main window (`native/main.swift`) and the quick-panel palette (`native/Launcher.swift`, which receives the same `DisplayAccessibility` instance and installs the user script before its web view is created). One observer serves all views.
+
+Source: `native/DisplayAccessibility.swift`. Manual check (needs a Mac, not covered by CI; **the Swift here has not been compiled or run**):
+System Settings → Accessibility → Display → Reduce transparency, then confirm the toolbar/sticky bar **and the quick panel (Option+Space)** become opaque live.

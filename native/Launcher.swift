@@ -19,13 +19,14 @@ private func launcherHotKeyHandler(_ call: EventHandlerCallRef?, _ event: EventR
 
 final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     private let server: WorkbenchServer
+    private let displayAccessibility: DisplayAccessibility?
     private var panel: LauncherPanel?
     private var web: WKWebView?
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
     private var lastToggle = Date.distantPast
 
-    init(server: WorkbenchServer) { self.server = server; super.init() }
+    init(server: WorkbenchServer, displayAccessibility: DisplayAccessibility? = nil) { self.server = server; self.displayAccessibility = displayAccessibility; super.init() }
 
     /// 注册全局快捷键；被其他应用占用时保持静默，菜单里的入口仍然可用。
     func install() {
@@ -111,7 +112,11 @@ final class Launcher: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.userContentController.add(self, name: "quick")
+        // Mirror macOS "Reduce transparency" to <html data-reduce-transparency> here too (before the first load), like the main window.
+        // UNVERIFIED until run on a Mac: the quick panel's material must turn opaque, live, when the system setting changes.
+        displayAccessibility?.install(into: configuration.userContentController)
         let web = WKWebView(frame: .zero, configuration: configuration)
+        displayAccessibility?.attach(web)
         web.navigationDelegate = self; web.uiDelegate = self
         // WebKit exposes this through KVC, not a public setDrawsBackground:
         // selector. Testing that selector skipped transparency and left white corners.
