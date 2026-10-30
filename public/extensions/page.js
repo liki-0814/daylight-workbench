@@ -323,7 +323,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       for (const item of done) if (item.change) staged.delete(stageKey(item.change));
       batchBusy = false;
       if (failed) for (let index = failed.index + 1; index < entries.length; index++) mark(index, 'skipped', '未执行');
-      summary.textContent = failed ? partialSummary({ done: done.length, failed: 1, pending: entries.length - done.length - 1 }) : '';
+      summary.textContent = failed ? partialSummary({ done: done.length, failed: 1, skipped: entries.length - done.length - 1 }) : '';
       onSettled?.(done, failed);
       if (!failed) { dialog.setBusy(false); dialog.close(); receipt(done); return; }
       dialog.setBusy(false); dialog.setError(failed.error.message + '；已应用的项不会回滚，可在完成提示里撤销。'); confirm.hidden = true; cancel.textContent = '关闭'; cancel.focus();
