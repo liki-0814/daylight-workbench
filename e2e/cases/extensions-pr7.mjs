@@ -181,6 +181,44 @@ const cases = [
     check.ok(sizes.every(([w, h]) => w >= 24 && h >= 24), '开关命中区 ≥ 24px：' + JSON.stringify(sizes));
     await shot('mcp-table-pr7');
   } },
+  { id: 'ext-pr7-08', priority: 'P1', title: '检测全部超过 50 个服务：对话框写明分批；分 50 + 50 + 20 三次 POST，ids 不重复、都带版本；全部完成后播报（#27 ids 上限 1–50）', async run({ page, url, assert: check }) {
+    await mockState(page, body => { const base = body.servers.find(item => item.id === 'fixture-mcp'); for (let index = 0; index < 115; index++) body.servers.push({ ...base, id: 'bulk-' + index, name: '批量服务 ' + index, lastProbe: null }); });
+    await open(page, url); await needSwitch(page);
+    const owner = new Map(), posted = [];
+    const make = (id, serverId) => ({ id, serverId, status: 'succeeded', startedAt: '2026-10-30T13:00:00.000Z', finishedAt: '2026-10-30T13:00:01.000Z', stale: false, configRevision: null, tools: [], toolCount: 1, message: '' });
+    await page.route(/\/api\/extensions\/probes$/, async route => { if (route.request().method() !== 'POST') return route.continue(); const body = route.request().postDataJSON(); posted.push(body); await route.fulfill({ status: 202, json: { probes: body.ids.map(id => { const probeId = 'probe-' + id; owner.set(probeId, id); return { ...make(probeId, id), status: 'queued', finishedAt: null, toolCount: null }; }), skipped: [] } }); });
+    await page.route(/\/api\/extensions\/probes\/probe-.+$/, async route => { const id = route.request().url().split('/').pop(); await route.fulfill({ json: make(id, owner.get(id)) }); });
+    await page.locator('[data-probe-all]').click(); await dialog(page).waitFor();
+    check.match(await dialog(page).innerText(), /分 3 批提交（每批最多 50 个）/, '对话框写明分批');
+    await dialog(page).locator('[data-preview-apply]').click(); await gone(page);
+    await page.waitForFunction(() => document.querySelector('[data-probe-all]') && !document.querySelector('[data-cancel-all-probes]'), null, { timeout: 40000 });
+    check.deepEqual(posted.map(item => item.ids.length), [50, 50, 20], '分三批提交：' + posted.map(item => item.ids.length));
+    const all = posted.flatMap(item => item.ids); check.equal(new Set(all).size, all.length, 'ids 不重复'); check.equal(all.length, 120, '全部已启用的共享服务都提交了：' + all.length);
+    check.ok(posted.every(item => item.ids.length <= 50 && item.expectedVersion !== undefined && item.expectedVersion !== null), '每批 ≤ 50 且带版本');
+    check.match(await toast(page).first().innerText(), /检测完成：成功 120/);
+  } },
+  { id: 'ext-pr7-09', priority: 'P1', title: '刷新后 /state 里还在排队 / 检测的服务：≥2 个时恢复检测全部进度（可取消，完成后让位）；只有 1 个时不出现进度条；lastProbe.stale 的行显示「配置已变更」', async run({ page, url, assert: check }) {
+    const ids = ['fixture-mcp', 'missing-env-mcp', 'slow-mcp'];
+    let phase = 0;
+    const make = (index, status) => ({ id: 'resume-' + index, serverId: ids[index], status, startedAt: status === 'queued' ? null : '2026-10-30T13:00:00.000Z', finishedAt: status === 'succeeded' ? '2026-10-30T13:00:01.000Z' : null, stale: false, configRevision: null, tools: [], toolCount: status === 'succeeded' ? 2 : null, message: '' });
+    const view = () => ids.map((_, index) => make(index, phase ? 'succeeded' : index === 0 ? 'running' : 'queued'));
+    await mockState(page, body => { ids.forEach((id, index) => { const server = body.servers.find(item => item.id === id); server.lastProbe = view()[index]; }); const stale = body.servers.find(item => item.id === 'broken-cmd'); stale.lastProbe = { ...make(0, 'succeeded'), id: 'old', serverId: 'broken-cmd', stale: true }; });
+    await page.route(/\/api\/extensions\/probes\/resume-\d$/, async route => { const index = Number(route.request().url().slice(-1)); await route.fulfill({ json: view()[index] }); });
+    await open(page, url); await needSwitch(page);
+    await page.locator('[data-cancel-all-probes]').waitFor({ timeout: 8000 });
+    check.match(await page.locator('[data-probe-progress]').innerText(), /完成 0 \/ 3 · 排队 2/, '恢复后的进度：1 个运行、2 个排队');
+    check.match(await row(page, '命令不存在的服务').innerText(), /配置已变更/, 'stale 的 lastProbe 显示配置已变更，不用绿点');
+    phase = 1;
+    await page.waitForFunction(() => !document.querySelector('[data-cancel-all-probes]'), null, { timeout: 15000 });
+    check.equal(await page.locator('[data-probe-all]').isVisible(), true, '完成后回到「检测全部服务」');
+  } },
+  { id: 'ext-pr7-10', priority: 'P2', title: '刷新后只有 1 个服务在检测：不恢复检测全部进度条（由检查器自己跟进）', async run({ page, url, assert: check }) {
+    await mockState(page, body => { const server = body.servers.find(item => item.id === 'fixture-mcp'); server.lastProbe = { id: 'solo-1', serverId: 'fixture-mcp', status: 'running', startedAt: '2026-10-30T13:00:00.000Z', finishedAt: null, stale: false, configRevision: null, tools: [], toolCount: null, message: '' }; });
+    await page.route(/\/api\/extensions\/probes\/solo-1$/, route => route.fulfill({ json: { id: 'solo-1', serverId: 'fixture-mcp', status: 'running', startedAt: '2026-10-30T13:00:00.000Z', finishedAt: null, stale: false, configRevision: null, tools: [], toolCount: null, message: '' } }));
+    await open(page, url); await needSwitch(page);
+    check.equal(await page.locator('[data-cancel-all-probes]').count(), 0, '单个检测不出现「取消全部检测」');
+    check.match(await row(page, '本地 MCP 测试服务').innerText(), /检测|排队/, '这一行仍显示检测中');
+  } },
 ];
 
 export default PRESENT ? cases : cases.map(item => item.expectedFail ? item : { ...item, expectedFail: REASON });
