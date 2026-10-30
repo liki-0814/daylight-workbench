@@ -218,3 +218,22 @@ test('archiving the Skill drops its kept decisions; a damaged record pauses writ
   assert.ok(state.diagnostics.some(item => item.code === 'BINDINGS_FORMAT'));
   await assert.rejects(g.service.prepare({ type: 'skill.resolveConflict', id: g.id, clientId: 'pi', resolution: 'keepLocal' }), { status: 409 });
 });
+
+// User-visible copy: validation errors, conflicts, impact lines and warnings of the E-11 flow are plain Chinese. The API values
+// (adoptShared / keepLocal / reopen) and fields (resolution, clientId, operation.restore) stay as they are but never appear inside a message.
+test('user-visible E-11 copy has no API jargon and names the choices in plain Chinese', async t => {
+  const f = await fixture(t), messages = [], jargon = /adoptShared|keepLocal|reopen|resolution|clientId|operation\.restore|expectedVersion|bindings\.json/;
+  const rejected = async (action) => { try { await f.service.prepare(action); assert.fail('expected a rejection'); } catch (error) { assert.ok(error.message); messages.push(error.message); } };
+  await rejected({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'overwrite' });
+  await rejected({ type: 'skill.resolveConflict', id: f.id, resolution: 'keepLocal' });
+  await rejected({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'reopen' });
+  const query = await f.call('/compare?id=' + f.id); assert.equal(query.status, 400); messages.push(query.value.error);
+  const adopt = await f.service.prepare({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'adoptShared' });
+  const keep = await f.service.prepare({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'keepLocal' });
+  messages.push(...adopt.impact, ...adopt.warnings, ...keep.impact, ...keep.warnings);
+  await f.apply({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'keepLocal' });
+  await rejected({ type: 'skill.resolveConflict', id: f.id, clientId: 'qoder', resolution: 'keepLocal' });
+  assert.ok(messages.length >= 9, 'covered ' + messages.length + ' messages');
+  for (const message of messages) assert.doesNotMatch(String(message), jargon, String(message));
+  const joined = messages.join('\n'); for (const name of ['采用共享版本', '保留软件内版本', '重新处理']) assert.match(joined, new RegExp(name));
+});
