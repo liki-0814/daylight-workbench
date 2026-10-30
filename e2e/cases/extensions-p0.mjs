@@ -67,11 +67,12 @@ export default [
     const invisible = visited.filter(step => !step.focusVisible);
     check.deepEqual(invisible.map(step => step.tag + ':' + step.name), [], '无可见焦点指示');
   } },
-  { id: 'ext-a11y-03', priority: 'P1', widths: [1440], expectedFail: '0.6.1 现状：「只看有问题」复选框命中区高 22px（<24px）；组件规格落地后移除此标记', title: '启发式：交互目标不小于 24px（设计目标 28px，仅报告）', async run({ page, url, assert: check, note }) {
+  { id: 'ext-a11y-03', priority: 'P1', widths: [1440], title: '启发式：交互目标不小于 28px（硬下限 24px）', async run({ page, url, assert: check, note }) {
     await open(page, url, 'skills');
     const hard = await smallTargets(page, { min: 24 }), design = await smallTargets(page, { min: 28 });
     note(`小于 28px：${design.length} 个；小于 24px：${hard.length} 个`);
     check.deepEqual(hard.map(item => item.html), [], '小于 24px 的目标');
+    check.deepEqual(design.map(item => item.html), [], '小于 28px 的目标（设计目标，PR-3 起必须满足）');
   } },
   { id: 'ext-shell-05', priority: 'P0', widths: [1440], title: 'reducedMotion: 无进行中的 CSS 动画/过渡', async run({ page, url, assert: check }) {
     await open(page, url, 'skills');
