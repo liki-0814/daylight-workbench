@@ -113,6 +113,7 @@
   "/extensions/mcp.js": "extensions/mcp.js",
   "/extensions/conflict.js": "extensions/conflict.js",
   "/extensions/mcp-conflict.js": "extensions/mcp-conflict.js",
+  "/extensions/restore-reveal.js": "extensions/restore-reveal.js",
   "/extensions/extensions.css": "extensions/extensions.css",
   "/core/model-capabilities.js": "../core/model-capabilities.js",
   "/proxy/source-navigation.js": "proxy/source-navigation.js",

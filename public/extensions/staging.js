@@ -103,6 +103,7 @@ export function appliedMessage(action, name = '') {
     case 'mcp.probe': return '已开始检测连接';
     case 'skill.resolveConflict': return action.resolution === 'adoptShared' ? `已采用共享版本${quoted}` : action.resolution === 'keepLocal' ? `已保留软件内版本${quoted}` : `已重新标记为待处理${quoted}`;
     case 'mcp.importJson': return importedMessage(action);
+    case 'mcp.restoreBackup': return '已从备份恢复 MCP 配置';
     case 'mcp.save': /* 保留现有：写现有那条的 ID，不写新填写的名称 */ if (action.onConflict === 'keepExisting') return `已保留现有配置，没有改动${action.server?.id ? `「${action.server.id}」` : ''}`;  return action.onConflict === 'adoptNew' ? `已替换${quoted}` : `已保存${quoted}`;
     case 'skill.create': case 'skill.update': case 'client.save': return `已保存${quoted}`;
     default: return '变更已应用';
