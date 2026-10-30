@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import plistlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,12 @@ parser.add_argument('--update-public-key', default=os.environ.get('DAYLIGHT_UPDA
 args = parser.parse_args()
 root = pathlib.Path(__file__).resolve().parent.parent
 version = json.loads((root / 'package.json').read_text())['version']
+# A prerelease package version (0.7.0-beta.1) is not a valid CFBundleShortVersionString/CFBundleVersion on macOS
+# (three period-separated integers only). The bundle carries the numeric core; the full version is DaylightVersion,
+# which the updater and the About/release code read first.
+_match = re.fullmatch(r'(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', version)
+if not _match: raise SystemExit(f'package.json version {version!r} is not x.y.z[-prerelease]')
+bundle_version = '.'.join(_match.groups())
 final_app = root / 'dist/native/Daylight.app'
 final_app.parent.mkdir(parents=True, exist_ok=True)
 # Publish only a successfully compiled, checked and signed app.
@@ -61,7 +68,7 @@ update_key = (args.update_public_key or (root / 'build/update-public-key.txt').r
 if len(base64.b64decode(update_key, validate=True)) != 32:
     raise SystemExit('Update public key must be a raw 32-byte Ed25519 key in base64')
 with (contents / 'Info.plist').open('wb') as stream:
-    plistlib.dump({'CFBundleExecutable': 'Daylight', 'CFBundleIdentifier': args.bundle_id, 'CFBundleName': 'Daylight', 'CFBundleDisplayName': 'Daylight', 'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': version, 'CFBundleVersion': version, 'CFBundleIconFile': 'icon.icns', 'LSMinimumSystemVersion': '13.0', 'LSApplicationCategoryType': 'public.app-category.productivity', 'NSHighResolutionCapable': True, 'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True}, 'DaylightUpdatePublicKey': update_key}, stream)
+    plistlib.dump({'CFBundleExecutable': 'Daylight', 'CFBundleIdentifier': args.bundle_id, 'CFBundleName': 'Daylight', 'CFBundleDisplayName': 'Daylight', 'CFBundlePackageType': 'APPL', 'CFBundleShortVersionString': bundle_version, 'CFBundleVersion': bundle_version, 'DaylightVersion': version, 'CFBundleIconFile': 'icon.icns', 'LSMinimumSystemVersion': '13.0', 'LSApplicationCategoryType': 'public.app-category.productivity', 'NSHighResolutionCapable': True, 'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True}, 'DaylightUpdatePublicKey': update_key}, stream)
 
 def sign(path, extra=()):
     command = ['codesign', '--force', '--sign', args.sign_identity or '-']

@@ -16,11 +16,35 @@ export function parseVersion(value) {
   return match ? match.slice(1).map(Number) : null;
 }
 
+// The running app may be a prerelease build (for example 0.7.0-beta.1): SemVer ordering applies, so a
+// prerelease is older than the same x.y.z release. Everything that names a release, tag, manifest or
+// download (parseVersion above) stays strictly x.y.z: prereleases are never published as updates.
+export function parseRunningVersion(value) {
+  const match = String(value ?? '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/);
+  if (!match) return null;
+  const pre = match[4] == null ? [] : match[4].split('.');
+  if (pre.some(item => /^\d+$/.test(item) && item.length > 1 && item.startsWith('0'))) return null;
+  return { core: match.slice(1, 4).map(Number), pre };
+}
+
+function comparePrerelease(left, right) {
+  if (!left.length || !right.length) return left.length === right.length ? 0 : left.length ? -1 : 1;
+  for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
+    const a = left[index], b = right[index];
+    if (a === b) continue;
+    const aNumber = /^\d+$/.test(a), bNumber = /^\d+$/.test(b);
+    if (aNumber && bNumber) return a.length !== b.length ? (a.length < b.length ? -1 : 1) : (a < b ? -1 : 1);
+    if (aNumber !== bNumber) return aNumber ? -1 : 1;
+    return a < b ? -1 : 1;
+  }
+  return left.length === right.length ? 0 : left.length < right.length ? -1 : 1;
+}
+
 export function compareVersions(current, latest) {
-  const left = parseVersion(current), right = parseVersion(latest);
+  const left = parseRunningVersion(current), right = parseRunningVersion(latest);
   if (!left || !right) return null;
-  for (let index = 0; index < 3; index += 1) if (left[index] !== right[index]) return left[index] < right[index] ? -1 : 1;
-  return 0;
+  for (let index = 0; index < 3; index += 1) if (left.core[index] !== right.core[index]) return left.core[index] < right.core[index] ? -1 : 1;
+  return comparePrerelease(left.pre, right.pre);
 }
 
 // Release links stay on this repository's GitHub Releases. Other hosts are dropped.
@@ -141,7 +165,7 @@ export function osAtLeast(os, minimum) {
 // Decides whether a verified manifest may replace the running version. `release` is the GitHub
 // asset record of the zip, whose digest (when GitHub supplies one) must agree with the manifest.
 export function decideUpdate({ current, manifest, release, os, allowDowngrade = false }) {
-  const order = compareVersions(current, manifest?.version);
+  const order = parseVersion(manifest?.version) ? compareVersions(current, manifest.version) : null;
   if (order == null) return { ok: false, code: 'version-unrecognized', message: '版本号无法比较' };
   if (order === 0) return { ok: false, code: 'same-version', message: '已是该版本' };
   if (order > 0 && !(manifest.downgradeable === true && allowDowngrade === true)) return { ok: false, code: 'downgrade-refused', message: '更新清单的版本低于当前版本，已拒绝降级' };
@@ -170,7 +194,7 @@ export function interpretRelease(current, httpStatus, body) {
     asset: assetOf(body.assets),
     update: updateAssetOf(body.assets, tag),
   };
-  const order = compareVersions(version, tag);
+  const order = parseVersion(tag) ? compareVersions(version, tag) : null;
   if (order == null) return { current: version, status: 'unrecognized', latest, error: '发布版本号无法与当前版本比较' };
   return { current: version, status: order < 0 ? 'available' : 'current', latest };
 }

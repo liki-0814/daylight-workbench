@@ -44,6 +44,15 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 
 自签名证书不被 Gatekeeper 信任，这是预期的：用户首次从 DMG 安装仍需按系统提示放行；应用内更新不经过 Gatekeeper 流程。凭据辅助程序 `DaylightCredentials`、`DaylightAgyCredentials` 的二进制内容在构建间保持不变（`native/Credentials.swift` 不应随意修改），否则其签名摘要改变会触发 Keychain 重新授权。
 
+## 预发布版本（beta）
+
+`package.json` 可以是 `0.7.0-beta.1` 这样的预发布版本号，但 macOS 的 `CFBundleShortVersionString` / `CFBundleVersion` 只接受最多三段整数。`scripts/build-native.py` 因此把这两个键写成数字核心 `0.7.0`，完整版本号写进自定义键 `DaylightVersion`；更新器、`/api/update` 的当前版本、更新包校验（`UpdaterHelper`）都优先读 `DaylightVersion`，没有这个键的旧版本回退到 `CFBundleShortVersionString`。
+
+- 比较遵循 SemVer：`0.7.0-beta.1 < 0.7.0-beta.2 < 0.7.0`。beta 用户会被提示更新到正式版 `0.7.0`；正式版不会被提示"更新"到 beta。
+- 发布侧（清单、tag、下载地址、更新包名）仍只接受严格的 `x.y.z`：预发布版本不会作为更新发布，GitHub 标记为 prerelease 或 tag 带后缀的发布一律不被当作更新。
+- `check-version.mjs --app` 会检查 `CFBundle*` 等于数字核心，并用 `DaylightVersion` 与 package.json 对账。
+- 未验证：Swift 与 macOS 打包部分（本机是 Linux，无法编译或跑 `native-updater-test.py`），需要在 macOS 上构建一个 beta 包确认 `plutil -lint` 与更新流程。
+
 ## 发布流程（维护者）
 
 签名材料只在发布机器上，不进仓库，也不要提交到任何地方：

@@ -244,7 +244,7 @@ final class WorkbenchServer {
             return
         }
         releaseFlight = true
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let version = Bundle.main.object(forInfoDictionaryKey: "DaylightVersion") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         let finish: ([String: Any]) -> Void = { [weak self] record in

@@ -16,12 +16,13 @@ const release = (tag, extra = {}) => ({
   published_at: '2026-10-19T00:00:00Z', body: '说明', assets: [], ...extra,
 });
 
-test('release versions compare numerically and only accept three-part versions', () => {
+test('release versions compare numerically and only accept three-part versions (a prerelease suffix is ordered below its release, see prerelease-version.test.mjs)', () => {
   assert.equal(compareVersions('0.9.0', 'v0.10.0'), -1);
   assert.equal(compareVersions('v0.10.0', '0.9.0'), 1);
   assert.equal(compareVersions('0.5.1', '0.5.1'), 0);
   assert.equal(compareVersions('0.5', '0.5.1'), null);
-  assert.equal(compareVersions('0.5.1-beta', '0.5.2'), null);
+  assert.equal(compareVersions('0.5.1-beta', '0.5.2'), -1);
+  assert.equal(compareVersions('0.5.1-beta', '0.5.1'), -1);
 });
 
 test('GitHub release payloads become an update report', () => {

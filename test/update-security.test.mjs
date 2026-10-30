@@ -17,11 +17,11 @@ const keys = () => generateKeyPairSync('ed25519', { privateKeyEncoding: { type: 
 const sha = 'a'.repeat(64);
 const manifestText = (extra = {}) => JSON.stringify({ schema: 1, version: '0.9.0', url: assetURL('0.9.0', packageAssetName('0.9.0')), size: 1000, sha256: sha, minOS: '13.0', date: '2026-10-19T00:00:00Z', downgradeable: false, ...extra });
 
-test('versions compare numerically and reject anything but three numeric parts', () => {
+test('versions compare numerically and reject anything but three numeric parts (plus an optional SemVer prerelease)', () => {
   assert.equal(compareVersions('0.9.9', '0.10.0'), -1);
   assert.equal(compareVersions('1.0.0', 'v0.99.99'), 1);
   assert.equal(compareVersions('1.2.3', '1.2.3'), 0);
-  for (const bad of ['', '1', '1.2', '1.2.3.4', '1.2.3-rc1', '1.2.x', null, undefined]) assert.equal(compareVersions('1.0.0', bad), null, String(bad));
+  for (const bad of ['', '1', '1.2', '1.2.3.4', '1.2.3-', '1.2.x', null, undefined]) assert.equal(compareVersions('1.0.0', bad), null, String(bad));
 });
 
 test('update asset names and URLs are pinned to this repository release for exactly that tag', () => {
