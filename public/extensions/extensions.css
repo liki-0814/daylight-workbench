@@ -66,7 +66,7 @@
 .extension-list { min-width: 0; container-type: inline-size; }
 .extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .extension-table { --cols: minmax(0, 1fr) minmax(120px, 48%); }
-.extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 132px minmax(120px, 44%); }
+.extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 104px minmax(120px, 36%); }
 .extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 72px 200px; }
 .extension-table[data-tab=clients] { --cols: minmax(0, 1fr) 160px; }
 .extension-table-head, .extension-row { display: grid; grid-template-columns: var(--cols); column-gap: var(--space-4); align-items: center; padding-inline: var(--space-3); }
