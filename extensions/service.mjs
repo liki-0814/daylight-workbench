@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { extensionActions, extensionMethod, canonicalJSON } from '../core/extensions-contracts.js';
+import { extensionActions, extensionMethod, canonicalJSON, extensionsMirrorKeys } from '../core/extensions-contracts.js';
 import { body, send } from '../ai/http.mjs';
 import { error, fieldError, hash, stat, within, safePath, snapshot, fileSnapshot, readText } from './files.mjs';
 import { metadata, skillId, skillFile } from './skill-files.mjs';
@@ -47,7 +47,10 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   const probeReport = server => { const value = probes.latest(server.id); return value ? { ...value, stale: value.configRevision !== server.revision } : null; };
   // Reference table for the UI: names only. The value of a variable is never read into any response.
   const refStatus = server => [...Object.entries(server.envRefs || {}).map(([key, ref]) => ['env', key, ref]), ...Object.entries(server.headerRefs || {}).map(([key, ref]) => ['header', key, ref])].map(([kind, key, ref]) => ({ kind, key, ref, set: !!environment[ref], internal: privateEnvironmentNames.includes(ref) || privateEnvironmentNames.includes(key) }));
-  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
+  // Web mirror of GET /api/v1/capabilities `extensions.*` (the web UI cannot read /api/v1): same nesting and key names, `true` instead of the descriptive strings. Keys come from `extensionsMirrorKeys` (core/extensions-contracts.js).
+  // Optional keys: a client treats a missing key as "unknown, keep working" and hides a feature only on a literal `false`.
+  const capabilities = () => ({ extensions: Object.fromEntries(extensionsMirrorKeys.map(key => [key, true])) });
+  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, capabilities: capabilities(), servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
   // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
   const missingMessage = kind => kind === 'mcp' ? 'MCP 服务已归档、被移除或配置已变化，请返回清单重新选择' : kind === 'client' ? '软件未登记或已移除，请返回清单重新选择' : kind === 'skill' ? 'Skill 已归档、移动或不存在，请返回清单重新选择' : '该对象已归档、移动或不存在，请返回清单重新选择';
   const absent = (id, kind) => Object.assign(error(missingMessage(kind || (/^skill_/.test(id) ? 'skill' : undefined)), 404, 'EXTENSIONS_OBJECT_MISSING'), { kind: kind || (/^skill_/.test(id) ? 'skill' : null) });
@@ -66,7 +69,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   async function compare(query) {
     const id = query.get('id'), clientId = query.get('clientId'), expected = query.get('expectedVersion');
     if (!id) throw fieldError('对比需要 Skill id。', 'id');
-    if (!clientId) throw fieldError('对比需要软件 clientId。', 'clientId');
+    if (!clientId) throw fieldError('对比需要先选择软件。', 'clientId');
     const state = await catalog.state(true);
     if (expected !== null && expected !== state.version) throw error('来源或接入文件已变化，请刷新后重新对比', 409, 'EXTENSIONS_VERSION_CONFLICT');
     const skill = getSkill(state, id, 'skill');
@@ -244,9 +247,9 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         setSkillState(manifest, skill.id, { disabled: false, rememberedBindings: remaining }); manifestChanged = true;
         impact.unshift(restored.length ? '将恢复 ' + restored.length + ' 个软件的链接（' + restored.join('、') + '）；已启用的 Skill 可随时再次停用。' : '将启用该 Skill；没有需要恢复的软件链接。');
       } else if (action.type === 'skill.resolveConflict') {
-        if (!manifest) throw error('接入记录损坏，请修复 bindings.json 后操作', 409);
-        if (!['adoptShared', 'keepLocal', 'reopen'].includes(action.resolution)) throw fieldError('冲突处理方式只能是 adoptShared（采用共享版本）、keepLocal（保留软件内版本）或 reopen（重新标记为未处理）。', 'resolution');
-        if (typeof action.clientId !== 'string' || !action.clientId) throw fieldError('处理冲突需要选择 clientId。', 'clientId');
+        if (!manifest) throw error('接入记录损坏，请先修复接入记录后再操作', 409);
+        if (!['adoptShared', 'keepLocal', 'reopen'].includes(action.resolution)) throw fieldError('冲突处理方式只能是「采用共享版本」、「保留软件内版本」或「重新处理」。', 'resolution');
+        if (typeof action.clientId !== 'string' || !action.clientId) throw fieldError('处理冲突需要先选择软件。', 'clientId');
         if (skill.scope !== 'shared' || skill.readOnly) throw fieldError('只有共享来源中的 Skill 有接入冲突可处理。', 'id');
         const client = getClient(state, action.clientId); action.clientId = client.id;
         const entry = skill.bindings.find(item => item.clientId === client.id), target = path.join(client.skillsRoot, path.basename(skill.relativePath));
@@ -273,7 +276,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
             manifest.bindings = manifest.bindings.filter(item => !(item.skillId === skill.id && [client.id, ...(client.aliases || [])].includes(item.clientId) && item.target === target));
             manifest.bindings.push({ skillId: skill.id, clientId: client.id, source, target, linkTarget: source });
             setResolution(manifest, { skillId: skill.id, clientId: client.id, target }, null); manifestChanged = true;
-            impact.push('用共享版本替换 ' + client.name + ' 里的同名' + ({ directory: '目录', file: '文件', link: '链接' }[replaced?.before.kind] || '内容') + '：' + target + '。原内容已记录，可用 operation.restore 恢复（不超过 2500 个文件 / 8 MB）。');
+            impact.push('用共享版本替换 ' + client.name + ' 里的同名' + ({ directory: '目录', file: '文件', link: '链接' }[replaced?.before.kind] || '内容') + '：' + target + '。原内容已记录，可撤销这次操作来恢复（不超过 2500 个文件 / 8 MB）。');
             impact.push(client.name + '：' + client.refresh);
             warnings.push('软件内版本里不在共享版本中的内容将不再被该软件读取。覆盖前请先用“对比差异”核对。');
           }
