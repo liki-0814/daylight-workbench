@@ -95,7 +95,7 @@ func problem(with app: URL, version: String) -> String? {
     if verify.status != 0 { return "签名校验失败：\(verify.output.trimmingCharacters(in: .whitespacesAndNewlines))" }
     guard let plist = info(app) else { return "无法读取 Info.plist" }
     if plist["CFBundleIdentifier"] as? String != bundleID { return "App 标识不匹配" }
-    if plist["CFBundleShortVersionString"] as? String != version { return "版本号与预期不一致" }
+    if (plist["DaylightVersion"] as? String ?? plist["CFBundleShortVersionString"] as? String) != version { return "版本号与预期不一致" }
     if !fm.isExecutableFile(atPath: app.appendingPathComponent("Contents/MacOS/Daylight").path) { return "缺少可执行文件" }
     return nil
 }

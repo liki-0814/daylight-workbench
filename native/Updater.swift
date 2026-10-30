@@ -64,7 +64,7 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
     init(server: WorkbenchServer) {
         self.server = server
         let info = Bundle.main.infoDictionary ?? [:]
-        currentVersion = info["CFBundleShortVersionString"] as? String ?? ""
+        currentVersion = info["DaylightVersion"] as? String ?? info["CFBundleShortVersionString"] as? String ?? ""
         bundleID = Bundle.main.bundleIdentifier ?? ""
         bundleURL = Bundle.main.bundleURL
         updates = server.directory.appendingPathComponent("updates")
@@ -459,7 +459,7 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
         let verify = run("/usr/bin/codesign", ["--verify", "--strict", "--deep", app.path], timeout: 120)
         guard verify.status == 0 else { fail("bad-code-signature", "更新包的代码签名无效，已丢弃", cleanup: version); return }
         guard let info = plist(app), info["CFBundleIdentifier"] as? String == bundleID else { fail("bad-bundle-id", "更新包不是 Daylight，已丢弃", cleanup: version); return }
-        guard info["CFBundleShortVersionString"] as? String == version, compare(currentVersion, version) == -1 else { fail("bad-version", "更新包版本与清单不一致或不比当前新，已丢弃", cleanup: version); return }
+        guard (info["DaylightVersion"] as? String ?? info["CFBundleShortVersionString"] as? String) == version, compare(currentVersion, version) == -1 else { fail("bad-version", "更新包版本与清单不一致或不比当前新，已丢弃", cleanup: version); return }
         guard FileManager.default.isExecutableFile(atPath: app.appendingPathComponent("Contents/MacOS/Daylight").path),
               FileManager.default.isExecutableFile(atPath: app.appendingPathComponent("Contents/Resources/DaylightUpdater").path) else { fail("bad-layout", "更新包缺少必要文件", cleanup: version); return }
         lock.lock(); let currentDR = self.currentDR; lock.unlock()
