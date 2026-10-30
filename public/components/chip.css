@@ -1,0 +1,6 @@
+.ui-chip { display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; min-height: 20px; padding: 0 var(--space-2); border-radius: 10px; background: var(--fill-control); color: var(--text-secondary); font-size: var(--font-meta-size); font-weight: 600; line-height: 18px; white-space: nowrap; }
+.ui-chip-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.ui-chip-success { background: var(--success-bg); color: var(--success-text); }
+.ui-chip-warning { background: var(--warning-bg); color: var(--warning-text); }
+.ui-chip-danger { background: var(--danger-bg); color: var(--danger-text); }
+.ui-chip-accent { background: var(--info-bg); color: var(--accent-text); }
