@@ -45,6 +45,8 @@ node scripts/e2e.mjs --update-baseline --reason "为什么变"   # 更新基线�
 | ext-a11y-03 | 目标尺寸 ≥ 24px | 已知缺陷：「只看有问题」复选框 22px |
 | ext-sk-16 | 取消预览后复选框恢复、焦点回位（E-26） | 已知缺陷（复选框仍 disabled） |
 | ext-sk-17 | 归档后焦点不落 body（E-27） | 已知缺陷（落 body） |
+| ext-conflict-01 | E-11 接口：compare 只读、不外泄凭据；keepLocal / reopen；adoptShared 后 `operation.restore` 还原（用夹具 Qoder 冲突） | 已知缺陷（0.6.1 无 `skill.resolveConflict`；合入 E-11 后端后自动变为必须通过，到时会提示「意外通过」，无需改标记） |
+| ext-sk-07 | E-11 UI 桩：冲突项开关禁用并写明原因；三个冲突动作可达；「对比差异」只读 | 已知缺陷（**需要新 UI**；Iris 前端合入后按真实选择器修正并移除 expectedFail） |
 
 **未实现 / 未验证**：依赖 0.7 新 UI 的用例（ext-shell-02/07/08/09、启用/停用 Skill、导入、批量检测、MCP 交互等）要等 Iris 的前端合入后补；ext-shell-04（深色）不进 0.7。ext-sk-16 只验证了 Esc 路径，点「取消」与点遮罩两条路径待补。a11y 为启发式检查，**未用 axe 验证**，不能当作 WCAG 合规结论。
 
