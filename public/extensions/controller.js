@@ -1,17 +1,27 @@
 export function createExtensionsController({ client, storage = globalThis.localStorage, onChanged = () => {} }) {
-  let snapshot, failure, visible = false, loading = false, request, timer, submission, storageKey, applying = false;
+  let snapshot, failure, visible = false, loading = false, request, timer, submission, storageKey, applying = false, cancelRequested = false, cancelled = false;
   const listeners = new Set(), drafts = new Map();
-  const emit = () => listeners.forEach(listener => listener({ snapshot, failure, loading, submission }));
+  // cancellable：只有「读取」能被取消；提交后的刷新（applying）不能，否则界面会停在旧数据上而服务端已变。cancelled：最近一次读取被用户取消（下一次读取开始时清除）。
+  const emit = () => listeners.forEach(listener => listener({ snapshot, failure, loading, submission, cancelled, cancellable: loading && !applying }));
   function persist() { if (storageKey) storage?.setItem(storageKey, JSON.stringify(submission)); }
   async function refresh(force = false) {
     if (loading) return;
-    loading = true; failure = null; request = new AbortController(); emit();
+    const failureBefore = failure;
+    loading = true; failure = null; cancelled = false; cancelRequested = false; request = new AbortController(); emit();
     try {
-      snapshot = await (force ? client.refresh(request.signal) : client.state(request.signal));
+      // 先放进局部变量，成功才替换 snapshot：取消或失败都不会留下半截数据（0.7 PR-6，加载超过 1 秒可取消）。
+      const next = await (force ? client.refresh(request.signal) : client.state(request.signal));
+      if (cancelRequested) throw Object.assign(new Error('cancelled'), { name: 'AbortError' });   // 就算请求没响应 abort，晚到的数据也不能写进来
+      snapshot = next;
       const key = 'daylight:extensions:submission:' + snapshot.root;
       if (storageKey !== key) { storageKey = key; try { submission = JSON.parse(storage?.getItem(key) || 'null'); } catch { submission = null; } }
-    } catch (error) { if (error.name !== 'AbortError') failure = error; }
-    finally { loading = false; request = null; emit(); }
+    } catch (error) { if (error.name !== 'AbortError') failure = error; else if (cancelRequested) { cancelled = true; failure = failureBefore; } }   // 取消 = 回到读取前：旧失败提示也原样恢复
+    finally { loading = false; request = null; cancelRequested = false; emit(); }
+  }
+  // 用户取消读取：只在读取中、且不是提交后的刷新时有效；返回是否真的取消了。回到读取前的状态（snapshot / failure 不变），由页面显示「已取消」和「重试」。
+  function cancel() {
+    if (!loading || applying || !request) return false;
+    cancelRequested = true; request.abort(); return true;
   }
   async function submit(plan) {
     if (!snapshot || !storageKey) throw new Error('请等待来源清单加载完成后保存');
@@ -31,9 +41,10 @@ export function createExtensionsController({ client, storage = globalThis.localS
     } catch (error) { original.status = error.status >= 400 && error.status < 500 ? 'needs_review' : 'unknown'; original.error = error.message; persist(); emit(); throw error; }
     finally { applying = false; emit(); }
   }
-  return { subscribe(listener) { listeners.add(listener); emit(); return () => listeners.delete(listener); }, refresh, submit, retry, getSnapshot: () => snapshot,
+  return { subscribe(listener) { listeners.add(listener); emit(); return () => listeners.delete(listener); }, refresh, submit, retry, cancel, getSnapshot: () => snapshot,
     getSubmission: () => submission, clearSubmission() { if (submission && ['submitted', 'unknown'].includes(submission.status)) throw new Error('请先核对结果未知的原请求'); submission = null; persist(); emit(); },
-    drafts, setVisible(value) { visible = value; clearInterval(timer); if (!value) request?.abort(); else { void refresh(); timer = setInterval(() => { if (visible && !document.hidden) void refresh(true); }, 10000); } },
+    drafts, setVisible(value) { visible = value; clearInterval(timer); if (!value) request?.abort(); else { void refresh(); timer = setInterval(() => { if (visible && !document.hidden && !cancelled) void refresh(true); }, 10000); }   // 已取消时 timer 不自动重读，等用户点「重试」或重新扫描
+    },
     dispose() { visible = false; clearInterval(timer); request?.abort(); listeners.clear(); } };
 }
 
