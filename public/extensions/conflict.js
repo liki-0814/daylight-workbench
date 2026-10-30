@@ -1,5 +1,6 @@
 import { escapeButtonText as esc } from '../components/button.js';
 import { tildePath } from './staging.js';
+import { extensionCapability } from './capabilities.js';
 
 // 扩展页 Skill 接入冲突（0.7 E-11）：纯函数，无 DOM；状态、事件、焦点在 page.js。
 // 后端契约：api-contract-skill-enable.md「后端修订」G（#32）：`GET /compare`、`skill.resolveConflict`、`bindings[].resolution / resolutionStale`。
@@ -15,9 +16,9 @@ export function conflictOf(binding) {
 // 「仅看问题」只算还需要处理的冲突（已保留的不算；已变化的要再处理，算）。
 export const isOpenConflict = binding => { const kind = conflictOf(binding); return kind === 'open' || kind === 'stale'; };
 
-// 契约 G.4 的能力探测：网页读不了 /api/v1/capabilities，/state 镜像里也没有 Skill 冲突的键；前端与后端同仓同版本发布，所以默认支持，
-// 只有镜像里 `capabilities.extensions.skillConflict` 是字面 false 才隐藏（预留给 Jevis；缺失 / 其它值都按支持处理）。
-export const conflictSupported = capabilities => capabilities?.extensions?.skillConflict !== false;
+// 契约 G.4 的能力探测：与其他扩展门控一致，只认 `capabilities.extensions.skillConflict` 的字面 true（后端 #32 84a724e 起在 /state 镜像里提供）。
+// 缺失、false、'true'、1 等一律按不支持处理——镜像读不到时宁可不显示冲突流程，也不要对着没有这个后端的构建发请求。
+export const conflictSupported = capabilities => extensionCapability(capabilities, 'skillConflict');
 
 // 行里和检查器里的文字（点 + 文字，不只靠颜色）。
 export const conflictNote = binding => ({ open: '同名位置冲突，未改动', kept: '已保留软件内版本，未改动', stale: '软件内版本已变化，请重新处理' })[conflictOf(binding)] || '';

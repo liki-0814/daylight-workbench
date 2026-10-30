@@ -46,3 +46,13 @@ test('page.js gates through capabilities.js and the asset is registered', () => 
   assert.doesNotMatch(page, /state\?\.capabilities\?\.\[name\]/, 'the old flat read is gone');
   assert.equal(JSON.parse(read('core/web-assets.json'))['/extensions/capabilities.js'], 'extensions/capabilities.js');
 });
+
+test('skillConflict goes through the same gate: conflictSupported reads capabilities.js, and page.js asks it before drawing any conflict UI', () => {
+  const conflict = read('public/extensions/conflict.js'), page = read('public/extensions/page.js');
+  assert.match(conflict, /import \{ extensionCapability \} from '\.\/capabilities\.js'/);
+  assert.match(conflict, /conflictSupported = capabilities => extensionCapability\(capabilities, 'skillConflict'\)/);
+  assert.doesNotMatch(conflict.replace(/^\s*\/\/.*$/gm, ''), /skillConflict\s*(!==|===)/, 'no private comparison next to the shared helper');
+  assert.match(page, /!conflictSupported\(state\?\.capabilities\)\) return ''/, 'conflict markup is skipped when the gate is closed');
+  for (const value of [true]) assert.equal(extensionCapability({ extensions: { skillConflict: value } }, 'skillConflict'), true);
+  for (const value of [false, 'true', 1, undefined, null, {}]) assert.equal(extensionCapability({ extensions: { skillConflict: value } }, 'skillConflict'), false, String(value));
+});
