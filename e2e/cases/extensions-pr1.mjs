@@ -123,7 +123,11 @@ export default [
     await fieldIn(page, '稳定 ID').fill('fixture-mcp'); await fieldIn(page, '服务名称').fill('重复'); await fieldIn(page, '可执行命令').fill('node');
     await dialog(page).locator('[data-field-action="view-existing"]').waitFor(); check.match((await fieldErrors(page)).join(' '), /已存在 ID 为 fixture-mcp/);
     await save(page).click(); await dialog(page).locator('[data-field-error="id"]').waitFor();
-    check.equal(await activeName(page), 'id'); check.equal(await fieldIn(page, '服务名称').inputValue(), '重复'); check.equal(await fs.readFile(file, 'utf8'), original, 'servers.json 不得改动');
+    // PR-12：服务端声明 mcpConflictCompare 后，提交不再被本地拦下，而是由服务端 409 带出「对比与选择」面板（焦点在面板里）；未声明时仍是原来的行为。
+    const conflictCompare = JSON.parse((await fixture.api('/api/extensions/state')).text).capabilities?.extensions?.mcpConflictCompare === true;
+    if (conflictCompare) { await dialog(page).locator('[data-duplicate-panel] input[type="radio"]').first().waitFor(); check.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-duplicate-panel]')), true, '焦点在对比面板里'); }
+    else check.equal(await activeName(page), 'id', '焦点回到 ID');
+    check.equal(await fieldIn(page, '服务名称').inputValue(), '重复'); check.equal(await fs.readFile(file, 'utf8'), original, 'servers.json 不得改动');
     await fieldIn(page, '稳定 ID').focus(); await page.keyboard.press('Tab'); check.equal(await page.evaluate(() => document.activeElement?.dataset?.fieldAction), 'view-existing', 'Tab 应到达“查看现有服务”');
     await page.keyboard.press('Enter'); await gone(page); await page.locator('.extension-detail:not([hidden])').getByText('本地 MCP 测试服务').first().waitFor();
     // 服务端 409：本地状态过期时（这里用路由模拟），错误同样贴在 ID 字段上并保留输入
@@ -131,7 +135,7 @@ export default [
     await page.getByRole('button', { name: '返回清单', exact: true }).click().catch(() => {});
     await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click(); await fieldIn(page, '稳定 ID').fill('ghost'); await fieldIn(page, '服务名称').fill('幽灵'); await fieldIn(page, '可执行命令').fill('node');
     await save(page).click(); await dialog(page).locator('[data-field-error="id"]').waitFor();
-    check.match((await fieldErrors(page)).join(' '), /已存在 ID 为 ghost/); check.equal(await activeName(page), 'id'); check.equal(await fieldIn(page, '服务名称').inputValue(), '幽灵');
+    check.match((await fieldErrors(page)).join(' '), /已存在 ID 为 ghost/); check.equal(await activeName(page), 'id', 'ghost 焦点'); check.equal(await fieldIn(page, '服务名称').inputValue(), '幽灵');
   } },
   { id: 'ext-mcp-09', priority: 'P0', title: '配置损坏：横幅、新建暂停、不覆盖原文件；详情读取失败文案；修复后重新扫描自动清除（E-07/E-08/E-25）', async run({ page, url, assert: check, fixture }) {
     const file = path.join(fixture.agents, 'mcp/servers.json'), good = await fs.readFile(file, 'utf8'), broken = '{ "schemaVersion": 1, "servers": [ ';
