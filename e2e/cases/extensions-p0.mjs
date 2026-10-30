@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { FIXTURE_EXPECTED, FIXTURE_SECRET } from '../fixture.mjs';
 import { horizontalOverflow, unnamedControls, focusWalk, smallTargets } from '../a11y.mjs';
+import extensionsPr7 from './extensions-pr7.mjs';   // PR-7 的 MCP 用例（自带 expectedFail 门控）
 // ext-sk-16 / ext-sk-17 (E-26 / E-27) live in extensions-pr1.mjs together with the other PR-1 cases.
 
 const rows = page => page.locator('.extension-row');
@@ -82,4 +83,4 @@ export default [
     await rows(page).first().locator('[data-extension-id]').first().click(); await page.waitForTimeout(100);
     check.deepEqual(await page.evaluate(() => document.getAnimations().filter(a => a.effect?.getComputedTiming().duration > 0 && a.playState === 'running' && a.transitionProperty && /transform|translate|scale/.test(a.transitionProperty)).map(a => a.transitionProperty)), []);
   } },
-];
+].concat(extensionsPr7);

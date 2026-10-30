@@ -60,7 +60,9 @@ const stepA = [
     const row = rows(page).first();
     const id = await row.locator('code.extension-row-id').innerText(); check.ok(id.length > 0, '行里有 ID：' + id);
     const text = await row.innerText(); check.match(text, /stdio|http/); check.match(text, /尚未检测|握手成功|检测失败|正在检测|用户级配置|已取消|检测超时/);
-    check.match(text, /配置启用|配置禁用/);
+    // PR-7 把「配置启用/配置禁用」小字换成了可操作的启用开关 + 文字状态：有开关时断言开关和「已启用/已停用」，没有时保持原断言。
+    if (await row.locator('[data-mcp-switch]').count()) { check.equal(await row.locator('[data-mcp-switch]').isChecked(), true, 'MCP 行有启用开关'); check.match(await row.locator('[role="switch"]').first().evaluate(el => el.getAttribute('aria-label') || el.closest('label')?.innerText || ''), /启用/); }
+    else check.match(text, /配置启用|配置禁用/);
     await shot('mcp-table');
   } },
   { id: 'ext-l-06', priority: 'P0', widths: [1440], title: '加载：<300ms 无骨架；>300ms 骨架（对读屏隐藏）；>1s 出现文字；完成后恢复清单（E-19）', async run({ page, url, assert: check, shot }) {
