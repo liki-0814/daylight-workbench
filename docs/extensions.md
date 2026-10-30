@@ -29,7 +29,7 @@ HTTP 使用 `url` 和 `headerRefs`，例如 `{"Authorization":"MCP_AUTH_HEADER"}
 
 Codex、Grok 直接管理用户级 `config.toml` 的 `mcp_servers`；Qoder 管理 `settings.json` 的 `mcpServers`；Claude Code 管理 `~/.claude.json` 的用户级 `mcpServers`。只修改目标字段，保留未知字段、其他配置、注释和未编辑的凭据。Codex/Grok 支持服务启停；Qoder 使用 `mcp.excluded`，不猜测 Claude Code 的启停字段。Pi 暂无原生 MCP 适配器。项目、插件和兼容来源可能覆盖用户配置，本次不扫描项目目录。
 
-`mcp.save` 可指定 `clientId` 保存到软件；`mcp.install` 把共享配置接入软件，同名服务不覆盖；`mcp.toggle` 仅用于声明支持启停的软件。导出片段和实际写入共用适配器。未知软件只有导出格式时仍为手动接入。Qoder 的凭据插值形式未核实时拒绝写入新引用。所有新凭据使用环境变量引用，原生配置中的既有值保持隐藏；公开清单、详情、计划不包含完整软件配置。恢复材料仍保存在本地私有操作日志中。
+`mcp.save` 可指定 `clientId` 保存到软件；新建服务传 `create: true`，ID 已存在时返回 409（`EXTENSIONS_DUPLICATE_ID`），省略 `create` 视为编辑并替换同 ID 服务；校验错误带 `field`，明文 `http://`（非本机地址）在计划与服务状态里带 `INSECURE_HTTP` 警告；`mcp.install` 把共享配置接入软件，同名服务不覆盖；`mcp.toggle` 仅用于声明支持启停的软件。导出片段和实际写入共用适配器。未知软件只有导出格式时仍为手动接入。Qoder 的凭据插值形式未核实时拒绝写入新引用。所有新凭据使用环境变量引用，原生配置中的既有值保持隐藏；公开清单、详情、计划不包含完整软件配置。恢复材料仍保存在本地私有操作日志中。
 
 `mcp.generate` 保留为导出操作，位于 `~/.agents/mcp/generated/<client>/`。生成与链接完成、当前检测握手成功、目标客户端实际发现是不同状态。软件本地 MCP 的握手、OAuth 和实际发现由对应 CLI 核对，Daylight 的显式探测仍用于共享配置。
 
