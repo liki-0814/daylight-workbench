@@ -1,6 +1,7 @@
 import { createExtensionsClient } from './client.js';
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
+import { extensionCapability } from './capabilities.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
@@ -127,9 +128,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (route.tab === 'skills' && state.bindingsValid === false) { const problem = state.diagnostics.find(item => item.code === 'BINDINGS_FORMAT') || {}; return { code: 'BINDINGS_FORMAT', title: '接入记录无法读取', blocksCreate: false, problem, where: problem.path || '', reason: problem.message || '' }; }
     return null;
   }
-  // 「在访达中显示」「从备份恢复…」要后端能力（api-contract-skill-enable.md §H，尚未实现）：state.capabilities 里明确为 true 才显示；
-  // 没有时用「复制路径」代替（路径来自 state 已有字段），不显示会失败的按钮。revealKind 只有 MCP 主配置在契约里。
-  const capability = name => state?.capabilities?.[name] === true;
+  // 「在访达中显示」「从备份恢复…」要后端能力（§H，后端 #36）：读 /state、/refresh 里 capabilities 镜像的 extensions.reveal / extensions.restoreBackup，
+  // 明确为 true 才显示（读法见 capabilities.js）；没有时用「复制路径」代替（路径来自 state 已有字段），不显示会失败的按钮。revealKind 只有 MCP 主配置在契约里。
+  const capability = name => extensionCapability(state?.capabilities, name);
   const bannerActions = banner => [
     { label: '重新扫描', attrs: { 'data-extension-refresh': true } },
     ...(capability('reveal') && banner.code === 'MCP_FORMAT' ? [{ label: '在访达中显示', attrs: { 'data-extension-reveal': 'mcpConfig' } }] : banner.problem?.path ? [{ label: '复制路径', attrs: { 'data-copy-path': true } }] : []),
@@ -232,7 +233,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     await client.reveal({ kind });
     showToast({ message: '已在访达中显示' });
   }
-  // 从备份恢复：恢复点列表来自 GET /api/extensions/backups?kind=mcpConfig（契约建议，后端未实现）；选定后走同一套「预览 → 确认」，动作 mcp.restoreBackup。
+  // 从备份恢复：恢复点列表来自 GET /api/extensions/backups?kind=mcpConfig（后端 #36：只返回元数据，不含配置内容或凭据）；选定后走同一套「预览 → 确认」，动作 mcp.restoreBackup。
   async function chooseBackup() {
     const result = await client.backups('mcpConfig'), list = Array.isArray(result) ? result : result.backups || [];
     if (!list.length) { showToast({ message: '没有可用的恢复点', tone: 'warning' }); return; }
