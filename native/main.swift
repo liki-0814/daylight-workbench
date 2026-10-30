@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var timer: Timer?
     var focusTray: FocusTray!
     var focusNotifications: FocusNotifications!
+    var displayAccessibility: DisplayAccessibility!
     var wakeObserver: NSObjectProtocol?
     var traySnapshot: [String: Any]?
     var pendingTraySnapshot: [String: Any]?
@@ -56,8 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         focusNotifications = FocusNotifications(server: server, show: { [weak self] in self?.show($0) })
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         config.userContentController.add(focusNotifications, name: "focusNotifications")
+        displayAccessibility = DisplayAccessibility(); displayAccessibility.install(into: config.userContentController)
         web = WKWebView(frame: .zero, configuration: config); web.navigationDelegate = self; web.uiDelegate = self; window.contentView = web
         focusNotifications.attach(web)
+        displayAccessibility.attach(web)
         web.load(URLRequest(url: URL(string: server.endpoint + "/")!))
         launcher = Launcher(server: server); launcher.install()
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -93,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { server.updater.markHealthy() }
     func applicationWillTerminate(_ notification: Notification) {
-        timer?.invalidate(); focusNotifications?.stop(); launcher?.stop()
+        timer?.invalidate(); focusNotifications?.stop(); launcher?.stop(); displayAccessibility?.stop()
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         server.queue.async { self.server.focus.close() }
         server.updater.installOnQuit()

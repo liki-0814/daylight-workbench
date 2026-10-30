@@ -91,6 +91,7 @@ html:not(.embedded) .quick-shell {
   .quick-input { font-size: var(--font-capture-size); }
   .quick-footer { margin: 0 16px; }
 }
+html[data-reduce-transparency] .quick-shell, html[data-reduce-transparency]:not(.embedded) .quick-shell { background: #f5f7fa; -webkit-backdrop-filter: none; backdrop-filter: none; }
 @media (prefers-reduced-transparency: reduce) {
   .quick-shell, html:not(.embedded) .quick-shell { background: #f5f7fa; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }

@@ -129,7 +129,8 @@
 
   /* Page and task-column alignment, including responsive variants below. */
   --page-inline: 43px;
-  --sidebar-width: 238px;
+  --sidebar-width: 224px;
+  --toolbar-height: 52px;
   --task-row-inset: var(--space-6);
   --task-leading-width: 18px;
   --task-column-gap: 13px;
@@ -164,6 +165,7 @@
   --info-bg: rgba(0, 113, 227, .08);
   --surface: #ffffff;
   --material: rgba(255, 255, 255, .8);
+  --material-filter: saturate(180%) blur(20px);
   --on-accent: #ffffff;
   --switch-off: #d1d1d6;
   --control-border: #8e8e93;
@@ -425,4 +427,22 @@ input[type="checkbox"], input[type="radio"] {
 
 @media (max-width: 420px) {
   :root { --font-capture-size: 18px; --font-capture-line: 26px; }
+}
+
+/* 0.7 PR-4 应用外壳：侧栏三档（224 / ≤1339 → 208 / ≤999 → 64 图标栏），与 760 / 1240 / 1440 三档对应，不新增断点。 */
+@media (max-width: 1339px) {
+  :root { --sidebar-width: 208px; }
+}
+@media (max-width: 999px) {
+  :root { --sidebar-width: 64px; }
+}
+
+/* 材质回退：系统「降低透明度」（原生壳设置 <html data-reduce-transparency>；Safari 16 没有 prefers-reduced-transparency）、
+   不支持 backdrop-filter 时一律不透明。放在深色块之后，并用 :root[...] 提高优先级。 */
+:root[data-reduce-transparency] { --material: var(--bg); --material-filter: none; }
+@media (prefers-reduced-transparency: reduce) {
+  :root { --material: var(--bg); --material-filter: none; }
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root { --material: var(--bg); --material-filter: none; }
 }
