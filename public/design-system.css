@@ -104,9 +104,6 @@
   --panel-inline-inset: 26px;
   --dialog-inline-inset: 28px;
   --form-control-height: 44px;
-  --control-border: #dce4d3;
-  --control-background: #fcfdfb;
-  --control-text: #374c2e;
   --form-control-line-height: var(--font-control-line);
   --compact-control-height: 36px;
   --form-control-padding-block: calc((var(--form-control-height) - var(--font-control-line) - 2px) / 2);
@@ -138,21 +135,95 @@
   --task-column-gap: 13px;
   --task-title-size: var(--font-body-size);
 
-  --green: #365944;
-  --muted: #768078;
-  --line: #e5e8e0;
-  --paper: #fff;
-  --danger: #a04436;
-  --warning: #9c5b24;
-  --warning-background: #fff5e8;
-  --selection-background: #edf2e6;
-  --soft: #eef2e9;
-  --workbench-text: #28332d;
-  --workbench-background: #f7f8f5;
+  /* 0.7 设计令牌（浅色，值与 design-spec.md §1.1 一致）。强调色只有一个系统蓝 --accent。 */
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-secondary: #f5f5f7;
+  --bg-grouped: #fafafa;
+  --fill-hover: rgba(0, 0, 0, .04);
+  --fill-selected: rgba(0, 113, 227, .10);
+  --fill-control: rgba(0, 0, 0, .05);
+  --separator: rgba(0, 0, 0, .08);
+  --separator-strong: rgba(0, 0, 0, .14);
+  --text: #1d1d1f;
+  /* 比 design-spec 原值 #6e6e73 略深：后者在选中行/悬停底上只有 4.09–4.43:1，达不到 4.5:1。 */
+  --text-secondary: #636366;
+  --text-tertiary: #86868b;
+  --accent: #0071e3;
+  --accent-text: #0066cc;
+  --success: #1f7a35;
+  --warning: #b25000;
+  --danger: #d70015;
+  /* 状态色文字（用在 8–10% 状态色底上，对页面灰底 ≥ 4.5:1）；图标 / 圆点仍用上面的鲜艳色 */
+  --success-text: #1a6b2e;
+  --warning-text: #9a4300;
+  --danger-text: #c20014;
+  --success-bg: rgba(31, 122, 53, .10);
+  --warning-bg: rgba(178, 80, 0, .10);
+  --danger-bg: rgba(215, 0, 21, .08);
+  --info-bg: rgba(0, 113, 227, .08);
+  --surface: #ffffff;
+  --material: rgba(255, 255, 255, .8);
+  --on-accent: #ffffff;
+  --switch-off: #d1d1d6;
+  --control-border: #8e8e93;
+  --scrim: rgba(0, 0, 0, .22);
+  --focus-ring: 0 0 0 3px rgba(0, 113, 227, .35);
+  --ink: var(--text);
+
+  /* 旧变量名保留为别名，指向新令牌；其余页面全部迁移后再移除（方案 §5 PR-2）。 */
+  --green: var(--accent);
+  --muted: var(--text-secondary);
+  --line: var(--separator-strong);
+  --paper: var(--surface);
+  --warning-background: var(--warning-bg);
+  --selection-background: var(--fill-selected);
+  --soft: var(--fill-control);
+  --workbench-text: var(--text);
+  --workbench-background: var(--bg-secondary);
+  --control-background: var(--surface);
+  --control-text: var(--text);
   font-family: var(--font-ui);
   font-size: var(--font-body-size);
   line-height: var(--font-body-line);
   font-synthesis: none;
+}
+
+/* 深色令牌（后续版本）：与浅色成对书写，值与 design-spec.md §1.2 一致。
+   0.7 只交付浅色：没有任何元素带 data-color-scheme="dark"，也不使用 prefers-color-scheme，所以这一段当前不生效。
+   spec 未给出的深色值（--text-tertiary、*-bg）是占位，启用深色前须复核。 */
+:root[data-color-scheme="dark"] {
+  color-scheme: dark;
+  --bg: #1c1c1e;
+  --bg-secondary: #2c2c2e;
+  --bg-grouped: #242426;
+  --fill-hover: rgba(255, 255, 255, .06);
+  --fill-selected: rgba(10, 132, 255, .22);
+  --fill-control: rgba(255, 255, 255, .10);
+  --separator: rgba(255, 255, 255, .10);
+  --separator-strong: rgba(255, 255, 255, .18);
+  --text: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #86868b;
+  --accent: #0071e3;
+  --accent-text: #64d2ff;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --danger-text: var(--danger);
+  --success-bg: rgba(48, 209, 88, .14);
+  --warning-bg: rgba(255, 159, 10, .14);
+  --danger-bg: rgba(255, 69, 58, .14);
+  --info-bg: rgba(10, 132, 255, .14);
+  --surface: #3a3a3c;
+  --material: rgba(28, 28, 30, .8);
+  --on-accent: #ffffff;
+  --switch-off: #48484a;
+  --control-border: #8e8e93;
+  --scrim: rgba(0, 0, 0, .5);
+  --focus-ring: 0 0 0 3px rgba(100, 210, 255, .45);
 }
 
 /* Explicit paragraph rhythm removes browser-default 1em margins. */

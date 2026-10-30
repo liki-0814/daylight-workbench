@@ -5,6 +5,8 @@ import { canonicalJSON } from '../core/extensions-contracts.js';
 
 export const hash = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : canonicalJSON(value)).digest('hex');
 export const error = (message, status = 400, code = 'EXTENSIONS_INVALID') => Object.assign(new Error(message), { status, code });
+// Field-level validation failure. `field` is a stable dotted path (for example `server.id`) the UI can attach the message to.
+export const fieldError = (message, field, status = 400, code = 'EXTENSIONS_INVALID') => Object.assign(error(message, status, code), { field });
 export const within = (root, target) => { const rel = path.relative(root, target); return rel === '' || (!rel.startsWith('..' + path.sep) && rel !== '..' && !path.isAbsolute(rel)); };
 export async function stat(file) { try { return await fs.lstat(file); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } }
 export async function safePath(root, target) {

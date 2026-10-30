@@ -1,8 +1,16 @@
 import { escapeButtonText as esc } from '../components/button.js';
 import { extensionsRoute } from '../routes.js';
+import { insecureHttpWarning } from './controller.js';
 
+// 服务端计划自带 warnings（对象 {code, field, message}）；旧版服务没有，就按 http:// 规则在本地补一条。
+function planWarnings(plan) {
+  if (Array.isArray(plan.warnings)) return plan.warnings.map(warning => typeof warning === 'string' ? warning : warning.message).filter(Boolean);
+  const server = plan.normalizedAction?.type === 'mcp.save' ? plan.normalizedAction.server : null;
+  const text = server?.transport === 'http' ? insecureHttpWarning(server.url, { hasHeaders: !!Object.keys(server.headerRefs || {}).length }) : '';
+  return text ? [text] : [];
+}
 export function extensionPlanContent(plan) {
-  return `<div class="extension-impact">${(plan.impact || []).map(text => `<p>${esc(text)}</p>`).join('')}${(plan.conflicts || []).map(text => `<p role="alert" class="extension-error">${esc(text)}</p>`).join('')}</div>${plan.normalizedAction?.type?.startsWith("mcp.") ? `<details><summary>本次 MCP 操作</summary><pre>${esc(JSON.stringify(plan.normalizedAction, null, 2))}</pre></details>` : ""}<div class="extension-diffs">${(plan.files || []).map(file => `<details><summary><span>${esc(file.path)}</span><small>${esc(file.beforeKind)} → ${esc(file.afterKind)}</small></summary>${file.linkTarget ? `<p>链接到 <code>${esc(file.linkTarget)}</code></p>` : ''}${file.before !== undefined || file.after !== undefined ? `<div class="extension-diff-columns"><div><strong>修改前</strong><pre>${esc(file.before ?? '（不存在）')}</pre></div><div><strong>修改后</strong><pre>${esc(file.after ?? '（移除）')}</pre></div></div>` : '<p>变更已记录，可通过操作回执恢复。软件配置整文件含私密字段，不在预览中展开。</p>'}</details>`).join('')}</div>`;
+  return `<div class="extension-impact">${(plan.impact || []).map(text => `<p>${esc(text)}</p>`).join('')}${(plan.conflicts || []).map(text => `<p role="alert" class="extension-error">${esc(text)}</p>`).join('')}${planWarnings(plan).map(text => `<p role="status" class="extension-warning"><strong>警告 · </strong>${esc(text)}</p>`).join('')}</div>${plan.normalizedAction?.type?.startsWith("mcp.") ? `<details><summary>本次 MCP 操作</summary><pre>${esc(JSON.stringify(plan.normalizedAction, null, 2))}</pre></details>` : ""}<div class="extension-diffs">${(plan.files || []).map(file => `<details><summary><span>${esc(file.path)}</span><small>${esc(file.beforeKind)} → ${esc(file.afterKind)}</small></summary>${file.linkTarget ? `<p>链接到 <code>${esc(file.linkTarget)}</code></p>` : ''}${file.before !== undefined || file.after !== undefined ? `<div class="extension-diff-columns"><div><strong>修改前</strong><pre>${esc(file.before ?? '（不存在）')}</pre></div><div><strong>修改后</strong><pre>${esc(file.after ?? '（移除）')}</pre></div></div>` : '<p>变更已记录，可通过操作回执恢复。软件配置整文件含私密字段，不在预览中展开。</p>'}</details>`).join('')}</div>`;
 }
 export function extensionDraftCard(pending) {
   return `<div class="ai-card extension-review"><h3>审阅扩展变更</h3><p>${esc(pending.summary)}</p>${extensionPlanContent(pending.plan)}<div class="ai-card-actions"><button type="button" class="secondary" data-reject>取消草稿</button><button type="button" class="primary" data-apply ${pending.plan.conflicts?.length ? 'disabled' : ''}>${pending.action.type === 'mcp.probe' ? '确认并检测' : '应用变更'}</button></div><small>来源或接入文件变化后需要重新预览；不会自动将公共 MCP 加载到 Daylight 对话。</small></div>`;

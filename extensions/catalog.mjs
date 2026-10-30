@@ -4,6 +4,7 @@ import { error, hash, within, stat, safePath, readText, readJSON } from './files
 import { metadata, skillId } from './skill-files.mjs';
 import { clientAdapters } from './client-adapters.mjs';
 import { readClientMcp } from './client-mcp.mjs';
+import { parse as parseJSONC } from 'jsonc-parser';
 import { normalizeServers } from './mcp-server.mjs';
 
 export function createCatalog({ root, clients, loadClients, environment = process.env, cacheMs = 1000 }) {
@@ -78,7 +79,16 @@ export function createCatalog({ root, clients, loadClients, environment = proces
       const file = path.join(root, 'mcp', 'servers.json'); await safePath(root, file);
       mcpRaw = await readText(file, 2_000_000);
       servers = normalizeServers(mcpRaw === null ? { schemaVersion: 1, servers: [] } : JSON.parse(mcpRaw));
-    } catch { mcpValid = false; diagnostics.push({ code: 'MCP_FORMAT', message: 'MCP 主配置无效；请修复 servers.json，原文件不会被覆盖' }); }
+    } catch (failure) {
+      mcpValid = false;
+      // Only line/column are taken from a JSON syntax error: its text can echo file content. Schema errors are our own safe messages.
+      let position = null;
+      if (failure instanceof SyntaxError && typeof mcpRaw === 'string') {
+        const errors = []; parseJSONC(mcpRaw, errors, { disallowComments: true, allowTrailingComma: false });
+        if (errors.length) { const before = mcpRaw.slice(0, errors[0].offset); position = [null, before.split('\n').length, before.length - before.lastIndexOf('\n')]; }
+      }
+      diagnostics.push({ code: 'MCP_FORMAT', message: 'MCP 主配置无效；请修复 servers.json，原文件不会被覆盖', path: path.join(root, 'mcp', 'servers.json'), ...(position ? { line: Number(position[1]), column: Number(position[2]) } : {}), ...(failure instanceof SyntaxError ? { reason: 'JSON 语法错误' } : failure.status ? { reason: failure.message } : {}) });
+    }
     try { await safePath(root, path.join(root, 'daylight', 'bindings.json')); manifest = await readJSON(path.join(root, 'daylight', 'bindings.json'), manifest); if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.bindings)) throw error('接入记录格式错误'); }
     catch { diagnostics.push({ code: 'BINDINGS_FORMAT', message: '接入记录格式错误，接入写入已暂停' }); manifest = null; }
     const clientDocuments = await Promise.all(connected.map(readClientMcp));
@@ -99,6 +109,9 @@ export function createCatalog({ root, clients, loadClients, environment = proces
     }
     for (const skill of skills) for (const id of skill.dependencies || []) if (!servers.some(server => server.id === id && server.enabled)) diagnostics.push({ id: skill.id, code: 'DEPENDENCY_UNAVAILABLE', message: '明确依赖的 MCP 不存在或主配置禁用：' + id });
     for (const server of servers) for (const ref of Object.values(server.envRefs || server.headerRefs || {})) if (!environment[ref]) diagnostics.push({ id: server.id, code: 'ENV_MISSING', message: '检测环境缺少变量：' + ref + '（客户端环境须另外核对）' });
+    // Every diagnostic names the page it belongs to so a tab shows only its own problems.
+    const diagnosticTabs = { MCP_FORMAT: 'mcp', CLIENT_MCP_FORMAT: 'mcp', ENV_MISSING: 'mcp', CLIENTS_FORMAT: 'clients' };
+    for (const diagnostic of diagnostics) diagnostic.tab = diagnosticTabs[diagnostic.code] || 'skills';
     const version = hash([signatures.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))), mcpRaw, manifest, registration.raw, clientStates.map(({ id, root, skillsDirectory, mcpFormat, selected }) => ({ id, root, skillsDirectory, mcpFormat, selected }))]);
     return { version, root, adapters: clientAdapters.map(({ id, name }) => ({ id, name })), skills, clientDocuments, servers: [...servers.map(server => ({ ...server, kind: 'mcp', scope: 'shared', revision: hash(server), dependencies: skills.filter(skill => skill.dependencies?.includes(server.id)).map(skill => ({ id: skill.id, name: skill.name })) })), ...clientDocuments.flatMap(document => document.servers)], clients: clientStates, diagnostics, mcpValid, bindingsValid: !!manifest, clientsValid: registration.valid, manifest, registry, clientConfig: registration.config };
   }
