@@ -51,6 +51,8 @@ node scripts/e2e.mjs --update-baseline --reason "为什么变"   # 更新基线�
 | ext-mcp-09 | 配置损坏：横幅、新建暂停、不覆盖原文件、修复后自动清除（E-07/E-08/E-25，Iris） | **需要 #30**：0.6.1 UI 上失败（找不到新 UI 元素，30 秒超时），#30 上通过 |
 | ext-conflict-01 | E-11 接口：compare 只读、不外泄凭据；keepLocal / reopen；adoptShared 后 `operation.restore` 还原（用夹具 Qoder 冲突） | 已知缺陷（0.6.1 无 `skill.resolveConflict`；合入 E-11 后端后自动变为必须通过，到时会提示「意外通过」，无需改标记） |
 | ext-sk-07 | E-11 UI 桩：冲突项开关禁用并写明原因；三个冲突动作可达；「对比差异」只读 | 已知缺陷（**需要新 UI**；Iris 前端合入后按真实选择器修正并移除 expectedFail） |
+| ext-mcpc-01 | PR-12 接口：`mcp-compare` 只读、不外泄凭据；未选择仍冲突；keepExisting 空计划；adoptNew 替换后 `operation.restore` 还原（夹具 `missing-env-mcp` / `github-remote`） | 已知缺陷（0.6.1 无 `mcpConflictCompare` 能力时自动；后端分支 `feat/0.7-pr12-mcp-conflict` 合入后须通过，届时会「意外通过」提醒无需改标记） |
+| ext-mcpc-02 | PR-12 UI 桩：导入 JSON 同 ID 时可对比、逐项选择「用导入的替换 / 保留现有」，对比只读 | 已知缺陷（**需要新 UI**；Iris 前端合入后按真实选择器修正并移除 expectedFail） |
 
 **未实现 / 未验证**：依赖 0.7 新 UI 的用例（ext-shell-02/07/08/09、启用/停用 Skill、导入、批量检测、MCP 交互等）要等 Iris 的前端合入后补；ext-shell-04（深色）不进 0.7。ext-sk-16 只验证了 Esc 路径，点「取消」与点遮罩两条路径待补。a11y 为启发式检查，**未用 axe 验证**，不能当作 WCAG 合规结论。
 
