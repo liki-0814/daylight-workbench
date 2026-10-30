@@ -70,5 +70,5 @@ test('token pairing: dark block (when present) may only override tokens defined 
 test('E2E case catalogue is well-formed: unique IDs, priorities, known defects carry a reason', () => {
   const ids = cases.map(item => item.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const item of cases) { assert.match(item.id, /^(ext|shell)-[a-z0-9]+-\d+$|^shell-pr\d+-\d+$/); assert.ok(['P0', 'P1'].includes(item.priority)); assert.equal(typeof item.run, 'function'); if (item.expectedFail) assert.ok(item.expectedFail.length > 10); }
+  for (const item of cases) { assert.match(item.id, /^(ext|shell)-[a-z0-9]+-\d+$|^shell-pr\d+-\d+$/); assert.ok(['P0', 'P1', 'P2'].includes(item.priority)); assert.equal(typeof item.run, 'function'); if (item.expectedFail) assert.ok(item.expectedFail.length > 10); }
 });
