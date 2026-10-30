@@ -44,7 +44,7 @@ try {
   const links = []; for (const name of linked) { const file = path.join(fixture, 'codex/skills', name); if ((await fs.lstat(file)).isSymbolicLink()) links.push([file, await fs.readlink(file)]); }
   assert.equal(links.length, 1);
   await tab('MCP 服务'); await page.locator('[data-extension-id]').filter({ hasText: 'native' }).waitFor();
-  await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click(); await dialog().getByRole('combobox', { name: '保存到', exact: true }).click();
+  await page.locator('[data-add-menu-button]').click(); await page.getByRole('menuitem', { name: '新建 MCP 服务…', exact: true }).click();   // 0.7 PR-8：新建 / 导入都在「添加 ▾」菜单里 await dialog().getByRole('combobox', { name: '保存到', exact: true }).click();
   assert.equal(await page.getByRole('option', { name: 'Qoder · 本地配置', exact: true }).count(), 0);
   assert.equal(await page.getByRole('option', { name: 'Codex · 本地配置', exact: true }).count(), 1);
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await closed();

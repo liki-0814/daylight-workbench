@@ -44,7 +44,7 @@ try {
   await page.getByRole('button', { name: '禁用此服务', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
   await page.getByRole('button', { name: '启用此服务', exact: true }).waitFor(); checks.push('native MCP editing/toggle is reviewed and preserves opaque credentials and comments');
   await page.screenshot({ path: path.join(fixture, 'native-mcp-detail.png'), fullPage: true });
-  await page.getByRole('button', { name: '新建 MCP 服务', exact: true }).click(); await choose('保存到', 'Grok · 本地配置');
+  await page.locator('[data-add-menu-button]').click(); await page.getByRole('menuitem', { name: '新建 MCP 服务…', exact: true }).click();   // 0.7 PR-8：新建 / 导入都在「添加 ▾」菜单里 await choose('保存到', 'Grok · 本地配置');
   await dialog().getByLabel('稳定 ID', { exact: true }).fill('new-server'); await dialog().getByLabel('服务名称', { exact: true }).fill('new-server'); await dialog().getByLabel('可执行命令', { exact: true }).fill('node');
   await dialog().getByRole('button', { name: '保存主来源', exact: true }).click(); await dialog().getByRole('button', { name: '确认保存配置', exact: true }).click(); await closed();
   assert.match(await fs.readFile(config, 'utf8'), /new-server/); checks.push('shared destination selector creates a native MCP');
