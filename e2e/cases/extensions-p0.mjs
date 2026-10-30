@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { FIXTURE_EXPECTED, FIXTURE_SECRET } from '../fixture.mjs';
 import { horizontalOverflow, unnamedControls, focusWalk, smallTargets } from '../a11y.mjs';
+// ext-sk-16 / ext-sk-17 (E-26 / E-27) live in extensions-pr1.mjs together with the other PR-1 cases.
 
 const rows = page => page.locator('.extension-row');
 const open = async (page, url, tab) => { await page.goto(`${url}/#extensions&tab=${tab}`); await rows(page).first().waitFor({ timeout: 10000 }); };
@@ -77,22 +78,5 @@ export default [
     check.ok(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), '未启用 reduced motion');
     await rows(page).first().locator('[data-extension-id]').first().click(); await page.waitForTimeout(100);
     check.deepEqual(await page.evaluate(() => document.getAnimations().filter(a => a.effect?.getComputedTiming().duration > 0 && a.playState === 'running' && a.transitionProperty && /transform|translate|scale/.test(a.transitionProperty)).map(a => a.transitionProperty)), []);
-  } },
-  { id: 'ext-sk-16', priority: 'P0', widths: [1440], expectedFail: 'E-26：取消预览后启用复选框保持 disabled，焦点落 body（PR-1 前端修复后移除此标记）', title: '预览取消（Esc）后复选框恢复可操作且焦点回到触发控件', async run({ page, url, assert: check }) {
-    await open(page, url, 'skills');
-    await rows(page).filter({ hasText: 'review-code' }).locator('[data-extension-id]').first().click(); await page.locator('.extension-detail:not([hidden])').waitFor();
-    const box = page.locator('.extension-detail').getByRole('checkbox', { name: 'review-code · Pi', exact: true });
-    await box.click(); await dialog(page).waitFor(); await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('dialog[open]'));
-    check.ok(await box.isEnabled(), '复选框仍为 disabled');
-    check.ok(await box.evaluate(element => element === document.activeElement), '焦点没有回到复选框');
-  } },
-  { id: 'ext-sk-17', priority: 'P0', widths: [1440], expectedFail: 'E-27：归档后焦点落 body（PR-1 前端修复后移除此标记）', title: '归档后焦点落到相邻行，不在 body', async run({ page, url, assert: check }) {
-    await open(page, url, 'skills');
-    const row = rows(page).filter({ hasText: 'perf-profiling' });
-    await row.locator('[data-extension-id]').first().click(); await page.locator('.extension-detail:not([hidden])').waitFor();
-    await page.locator('.extension-detail').getByRole('button', { name: /归档/ }).first().click(); await dialog(page).waitFor();
-    await dialog(page).getByRole('button', { name: /归档|确认|应用/ }).last().click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'));
-    await page.waitForTimeout(400);
-    check.ok(await page.evaluate(() => document.activeElement && document.activeElement !== document.body), '焦点落到 body');
   } },
 ];
