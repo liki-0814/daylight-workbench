@@ -154,6 +154,10 @@
   --success: #1f7a35;
   --warning: #b25000;
   --danger: #d70015;
+  /* 状态色文字（用在 8–10% 状态色底上，对页面灰底 ≥ 4.5:1）；图标 / 圆点仍用上面的鲜艳色 */
+  --success-text: #1a6b2e;
+  --warning-text: #9a4300;
+  --danger-text: #c20014;
   --success-bg: rgba(31, 122, 53, .10);
   --warning-bg: rgba(178, 80, 0, .10);
   --danger-bg: rgba(215, 0, 21, .08);
@@ -206,6 +210,9 @@
   --success: #30d158;
   --warning: #ff9f0a;
   --danger: #ff453a;
+  --success-text: var(--success);
+  --warning-text: var(--warning);
+  --danger-text: var(--danger);
   --success-bg: rgba(48, 209, 88, .14);
   --warning-bg: rgba(255, 159, 10, .14);
   --danger-bg: rgba(255, 69, 58, .14);

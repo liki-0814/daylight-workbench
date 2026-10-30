@@ -39,7 +39,8 @@
   cursor: pointer;
 }
 
-.ui-segmented button[aria-checked=true] {
+.ui-segmented button[aria-checked=true],
+.ui-segmented button[aria-selected=true] {
   background: var(--paper);
   color: var(--workbench-text);
   box-shadow: 0 1px 3px #0001;
