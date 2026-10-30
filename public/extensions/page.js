@@ -678,6 +678,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     });
     updateHttpWarning();
     function reportFailure(error) {
+      if (error.code !== 'EXTENSIONS_DUPLICATE_ID') hideDuplicatePanel();   // 非同 ID 冲突的失败：收起面板并清掉已选处理方式
       const raw = String(error.field || '').replace(/^(server|client)\./, ''), name = [fieldInputName(error.field), raw].find(candidate => candidate && editor.elements[candidate]);
       if (!name) { setDialogError(error.message); return; }
       const duplicate = error.code === 'EXTENSIONS_DUPLICATE_ID' ? findDuplicateServer(state?.servers || [], { id: formValues().id, clientId: formValues().clientId || '' }) : null;
@@ -742,12 +743,13 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     editor.onsubmit = async event => {
       event.preventDefault(); if (submitting) return; saveDraft(); const values = controller.drafts.get(key); let action;
       messages.clearAll(); duplicateOf = null; setDialogError('');
-      if (!conflictChoice) hideDuplicatePanel();
+      const choice = conflictChoice; conflictChoice = null;   // 选择只管这一次提交；失败后要重新选，不沿用上次的
+      if (!choice) hideDuplicatePanel();
       const problems = validate(values).filter(problem => !(duplicateAware && problem.duplicate));   // 有对比能力时同 ID 交给后端 409 EXTENSIONS_DUPLICATE_ID，再给对比与选择
-      if (problems.length) { problems.forEach(showError); setDialogError(`有 ${problems.length} 处需要修改，已定位到第一处；已填写的内容都保留着。`); messages.focusFirst(); return; }
+      if (problems.length) { hideDuplicatePanel(); problems.forEach(showError); setDialogError(`有 ${problems.length} 处需要修改，已定位到第一处；已填写的内容都保留着。`); messages.focusFirst(); return; }
       await run(async () => {
         if (isClient) action = { type: 'client.save', client: values };
-        else if (isMcp) action = { type: 'mcp.save', ...(create ? { create: true } : {}), ...(create && conflictChoice ? { onConflict: conflictChoice } : {}), ...((item?.clientId || values.clientId) ? { clientId: item?.clientId || values.clientId } : {}), server: { id: values.id, name: values.name, enabled: values.enabled, transport: values.transport, ...(values.transport === 'stdio' ? { command: values.command, args: values.args.split('\n').filter(Boolean), ...(values.cwd ? { cwd: values.cwd } : {}), envRefs: parseRefs(values.envRefs) } : { url: values.url, headerRefs: parseRefs(values.headerRefs) }) } };
+        else if (isMcp) action = { type: 'mcp.save', ...(create ? { create: true } : {}), ...(create && choice ? { onConflict: choice } : {}), ...((item?.clientId || values.clientId) ? { clientId: item?.clientId || values.clientId } : {}), server: { id: values.id, name: values.name, enabled: values.enabled, transport: values.transport, ...(values.transport === 'stdio' ? { command: values.command, args: values.args.split('\n').filter(Boolean), ...(values.cwd ? { cwd: values.cwd } : {}), envRefs: parseRefs(values.envRefs) } : { url: values.url, headerRefs: parseRefs(values.headerRefs) }) } };
         else if (create) action = { type: 'skill.create', ...(values.clientId ? { clientId: values.clientId } : {}), directory: values.directory, content: '---\nname: ' + JSON.stringify(values.directory) + '\ndescription: ' + JSON.stringify(values.description) + '\n---\n\n' + values.body + '\n' };
         else action = { type: 'skill.update', id: item.id, file: item.file, content: values.content };
         lastAction = action; let plan;
