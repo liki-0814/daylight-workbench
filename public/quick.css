@@ -4,7 +4,6 @@
   font-synthesis: none;
   --ink: #252b34;
   --secondary: #596575;
-  --accent: #246ce0;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: transparent; }
