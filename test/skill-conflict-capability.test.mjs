@@ -33,10 +33,19 @@ test('skillConflict: literal true in /api/v1/capabilities extensions, next to th
 test('skillConflict: the web mirror in /state and /refresh has the same nesting, key name and value true', async t => {
   const extensions = await service(t);
   for (const state of [await extensions.state(true), await extensions.state(false)]) {
-    assert.deepEqual(Object.keys(state.capabilities), ['extensions']); assert.equal(state.capabilities.extensions.skillConflict, true); assert.ok(Object.values(state.capabilities.extensions).every(value => value === true), 'siblings (mcpConflictCompare, restoreBackup, reveal…) are booleans too');
+    // Shape-stable across the stack: only the keys this backend knows must be present (later PRs add restoreBackup/reveal), every one of them literally true.
+    assert.deepEqual(Object.keys(state.capabilities), ['extensions']); assert.equal(state.capabilities.extensions.skillConflict, true); assert.equal(state.capabilities.extensions.mcpConflictCompare, true, 'PR-12 gate: the mirror carries mcpConflictCompare');
+    assert.ok(Object.values(state.capabilities.extensions).every(value => value === true), 'every mirror value is the boolean true');
     assert.equal(state.capabilities.extensions.skillConflict, capabilities().extensions.skillConflict, 'same key, same truth as /api/v1');
     for (const key of Object.keys(state.capabilities.extensions)) assert.ok(key in capabilities().extensions, `${key} exists in /api/v1/capabilities extensions`);
   }
-  for (const [route, input] of [['/state'], ['/refresh', {}]]) { const reply = await extensions.call(route, input); assert.equal(reply.status, 200); assert.equal(reply.value.capabilities.extensions.skillConflict, true, route); assert.deepEqual(Object.keys(reply.value.capabilities), ['extensions'], route); }
+  for (const [route, input] of [['/state'], ['/refresh', {}]]) { const reply = await extensions.call(route, input); assert.equal(reply.status, 200); assert.equal(reply.value.capabilities.extensions.skillConflict, true, route); assert.equal(reply.value.capabilities.extensions.mcpConflictCompare, true, route); assert.deepEqual(Object.keys(reply.value.capabilities), ['extensions'], route); }
   assert.equal(JSON.stringify((await extensions.state(true)).capabilities).includes('/'), false, 'the mirror carries booleans only, no paths or descriptions');
+});
+
+test('mirror vs source: every mirror key exists in /api/v1/capabilities extensions with a descriptive value, and the PR-12 key is in both', async t => {
+  const extensions = await service(t), source = capabilities().extensions, mirror = (await extensions.state(true)).capabilities.extensions;
+  assert.ok(Object.keys(mirror).length >= 2); for (const key of Object.keys(mirror)) assert.ok(key in source, `${key} must exist in /api/v1/capabilities extensions`);
+  assert.equal(typeof source.mcpConflictCompare, 'string'); assert.equal(mirror.mcpConflictCompare, true);
+  assert.equal(source.skillConflict, true); assert.equal(mirror.skillConflict, true);
 });
