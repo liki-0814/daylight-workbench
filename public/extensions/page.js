@@ -86,12 +86,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (route.client && !options.some(option => option.value === route.client)) { route.client = null; history.replaceState(null, '', '/' + extensionsRoute(route)); }
     updateSelectField($('.extension-software-filter'), { id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, value: route.client || '', options });
   }
-  function renderList() {
-    if (!state) { listMarkup = undefined; $('.extension-list').innerHTML = `<p class="extension-empty">${readFailure ? '扩展来源读取失败。请重新扫描后再试。' : '正在读取扩展来源…'}</p>`; return; }
+  function visibleItems() {
     const needle = (route.query || '').toLowerCase();
-    const focus = $('.extension-list').contains(document.activeElement) ? document.activeElement?.dataset : null;
-    const list = state[category().collection];
-    const filtered = list.filter(item => {
+    return state[category().collection].filter(item => {
       const matchesText = !needle || [item.name, item.description, item.relativePath, item.command, item.url, item.note].filter(Boolean).join(' ').toLowerCase().includes(needle);
       const matchesSoftware = !route.client || (route.tab === 'skills'
         ? item.bindings.some(binding => binding.clientId === route.client && binding.state !== 'not_connected')
@@ -99,7 +96,12 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       const matchesProblems = !route.problems || item.valid === false || route.tab === 'clients' && item.selected && !item.installed || item.bindings?.some(binding => binding.state === 'conflict') || state.diagnostics.some(problem => problem.id === item.id);
       return matchesText && matchesSoftware && matchesProblems;
     });
-    const markup = `<div class="extension-list-heading"><h2>${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
+  }
+  function renderList() {
+    if (!state) { listMarkup = undefined; $('.extension-list').innerHTML = `<p class="extension-empty">${readFailure ? '扩展来源读取失败。请重新扫描后再试。' : '正在读取扩展来源…'}</p>`; return; }
+    const focus = $('.extension-list').contains(document.activeElement) ? document.activeElement?.dataset : null;
+    const filtered = visibleItems();
+    const markup = `<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
       const active = item.id === route.id;
       const summary = route.tab === 'skills' ? item.valid ? item.description : item.problem : route.tab === 'mcp' ? (item.enabled ? '配置启用' : '配置禁用') + ' · ' + item.transport : item.note;
       return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' · 本地配置' : '共享来源')}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? `<span>${item.lastProbe?.stale ? "配置已变更 · 上次" : ""}${({succeeded:'握手成功',failed:'检测失败',running:'正在检测',cancelled:'已取消',timed_out:'检测超时'})[item.lastProbe?.status] || (item.scope === 'client' ? '用户级配置' : '尚未检测')}</span>` : `<label class="extension-binding-control"><input type="checkbox" data-cli-selection data-client="${esc(item.id)}" aria-label="${esc(item.name + ' · 接入扩展管理')}" ${item.selected ? 'checked' : ''} ${selectionPreviewing ? 'disabled' : ''}><span>${item.selected ? '已接入' : '选择接入'}<small>${item.installed ? '已发现命令' : '未找到命令'}</small></span></label>`}</div></div>`;
@@ -135,14 +137,29 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   function openShell(title, content, onClose = () => {}) {
     shell?.dispose(); shell = createDialogShell({ title, onClose }); shell.element.classList.add('extension-dialog'); shell.setContent(content); shell.open(); return shell;
   }
+  // 归档 / 移除登记成功后，被删行会消失；焦点要落到相邻行（先下一行，再上一行），都没有就落到清单标题（E-27）。
+  const removalTarget = action => ['skill.archive', 'mcp.archive'].includes(action.type) ? action.id : action.type === 'client.remove' ? selected?.id : null;
+  function focusAfterRemoval({ id, order }) {
+    if (!visible) return;
+    const at = order.indexOf(id), rows = new Map([...$('.extension-list').querySelectorAll('[data-extension-id]')].map(button => [button.dataset.extensionId, button]));
+    const target = [id, ...order.slice(at + 1), ...order.slice(0, Math.max(at, 0)).reverse()].map(candidate => rows.get(candidate)).find(Boolean);
+    (target || $('.extension-list-heading h2') || $('.extension-search input'))?.focus();
+  }
   async function preview(action, { title, onClose } = {}) {
     const plan = await client.prepare(action);
     if (!visible) { onClose?.(); return; }
-    const dialog = openShell(title || (action.type === 'mcp.probe' ? '确认检测 MCP 连接' : '预览扩展变更'), `${extensionPlanContent(plan)}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply ${plan.conflicts.length ? 'disabled' : ''}>${action.type === 'mcp.probe' ? '确认并检测' : '应用变更'}</button></div>`, onClose);
+    const removedId = removalTarget(action); let removal = null;
+    const closed = () => { onClose?.(); if (removal) focusAfterRemoval(removal); };   // 对话框先把焦点还给触发按钮（已被移除），随后才走到这里
+    const dialog = openShell(title || (action.type === 'mcp.probe' ? '确认检测 MCP 连接' : '预览扩展变更'), `${extensionPlanContent(plan)}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply ${plan.conflicts.length ? 'disabled' : ''}>${action.type === 'mcp.probe' ? '确认并检测' : '应用变更'}</button></div>`, closed);
     dialog.element.querySelector('[data-preview-cancel]').onclick = () => dialog.close();
     dialog.element.querySelector('[data-preview-apply]').onclick = async () => {
       dialog.setBusy(true); dialog.element.querySelector('[data-preview-apply]').disabled = true;
-      try { const result = await controller.submit(plan); if (result.probeId) watchProbe(result.probeId); if (action.type === 'client.remove') changeRoute({ id: null, operation: null }); detailKey = ''; await loadDetail(); dialog.setBusy(false); dialog.close(); }
+      try {
+        const order = removedId && state ? visibleItems().map(item => item.id) : [];   // 提交前记录清单顺序，用于找相邻行
+        const result = await controller.submit(plan); if (result.probeId) watchProbe(result.probeId);
+        if (removedId) { removal = { id: removedId, order }; changeRoute({ id: null, operation: null }); }
+        detailKey = ''; await loadDetail(); dialog.setBusy(false); dialog.close();
+      }
       catch (error) { dialog.element.querySelector('[data-dialog-error]').textContent = error.message + '；输入与原请求已保留。'; }
       finally { dialog.setBusy(false); dialog.element.querySelector('[data-preview-apply]').disabled = false; }
     };
