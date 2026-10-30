@@ -6,6 +6,7 @@ import { body, send } from '../ai/http.mjs';
 import { error, fieldError, hash, stat, within, safePath, snapshot, fileSnapshot, readText } from './files.mjs';
 import { metadata, skillId, skillFile } from './skill-files.mjs';
 import { setSkillState } from './skill-state.mjs';
+import { MCP_RESOLUTIONS, parseResolution, parseResolutions, serverView, differences } from './mcp-conflicts.mjs';
 import { compareEntries, fingerprintEntry, setResolution, dropResolutions, findResolution } from './conflicts.mjs';
 import { readSkillFolder } from './skill-import.mjs';
 import { parseMcpJson } from './mcp-import.mjs';
@@ -19,9 +20,10 @@ import { createCatalog } from './catalog.mjs';
 import { createTransactions } from './transactions.mjs';
 
 const json = value => canonicalJSON(value, 2) + '\n';
+const plain = value => value && typeof value === 'object' && !Array.isArray(value);
 const fields = {
-  'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'], 'skill.disable': ['type', 'id'], 'skill.enable': ['type', 'id', 'clientIds'], 'skill.resolveConflict': ['type', 'id', 'clientId', 'resolution'], 'skill.import': ['type', 'sourcePath', 'scope', 'clientId'], 'mcp.importJson': ['type', 'json', 'scope', 'clientId'],
-  'mcp.save': ['type', 'server', 'clientId', 'create'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
+  'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'], 'skill.disable': ['type', 'id'], 'skill.enable': ['type', 'id', 'clientIds'], 'skill.resolveConflict': ['type', 'id', 'clientId', 'resolution'], 'skill.import': ['type', 'sourcePath', 'scope', 'clientId'], 'mcp.importJson': ['type', 'json', 'scope', 'clientId', 'resolutions'],
+  'mcp.save': ['type', 'server', 'clientId', 'create', 'onConflict'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
   'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
   'client.save': ['type', 'client'], 'client.remove': ['type', 'clientId'], 'client.select': ['type', 'clientId', 'selected'],
 };
@@ -79,6 +81,33 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
     const result = await compareEntries({ sharedSource, localTarget: entry.target });
     return { id: skill.id, clientId: client.id, clientName: client.name, version: state.version, shared: { path: skill.sourcePath }, local: { path: entry.target, kind: result.localKind }, resolution: entry.resolution || null, readOnly: true, ...result };
   }
+  // PR-12 compare for same-ID MCP conflicts: read-only POST (it carries the incoming config). References and refStatus only, never values.
+  async function mcpCompare(input) {
+    if (!plain(input) || Object.keys(input).some(key => !['scope', 'clientId', 'json', 'server', 'expectedVersion'].includes(key))) throw error('对比只接受 scope、clientId、json 或 server、expectedVersion');
+    if ((input.json === undefined) === (input.server === undefined)) throw fieldError('请提供 json（导入内容）或 server（单个服务）之一。', input.json === undefined ? 'server' : 'json');
+    const state = await catalog.state(true);
+    if (input.expectedVersion !== undefined && input.expectedVersion !== state.version) throw error('配置已变化，请刷新后重新对比', 409, 'EXTENSIONS_VERSION_CONFLICT');
+    const client = importTarget(state, input);
+    const incoming = input.json !== undefined ? parseMcpJson(input.json, { nativeKey: !!client }) : [normalizeServer(input.server, { nativeKey: !!client })];
+    let existing;
+    if (client) {
+      if (!client.mcp) throw error('此 CLI 尚无已核实的 MCP 配置适配器');
+      const document = state.clientDocuments.find(item => item.clientId === client.id);
+      if (!document?.valid) throw error(document?.message || '用户级 MCP 配置无法读取，原文件已保留', 409);
+      existing = new Map(document.servers.map(item => [item.serverKey, item]));
+    } else {
+      if (!state.mcpValid) throw error('请先修复 MCP 主文件；管理操作不会覆盖格式错误的配置', 409);
+      existing = new Map(state.servers.filter(item => item.scope !== 'client').map(item => [item.id, item]));
+    }
+    const items = [], newIds = [];
+    for (const server of incoming) {
+      const current = existing.get(server.id);
+      if (!current) { newIds.push(server.id); continue; }
+      const before = serverView({ ...current, id: server.id }, refStatus(current)), after = serverView(server, refStatus(server));
+      items.push({ id: server.id, existing: before, incoming: after, editable: client ? !!current.editable : true, ...differences(before, after) });
+    }
+    return { readOnly: true, version: state.version, scope: client ? 'client' : 'shared', ...(client ? { clientId: client.id, clientName: client.name } : {}), items, newIds, resolutions: MCP_RESOLUTIONS };
+  }
   async function detail(id, file, kind) {
     const state = await catalog.state();
     if (state.registry.some(client => client.id === id)) {
@@ -110,7 +139,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   }
   async function prepare(input) {
     if (!input || !extensionActions.includes(input.type) || Object.keys(input).some(key => !fields[input.type].includes(key))) throw error('扩展动作或字段无效');
-    const action = structuredClone(input), state = await catalog.state(true), steps = [], conflicts = [], impact = [], changedIds = [], warnings = [];
+    const action = structuredClone(input), state = await catalog.state(true), steps = [], conflicts = [], impact = [], changedIds = [], warnings = [], resolved = [];
     if (action.type === 'binding.disconnect' && action.includeExisting !== undefined && typeof action.includeExisting !== 'boolean') throw error('includeExisting 需要明确的布尔值');
     const add = async (target, after) => {
       await assertTarget(target); const before = await snapshot(target);
@@ -169,28 +198,46 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       if (found.ignored.length) impact.push('已忽略隐藏文件和 node_modules：' + found.ignored.slice(0, 10).join('、') + (found.ignored.length > 10 ? ' 等' : ''));
       impact.push(client ? '保存到 ' + client.name + ' 的本地 Skills 目录；刷新 CLI 后读取。' : '保存到共享来源；导入后在软件勾选框确认才会建立链接。');
     } else if (action.type === 'mcp.importJson') {
-      const client = importTarget(state, action), parsed = parseMcpJson(action.json, { nativeKey: !!client });
+      const client = importTarget(state, action), parsed = parseMcpJson(action.json, { nativeKey: !!client }), choices = parseResolutions(action.resolutions, parsed.map(server => server.id)), replaced = [], kept = [];
       for (const server of parsed) for (const warning of serverWarnings(server)) warnings.push({ ...warning, message: '「' + server.id + '」' + warning.message });
       let added = [];
       if (!client) {
         if (!state.mcpValid) throw error('请先修复 MCP 主文件；管理操作不会覆盖格式错误的配置', 409);
         const servers = state.servers.filter(server => server.scope !== 'client').map(({ kind, revision, dependencies, scope, ...config }) => config);
-        for (const server of parsed) { if (servers.some(item => item.id === server.id)) conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，导入不会覆盖。请改名后导入，或先编辑现有服务。'); else { servers.push(server); added.push(server); } }
+        for (const server of parsed) {
+          const index = servers.findIndex(item => item.id === server.id);
+          if (index === -1) { servers.push(server); added.push(server); }
+          else if (choices[server.id] === 'adoptNew') { servers[index] = server; replaced.push(server); }
+          else if (choices[server.id] === 'keepExisting') kept.push(server.id);
+          else conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，未选择处理方式，导入不会覆盖。请改名后导入，或在 resolutions 中选择 adoptNew（用导入的配置替换）/ keepExisting（保留现有配置）。');
+        }
         if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
-        if (added.length) { const next = json({ schemaVersion: 1, servers }); if (Buffer.byteLength(next) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数'); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(next)); }
-        impact.push('将新增 ' + added.length + ' 个 MCP 服务到主配置，不启动服务；已有 ID 不会被覆盖。');
+        if (added.length || replaced.length) { const next = json({ schemaVersion: 1, servers }); if (Buffer.byteLength(next) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数'); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(next)); }
+        impact.push('将新增 ' + added.length + ' 个 MCP 服务到主配置，不启动服务；未选择处理方式的已有 ID 不会被覆盖。');
+        for (const server of replaced) { impact.push('用导入的配置替换现有 MCP「' + server.id + '」；原配置记录在操作快照里，可用 operation.restore 恢复。'); for (const skill of state.skills.filter(item => item.dependencies?.includes(server.id))) impact.push('已声明依赖的 Skill：' + skill.name + '（不会修改）。'); }
+        if (replaced.length) warnings.push('已生成或已接入软件的配置不会自动更新；需重新生成/接入后才会使用新配置，已有的检测结果会标为过期。');
       } else {
         const document = state.clientDocuments.find(item => item.clientId === client.id);
         let current = document;
         for (const server of parsed) {
-          if (current.servers.some(item => item.serverKey === server.id) || current.data?.[client.mcp?.section]?.[server.id]) { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，导入不会覆盖。请改名后导入，或先编辑现有服务。'); continue; }
+          const view = current.servers.find(item => item.serverKey === server.id);
+          if (view || current.data?.[client.mcp?.section]?.[server.id]) {
+            if (choices[server.id] === 'keepExisting') { kept.push(server.id); continue; }
+            if (choices[server.id] !== 'adoptNew') { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，未选择处理方式，导入不会覆盖。请改名后导入，或在 resolutions 中选择 adoptNew / keepExisting。'); continue; }
+            if (!view?.editable) { conflicts.push(client.name + ' 里的「' + server.id + '」包含无法安全编辑的字段，不能替换；请在 CLI 中修改，或选择 keepExisting。'); continue; }
+            const content = changeClientMcp(client, current, { type: 'save', server, key: server.id });
+            current = { ...current, raw: content, data: configDocument(content, client.mcp.format).data }; replaced.push(server); continue;
+          }
           const content = changeClientMcp(client, current, { type: 'save', server, key: server.id });
           current = { ...current, raw: content, data: configDocument(content, client.mcp.format).data, servers: [...current.servers, { serverKey: server.id }] }; added.push(server);
         }
-        if (added.length) { await add(client.mcpPath, fileSnapshot(current.raw)); }
+        if (added.length || replaced.length) { await add(client.mcpPath, fileSnapshot(current.raw)); }
         impact.push('将新增 ' + added.length + ' 个 MCP 服务到 ' + client.name + ' 的用户级配置，只改对应字段；不启动服务。' + client.refresh);
+        for (const server of replaced) impact.push('用导入的配置替换 ' + client.name + ' 的「' + server.id + '」：只改对应字段，软件里无法读取的凭据保持原样；原配置记录在操作快照里，可用 operation.restore 恢复。');
       }
-      for (const server of added) changedIds.push(client ? 'mcp_' + hash([client.id, server.id]).slice(0, 24) : server.id);
+      if (kept.length) impact.push('保留现有配置，不导入：' + kept.slice(0, 20).join('、') + (kept.length > 20 ? ' 等 ' + kept.length + ' 个' : '') + '。');
+      resolved.push(...Object.entries(choices).map(([id, resolution]) => ({ id, resolution })));
+      for (const server of [...added, ...replaced]) changedIds.push(client ? 'mcp_' + hash([client.id, server.id]).slice(0, 24) : server.id);
     } else if (action.type.startsWith('skill.')) {
       const skill = getSkill(state, action.id); changedIds.push(skill.id);
       if (!skill.readOnly) await safePath(skill.scope === 'client' ? getClient(state, skill.clientId).skillsRoot : root, skill.sourcePath);
@@ -339,7 +386,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       const item = action.id ? state.servers.find(server => server.id === action.id) : null;
       if (action.id && !item) throw error('MCP 服务不存在', 404);
       const client = getClient(state, action.clientId || item.clientId), document = state.clientDocuments.find(document => document.clientId === client.id);
-      let server = action.server;
+      let server = action.server, keepExisting = false;
       if (action.type === 'mcp.install') {
         if (item.scope === 'client') throw error('请选择共享 MCP 配置接入软件');
         server = getServer(state, item.id);
@@ -349,16 +396,25 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (action.create !== undefined && typeof action.create !== 'boolean') throw fieldError('create 需要明确的布尔值', 'create');
         action.server = server = normalizeServer(action.server, { nativeKey: true });
         const existing = document.servers.find(item => item.serverKey === server.id);
-        if (action.create && (existing || document.data?.[client.mcp?.section]?.[server.id])) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
-        warnings.push(...serverWarnings(server));
-        if (existing && !existing.editable) throw error('此配置包含无法安全编辑的字段；请在 CLI 中修改，或移除配置');
+        const choice = parseResolution(action.onConflict, 'onConflict');
+        if (choice && action.create !== true) throw fieldError('onConflict 只在 create:true 新建时使用。', 'onConflict');
+        const duplicate = !!(existing || document.data?.[client.mcp?.section]?.[server.id]);
+        if (action.create && duplicate && !choice) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可传 onConflict: adoptNew / keepExisting', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        if (action.create && duplicate && choice === 'keepExisting') { keepExisting = true; resolved.push({ id: server.id, resolution: choice }); impact.push('保留 ' + client.name + ' 里现有的「' + server.id + '」，不做任何修改。'); }
+        else {
+          warnings.push(...serverWarnings(server));
+          if (existing && !existing.editable) throw error('此配置包含无法安全编辑的字段；请在 CLI 中修改，或移除配置');
+          if (action.create && duplicate) { resolved.push({ id: server.id, resolution: choice }); impact.push('用新配置替换 ' + client.name + ' 里现有的「' + server.id + '」；软件里无法读取的凭据保持原样，原配置记录在操作快照里，可用 operation.restore 恢复。'); }
+        }
       }
       if (action.type === 'mcp.toggle' && typeof action.enabled !== 'boolean') throw error('启停需要明确布尔值');
       const key = server?.id || item.serverKey;
-      const content = changeClientMcp(client, document, { type: action.type === 'mcp.archive' ? 'remove' : action.type === 'mcp.toggle' ? 'toggle' : 'save', server, key, enabled: action.enabled });
-      await add(client.mcpPath, fileSnapshot(content));
-      changedIds.push('mcp_' + hash([client.id, key]).slice(0, 24));
-      impact.push('修改 ' + client.name + ' 的用户级 MCP：' + key + '。只改变对应字段，保留其他配置和未编辑的凭据；保存不会启动服务。' + client.refresh);
+      if (!keepExisting) {
+        const content = changeClientMcp(client, document, { type: action.type === 'mcp.archive' ? 'remove' : action.type === 'mcp.toggle' ? 'toggle' : 'save', server, key, enabled: action.enabled });
+        await add(client.mcpPath, fileSnapshot(content));
+        changedIds.push('mcp_' + hash([client.id, key]).slice(0, 24));
+        impact.push('修改 ' + client.name + ' 的用户级 MCP：' + key + '。只改变对应字段，保留其他配置和未编辑的凭据；保存不会启动服务。' + client.refresh);
+      }
     } else if (action.type === 'operation.restore') {
       const record = await transactions.read(action.operationId);
       if (!record || record.status !== 'applied' || !record.steps.length) throw error('只能恢复已成功写入的操作');
@@ -384,13 +440,20 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       if (action.type === 'mcp.save') {
         if (action.create !== undefined && typeof action.create !== 'boolean') throw fieldError('create 需要明确的布尔值', 'create');
         action.server = normalizeServer(action.server); const index = servers.findIndex(server => server.id === action.server.id);
-        if (index !== -1 && action.create) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
-        warnings.push(...serverWarnings(action.server));
-        if (index === -1) servers.push(action.server); else servers[index] = action.server;
-        if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
-        changedIds.push(action.server.id); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(json({ schemaVersion: 1, servers })));
-        if (Buffer.byteLength(json({ schemaVersion: 1, servers })) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数');
-        impact.push('仅保存 MCP 主配置，不启动服务。已生成的客户端配置需重新生成并在客户端接入。');
+        const choice = parseResolution(action.onConflict, 'onConflict');
+        if (choice && action.create !== true) throw fieldError('onConflict 只在 create:true 新建时使用。', 'onConflict');
+        if (index !== -1 && action.create && !choice) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可传 onConflict: adoptNew / keepExisting', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        if (index !== -1 && action.create && choice === 'keepExisting') {
+          resolved.push({ id: action.server.id, resolution: choice }); impact.push('保留现有 MCP「' + action.server.id + '」，不做任何修改。');
+        } else {
+          warnings.push(...serverWarnings(action.server));
+          if (index === -1) servers.push(action.server); else servers[index] = action.server;
+          if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
+          changedIds.push(action.server.id); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(json({ schemaVersion: 1, servers })));
+          if (Buffer.byteLength(json({ schemaVersion: 1, servers })) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数');
+          impact.push('仅保存 MCP 主配置，不启动服务。已生成的客户端配置需重新生成并在客户端接入。');
+          if (index !== -1 && action.create) { resolved.push({ id: action.server.id, resolution: choice }); impact.push('用新配置替换现有 MCP「' + action.server.id + '」；原配置记录在操作快照里，可用 operation.restore 恢复。'); warnings.push('已生成或已接入软件的配置不会自动更新；需重新生成/接入后才会使用新配置。'); }
+        }
       } else if (action.type === 'mcp.archive') {
         const server = getServer(state, action.id), archive = path.join(root, 'archive', 'mcp', server.id + '_' + state.version.slice(0, 12) + '.json');
         if (await stat(archive)) conflicts.push('归档位置已存在内容');
@@ -414,12 +477,12 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       }
     }
     if (manifestChanged) await add(path.join(root, 'daylight', 'bindings.json'), fileSnapshot(json(manifest)));
-    const plan = { normalizedAction: action, expectedVersion: state.version, steps, conflicts, impact, warnings, changedIds: [...new Set(changedIds)] };
+    const plan = { normalizedAction: action, expectedVersion: state.version, steps, conflicts, impact, warnings, changedIds: [...new Set(changedIds)], ...(resolved.length ? { resolved } : {}) };
     plan.planId = hash({ action, version: state.version, steps: steps.map(step => [step.path, hash(step.before), hash(step.after)]), conflicts });
     return plan;
   }
   function publicPlan(plan) {
-    return { normalizedAction: plan.normalizedAction, expectedVersion: plan.expectedVersion, planId: plan.planId, conflicts: plan.conflicts, impact: plan.impact, warnings: plan.warnings, changedIds: plan.changedIds,
+    return { normalizedAction: plan.normalizedAction, expectedVersion: plan.expectedVersion, planId: plan.planId, conflicts: plan.conflicts, impact: plan.impact, warnings: plan.warnings, changedIds: plan.changedIds, ...(plan.resolved ? { resolved: plan.resolved } : {}),
       files: plan.steps.map(step => ({ path: step.path, beforeKind: step.before.kind, afterKind: step.after.kind, beforeHash: hash(step.before), afterHash: hash(step.after), ...(!step.private && step.before.kind === 'file' && Buffer.from(step.before.data, 'base64').length <= 262144 ? { before: Buffer.from(step.before.data, 'base64').toString('utf8') } : {}), ...(!step.private && step.after.kind === 'file' && Buffer.from(step.after.data, 'base64').length <= 262144 ? { after: Buffer.from(step.after.data, 'base64').toString('utf8') } : {}), ...(step.after.kind === 'link' ? { linkTarget: step.after.target } : {}) })) };
   }
   async function apply(input) {
@@ -445,6 +508,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       else if (route === '/diagnostics') { const state = await catalog.state(true); value = { version: state.version, diagnostics: state.diagnostics, message: '静态检查不会启动 MCP 或修改文件。' }; }
       else if (route === '/prepare') { if (Object.keys(input).some(key => key !== 'action')) throw error('prepare 只接受 action'); value = publicPlan(await prepare(input.action)); }
       else if (route === '/compare') value = await compare(url.searchParams);
+      else if (route === '/mcp-compare') value = await mcpCompare(input);
       else if (route === '/actions') value = await apply(input);
       else if (route.startsWith('/objects/')) value = await detail(route.slice('/objects/'.length), url.searchParams.get('file') || undefined, ['skill', 'mcp', 'client'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : undefined);
       else if (route.startsWith('/operations/')) value = await transactions.receipt(route.slice('/operations/'.length));
