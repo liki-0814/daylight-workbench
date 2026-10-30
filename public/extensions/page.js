@@ -3,7 +3,7 @@ import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
 import { extensionCapability } from './capabilities.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
-import { hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
+import { probeAllPlan, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
 import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
@@ -31,9 +31,9 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-cancelled-slot></div><div class="extension-load-strip" data-load-status hidden></div><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><span class="extension-visually-hidden" role="status" data-probe-live></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" tabindex="-1" hidden></aside></div><div class="extension-staging-bar" data-staging-bar role="region" aria-label="待应用的变更" hidden><span class="extension-staging-count" data-staging-count></span><span class="extension-staging-actions"><button type="button" class="text-button" data-staging-revert>还原</button><button type="button" class="primary" data-staging-review>预览并应用</button></span></div></div>`;
   const $ = selector => element.querySelector(selector);
-  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, selectionPreviewing = false, staged = new Map(), batchBusy = false, liveProbes = new Map(), probeWatching = null, loadView = {}, loadStartedAt = 0, loadStripTimer, focusBeforeLoad = null;
+  let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, rovingId = '', detailTimer, focusDetailOnRender = false, submitting = false, selectionPreviewing = false, staged = new Map(), batchBusy = false, liveProbes = new Map(), probeWatching = null, probeAllRun = null, probeAllTimer = 0, loadView = {}, loadStartedAt = 0, loadStripTimer, focusBeforeLoad = null;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
   const liveServer = server => state?.servers.find(item => item.id === server.id) || server;
   // 检测进度的页面内覆盖：进行中的检测每 0.5–0.8s 轮询一次，比 10s 一次的整页刷新快；整页刷新带回 lastProbe 后自动让位。
@@ -248,7 +248,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     updateCreateAvailability(banner);
     // 配置文件读不出来时列表为空只是表象，横幅已说明原因，不再叠一个“还没有 MCP 服务”。
     const empty = !filtered.length ? (!all.length && nothingFiltered() ? (banner?.blocksCreate ? '' : emptyState(route.tab)) : noMatchState()) : '';
-    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span></div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
     if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
     if (markup === listMarkup) { applyRoving(); return; }
@@ -256,6 +256,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     $('.extension-list').innerHTML = markup; listMarkup = markup;
     [...$('.extension-list').querySelectorAll('details')].forEach((details,index)=>{if(disclosures[index]!==undefined)details.open=disclosures[index];});
     if (focus?.bindingToggle !== undefined || focus?.masterToggle !== undefined || focus?.mcpSwitch !== undefined) findToggle(focus, 'list')?.focus({preventScroll:true});
+    else if (focus?.cancelAllProbes !== undefined) $('[data-cancel-all-probes]')?.focus({ preventScroll: true });
+    else if (focus?.probeAll !== undefined) $('[data-probe-all]')?.focus({ preventScroll: true });
     else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
     applyRoving();
   }
@@ -337,7 +339,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     setError(null);
     let plans;
     try { plans = await Promise.all((chained ? entries.slice(0, 1) : entries).map(entry => client.prepare(entry.action))); }   // chained：后一项依赖前一项的结果（撤销多步），只能预览第一项；其余在应用时逐项重新预览
-    catch (error) { setError(error); return; }
+    catch (error) { const mcp = entries.some(entry => entry.action?.type?.startsWith('mcp.')); setError(mcp ? new Error(mcpErrorMessage(error, entries.length === 1 ? entries[0].name || entries[0].label : '')) : error); if (mcp && shouldRefresh(error)) void controller.refresh(true); return; }
     if (!visible) return;
     const root = state?.root || '', tilde = plan => ({ ...plan, impact: (plan.impact || []).map(text => tildeText(text, root)), conflicts: (plan.conflicts || []).map(text => tildeText(text, root)), files: (plan.files || []).map(file => ({ ...file, path: tildePath(file.path, root), ...(file.linkTarget ? { linkTarget: tildePath(file.linkTarget, root) } : {}) })) });
     const conflicts = plans.flatMap((plan, index) => (plan.conflicts || []).map(text => `${entries[index].label}：${tildeText(text, root)}`));
@@ -359,7 +361,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
           if (plans[index] && JSON.stringify(plan.normalizedAction) !== JSON.stringify(plans[index].normalizedAction)) throw new Error('这一项在预览之后发生了变化，请重新预览');
           const result = await controller.submit(plan);
           done.push({ ...entry, action: plan.normalizedAction, result }); mark(index, 'done', '已应用');
-        } catch (error) { failed = { index, error }; mark(index, 'failed', error.message); break; }
+        } catch (error) { const text = entry.action?.type?.startsWith('mcp.') ? mcpErrorMessage(error, entry.name || entry.label) : error.message; failed = { index, error: Object.assign(new Error(text), { status: error.status, code: error.code }) }; mark(index, 'failed', text); if (entry.action?.type?.startsWith('mcp.') && shouldRefresh(error)) void controller.refresh(true); break; }
       }
       for (const item of done) if (item.change) staged.delete(stageKey(item.change));
       batchBusy = false;
@@ -374,7 +376,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   // 暂存的变更 → 预览并应用。
   async function reviewStaged() {
     if (batchBusy || !staged.size || !state) return;
-    const entries = [...staged.values()].map(change => ({ change, action: actionFor(change, state), ...describeChange(change, state), name: state.skills.find(item => item.id === change.id)?.name || '' }));
+    const entries = [...staged.values()].map(change => ({ change, action: actionFor(change, state), ...describeChange(change, state), name: (change.kind === 'mcp' ? state.servers : state.skills).find(item => item.id === change.id)?.name || '' }));
     await openBatch({ title: batchTitle(entries.length), entries });
   }
   const archiveIntro = (action, name) => {
@@ -414,7 +416,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       try {
         const probe = await client.probe(id), before = liveProbes.get(probe.serverId);
         liveProbes.set(probe.serverId, probe);
-        if (probe.status !== before?.status || probe.id !== before?.id) { listMarkup = undefined; renderList(); }
+        if (probe.status !== before?.status || probe.id !== before?.id) renderList();
         if (selected?.kind === 'mcp' && selected.id === probe.serverId) { const output = $('[data-probe-result]'), markup = probeCardMarkup(selected); if (output && output.innerHTML !== markup) output.innerHTML = markup; if (!activeProbe(probe)) renderDetail({ keepFocus: true }); }
         if (activeProbe(probe)) probeTimer = setTimeout(poll, probe.status === 'queued' ? 800 : 500);
         else { probeWatching = null; void controller.refresh(); }
@@ -422,10 +424,72 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     }
     void poll();
   }
+  // ---- 检测全部服务（E-12）：对话框确认后 POST /probes；后端最多同时跑 2 个，其余排队；这里逐个轮询、可整体取消 ----
+  function probeAllMarkup(filtered) {
+    if (probeAllRun) return `<div class="extension-probe-all"><span class="extension-probe-progress" aria-hidden="true" data-probe-progress>${esc(probeAllRun.cancelling ? '正在取消…' : progressText(progressOf(probeAllRun.probes.values())))}</span><button type="button" class="secondary" data-cancel-all-probes ${probeAllRun.cancelling ? 'disabled' : ''}>取消全部检测</button></div>`;
+    const plan = probeAllPlan(filtered), ok = plan.targets.length > 0;
+    return `<div class="extension-probe-all"><button type="button" class="secondary" data-probe-all ${ok ? '' : 'disabled aria-describedby="extension-probe-all-hint"'}>检测全部服务</button>${ok ? '' : '<small class="extension-probe-progress" id="extension-probe-all-hint">没有已启用的共享服务可检测</small>'}</div>`;
+  }
+  function announceProbeAll(text) { const live = $('[data-probe-live]'); if (live && live.textContent !== text) live.textContent = text; }
+  function openProbeAll() {
+    if (!state || probeAllRun) return;
+    const plan = probeAllPlan(visibleItems()); if (!plan.targets.length) return;
+    const names = list => list.map(server => `<li><strong>${esc(server.name)}</strong> <code>${esc(commandLine(server))}</code></li>`).join('');
+    const dialog = openShell('检测全部服务', `<p>将逐个启动下面 ${plan.targets.length} 个已启用服务的命令（或连接它们的端点）并读取工具清单。同时最多检测 2 个，其余排队，可以随时取消。</p><ul class="extension-probe-list" data-probe-targets>${names(plan.targets)}</ul>${plan.skipped.length ? `<p>不检测（已停用）：${plan.skipped.map(server => esc(server.name)).join('、')}</p>` : ''}${plan.clientLocal ? `<p>另有 ${plan.clientLocal} 个本地配置的服务由对应软件管理，不在这里检测。</p>` : ''}<p class="extension-error" role="alert" data-dialog-error></p><div class="dialog-footer"><button type="button" class="secondary" data-preview-cancel>取消</button><button type="button" class="primary" data-preview-apply>开始检测</button></div>`);
+    dialog.element.querySelector('[data-preview-cancel]').onclick = () => dialog.close();
+    dialog.element.querySelector('[data-preview-apply]').onclick = async () => {
+      dialog.setBusy(true); dialog.element.querySelector('[data-preview-apply]').disabled = true;
+      try {
+        const result = await client.probeAll(plan.targets.map(server => server.id), state.version);
+        dialog.setBusy(false); dialog.close();
+        startProbeAll(result.probes || [], result.skipped || []);
+      } catch (error) {
+        dialog.element.querySelector('[data-dialog-error]').textContent = mcpErrorMessage(error) + (error?.status === 409 && !error.code ? '（清单已变化，已刷新，请重新确认）' : '');
+        if (shouldRefresh(error)) void controller.refresh(true);
+        dialog.setBusy(false); dialog.element.querySelector('[data-preview-apply]').disabled = false;
+      }
+    };
+  }
+  function startProbeAll(probes, skipped) {
+    if (!probes.length) { showToast({ message: skipped.length ? `没有可检测的服务（${skipped.length} 个已停用，已跳过）` : '没有可检测的服务', tone: 'info' }); return; }
+    probeAllRun = { probes: new Map(probes.map(probe => [probe.id, probe])), skipped: skipped.length, cancelling: false, lastText: '' };
+    for (const probe of probes) liveProbes.set(probe.serverId, probe);
+    renderList(); setTimeout(() => $('[data-cancel-all-probes]')?.focus(), 0);
+    announceProbeAll(progressText(progressOf(probeAllRun.probes.values()))); pollProbeAll();
+  }
+  async function pollProbeAll() {
+    clearTimeout(probeAllTimer); const run = probeAllRun; if (!run || !visible) return;
+    if (document.hidden) { probeAllTimer = setTimeout(pollProbeAll, 2000); return; }
+    try {
+      for (const probe of [...run.probes.values()].filter(activeProbe)) {   // 逐个查询，不并发
+        if (probeAllRun !== run || !visible) return;
+        try { const next = await client.probe(probe.id); run.probes.set(probe.id, next); liveProbes.set(next.serverId, next); }
+        catch (error) { if (error?.status === 404) { run.probes.delete(probe.id); liveProbes.delete(probe.serverId); } else throw error; }
+      }
+    } catch (error) { setError(error); finishProbeAll(); return; }
+    const progress = progressOf(run.probes.values()), text = run.cancelling ? '正在取消…' : progressText(progress);
+    renderList();
+    if (text !== run.lastText) { run.lastText = text; announceProbeAll(text); }
+    if (!progress.active) { finishProbeAll(); return; }
+    probeAllTimer = setTimeout(pollProbeAll, 600);
+  }
+  async function finishProbeAll() {
+    const run = probeAllRun; if (!run) return; clearTimeout(probeAllTimer);
+    const progress = progressOf(run.probes.values()), wasFocused = document.activeElement?.hasAttribute?.('data-cancel-all-probes') || document.activeElement === document.body;
+    probeAllRun = null;
+    try { await controller.refresh(); } catch { /* 读取失败会走常规的失败提示 */ }
+    renderList(); if (wasFocused) $('[data-probe-all]')?.focus({ preventScroll: true });
+    const message = finishText(progress) + (run.skipped ? `；${run.skipped} 个已停用，已跳过` : ''); announceProbeAll(message); showToast({ message, tone: progress.failed ? 'warning' : 'success' });
+  }
+  async function cancelProbeAll() {
+    const run = probeAllRun; if (!run || run.cancelling) return; run.cancelling = true; renderList();
+    for (const probe of [...run.probes.values()].filter(activeProbe)) { try { await client.cancelProbe(probe.id); } catch (error) { if (![404, 409].includes(error?.status)) { setError(error); break; } } }
+    pollProbeAll();
+  }
   async function cancelOneProbe(id) {
     try { await client.cancelProbe(id); } catch (error) { setError(error); if (shouldRefresh(error)) void controller.refresh(); }
     if (probeWatching === id) { clearTimeout(probeTimer); probeTimer = setTimeout(() => watchProbe(id), 0); }
-    else if (liveProbes.size) void client.probe(id).then(probe => { liveProbes.set(probe.serverId, probe); listMarkup = undefined; renderList(); }).catch(() => {});
+    else if (liveProbes.size) void client.probe(id).then(probe => { liveProbes.set(probe.serverId, probe); renderList(); }).catch(() => {});
   }
   function edit(create = false) {
     const item = create ? null : selected, isMcp = create ? route.tab === 'mcp' : item.kind === 'mcp', isClient = create ? route.tab === 'clients' : item.kind === 'client', key = create ? 'new:' + route.tab : item.id + ':' + (item.file || ''), draft = controller.drafts.get(key);
@@ -623,6 +687,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.hasAttribute('data-mcp-toggle')) await preview({ type: 'mcp.toggle', id: selected.id, enabled: !selected.enabled });
       else if (button.hasAttribute('data-generate')) await preview({ type: 'mcp.generate', clientId: selected.id });
       else if (button.hasAttribute('data-probe')) await preview({ type: 'mcp.probe', id: selected.id });
+      else if (button.hasAttribute('data-probe-all')) openProbeAll();
+      else if (button.hasAttribute('data-cancel-all-probes')) await cancelProbeAll();
       else if (button.hasAttribute('data-cancel-probe')) await cancelOneProbe(button.dataset.probeId);
       else if (button.dataset.restoreOperation) await preview({ type: 'operation.restore', operationId: button.dataset.restoreOperation });
       else if (button.hasAttribute('data-retry-submission')) { button.disabled = true; await controller.retry(); }
@@ -631,7 +697,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     } catch (error) { setError(error); } finally { button.disabled = false; }
   });
   renderTabs();
-  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { liveProbes.clear(); probeWatching = null; detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { document.removeEventListener('keydown', onFind); clearTimeout(detailTimer); unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); element.remove(); } };
+  return { element, controller, updateRoute(value) { if(extensionsRoute(value)===extensionsRoute(route))return;route = { ...value }; detailKey = ''; renderClientFilter(); renderTabs(); renderList(); if (visible) void loadDetail(); }, setVisible(value) { const changed = visible !== value; visible = value; element.hidden = !value; if (!changed) return; controller.setVisible(value); if (!value) { if (!probeAllRun) liveProbes.clear(); probeWatching = null; clearTimeout(probeAllTimer); detailTicket++; clearTimeout(probeTimer); shell?.close(); } else { void loadDetail(); if (probeAllRun) void pollProbeAll(); const record = controller.getSubmission(); if (record?.result?.probeId) watchProbe(record.result.probeId); } }, dispose() { document.removeEventListener('keydown', onFind); clearTimeout(detailTimer); unsubscribe(); controller.dispose(); tabsDispose?.(); shell?.dispose(); clearTimeout(probeTimer); clearTimeout(probeAllTimer); element.remove(); } };
 }
 
 // 字段旁错误/警告（0.7 PR-1）：并入本文件以免新增静态资源（新文件需登记 core/web-assets.json，属打包相关）

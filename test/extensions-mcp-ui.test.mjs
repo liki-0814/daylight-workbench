@@ -128,3 +128,28 @@ test('error messages by code; 409 means refresh', () => {
 test('disabled probe hint wording', () => {
   assert.equal(disabledProbeHint(true, false), ''); assert.equal(disabledProbeHint(false, false), '已停用，启用后可检测'); assert.equal(disabledProbeHint(false, true), '启用待应用，应用后才能检测');
 });
+
+// ---- 页面接线（源码级断言，同 PR-6 的做法：没有 DOM 环境，行为由 e2e 覆盖） ----
+{
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
+  const assets = JSON.parse(readFileSync(new URL('../core/web-assets.json', import.meta.url), 'utf8'));
+  test('page wires the MCP switch through staging (no direct action), probe-all through one confirmation and client.probeAll with the state version', () => {
+    assert.match(page, /input\.dataset\.mcpSwitch !== undefined[\s\S]{0,200}stageChange\(staged, \{ kind: 'mcp'/);
+    assert.match(page, /client\.probeAll\(plan\.targets\.map\(server => server\.id\), state\.version\)/);
+    assert.match(page, /button\.hasAttribute\('data-probe-all'\)\) openProbeAll\(\)/);
+    assert.match(page, /data-cancel-all-probes/); assert.match(page, /client\.cancelProbe\(probe\.id\)/);
+  });
+  test('probe polling treats queued as active (not only running) and pauses while the page is hidden', () => {
+    const watch = page.slice(page.indexOf('function watchProbe'), page.indexOf('async function cancelOneProbe'));
+    assert.match(watch, /activeProbe\(probe\)/); assert.doesNotMatch(watch, /status === 'running'/); assert.match(watch, /document\.hidden/);
+    const all = page.slice(page.indexOf('async function pollProbeAll'), page.indexOf('async function finishProbeAll'));
+    assert.match(all, /filter\(activeProbe\)/); assert.match(all, /document\.hidden/); assert.doesNotMatch(all, /Promise\.all/);   // 逐个查询，不并发
+  });
+  test('the ref table renders names and set/unset only; the inspector no longer dumps raw envRefs/headerRefs when refStatus exists', () => {
+    const table = page.slice(page.indexOf('function refTableMarkup'), page.indexOf('function probeAvailability'));
+    assert.doesNotMatch(table, /\.value|envRefs|headerRefs/); assert.match(table, /refNote/);
+    assert.match(page, /\.\.\.\(refRows\(item\) \? \[\] : \['envRefs', 'headerRefs'\]\)/);
+  });
+  test('mcp.js is a registered web asset', () => { assert.equal(assets['/extensions/mcp.js'], 'extensions/mcp.js'); });
+}
