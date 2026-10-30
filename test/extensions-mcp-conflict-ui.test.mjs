@@ -116,7 +116,7 @@ test('client.mcpCompare：POST /api/extensions/mcp-compare，带令牌，原样�
 
 test('页面接线：导入按钮只在 MCP 标签；对比与选择受能力门控；新建表单走 onConflict（撤销沿用 receipt 的 operation.restore）', () => {
   const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
-  assert.match(page, /data-import-json/); assert.match(page, /\.hidden = route\.tab !== 'mcp'/);
+  assert.match(page, /data-import-json/); assert.match(page, /route\.tab === 'mcp' \? importButtonMarkup\(banner\)/); assert.doesNotMatch(page, /extension-category-action[^`]*data-import-json/);
   assert.match(page, /const compareOn = mcpCompareSupported\(state\.capabilities\)/); assert.match(page, /if \(compareOn && plan\.conflicts\.length\)/);
   assert.match(page, /type: 'mcp\.importJson'/); assert.match(page, /resolutions/); assert.match(page, /onConflict: conflictChoice/);
   assert.match(page, /client\.mcpCompare\(/); assert.match(page, /ui-button-danger" data-import-replace/); assert.match(page, /ui-button-danger" data-duplicate-replace/);
@@ -129,7 +129,8 @@ test('mcp-conflict.js 登记在 web-assets.json；不引入新依赖', () => {
   assert.deepEqual([...source.matchAll(/^import .* from '([^']+)'/gm)].map(match => match[1]).filter(path => !path.startsWith('.')), []);
   assert.doesNotMatch(source, /innerHTML|document\./);
 });
-test('「导入 JSON…」按钮的 hidden 不会被按钮样式盖过（只在 MCP 页签出现）', () => {
+test('「导入 JSON…」在列表标题行（不进工具栏，避免挪动共享布局锚点），样式只用 token', () => {
   const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
-  assert.match(css, /\.extension-category-action\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
+  assert.match(css, /\.extension-list-heading > \.extension-import-action \{ margin-left: auto;/);
+  assert.doesNotMatch(css, /extension-category-action\[hidden\]/);
 });

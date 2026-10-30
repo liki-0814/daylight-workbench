@@ -6,7 +6,6 @@
 .extension-software-filter { display: flex; align-items: center; gap: var(--space-2); }
 .extension-software-filter .select-field { width: 150px; }
 .extension-category-action { flex: 0 0 140px; }
-.extension-category-action[hidden] { display: none; }   /* .secondary 的 display 会盖过 hidden：「导入 JSON…」只在 MCP 页签出现 */
 .extension-problem-filter { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; white-space: nowrap; cursor: pointer; }
 .extension-list-heading { display: flex; justify-content: space-between; align-items: baseline; padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
 .extension-list-heading h2 { font: 600 var(--font-section-size)/var(--font-section-line) var(--font-ui); margin: 0; }
@@ -171,6 +170,8 @@
 .extension-probe-all { margin-left: auto; }
 /* 「检测全部服务」按钮（36px）比 h2 行高，会让 MCP 页的清单标题比另外两个分类高 18px，三个分类共享的布局锚点（LAY-溢出+锚点）就移位了：用负的块方向外边距把它的占位收回到标题行高内，点击区域仍是 36px */
 .extension-list-heading > .extension-probe-all { margin-block: -9px; }
+.extension-list-heading > .extension-import-action { margin-left: auto; margin-block: -9px; }
+.extension-list-heading > .extension-probe-all + .extension-import-action { margin-left: var(--space-3); }
 .extension-probe-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; max-height: 240px; overflow: auto; display: grid; gap: var(--space-2); }
 .extension-probe-list li { overflow-wrap: anywhere; }
 .extension-probe-list code { display: block; color: var(--text-secondary, var(--muted)); }
