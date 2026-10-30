@@ -1,6 +1,7 @@
 import { createExtensionsClient } from './client.js';
 import { createExtensionsController } from './controller.js';
 import { extensionPlanContent } from './review.js';
+import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
 import { sectionHeading, refreshButton, setRefreshState } from '../components/section.js';
@@ -27,7 +28,7 @@ const parseRefs = text => Object.fromEntries(text.split('\n').filter(line => lin
 export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const client = createExtensionsClient({ getToken }), controller = createExtensionsController({ client, onChanged });
   const element = document.createElement('main'); element.className = 'extensions-page'; element.hidden = true;
-  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" hidden></aside></div></div>`;
+  element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 扩展管理</span></header><div class="workspace extensions-workspace"><section class="page-heading"><div><h1>扩展管理</h1><p>管理共享来源及你选择接入的本机 CLI。</p></div>${refreshButton({ ariaLabel: '重新扫描扩展', attrs: { 'data-extension-refresh': true } })}</section><div class="extension-tabs"></div><div class="extension-toolbar">${searchField({ label: '搜索扩展', placeholder: '搜索名称、用途或路径', className: 'extension-search' })}<div class="extension-software-filter"><span>软件</span>${selectField({ id: 'extensions-client-filter', name: 'client', label: '按软件筛选', compact: true, hideLabel: true, options: [{ value: '', label: '全部软件' }] })}</div><label class="extension-problem-filter"><input type="checkbox" data-problems>仅看问题</label><button class="secondary extension-category-action" type="button" data-create>新建 Skill</button></div><p class="extension-error" role="alert" data-error></p><div data-submission aria-live="polite"></div><span class="extension-visually-hidden" role="status" data-list-status></span><div class="extension-browser"><section class="extension-list" aria-label="扩展清单"></section><aside class="extension-detail" aria-label="扩展详情" hidden></aside></div></div>`;
   const $ = selector => element.querySelector(selector);
   let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, submitting = false, bindingPreviewing = false, selectionPreviewing = false;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
@@ -127,17 +128,43 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       return matchesText && matchesSoftware && matchesProblems;
     });
   }
+  let loadingSince = 0, loadingTimers = [], listStatus = '';
+  const nothingFiltered = () => !route.query && !route.client && !route.problems;
+  // 共享来源是默认情况，行里不再重复（详情里有完整路径）；只有软件本地配置才在行里标出来。
+  const sourceOf = item => item.scope === 'client' ? (state.clients.find(client => client.id === item.clientId)?.name || '') + ' · 本地配置' : '';
+  function mcpStatus(item) {
+    const time = probeTime(item.lastProbe);
+    return `<span class="extension-status-stack">${probeChip(item)}<small>${item.enabled ? '配置启用' : '配置禁用'}${time ? ' · 检测于 ' + time : ''}</small></span>`;
+  }
+  function rowFor(item) {
+    const active = item.id === route.id, query = route.query || '';
+    const summary = route.tab === 'skills' ? (item.valid ? item.description : item.problem) : route.tab === 'mcp' ? '' : item.note;
+    const statusCells = route.tab === 'skills' ? [item.bindings.length ? `<span class="extension-binding-group">${item.bindings.map(binding => bindingControl(item, binding, true)).join('')}</span>` : '<small>未选择软件</small>']
+      : route.tab === 'mcp' ? [chip({ label: item.transport, tone: 'neutral' }), mcpStatus(item)]
+      : [switchControl({ label: item.name + ' · 接入扩展管理', text: item.selected ? '已接入' : '选择接入', hint: item.installed ? '已发现命令' : '未找到命令', checked: !!item.selected, disabled: selectionPreviewing, className: 'extension-binding-control', inputAttrs: { 'data-cli-selection': true, 'data-client': item.id } })];
+    return rowMarkup({ tab: route.tab, item, active, query, summary, sourceText: sourceOf(item), statusCells });
+  }
   function renderList() {
-    if (!state) { listMarkup = undefined; updateCreateAvailability(null); $('.extension-list').innerHTML = `<p class="extension-empty" role="${readFailure ? 'alert' : 'status'}">${readFailure ? '扩展来源读取失败。请重新扫描后再试。' : '正在读取扩展来源…'}</p>`; return; }
+    clearTimeout(loadingTimers.pop()); loadingTimers.length = 0;
+    if (!state) {
+      listMarkup = undefined; updateCreateAvailability(null);
+      if (readFailure) { loadingSince = 0; $('.extension-list').innerHTML = failureState({ reason: readFailure.message }); return; }
+      loadingSince ||= Date.now();
+      const elapsed = Date.now() - loadingSince;
+      $('.extension-list').innerHTML = loadingState({ elapsed });
+      if (elapsed < 1000) loadingTimers.push(setTimeout(() => { if (!state && visible) renderList(); }, elapsed < 300 ? 300 - elapsed : 1000 - elapsed));
+      return;
+    }
+    loadingSince = 0;
     const focus = $('.extension-list').contains(document.activeElement) ? document.activeElement?.dataset : null;
-    const filtered = visibleItems();
+    const all = state[category().collection], filtered = visibleItems();
     const banner = configBanner(), tabProblems = diagnosticsForTab(state.diagnostics, route.tab).filter(problem => !(banner && problem.code === banner.code));
     updateCreateAvailability(banner);
-    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
-      const active = item.id === route.id;
-      const summary = route.tab === 'skills' ? item.valid ? item.description : item.problem : route.tab === 'mcp' ? (item.enabled ? '配置启用' : '配置禁用') + ' · ' + item.transport : item.note;
-      return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' · 本地配置' : '共享来源')}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? `${probeChip(item)}` : switchControl({ label: item.name + ' · 接入扩展管理', text: item.selected ? '已接入' : '选择接入', hint: item.installed ? '已发现命令' : '未找到命令', checked: !!item.selected, disabled: selectionPreviewing, className: 'extension-binding-control', inputAttrs: { 'data-cli-selection': true, 'data-client': item.id } })}</div></div>`;
-    }).join('')}${!filtered.length ? '<p class="extension-empty">没有匹配项。可调整搜索或筛选。</p>' : ''}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    // 配置文件读不出来时列表为空只是表象，横幅已说明原因，不再叠一个“还没有 MCP 服务”。
+    const empty = !filtered.length ? (!all.length && nothingFiltered() ? (banner?.blocksCreate ? '' : emptyState(route.tab)) : noMatchState()) : '';
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span></div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
+    if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
     if (markup === listMarkup) return;
     const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
     $('.extension-list').innerHTML = markup; listMarkup = markup;
@@ -145,11 +172,13 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     if (focus?.bindingToggle !== undefined) findBindingControl(focus, 'list')?.focus({preventScroll:true});
     else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
   }
+  // 检查器顶部的「‹ 返回清单」（design-spec §3：≤999 覆盖层必须有；宽屏下同一个按钮收起检查器）。‹ 对读屏隐藏，可访问名称仍是「返回清单」。
+  const backBar = () => '<div class="extension-inspector-top"><button type="button" class="text-button extension-back" data-close-detail><span aria-hidden="true">‹</span>返回清单</button></div>';
   async function loadDetail() {
     const id = route.operation || route.id;
     if (!id) { detailTicket++; selected = null; $('.extension-detail').hidden = true; detailKey = ''; return; }
     const key = [route.tab, id, state?.version, route.file].join(':'); if (key === detailKey) return;
-    const ticket = ++detailTicket; $('.extension-detail').hidden = false; $('.extension-detail').innerHTML = '<p role="status">正在读取详情…</p>';
+    const ticket = ++detailTicket; $('.extension-detail').hidden = false; $('.extension-detail').innerHTML = backBar() + '<p role="status">正在读取详情…</p>';
     try {
       const value = route.operation ? await client.operation(id) : await client.detail(id, route.file, tabKinds[route.tab]);
       if (ticket !== detailTicket || !visible) return; selected = value; detailKey = key; renderDetail();
@@ -157,7 +186,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   }
   function renderDetail() {
     const item = selected; if (!item) return;
-    const heading = sectionHeading({ title: item.name || '操作回执', actions: actionButton({ label: '返回清单', variant: 'secondary', attrs: { 'data-close-detail': true } }) });
+    const heading = backBar() + sectionHeading({ title: item.name || '操作回执' });
     let content;
     if (route.operation) content = `<p>状态：${esc(item.status)}</p><p>${esc(item.error || '')}</p><code>${esc(item.requestId)}</code><div class="extension-actions"><button type="button" class="secondary" data-restore-operation="${esc(item.requestId)}" ${item.status === 'applied' && item.steps.length ? '' : 'disabled'}>预览恢复修改前内容</button></div><details><summary>操作与步骤</summary><pre>${esc(JSON.stringify(item, null, 2))}</pre></details>`;
     else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre><button type="button" class="ui-button-destructive" data-archive>${item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件'}</button>`;
@@ -358,7 +387,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       else if (button.hasAttribute('data-copy-path')) await copyBannerPath(button);
       else if (button.dataset.extensionReveal) await revealInFinder(button.dataset.extensionReveal);
       else if (button.hasAttribute('data-extension-restore-backup')) await chooseBackup(button);
-      else if (button.hasAttribute('data-create')) edit(true);
+      else if (button.hasAttribute('data-create') || button.hasAttribute('data-empty-create')) edit(true);
+      else if (button.hasAttribute('data-clear-filters')) { changeRoute({ query: '', client: null, problems: false }); $('.extension-search input')?.focus(); }
       else if (button.hasAttribute('data-edit')) edit();
       else if (button.hasAttribute('data-cli-selection')) await toggleClientSelection(button);
       else if (button.hasAttribute('data-remove-client')) await preview({ type: 'client.remove', clientId: selected.registrationId || selected.id }, { title: '确认移除 CLI 登记' });
