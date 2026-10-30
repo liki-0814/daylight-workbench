@@ -169,6 +169,8 @@ CLI 自动发现只提供候选项，state.clients.selected 表示用户是否�
 
 接入冲突（E-11）：bindings[].state=conflict 表示软件里已有同名其他内容。只读对比用 GET /compare?id=&clientId=（可带 expectedVersion），返回文件级状态与文本差异，不跟随链接，不返回 .env/密钥类文件内容，疑似凭据的行替换为占位符。skill.resolveConflict：adoptShared 用共享链接替换软件内内容（原内容进恢复记录，可 operation.restore），keepLocal 不改文件、只在 bindings.json 的 conflictResolutions 记录（binding.resolution=keepLocal，诊断消失，内容变化后 resolutionStale），reopen 清除记录。错误码 EXTENSIONS_NOT_CONFLICT / ALREADY_RESOLVED / NOT_RESOLVED / SKILL_DISABLED（409）。
 能力键 `capabilities.extensions.skillConflict`（可选，值为 `true`）声明本版本有 E-11 的对比与解决（`GET /compare`、`skill.resolveConflict`）。`GET /api/v1/capabilities` 与网页镜像（`/api/extensions/state`、`/refresh` 里的 `capabilities.extensions`）同层同名。没有这个键的旧后端表示「不确定」：客户端继续工作，只在值为字面量 `false` 时才隐藏冲突流程。
+
+网页镜像的键只来自 `core/extensions-contracts.js` 导出的 `extensionsMirrorKeys` 一份清单（值恒为 `true`），`/api/v1/capabilities` 的 `extensions` 必须同名存在；测试会在清单里的键缺少镜像或 /api/v1 时失败。新增能力键只改这份清单。用户可见的提示（校验错误、影响说明、警告）使用中文名称「采用共享版本」「保留软件内版本」「重新处理」，不含 adoptShared 等接口取值；接口取值与 `field` 名不变。
 导入：skill.import 仅支持本地绝对路径文件夹（无 URL 导入）；顶层需有合法 SKILL.md，目录名取 SKILL.md 的 name，不跟随任何符号链接，忽略隐藏文件与 node_modules，限制 500 个文件 / 5 MB / 6 层；同名为 conflicts（409 EXTENSIONS_CONFLICT），无效来源 400 field=sourcePath（code EXTENSIONS_IMPORT_NO_SKILL/SYMLINK/LIMIT/SPECIAL）。mcp.importJson 接受 {mcpServers:{…}} 或带 id/name 的单个服务对象（最多 100 个），env/headers 的值只能是 `${VAR}`/`$VAR`，明文值 400（field 形如 mcpServers.<id>.env.<KEY>，响应不回显该值）；JSON 语法错误 400 field=json 并带 `line`、`column`；已有 ID 为 conflicts，不覆盖。
 
 MCP 交互：mcp.toggle 共享服务行级启停（只改主配置，不启动服务）；POST /probes 支持 {ids:[…],expectedVersion} 批量检测（同时最多 2 个，其余 status=queued；已停用的列入 skipped）；服务带 refStatus（变量名与是否已设置，永不含值）。
