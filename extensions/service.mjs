@@ -53,7 +53,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   // Reference table for the UI: names only. The value of a variable is never read into any response.
   const refStatus = server => [...Object.entries(server.envRefs || {}).map(([key, ref]) => ['env', key, ref]), ...Object.entries(server.headerRefs || {}).map(([key, ref]) => ['header', key, ref])].map(([kind, key, ref]) => ({ kind, key, ref, set: !!environment[ref], internal: privateEnvironmentNames.includes(ref) || privateEnvironmentNames.includes(key) }));
   // Web mirror of GET /api/v1/capabilities `extensions.*` (the web UI cannot read /api/v1): same nesting and key names, `true` instead of the descriptive strings. Keys come from `extensionsMirrorKeys` (core/extensions-contracts.js); the conditional ones (reveal) only where `reveal.supported`.
-  // Optional keys: a client treats a missing key as "unknown, keep working" and hides a feature only on a literal `false`.
+  // The web client shows a feature only on a literal `true`; a missing key means "not supported", so a backend without the capability omits the key.
   const capabilities = () => ({ extensions: Object.fromEntries([...extensionsMirrorKeys, ...(reveal.supported ? extensionsConditionalMirrorKeys : [])].map(key => [key, true])) });
   const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, capabilities: capabilities(), servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), refStatus: refStatus(server), lastProbe: probeReport(server) })) }; };
   // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
@@ -254,12 +254,12 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
           if (index === -1) { servers.push(server); added.push(server); }
           else if (choices[server.id] === 'adoptNew') { servers[index] = server; replaced.push(server); }
           else if (choices[server.id] === 'keepExisting') kept.push(server.id);
-          else conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，还没选择处理方式，导入不会覆盖。请改名后导入，或选择「采用新配置」（用导入的配置替换）/「保留现有配置」。');
+          else conflicts.push('已存在 ID 为 ' + server.id + ' 的 MCP 服务，导入不会覆盖。请在下方选择处理方式，或改名后导入。');
         }
         if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
         if (added.length || replaced.length) { const next = json({ schemaVersion: 1, servers }); if (Buffer.byteLength(next) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数'); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(next)); }
-        impact.push('将新增 ' + added.length + ' 个 MCP 服务到主配置，不启动服务；未选择处理方式的已有 ID 不会被覆盖。');
-        for (const server of replaced) { impact.push('用导入的配置替换现有 MCP「' + server.id + '」；原配置记录在操作快照里，可用 operation.restore 恢复。'); for (const skill of state.skills.filter(item => item.dependencies?.includes(server.id))) impact.push('已声明依赖的 Skill：' + skill.name + '（不会修改）。'); }
+        impact.push('将新增 ' + added.length + ' 个 MCP 服务到主配置，不启动服务' + (conflicts.length ? '；还没选择处理方式的已有 ID 不会被覆盖' : '') + '。');
+        for (const server of replaced) { impact.push('用导入的配置替换现有 MCP「' + server.id + '」；原配置已记录，可在操作历史中点「撤销」恢复。'); for (const skill of state.skills.filter(item => item.dependencies?.includes(server.id))) impact.push('已声明依赖的 Skill：' + skill.name + '（不会修改）。'); }
         if (replaced.length) warnings.push('已生成或已接入软件的配置不会自动更新；需重新生成/接入后才会使用新配置，已有的检测结果会标为过期。');
       } else {
         const document = state.clientDocuments.find(item => item.clientId === client.id);
@@ -268,8 +268,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
           const view = current.servers.find(item => item.serverKey === server.id);
           if (view || current.data?.[client.mcp?.section]?.[server.id]) {
             if (choices[server.id] === 'keepExisting') { kept.push(server.id); continue; }
-            if (choices[server.id] !== 'adoptNew') { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，还没选择处理方式，导入不会覆盖。请改名后导入，或选择「采用新配置」/「保留现有配置」。'); continue; }
-            if (!view?.editable) { conflicts.push(client.name + ' 里的「' + server.id + '」包含无法安全编辑的字段，不能替换；请在 CLI 中修改，或选择「保留现有配置」。'); continue; }
+            if (choices[server.id] !== 'adoptNew') { conflicts.push(client.name + ' 已存在 ID 为 ' + server.id + ' 的 MCP 服务，导入不会覆盖。请在下方选择处理方式，或改名后导入。'); continue; }
+            if (!view?.editable) { conflicts.push(client.name + ' 里的「' + server.id + '」包含无法安全编辑的字段，不能替换；请在 CLI 中修改，或请在下方选择处理方式。'); continue; }
             const content = changeClientMcp(client, current, { type: 'save', server, key: server.id });
             current = { ...current, raw: content, data: configDocument(content, client.mcp.format).data }; replaced.push(server); continue;
           }
@@ -278,9 +278,9 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         }
         if (added.length || replaced.length) { await add(client.mcpPath, fileSnapshot(current.raw)); }
         impact.push('将新增 ' + added.length + ' 个 MCP 服务到 ' + client.name + ' 的用户级配置，只改对应字段；不启动服务。' + client.refresh);
-        for (const server of replaced) impact.push('用导入的配置替换 ' + client.name + ' 的「' + server.id + '」：只改对应字段，软件里无法读取的凭据保持原样；原配置记录在操作快照里，可用 operation.restore 恢复。');
+        for (const server of replaced) impact.push('用导入的配置替换 ' + client.name + ' 的「' + server.id + '」：只改对应字段，软件里无法读取的凭据保持原样；原配置已记录，可在操作历史中点「撤销」恢复。');
       }
-      if (kept.length) impact.push('保留现有配置，不导入：' + kept.slice(0, 20).join('、') + (kept.length > 20 ? ' 等 ' + kept.length + ' 个' : '') + '。');
+      if (kept.length) impact.push('保留现有，不导入：' + kept.slice(0, 20).join('、') + (kept.length > 20 ? ' 等 ' + kept.length + ' 个' : '') + '。');
       resolved.push(...Object.entries(choices).map(([id, resolution]) => ({ id, resolution })));
       for (const server of [...added, ...replaced]) changedIds.push(client ? 'mcp_' + hash([client.id, server.id]).slice(0, 24) : server.id);
     } else if (action.type.startsWith('skill.')) {
@@ -444,12 +444,12 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         const choice = parseResolution(action.onConflict, 'onConflict');
         if (choice && action.create !== true) throw fieldError('处理方式只在新建服务时使用。', 'onConflict');
         const duplicate = !!(existing || document.data?.[client.mcp?.section]?.[server.id]);
-        if (action.create && duplicate && !choice) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可选择「采用新配置」或「保留现有配置」', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        if (action.create && duplicate && !choice) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务。请在下方选择处理方式，或改用其他 ID、编辑现有服务。', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
         if (action.create && duplicate && choice === 'keepExisting') { keepExisting = true; resolved.push({ id: server.id, resolution: choice }); impact.push('保留 ' + client.name + ' 里现有的「' + server.id + '」，不做任何修改。'); }
         else {
           warnings.push(...serverWarnings(server));
           if (existing && !existing.editable) throw error('此配置包含无法安全编辑的字段；请在 CLI 中修改，或移除配置');
-          if (action.create && duplicate) { resolved.push({ id: server.id, resolution: choice }); impact.push('用新配置替换 ' + client.name + ' 里现有的「' + server.id + '」；软件里无法读取的凭据保持原样，原配置记录在操作快照里，可用 operation.restore 恢复。'); }
+          if (action.create && duplicate) { resolved.push({ id: server.id, resolution: choice }); impact.push('用新配置替换 ' + client.name + ' 里现有的「' + server.id + '」；软件里无法读取的凭据保持原样，原配置已记录，可在操作历史中点「撤销」恢复。'); }
         }
       }
       if (action.type === 'mcp.toggle' && typeof action.enabled !== 'boolean') throw error('启停需要明确布尔值');
@@ -503,7 +503,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         action.server = normalizeServer(action.server); const index = servers.findIndex(server => server.id === action.server.id);
         const choice = parseResolution(action.onConflict, 'onConflict');
         if (choice && action.create !== true) throw fieldError('处理方式只在新建服务时使用。', 'onConflict');
-        if (index !== -1 && action.create && !choice) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务；也可选择「采用新配置」或「保留现有配置」', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        if (index !== -1 && action.create && !choice) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务。请在下方选择处理方式，或改用其他 ID、编辑现有服务。', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
         if (index !== -1 && action.create && choice === 'keepExisting') {
           resolved.push({ id: action.server.id, resolution: choice }); impact.push('保留现有 MCP「' + action.server.id + '」，不做任何修改。');
         } else {
@@ -513,7 +513,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
           changedIds.push(action.server.id); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(json({ schemaVersion: 1, servers })));
           if (Buffer.byteLength(json({ schemaVersion: 1, servers })) > 2_000_000) throw error('MCP 主配置超过 2 MB，请减少服务或参数');
           impact.push('仅保存 MCP 主配置，不启动服务。已生成的客户端配置需重新生成并在客户端接入。');
-          if (index !== -1 && action.create) { resolved.push({ id: action.server.id, resolution: choice }); impact.push('用新配置替换现有 MCP「' + action.server.id + '」；原配置记录在操作快照里，可用 operation.restore 恢复。'); warnings.push('已生成或已接入软件的配置不会自动更新；需重新生成/接入后才会使用新配置。'); }
+          if (index !== -1 && action.create) { resolved.push({ id: action.server.id, resolution: choice }); impact.push('用新配置替换现有 MCP「' + action.server.id + '」；原配置已记录，可在操作历史中点「撤销」恢复。'); warnings.push('已生成或已接入软件的配置不会自动更新；需重新生成/接入后才会使用新配置。'); }
         }
       } else if (action.type === 'mcp.archive') {
         const server = getServer(state, action.id), archive = path.join(root, 'archive', 'mcp', server.id + '_' + state.version.slice(0, 12) + '.json');

@@ -79,7 +79,7 @@ test('importJson: unresolved ids still conflict; adoptNew replaces in place; kee
   const resolutions = { alpha: 'adoptNew', beta: 'keepExisting' }, version = (await f.state()).version;
   const plan = await f.plan({ type: 'mcp.importJson', scope: 'shared', json, resolutions });
   assert.deepEqual(plan.conflicts, []); assert.equal(plan.expectedVersion, version); assert.deepEqual(plan.resolved.map(item => item.resolution).sort(), ['adoptNew', 'keepExisting']);
-  assert.deepEqual(plan.changedIds.sort(), ['alpha', 'gamma']); assert.ok(plan.impact.some(line => /替换现有 MCP「alpha」/.test(line))); assert.ok(plan.impact.some(line => /保留现有配置.*beta/.test(line)));
+  assert.deepEqual(plan.changedIds.sort(), ['alpha', 'gamma']); assert.ok(plan.impact.some(line => /替换现有 MCP「alpha」/.test(line))); assert.ok(plan.impact.some(line => /保留现有，不导入.*beta/.test(line)));
   assert.equal(plan.files.length, 1);
   const receipt = await f.commit(plan, 'conflict-import'); assert.equal(receipt.status, 'applied');
   const servers = await f.servers(), ids = servers.map(item => item.id);
@@ -172,7 +172,27 @@ test('user-visible conflict copy has no API jargon and names the two choices in 
   await rejected({ type: 'mcp.save', clientId: 'codex', create: true, server: incoming });
   const keep = await f.plan({ type: 'mcp.save', create: true, server: incoming, onConflict: 'keepExisting' }), adopt = await f.plan({ type: 'mcp.save', create: true, server: incoming, onConflict: 'adoptNew' });
   messages.push(...keep.impact, ...adopt.impact, ...adopt.warnings);
-  assert.ok(messages.length >= 9, 'covered ' + messages.length + ' messages');
-  for (const message of messages) assert.doesNotMatch(message, /adoptNew|keepExisting|resolutions|onConflict|create:true/, message);
-  const joined = messages.join('\n'); assert.match(joined, /采用新配置/); assert.match(joined, /保留现有配置/);
+  const sharedKeep = await f.plan({ type: 'mcp.importJson', scope: 'shared', json, resolutions: { alpha: 'keepExisting' } }); messages.push(...sharedKeep.impact, ...sharedKeep.warnings);
+  const clientAdopt = await f.plan({ type: 'mcp.importJson', scope: 'client', clientId: 'codex', json, resolutions: { alpha: 'adoptNew' } }); messages.push(...clientAdopt.impact, ...clientAdopt.warnings);
+  const sharedAdopt = await f.plan({ type: 'mcp.importJson', scope: 'shared', json, resolutions: { alpha: 'adoptNew' } }); messages.push(...sharedAdopt.impact, ...sharedAdopt.warnings);
+  assert.ok(messages.length >= 12, 'covered ' + messages.length + ' messages');
+  // no API words, no specific option labels (the page's own radio labels differ per form: they are not repeated here), no operation.restore
+  for (const message of messages) assert.doesNotMatch(message, /adoptNew|keepExisting|resolutions|onConflict|create:true|operation\.restore|expectedVersion|「采用新配置」|「保留现有配置」|操作快照/, message);
+  const joined = messages.join('\n'); assert.match(joined, /请在下方选择处理方式/); assert.match(joined, /保留现有，不导入/); assert.match(joined, /操作历史中点「撤销」恢复/);
+  // every unresolved-ID message and every validation error points at the choice area in the same words
+  for (const message of messages.filter(item => /导入不会覆盖|冲突处理方式/.test(item))) assert.match(message, /请在下方选择处理方式/, message);
+});
+
+// The "unresolved IDs are not overwritten" clause is only worth saying while some conflicting ID is still unresolved.
+test('the unresolved-ID warning is only in the impact summary while some conflicting ID has no choice', async t => {
+  const f = await fixture(t); await seed(f);
+  const json = mcp({ alpha: { command: 'node' }, fresh: { command: 'node' } }), clause = /还没选择处理方式/;
+  const open = await f.plan({ type: 'mcp.importJson', scope: 'shared', json });
+  assert.ok(open.conflicts.length > 0 && open.impact.some(line => clause.test(line)), 'unresolved: the clause is there');
+  for (const choice of ['keepExisting', 'adoptNew']) {
+    const done = await f.plan({ type: 'mcp.importJson', scope: 'shared', json, resolutions: { alpha: choice } });
+    assert.equal(done.conflicts.length, 0); assert.ok(!done.impact.some(line => clause.test(line)) && !done.warnings.some(line => clause.test(line)), choice + ': nothing left unresolved, so no unresolved clause');
+  }
+  const noConflict = await f.plan({ type: 'mcp.importJson', scope: 'shared', json: mcp({ fresh: { command: 'node' } }) });
+  assert.ok(!noConflict.impact.some(line => clause.test(line)), 'no conflicting ID at all: no clause');
 });
