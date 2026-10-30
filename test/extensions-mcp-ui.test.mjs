@@ -159,3 +159,9 @@ test('row health chips keep an opaque background (contrast on selected / hover r
   const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
   for (const tone of ['danger', 'accent']) assert.match(css, new RegExp(`\\.extension-row \\.ui-chip-${tone} \\{ background: linear-gradient\\(var\\(--\\w+-bg\\), var\\(--\\w+-bg\\)\\) #fff; \\}`), tone);
 });
+
+// 布局锚点守卫：「检测全部服务」按钮比标题行高，必须收回占位，否则 MCP 页的清单标题比另外两个分类高 18px（suite LAY-溢出+锚点）。
+test('probe-all button does not make the MCP list heading taller than the other categories', () => {
+  const css = readFileSync(new URL('../public/extensions/extensions.css', import.meta.url), 'utf8');
+  assert.match(css, /\.extension-list-heading > \.extension-probe-all \{ margin-block: -9px; \}/);
+});
