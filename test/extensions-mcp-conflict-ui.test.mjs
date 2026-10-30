@@ -118,7 +118,9 @@ test('页面接线：导入按钮只在 MCP 标签；对比与选择受能力门
   const page = readFileSync(new URL('../public/extensions/page.js', import.meta.url), 'utf8');
   assert.match(page, /data-import-json/); assert.match(page, /route\.tab === 'mcp' \? importButtonMarkup\(banner\)/); assert.doesNotMatch(page, /extension-category-action[^`]*data-import-json/);
   assert.match(page, /const compareOn = mcpCompareSupported\(state\.capabilities\)/); assert.match(page, /if \(compareOn && plan\.conflicts\.length\)/);
-  assert.match(page, /type: 'mcp\.importJson'/); assert.match(page, /resolutions/); assert.match(page, /onConflict: conflictChoice/);
+  assert.match(page, /type: 'mcp\.importJson'/); assert.match(page, /resolutions/); assert.match(page, /onConflict: choice/);
+  // 选择只管一次提交：提交时取出并清空；非同 ID 冲突的失败收起面板（不沿用上次选择）
+  assert.match(page, /const choice = conflictChoice; conflictChoice = null;/); assert.match(page, /if \(error\.code !== 'EXTENSIONS_DUPLICATE_ID'\) hideDuplicatePanel\(\);/); assert.match(page, /if \(problems\.length\) \{ hideDuplicatePanel\(\);/);
   assert.match(page, /client\.mcpCompare\(/); assert.match(page, /ui-button-danger" data-import-replace/); assert.match(page, /ui-button-danger" data-duplicate-replace/);
   assert.match(page, /duplicateAware && problem\.duplicate/);
 });
