@@ -3,9 +3,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { extensionActions, extensionMethod, canonicalJSON } from '../core/extensions-contracts.js';
 import { body, send } from '../ai/http.mjs';
-import { error, hash, stat, within, safePath, snapshot, fileSnapshot, readText } from './files.mjs';
+import { error, fieldError, hash, stat, within, safePath, snapshot, fileSnapshot, readText } from './files.mjs';
 import { metadata, skillId, skillFile } from './skill-files.mjs';
-import { normalizeServer } from './mcp-server.mjs';
+import { normalizeServer, serverWarnings } from './mcp-server.mjs';
 import { renderMcpConfig } from './mcp-config.mjs';
 import { changeClientMcp } from './client-mcp.mjs';
 import { createProbes } from './mcp-probes.mjs';
@@ -16,7 +16,7 @@ import { createTransactions } from './transactions.mjs';
 const json = value => canonicalJSON(value, 2) + '\n';
 const fields = {
   'skill.create': ['type', 'directory', 'content', 'clientId'], 'skill.update': ['type', 'id', 'file', 'content'], 'skill.archive': ['type', 'id'],
-  'mcp.save': ['type', 'server', 'clientId'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
+  'mcp.save': ['type', 'server', 'clientId', 'create'], 'mcp.archive': ['type', 'id'], 'mcp.generate': ['type', 'clientId'], 'mcp.probe': ['type', 'id'], 'mcp.install': ['type', 'id', 'clientId'], 'mcp.toggle': ['type', 'id', 'enabled'],
   'binding.connect': ['type', 'id', 'clientId'], 'binding.adopt': ['type', 'id', 'clientId'], 'binding.disconnect': ['type', 'id', 'clientId', 'includeExisting'], 'operation.restore': ['type', 'operationId'],
   'client.save': ['type', 'client'], 'client.remove': ['type', 'clientId'], 'client.select': ['type', 'clientId', 'selected'],
 };
@@ -40,12 +40,15 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   };
   const transactions = createTransactions({ root, assertTarget, fault });
   const probeReport = server => { const value = probes.latest(server.id); return value ? { ...value, stale: value.configRevision !== server.revision } : null; };
-  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, lastProbe: probeReport(server) })) }; };
-  const getSkill = (state, id) => { const skill = state.skills.find(item => item.id === id); if (!skill) throw error('Skill 已归档、移动或不存在，请返回清单重新选择', 404, 'EXTENSIONS_OBJECT_MISSING'); return skill; };
+  const publicState = value => { const { manifest, registry, clientConfig, clientDocuments, ...state } = value; return { ...state, servers: state.servers.map(server => ({ ...server, warnings: serverWarnings(server), lastProbe: probeReport(server) })) }; };
+  // `kind` is the caller's hint ('skill' | 'mcp' | 'client'); without it Skill IDs are recognised by their `skill_` prefix.
+  const missingMessage = kind => kind === 'mcp' ? 'MCP 服务已归档、被移除或配置已变化，请返回清单重新选择' : kind === 'client' ? '软件未登记或已移除，请返回清单重新选择' : kind === 'skill' ? 'Skill 已归档、移动或不存在，请返回清单重新选择' : '该对象已归档、移动或不存在，请返回清单重新选择';
+  const absent = (id, kind) => Object.assign(error(missingMessage(kind || (/^skill_/.test(id) ? 'skill' : undefined)), 404, 'EXTENSIONS_OBJECT_MISSING'), { kind: kind || (/^skill_/.test(id) ? 'skill' : null) });
+  const getSkill = (state, id, kind) => { const skill = state.skills.find(item => item.id === id); if (!skill) throw absent(id, kind || 'skill'); return skill; };
   const getServer = (state, id) => { const server = state.servers.find(item => item.id === id); if (!server) throw error('MCP 服务已归档或不存在', 404, 'EXTENSIONS_OBJECT_MISSING'); if (server.scope === 'client') throw error('软件本地 MCP 的检测请在对应 CLI 中执行；管理配置不会启动服务'); const { kind, revision, dependencies, scope, ...config } = server; return config; };
   const getClient = (state, id, requireSelected = true) => { if (!state.clientsValid) throw error(state.diagnostics.find(issue => issue.code === 'CLIENTS_FORMAT')?.message || 'CLI 登记文件无效', 409); const client = state.registry.find(item => item.id === id || item.registrationId === id); if (!client) throw error('软件未登记或已移除', 404, 'EXTENSIONS_OBJECT_MISSING'); if (requireSelected && !client.selected) throw error('请先在接入软件中选择此 CLI，再管理其 Skills 或 MCP', 409, 'EXTENSIONS_CLIENT_NOT_SELECTED'); return client; };
   const generatedPath = client => path.join(root, 'mcp', 'generated', client.id, 'servers.' + (client.format === 'toml' ? 'toml' : 'json'));
-  async function detail(id, file) {
+  async function detail(id, file, kind) {
     const state = await catalog.state();
     if (state.registry.some(client => client.id === id)) {
       const client = state.registry.find(client => client.id === id);
@@ -56,7 +59,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
     }
     const server = state.servers.find(item => item.id === id);
     if (server) return { ...server, version: state.version, runtimeVerified: false, lastProbe: probeReport(server) };
-    const skill = getSkill(state, id);
+    const skill = state.skills.find(item => item.id === id);
+    if (!skill) throw absent(id, kind);
     if (skill.readOnly) return { ...skill, version: state.version, files: [], content: null, file: null };
     const selected = await skillFile(root, skill, file);
     const directory = skill.sourcePath, files = [];
@@ -75,7 +79,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
   }
   async function prepare(input) {
     if (!input || !extensionActions.includes(input.type) || Object.keys(input).some(key => !fields[input.type].includes(key))) throw error('扩展动作或字段无效');
-    const action = structuredClone(input), state = await catalog.state(true), steps = [], conflicts = [], impact = [], changedIds = [];
+    const action = structuredClone(input), state = await catalog.state(true), steps = [], conflicts = [], impact = [], changedIds = [], warnings = [];
     if (action.type === 'binding.disconnect' && action.includeExisting !== undefined && typeof action.includeExisting !== 'boolean') throw error('includeExisting 需要明确的布尔值');
     const add = async (target, after) => {
       await assertTarget(target); const before = await snapshot(target);
@@ -110,8 +114,8 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       impact.push(client.name + '：' + client.refresh);
     };
     if (action.type === 'skill.create') {
-      if (typeof action.directory !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(action.directory)) throw error('新 Skill 目录需要小写字母、数字或短横线');
-      metadata(action.content);
+      if (typeof action.directory !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(action.directory)) throw fieldError('新 Skill 目录需要小写字母、数字或短横线，长度 1–64，且不能以短横线开头', 'directory');
+      try { metadata(action.content); } catch (failure) { throw fieldError(failure.message, 'content', failure.status, failure.code); }
       const client = action.clientId ? getClient(state, action.clientId) : null;
       const base = client ? client.skillsRoot : path.join(root, 'skills');
       const directory = path.join(base, action.directory); await safePath(client ? client.root : root, directory);
@@ -193,8 +197,11 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         if (document.data?.[client.mcp?.section]?.[server.id]) conflicts.push('软件已存在同名 MCP；请编辑现有服务，不能覆盖接入');
       }
       if (action.type === 'mcp.save') {
+        if (action.create !== undefined && typeof action.create !== 'boolean') throw fieldError('create 需要明确的布尔值', 'create');
         action.server = server = normalizeServer(action.server, { nativeKey: true });
         const existing = document.servers.find(item => item.serverKey === server.id);
+        if (action.create && (existing || document.data?.[client.mcp?.section]?.[server.id])) throw fieldError('该软件已存在 ID 为 ' + server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        warnings.push(...serverWarnings(server));
         if (existing && !existing.editable) throw error('此配置包含无法安全编辑的字段；请在 CLI 中修改，或移除配置');
       }
       if (action.type === 'mcp.toggle' && typeof action.enabled !== 'boolean') throw error('启停需要明确布尔值');
@@ -226,7 +233,10 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       if (!state.mcpValid) throw error('请先修复 MCP 主文件；管理操作不会覆盖格式错误的配置', 409);
       const servers = state.servers.filter(server => server.scope !== 'client').map(({ kind, revision, dependencies, scope, ...config }) => config);
       if (action.type === 'mcp.save') {
+        if (action.create !== undefined && typeof action.create !== 'boolean') throw fieldError('create 需要明确的布尔值', 'create');
         action.server = normalizeServer(action.server); const index = servers.findIndex(server => server.id === action.server.id);
+        if (index !== -1 && action.create) throw fieldError('已存在 ID 为 ' + action.server.id + ' 的 MCP 服务；请改用其他 ID，或编辑现有服务', 'server.id', 409, 'EXTENSIONS_DUPLICATE_ID');
+        warnings.push(...serverWarnings(action.server));
         if (index === -1) servers.push(action.server); else servers[index] = action.server;
         if (servers.length > 500) throw error('MCP 主配置最多管理 500 个服务');
         changedIds.push(action.server.id); await add(path.join(root, 'mcp', 'servers.json'), fileSnapshot(json({ schemaVersion: 1, servers })));
@@ -247,12 +257,12 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       }
     }
     if (manifestChanged) await add(path.join(root, 'daylight', 'bindings.json'), fileSnapshot(json(manifest)));
-    const plan = { normalizedAction: action, expectedVersion: state.version, steps, conflicts, impact, changedIds: [...new Set(changedIds)] };
+    const plan = { normalizedAction: action, expectedVersion: state.version, steps, conflicts, impact, warnings, changedIds: [...new Set(changedIds)] };
     plan.planId = hash({ action, version: state.version, steps: steps.map(step => [step.path, hash(step.before), hash(step.after)]), conflicts });
     return plan;
   }
   function publicPlan(plan) {
-    return { normalizedAction: plan.normalizedAction, expectedVersion: plan.expectedVersion, planId: plan.planId, conflicts: plan.conflicts, impact: plan.impact, changedIds: plan.changedIds,
+    return { normalizedAction: plan.normalizedAction, expectedVersion: plan.expectedVersion, planId: plan.planId, conflicts: plan.conflicts, impact: plan.impact, warnings: plan.warnings, changedIds: plan.changedIds,
       files: plan.steps.map(step => ({ path: step.path, beforeKind: step.before.kind, afterKind: step.after.kind, beforeHash: hash(step.before), afterHash: hash(step.after), ...(!step.private && step.before.kind === 'file' && Buffer.from(step.before.data, 'base64').length <= 262144 ? { before: Buffer.from(step.before.data, 'base64').toString('utf8') } : {}), ...(!step.private && step.after.kind === 'file' && Buffer.from(step.after.data, 'base64').length <= 262144 ? { after: Buffer.from(step.after.data, 'base64').toString('utf8') } : {}), ...(step.after.kind === 'link' ? { linkTarget: step.after.target } : {}) })) };
   }
   async function apply(input) {
@@ -278,7 +288,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
       else if (route === '/diagnostics') { const state = await catalog.state(true); value = { version: state.version, diagnostics: state.diagnostics, message: '静态检查不会启动 MCP 或修改文件。' }; }
       else if (route === '/prepare') { if (Object.keys(input).some(key => key !== 'action')) throw error('prepare 只接受 action'); value = publicPlan(await prepare(input.action)); }
       else if (route === '/actions') value = await apply(input);
-      else if (route.startsWith('/objects/')) value = await detail(route.slice('/objects/'.length), url.searchParams.get('file') || undefined);
+      else if (route.startsWith('/objects/')) value = await detail(route.slice('/objects/'.length), url.searchParams.get('file') || undefined, ['skill', 'mcp', 'client'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : undefined);
       else if (route.startsWith('/operations/')) value = await transactions.receipt(route.slice('/operations/'.length));
       else if (route === '/probes') {
         if (Object.keys(input).some(key => !['id', 'expectedVersion'].includes(key))) throw error('检测只接受 id 和 expectedVersion');
@@ -286,7 +296,7 @@ export async function createExtensionsService({ agentsRoot = path.join(os.homedi
         const server = getServer(state, input.id); if (!server.enabled) throw error('服务已禁用'); value = probes.start(server);
       } else value = req.method === 'DELETE' ? await probes.cancel(route.slice('/probes/'.length)) : probes.get(route.slice('/probes/'.length));
       send(res, 200, value);
-    } catch (failure) { send(res, failure.status || 500, { error: failure.status ? failure.message : '扩展操作失败，请核对回执后用原请求重试', code: failure.code || 'EXTENSIONS_IO' }); }
+    } catch (failure) { send(res, failure.status || 500, { error: failure.status ? failure.message : '扩展操作失败，请核对回执后用原请求重试', code: failure.code || 'EXTENSIONS_IO', ...(failure.status && failure.field ? { field: failure.field } : {}), ...(failure.status && failure.kind ? { kind: failure.kind } : {}) }); }
   }
   return { handle, state: async force => publicState(await catalog.state(force)), detail, prepare: async action => publicPlan(await prepare(action)), apply, operation: transactions.receipt, probes, close: probes.close };
 }
