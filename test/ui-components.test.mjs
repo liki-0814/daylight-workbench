@@ -2,6 +2,7 @@
 // DOM 行为（mount → 用户操作 → 恰好一次 ui:change；update() 不派发）在 Playwright e2e（e2e/cases/ui-components.mjs）里跑。
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { html, esc, trusted, attrs, slot } from '../public/ui/core/html.js';
 import { emit, detailErrors, eventName, VERBS } from '../public/ui/core/events.js';
 import { button } from '../public/ui/components/button/button.js';
@@ -132,4 +133,43 @@ test('每个组件 README 都列出事件（含「无」）与转义说明；pat
     const source = fs.readFileSync(new URL(`../public/ui/${dir}/${base}.js`, import.meta.url), 'utf8');
     for (const verb of new Set([...source.matchAll(/emit\([^,]+,\s*(?:open \? '(\w+)' : '(\w+)'|'(\w+)')/g)].flatMap(m => m.slice(1).filter(Boolean)))) assert.ok(text.includes(`ui:${verb}`), `${dir}: README 没写 ui:${verb}`);
   }
+});
+
+// ——— Atlas 否决项（R1 修复）
+import * as menuModule from '../public/ui/components/menu/menu.js';
+import * as selectModule from '../public/ui/components/select/select.js';
+import { settingsReadout } from '../public/ui/patterns/settings/settings.js';
+
+test('switch：checked 经 props 输出 aria-checked，且不再用 data-ui-keep 锁住它（受控组件，morph 以 props 为准）', () => {
+  const on = String(switchControl({ name: 'a', label: '开', checked: true })), off = String(switchControl({ name: 'a', label: '开' }));
+  assert.match(on, /aria-checked="true"/); assert.match(off, /aria-checked="false"/);
+  assert.doesNotMatch(on, /data-ui-keep/);
+});
+
+test('menu：name → data-name（转义）；setOpen 不导出；程序化关闭只有 closeMenus（静默）', () => {
+  const markup = String(menu({ name: 'more', label: '更多', options: [{ value: 'a', label: 'A' }] }));
+  assert.match(markup, /class="dl-menubtn[^"]*" data-ui="menu" data-name="more"/);
+  assert.match(String(menu({ name: EVIL, label: '更多', options: [] })), /data-name="[^"<>]*"/);
+  assertInert(menu({ name: EVIL, label: 'x', options: [] }), 'menu name');
+  assert.equal('setOpen' in menuModule, false); assert.equal('setOpen' in selectModule, false);
+  assert.equal(typeof menuModule.closeMenus, 'function'); assert.equal(typeof selectModule.closeSelects, 'function');
+});
+
+test('composer：error prop 渲染 role=alert 的错误文案（转义）；没有 error 时不渲染', () => {
+  const base = { project: '', projects: [{ value: '', label: '未归类' }], status: 'todo', statusOptions: [{ value: 'todo', label: '待办' }], priority: '', priorityOptions: [{ value: '', label: '默认' }], due: '', dueOptions: [{ value: '', label: '无' }], estimate: '', estimateOptions: [{ value: '', label: '无' }] };
+  const bad = String(composerBody({ ...base, error: EVIL }));
+  assert.match(bad, /<p class="dl-comp__error" role="alert"/); assertInert(composerBody({ ...base, error: EVIL }), 'composer error');
+  assert.ok(bad.indexOf('dl-comp__error') < bad.indexOf('dl-comp__props'), '错误文案在属性行上方');
+  assert.doesNotMatch(String(composerBody(base)), /dl-comp__error/);
+  assert.match(String(composerBody(base)), /data-live="1"/, '标题 / 描述输入框 live：每次输入派发 ui:change');
+});
+
+test('settings：控件列令牌 + controlWidth / scroll / flush 选项 + settingsReadout（转义）', () => {
+  assert.match(String(settingsRow({ label: 'a', control: trusted('') })), /data-control="auto"/);
+  assert.match(String(settingsRow({ label: 'a', control: trusted(''), controlWidth: 'fixed' })), /data-control="fixed"/);
+  assert.match(String(settingsLayout({ title: 't', scroll: 'page' })), /data-scroll="page"/);
+  assert.match(String(settingsGroup({ rows: [], flush: true })), /data-flush/);
+  assertInert(settingsReadout({ text: EVIL, mono: true, attrs: { 'data-x': EVIL } }), 'readout');
+  const css = readFileSync(new URL('../public/ui/patterns/settings/settings.css', import.meta.url), 'utf8');
+  assert.match(css, /--ui-srow-control-w:\s*200px/);
 });

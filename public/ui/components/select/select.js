@@ -25,7 +25,8 @@ export function select({ name, value = '', label, options = [], variant = 'field
 const parts = root => ({ trigger: root.querySelector(':scope > .dl-select__trigger, :scope > .dl-chip'), menu: root.querySelector(':scope > .dl-menu') });
 const itemsOf = menu => [...menu.querySelectorAll('.dl-menu__item')];
 
-export function setOpen(root, open, event) {
+// 内部：只有用户操作（带 event）才派发 ui:open / ui:close；程序化关闭（closeSelects）静默。
+function setOpen(root, open, event) {
   const { trigger, menu } = parts(root);
   if (!trigger || !menu || (open && trigger.disabled) || menu.hidden !== open) return;
   if (open) for (const other of document.querySelectorAll('.dl-select[data-open="1"]')) if (other !== root) setOpen(other, false, event);
@@ -33,7 +34,7 @@ export function setOpen(root, open, event) {
   trigger.setAttribute('aria-expanded', String(open));
   root.toggleAttribute('data-open', open);
   if (open) root.dataset.open = '1';
-  emit(root, open ? 'open' : 'close', { value: trigger.dataset.value ?? '', source: sourceOf(event) });
+  if (event) emit(root, open ? 'open' : 'close', { value: trigger.dataset.value ?? '', source: sourceOf(event) });
   if (open) {
     const search = menu.querySelector('.dl-menu__search');
     (search || menu.querySelector('.dl-menu__item[aria-selected="true"]') || itemsOf(menu)[0])?.focus();
@@ -67,6 +68,10 @@ function pick(root, item, event) {
     item.setAttribute('aria-selected', 'false');
     previousItem?.setAttribute('aria-selected', 'true');
   }
+}
+
+export function closeSelects(scope = document) {
+  for (const root of scope.querySelectorAll('.dl-select[data-open="1"]')) setOpen(root, false);
 }
 
 install('select', doc => {

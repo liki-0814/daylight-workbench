@@ -200,4 +200,50 @@ export default [
     events = await seen(page); check.equal(events.filter(e => e.type === 'ui:select').at(-1).detail.value, 'del'); check.equal(events.filter(e => e.type === 'ui:select').at(-1).detail.source, 'user');
     await updateSilently(page, check, 'menu', {});
   } },
+  { id: 'ui-lib-08', priority: 'P0', widths: [1440], title: 'switch 是受控组件：点击后乐观翻转，随后 morph 以 props 的 checked 为准写回 aria-checked（页面不需要补写）', async run({ page, url, assert: check }) {
+    await prepare(page, url);
+    await mount(page, '/ui/components/switch/switch.js', 'switchControl', { name: 's', label: '开关', checked: false });
+    const sw = page.locator('#ui-host [role=switch]');
+    await sw.click(); check.equal(await sw.getAttribute('aria-checked'), 'true', '点击后乐观翻转');
+    await updateSilently(page, check, 'switch 保存失败：props 仍是 false', { checked: false });
+    check.equal(await sw.getAttribute('aria-checked'), 'false', 'morph 把 aria-checked 写回 props 的 false');
+    await updateSilently(page, check, 'switch 保存成功', { checked: true });
+    check.equal(await sw.getAttribute('aria-checked'), 'true', 'morph 写成 true');
+    check.equal(await sw.evaluate(el => el.hasAttribute('data-ui-keep')), false);
+  } },
+  { id: 'ui-lib-09', priority: 'P0', widths: [1440], title: 'composer：error prop 渲染 role=alert；标题输入每次输入派发一次 ui:change；mountDialog.update() 重绘不丢焦点与输入', async run({ page, url, assert: check }) {
+    await prepare(page, url);
+    const result = await page.evaluate(async () => {
+      const { composerBody } = await import('/ui/patterns/composer/composer.js'); const { mountDialog } = await import('/ui/components/dialog/dialog.js');
+      const props = { project: '', projects: [{ value: '', label: '未归类' }], status: 'todo', statusOptions: [{ value: 'todo', label: '待办' }], priority: '', priorityOptions: [{ value: '', label: '默认' }], due: '', dueOptions: [{ value: '', label: '无' }], estimate: '', estimateOptions: [{ value: '', label: '无' }] };
+      const dlg = mountDialog({ id: 'cmp', label: '新建', children: composerBody(props) }); dlg.open(); window.__cmp = { dlg, props, composerBody };
+      return true;
+    });
+    check.ok(result);
+    await clear(page);
+    const title = page.locator('#cmp [name=title]'); await title.focus(); await title.pressSequentially('abc');
+    const changes = (await seen(page)).filter(e => e.type === 'ui:change');
+    check.equal(changes.length, 3, '每次输入派发一次 ui:change（live）'); check.equal(changes.at(-1).detail.value, 'abc');
+    await page.evaluate(() => window.__cmp.dlg.update(window.__cmp.composerBody({ ...window.__cmp.props, title: 'abc', error: '请输入任务标题' })));
+    check.equal(await page.locator('#cmp [role=alert]').textContent(), '请输入任务标题');
+    check.equal(await title.inputValue(), 'abc', 'update 不丢输入'); check.ok(await title.evaluate(el => document.activeElement === el), 'update 不丢焦点');
+    await page.evaluate(() => window.__cmp.dlg.update(window.__cmp.composerBody({ ...window.__cmp.props, title: 'abc' })));
+    check.equal(await page.locator('#cmp [role=alert]').count(), 0, '错误清除后移除');
+    await page.evaluate(() => window.__cmp.dlg.destroy()); check.equal(await page.locator('#cmp').count(), 0, 'destroy 移除');
+  } },
+  { id: 'ui-menu-02', priority: 'P0', widths: [1440], title: 'menu：name → data-name；用户打开 / 关闭派发 ui:open / ui:close；程序化 closeMenus() 与 morph 重绘不派发任何 ui:*', async run({ page, url, assert: check }) {
+    await prepare(page, url);
+    await mount(page, '/ui/components/menu/menu.js', 'menu', { name: 'more', label: '更多操作', trigger: { text: '更多' }, options: [{ value: 'a', label: '加入今天' }] });
+    check.equal(await page.locator('#ui-host .dl-menubtn').getAttribute('data-name'), 'more');
+    const trigger = page.locator('#ui-host .dl-menubtn__trigger');
+    await clear(page); await trigger.click();
+    check.deepEqual((await seen(page)).map(e => e.type), ['ui:open'], '用户打开派发一次 ui:open');
+    await clear(page);
+    await page.evaluate(async () => (await import('/ui/components/menu/menu.js')).closeMenus());
+    check.equal(await trigger.getAttribute('aria-expanded'), 'false', '程序化关闭生效');
+    check.deepEqual(await seen(page), [], '程序化关闭不派发 ui:close');
+    await trigger.click(); await clear(page); await page.keyboard.press('Escape');
+    check.deepEqual((await seen(page)).map(e => e.type), ['ui:close'], '用户关闭派发一次 ui:close');
+    check.equal(await page.evaluate(async () => 'setOpen' in await import('/ui/components/menu/menu.js')), false, 'setOpen 不导出');
+  } },
 ];
