@@ -156,7 +156,7 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   }
   const settingMatch=/^\/api\/proxy\/settings\/([A-Za-z]+)$/.exec(route);
   if(settingMatch){requireMethod('POST');return service['settings/key'](settingMatch[1],input);}
-  if(['/api/proxy/service','/api/proxy/settings','/api/proxy/key','/api/proxy/key/rotate','/api/proxy/check','/api/proxy/runtime'].includes(route)){
+  if(['/api/proxy/service','/api/proxy/service/cancel','/api/proxy/settings','/api/proxy/key','/api/proxy/key/rotate','/api/proxy/check','/api/proxy/runtime'].includes(route)){
    const op=route.slice('/api/proxy/'.length);requireMethod(op==='key'?'GET':'POST');
    if(op==='runtime')fail('请在桌面端设置 Node 运行环境',404);
    if(op==='check')return service.check();return service[op](input);

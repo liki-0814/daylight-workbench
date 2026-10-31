@@ -7,6 +7,8 @@
   "/proxy/api.js": "proxy/api.js",
   "/proxy/state.js": "proxy/state.js",
   "/proxy/service-panel.js": "proxy/service-panel.js",
+  "/pages/proxy-service-view.js": "pages/proxy-service-view.js",
+  "/pages/proxy-settings-actions.js": "pages/proxy-settings-actions.js",
   "/proxy/source-page.js": "proxy/source-page.js",
   "/proxy/model-list.js": "proxy/model-list.js",
   "/proxy/model-options.js": "proxy/model-options.js",
@@ -26,7 +28,6 @@
   "/components/marked.js": "components/marked.js",
   "/components/purify.js": "components/purify.js",
   "/ai.css": "ai.css",
-  "/ai-settings.js": "ai-settings.js",
   "/quick.html": "quick.html",
   "/quick.js": "quick.js",
   "/quick.css": "quick.css",
@@ -39,12 +40,10 @@
   "/app-helpers.js": "app-helpers.js",
   "/update-page.js": "update-page.js",
   "/update.css": "update.css",
-  "/settings.css": "settings.css",
   "/model.js": "model.js",
   "/design-system.css": "design-system.css",
   "/style.css": "style.css",
   "/favicon.svg": "favicon.svg",
-  "/components/settings-page.js": "components/settings-page.js",
   "/components/sidebar.js": "components/sidebar.js",
   "/components/task-range-tabs.js": "components/task-range-tabs.js",
   "/components/icons.js": "components/icons.js",
@@ -189,5 +188,7 @@
   "/ui/patterns/shell/shell.js": "ui/patterns/shell/shell.js",
   "/pages/new-task.js": "pages/new-task.js",
   "/pages/shell.js": "pages/shell.js",
-  "/pages/tasks.js": "pages/tasks.js"
+  "/pages/tasks.js": "pages/tasks.js",
+  "/pages/pages.css": "pages/pages.css",
+  "/pages/settings.js": "pages/settings.js"
 }

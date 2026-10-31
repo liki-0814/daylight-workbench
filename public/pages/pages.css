@@ -1,0 +1,39 @@
+/* 页面级布局（层 page）：只写摆放，不写组件外观。设置页 + 反向代理页顶部。 */
+.settings-page { min-height: 100vh; background: var(--color-bg-app); display: flex; flex-direction: column; }
+.settings-page[hidden] { display: none; }
+.settings-page .settings-workspace { padding: 0; margin: 0; width: 100%; max-width: none; flex: 1; display: flex; flex-direction: column; }
+.settings-page .dl-set { min-height: calc(100vh - var(--toolbar-height, 44px)); }
+.settings-page .dl-set__body { overflow: visible; }
+.settings-page .dl-srow__control { max-width: 60%; }
+.settings-page .dl-srow__control .dl-readout { max-width: 420px; text-align: right; overflow-wrap: anywhere; }
+.settings-page .dl-readout--mono, .proxy-common .dl-readout--mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+.px-status { display: inline-flex; align-items: center; gap: var(--space-8); max-width: 420px; color: var(--color-text-secondary); font-size: var(--text-sm); line-height: var(--leading-sm); text-align: right; overflow-wrap: anywhere; }
+.px-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-tertiary); }
+.px-dot--warning { background: var(--color-warning); }
+.px-dot--success { background: var(--color-success); }
+.px-keys { display: inline-flex; gap: var(--space-4); }
+.px-note { max-width: 720px; margin: 0; color: var(--color-text-secondary); font-size: var(--text-sm); line-height: var(--leading-sm); }
+.px-note a { color: var(--color-accent-text); text-decoration: none; }
+.px-focus { max-width: 720px; }
+
+.px-dlg { display: grid; gap: var(--space-12); padding: var(--space-24); }
+.px-dlg__title { margin: 0; font: var(--weight-semibold) var(--text-lg)/var(--leading-lg) var(--font-sans); }
+.px-dlg__text { margin: 0; color: var(--color-text-secondary); }
+.px-dlg__error { margin: 0; color: var(--color-error-text); min-height: 0; }
+.px-dlg__error:empty { display: none; }
+.px-dlg__acts { display: flex; justify-content: flex-end; gap: var(--space-8); }
+.px-dlg .dl-input { width: 100%; }
+
+/* 反向代理页：状态卡 + 配置卡 + 接入卡，纵向排列，与设置页分组卡同宽 */
+.proxy-common .px-service { max-width: 720px; }
+.proxy-common .px-service > div { display: grid; gap: var(--space-section); }
+.proxy-common .px-service .dl-sgroup { margin-bottom: 0; max-width: none; }
+.px-message { margin: 0; padding: var(--space-12) var(--space-16); border: 1px solid var(--color-error); border-radius: var(--radius-control); background: var(--color-error-subtle); color: var(--color-error-text); }
+.px-note--error { color: var(--color-error-text); }
+.px-focus .focus-settings { display: grid; gap: var(--space-section); }
+.px-focus .focus-settings .dl-sgroup { margin-bottom: 0; }
+.settings-page .dl-set__title:not(:has(+ .dl-set__sub)) { margin-bottom: var(--space-20); }
+
+/* 设计：设置行右侧按钮至少 112 宽、文字居中。 */
+.dl-srow__control .dl-btn { min-width: 112px; justify-content: center; }

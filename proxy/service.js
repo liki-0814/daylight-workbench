@@ -74,22 +74,28 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       conflicts: router.conflicts || [],
       login: provider.auth?.pending ? {url:provider.auth.pending.url,expiresAt:provider.auth.pending.expiresAt} : null };
   };
+  let cancelStart = null;
   async function start() {
     if (state === 'running') return;
     state = 'starting'; lastError = '';
+    // 启动期间可被 service/cancel 取消：取消后回到 stopped，不记错误，进行中的 service 请求以 409「已取消启动」返回。
+    const gate = new Promise((_, reject) => { cancelStart = () => reject(Object.assign(new Error('已取消启动'), { cancelled: true })); }); gate.catch(() => {});
+    let server;
     try {
-      if (Object.keys(providers).length===1 && !injectedProvider) await accounts.require();
+      if (Object.keys(providers).length===1 && !injectedProvider) await Promise.race([accounts.require(), gate]);
       // Check credential/model readiness before reporting the switch as running.
       // One ready source is sufficient; a slower source must not delay auto-start.
-      await Promise.any(Object.keys(providers).map(id => listModels(id)));
-      const server = http.createServer(gateway);
-      await new Promise((resolve, reject) => { server.once('error', reject); server.listen(settings.port, '127.0.0.1', resolve); });
+      await Promise.race([Promise.any(Object.keys(providers).map(id => listModels(id))), gate]);
+      server = http.createServer(gateway);
+      await Promise.race([new Promise((resolve, reject) => { server.once('error', reject); server.listen(settings.port, '127.0.0.1', resolve); }), gate]);
       listener = server; state = 'running'; startedAt = new Date().toISOString();
     } catch (error) {
+      if (server?.listening) await new Promise(resolve => server.close(resolve));
       state = 'stopped'; startedAt = null;
+      if (error.cancelled) { lastError = ''; fail('已取消启动', 409); }
       lastError = error.code === 'EADDRINUSE' ? `端口 ${settings.port} 已被占用，请在设置中更换端口` : error.message === '请先登录 Qoder' ? error.message : '启动失败，请检查模型来源的登录状态与网络';
       fail(lastError, 409);
-    }
+    } finally { cancelStart = null; }
   }
   async function stop(force = false) {
     if (!listener) return;
@@ -126,6 +132,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   await pi.start();
   const service={
     accountChange:(operation,apply)=>mutate(async()=>{if(state!=='stopped')fail(operation==='logout'?'请先停止代理再退出账号':'请先停止代理再更换账号',409);return apply();}),
+    'service/cancel':async()=>{if(state==='starting'&&cancelStart){cancelStart();await new Promise(resolve=>setImmediate(resolve));}return status();},
     service:body=>mutate(async()=>{if(typeof body.enabled!=='boolean')fail('enabled 必须为布尔值');if(body.enabled)await start();else await stop(body.force===true);return status();}),
     settings:body=>mutate(async()=>{
       if(state!=='stopped')fail('请先停止代理再修改设置',409);

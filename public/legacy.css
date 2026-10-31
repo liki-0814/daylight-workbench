@@ -8,7 +8,6 @@
 @import url("./ai.css") layer(legacy);
 @import url("./cli-config.css") layer(legacy);
 @import url("./update.css") layer(legacy);
-@import url("./settings.css") layer(legacy);
 @import url("./extensions/extensions.css") layer(legacy);
 @import url("./components/segmented-control.css") layer(legacy);
 @import url("./components/date-field.css") layer(legacy);
