@@ -4,6 +4,15 @@ export function localDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+export const PRIORITIES = ['low', 'medium', 'high'];
+
+// 展示编号 DL-01…：seq 在创建时分配，之后不变；旧任务没有 seq 时按数组顺序补（change() 每次写入都会落盘）。
+export function taskSeqs(tasks) {
+  let top = Math.max(0, ...tasks.map(t => Number.isInteger(t.seq) ? t.seq : 0));
+  return tasks.map(t => Number.isInteger(t.seq) ? t.seq : ++top);
+}
+export const taskCode = seq => `DL-${String(seq).padStart(2, '0')}`;
+
 export function initialState() {
   return { schema: 1, projects: [], tasks: [], plans: {} };
 }
@@ -21,6 +30,10 @@ export function validate(state) {
   const taskIds = new Set();
   for (const t of state.tasks) {
     if (!str(t.id, 100) || taskIds.has(t.id) || !str(t.title, 300) || !str(t.notes, 10000, true) || !(t.projectId === null || projectIds.has(t.projectId)) || !['todo', 'active', 'done'].includes(t.status)) fail();
+    if (t.priority !== undefined && !PRIORITIES.includes(t.priority)) fail();
+    if (t.due !== undefined && t.due !== null && !isCivilDate(t.due)) fail();
+    if (t.estimate !== undefined && t.estimate !== null && !(Number.isInteger(t.estimate) && t.estimate > 0 && t.estimate <= 5760)) fail();
+    if (t.seq !== undefined && !(Number.isInteger(t.seq) && t.seq > 0)) fail();
     if (t.status === 'done' ? !str(t.completedAt, 40) || !Number.isFinite(Date.parse(t.completedAt)) : t.completedAt !== null) fail();
     taskIds.add(t.id);
   }
@@ -36,6 +49,7 @@ export function change(state, action, day = localDate()) {
   const task = next.tasks.find(t => t.id === action.id);
   if (['toggle', 'start', 'plan', 'unplan', 'move', 'edit', 'task.delete'].includes(action.type) && !task) throw new Error('任务不存在');
   const plan = () => next.plans[day] ||= [];
+  const extras = a => Object.fromEntries(['priority', 'due', 'estimate'].filter(key => a[key] !== undefined).map(key => [key, a[key]]));
   switch (action.type) {
     case 'task.delete':
       next.tasks = next.tasks.filter(t => t.id !== action.id);
@@ -56,13 +70,19 @@ export function change(state, action, day = localDate()) {
       next.projects = next.projects.filter(p => p.id !== action.id);
       break;
     }
-    case 'add':
-      next.tasks.push({ id: action.id, title: action.title.trim(), projectId: action.projectId, notes: action.notes || '', status: 'todo', completedAt: null });
+    case 'add': {
+      const seqs = taskSeqs(next.tasks); next.tasks.forEach((t, i) => { t.seq = seqs[i]; });   // 只在新增时落盘，避免无关写入改动旧数据
+      if (action.status !== undefined && !['todo', 'active'].includes(action.status)) throw new Error('新建任务的状态只能是待办或进行中');
+      if (action.status === 'active') next.tasks.forEach(t => { if (t.status === 'active') t.status = 'todo'; });
+      next.tasks.push({ id: action.id, seq: Math.max(0, ...next.tasks.map(t => t.seq)) + 1, title: action.title.trim(), projectId: action.projectId, notes: action.notes || '', status: action.status || 'todo', completedAt: null, ...extras(action) });
+      if (action.status === 'active' && action.planDay === undefined) plan().push(action.id);
       if (action.planDay !== undefined) (next.plans[action.planDay] ||= []).push(action.id);
       else if (action.today) plan().push(action.id);
       break;
+    }
     case 'edit':
-      Object.assign(task, { title: action.title.trim(), projectId: action.projectId, notes: action.notes });
+      Object.assign(task, { title: action.title.trim(), projectId: action.projectId, notes: action.notes }, extras(action));
+      for (const key of ['due', 'estimate']) if (task[key] === null) delete task[key];
       break;
     case 'project':
       next.projects.push({ id: action.id, name: action.name.trim(), path: action.path.trim(), color: next.projects.length % 2 ? 'amber' : 'green' });
