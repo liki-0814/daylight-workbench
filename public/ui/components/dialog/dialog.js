@@ -4,16 +4,16 @@ import { emit, sourceOf } from '../../core/events.js';
 import { install } from '../../core/behave.js';
 
 // dialog({ id, label, width, children }) → SafeHtml（<dialog class="dl-dialog">）。children 必须是 trusted() / 组件返回值。
-// 命令式：mountDialog({ id, label, width, children }) → { el, open(), close(), update(children) }
+// 命令式：mountDialog({ id, label, width, children, className }) → { el, open(), close(), update(children) }
 //   Esc / 点遮罩 → 先派发可取消的 ui:dismiss，没被取消才关闭；关闭后派发 ui:close。Cmd/Ctrl+Enter 触发 [data-dialog-submit]。
 export function dialog({ id, label, width = 680, children = '', className = '' } = {}) {
   if (!label) throw new TypeError('dialog needs a label (aria-label)');
   return html`<dialog class="dl-dialog${className ? ` ${esc(className)}` : ''}"${attrs({ id, 'aria-label': label, 'data-width': Number(width) || 680 })}><div class="dl-dialog__body">${slot(children)}</div></dialog>`;
 }
 
-export function mountDialog({ id, label, width = 680, children = '', parent } = {}) {
+export function mountDialog({ id, label, width = 680, children = '', className = '', parent } = {}) {
   const host = document.createElement('div');
-  host.innerHTML = String(dialog({ id, label, width, children }));
+  host.innerHTML = String(dialog({ id, label, width, children, className }));
   const el = host.firstElementChild;
   (parent || document.body).append(el);
   return {
