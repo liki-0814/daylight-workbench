@@ -9,7 +9,7 @@ export const hasMcpSwitch = server => isShared(server) && typeof server.enabled 
 // ---- 状态词汇：点 + 文字永远同时出现（不只靠颜色）----
 const PROBE = {
   queued: ['排队中', 'accent'], running: ['正在检测', 'accent'], succeeded: ['握手成功', 'success'],
-  failed: ['检测失败', 'danger'], timed_out: ['检测超时', 'danger'], cancelled: ['已取消', 'neutral'],
+  failed: ['检测失败', 'failure'], timed_out: ['检测超时', 'failure'], cancelled: ['已取消', 'neutral'],
 };
 export const finishedProbe = probe => !!probe && !['queued', 'running'].includes(probe.status);
 export const activeProbe = probe => !!probe && ['queued', 'running'].includes(probe.status);
@@ -17,7 +17,7 @@ export const activeProbe = probe => !!probe && ['queued', 'running'].includes(pr
 // 一个服务现在该显示什么：{ key, label, tone, dot, detail }。detail 是副行（工具数、检测时间由页面拼接）。
 export function mcpHealth(server, probe = server?.lastProbe) {
   if (!server) return { key: 'unknown', label: '未知状态', tone: 'neutral', dot: false };
-  if (server.enabled === false) return { key: 'disabled', label: '已停用', tone: 'neutral', dot: true };
+  if (server.enabled === false) return { key: 'disabled', label: '已停用', tone: 'off', dot: true };
   if (!isShared(server)) return { key: 'client', label: '用户级配置', tone: 'neutral', dot: false };
   if (!probe) return { key: 'untested', label: '尚未检测', tone: 'neutral', dot: false };
   const known = PROBE[probe.status];

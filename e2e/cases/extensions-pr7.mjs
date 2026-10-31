@@ -74,6 +74,8 @@ const cases = [
     await open(page, url); await needSwitch(page);
     let card = await probeOne(page, '本地 MCP 测试服务', 'succeeded');
     check.match(await card.innerText(), /工具数：2/, '成功显示工具数');
+    // 行状态由清单重绘后才更新：等它出现再断言（760 档偶发早读，0.7 设置/扩展 UI 分支里发现）。
+    await page.waitForFunction(() => [...document.querySelectorAll('.extension-row')].some(el => /本地 MCP 测试服务/.test(el.textContent) && /握手成功/.test(el.textContent)), null, { timeout: 5000 }).catch(() => {});
     check.match(await row(page, '本地 MCP 测试服务').innerText(), /握手成功/); check.match(await row(page, '本地 MCP 测试服务').innerText(), /2 个工具/);
     card = await probeOne(page, '命令不存在的服务', 'failed');
     check.match(await card.innerText(), /找不到可执行命令/, '失败原因（后端消息）'); check.equal(await card.locator('[data-probe-advice]').count(), 1, '有建议');

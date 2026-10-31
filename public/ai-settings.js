@@ -4,7 +4,7 @@ import { refreshButton, setRefreshState } from './components/section.js';
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export function mountAISettings(root, getToken) {
   const section = document.createElement('section'); section.className = 'settings-panel ai-settings';
-  root.querySelector('.settings-grid').prepend(section);
+  (root.querySelector('[data-settings-slot="ai"]') || root.querySelector('.settings-grid')).prepend(section);
   let settings, backend, catalog = {}, dirty = false, backends = [];
   const api = async (route, data) => { const res = await fetch('/api/ai/' + route, { method: data ? 'POST' : 'GET', headers: { 'X-Workbench-Token': getToken(), 'Content-Type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) }); const r = await res.json(); if (!res.ok) throw new Error(r.error); return r; };
   function capture() {

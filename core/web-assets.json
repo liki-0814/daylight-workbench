@@ -39,6 +39,7 @@
   "/app-helpers.js": "app-helpers.js",
   "/update-page.js": "update-page.js",
   "/update.css": "update.css",
+  "/settings.css": "settings.css",
   "/model.js": "model.js",
   "/design-system.css": "design-system.css",
   "/style.css": "style.css",

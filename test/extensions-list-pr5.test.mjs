@@ -26,12 +26,13 @@ test('a row keeps the selectors the suites rely on and puts the mono id in MCP r
   const mcp = rowMarkup({ tab: 'mcp', item, active: true, query: 'git', summary: '', sourceText: '共享来源', statusCells: ['<b>stdio</b>', '<b>ok</b>'] });
   assert.match(mcp, /class="extension-row selected"/); assert.match(mcp, /data-extension-id="github"/); assert.match(mcp, /aria-current="true"/);
   assert.match(mcp, /<code class="extension-row-id"><mark>git<\/mark>hub<\/code>/); assert.match(mcp, /<mark>Git<\/mark>Hub &quot;x&quot;/);
-  assert.equal((mcp.match(/role="cell"/g) || []).length, 3);
+  // 扩展管理 A 版：名称 / 来源 / 命令 / 传输 / 启用·状态 / ⋯ —— 这里 statusCells 只给了 2 格，所以共 6 个 cell
+  assert.equal((mcp.match(/role="cell"/g) || []).length, 6); assert.match(mcp, /data-open-extension="github"/);
   const skill = rowMarkup({ tab: 'skills', item, active: false, summary: 'd', statusCells: ['x'] });
   assert.doesNotMatch(skill, /extension-row-id|aria-current/); assert.match(skill, /class="extension-row "/);
 });
 test('table headers: one column title per cell, per tab', () => {
-  for (const [tab, cells] of [['skills', 3], ['mcp', 4], ['clients', 2]]) assert.equal((tableHeader(tab).match(/role="columnheader"/g) || []).length, cells, tab);
+  for (const [tab, cells] of [['skills', 3], ['mcp', 7], ['clients', 2]]) assert.equal((tableHeader(tab).match(/role="columnheader"/g) || []).length, cells, tab);
 });
 test('loading: text stays in the DOM, skeleton only after 300ms, text visible only after 1s', () => {
   assert.doesNotMatch(loadingState({ elapsed: 0 }), /extension-skeleton/); assert.match(loadingState({ elapsed: 0 }), /extension-visually-hidden[^>]*>正在读取扩展来源/);
