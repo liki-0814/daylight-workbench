@@ -159,6 +159,7 @@
   "/ui/components/icon-button/icon-button.js": "ui/components/icon-button/icon-button.js",
   "/ui/components/input/input.css": "ui/components/input/input.css",
   "/ui/components/input/input.js": "ui/components/input/input.js",
+  "/ui/components/kbd/kbd.css": "ui/components/kbd/kbd.css",
   "/ui/components/nav/nav.css": "ui/components/nav/nav.css",
   "/ui/components/nav/nav.js": "ui/components/nav/nav.js",
   "/ui/components/segmented/segmented.css": "ui/components/segmented/segmented.css",

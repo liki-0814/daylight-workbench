@@ -26,9 +26,3 @@
 .dl-btn--ghost { --ui-button-bg: transparent; --ui-button-border: transparent; --ui-button-fg: var(--color-text-secondary); }
 .dl-btn--danger { --ui-button-fg: var(--color-error-text); }
 .dl-btn__label { min-width: 0; overflow-wrap: anywhere; }
-.dl-kbd {
-  display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-4);
-  border: 1px solid currentColor; border-radius: var(--radius-sm);
-  font: var(--weight-regular) var(--text-xs)/var(--leading-xs) var(--font-mono); background: transparent;
-  color: var(--ui-kbd-fg, var(--color-text-secondary));   /* 契约：宿主只赋值 --ui-kbd-fg；这里不用 opacity（会把前景色和底色混到 <4.5:1） */
-}
