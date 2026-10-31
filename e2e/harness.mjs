@@ -12,7 +12,10 @@ export const FROZEN_TIME = '2026-10-30T10:00:00+08:00';
 export async function loadPlaywright() {
   try { return await import(process.env.DAYLIGHT_PLAYWRIGHT_MODULE || 'playwright'); } catch { return null; }
 }
-export const launchBrowser = playwright => playwright.chromium.launch({ headless: true, args: ['--no-sandbox', '--font-render-hinting=none', '--disable-lcd-text'], ...(process.env.DAYLIGHT_CHROME_EXECUTABLE ? { executablePath: process.env.DAYLIGHT_CHROME_EXECUTABLE } : {}) });
+// 默认 chromium（可用 DAYLIGHT_CHROME_EXECUTABLE 指向系统 Chrome）；name='webkit' 启动 Playwright 自带的 WebKit（Safari 引擎近似，不是 WKWebView 本体）。
+export const launchBrowser = (playwright, name = process.env.DAYLIGHT_BROWSER || 'chromium') => name === 'webkit'
+  ? playwright.webkit.launch({ headless: true })
+  : playwright.chromium.launch({ headless: true, args: ['--no-sandbox', '--font-render-hinting=none', '--disable-lcd-text'], ...(process.env.DAYLIGHT_CHROME_EXECUTABLE ? { executablePath: process.env.DAYLIGHT_CHROME_EXECUTABLE } : {}) });
 
 // Fixed viewport, scale 1, light, reduced motion, zh-CN, Asia/Shanghai, frozen clock; everything except the local server is blocked.
 export async function newPage(browser, { url, width }) {

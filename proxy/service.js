@@ -74,22 +74,28 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       conflicts: router.conflicts || [],
       login: provider.auth?.pending ? {url:provider.auth.pending.url,expiresAt:provider.auth.pending.expiresAt} : null };
   };
+  let cancelStart = null;
   async function start() {
     if (state === 'running') return;
     state = 'starting'; lastError = '';
+    // 启动期间可被 service/cancel 取消：取消后回到 stopped，不记错误，进行中的 service 请求以 409「已取消启动」返回。
+    const gate = new Promise((_, reject) => { cancelStart = () => reject(Object.assign(new Error('已取消启动'), { cancelled: true })); }); gate.catch(() => {});
+    let server;
     try {
-      if (Object.keys(providers).length===1 && !injectedProvider) await accounts.require();
+      if (Object.keys(providers).length===1 && !injectedProvider) await Promise.race([accounts.require(), gate]);
       // Check credential/model readiness before reporting the switch as running.
       // One ready source is sufficient; a slower source must not delay auto-start.
-      await Promise.any(Object.keys(providers).map(id => listModels(id)));
-      const server = http.createServer(gateway);
-      await new Promise((resolve, reject) => { server.once('error', reject); server.listen(settings.port, '127.0.0.1', resolve); });
+      await Promise.race([Promise.any(Object.keys(providers).map(id => listModels(id))), gate]);
+      server = http.createServer(gateway);
+      await Promise.race([new Promise((resolve, reject) => { server.once('error', reject); server.listen(settings.port, '127.0.0.1', resolve); }), gate]);
       listener = server; state = 'running'; startedAt = new Date().toISOString();
     } catch (error) {
+      if (server?.listening) await new Promise(resolve => server.close(resolve));
       state = 'stopped'; startedAt = null;
+      if (error.cancelled) { lastError = ''; fail('已取消启动', 409); }
       lastError = error.code === 'EADDRINUSE' ? `端口 ${settings.port} 已被占用，请在设置中更换端口` : error.message === '请先登录 Qoder' ? error.message : '启动失败，请检查模型来源的登录状态与网络';
       fail(lastError, 409);
-    }
+    } finally { cancelStart = null; }
   }
   async function stop(force = false) {
     if (!listener) return;
@@ -126,11 +132,27 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   await pi.start();
   const service={
     accountChange:(operation,apply)=>mutate(async()=>{if(state!=='stopped')fail(operation==='logout'?'请先停止代理再退出账号':'请先停止代理再更换账号',409);return apply();}),
+    'service/cancel':async()=>{if(state==='starting'&&cancelStart){cancelStart();await new Promise(resolve=>setImmediate(resolve));}return status();},
     service:body=>mutate(async()=>{if(typeof body.enabled!=='boolean')fail('enabled 必须为布尔值');if(body.enabled)await start();else await stop(body.force===true);return status();}),
     settings:body=>mutate(async()=>{
       if(state!=='stopped')fail('请先停止代理再修改设置',409);
       if(!Number.isInteger(body.port)||body.port<1024||body.port>65535||typeof body.autoStart!=='boolean')fail('端口需为 1024–65535 的整数');
       const next={...settings,port:body.port,autoStart:body.autoStart};await writeJson(serviceFile,next);settings=next;lastError='';return status();
+    }),
+    // 单项写入（设置页即时保存）：port 运行中会自动重启（约 1 秒），autoStart 任何状态下都可改。
+    'settings/key':(key,body)=>mutate(async()=>{
+      if(!['port','autoStart'].includes(key))fail('接口不存在',404);
+      const value=body?.value;
+      if(key==='port'&&(!Number.isInteger(value)||value<1024||value>65535))fail('端口需为 1024–65535 的整数');
+      if(key==='autoStart'&&typeof value!=='boolean')fail('autoStart 必须为布尔值');
+      if(state==='stopping')fail('代理正在停止，请稍后再试',409);
+      const next={...settings,[key]:value};
+      if(key==='port'&&next.port===settings.port){return status();}
+      const restart=key==='port'&&state==='running';
+      if(restart){if(active.size)fail(`仍有 ${active.size} 个请求正在进行，请稍后再改端口`,409);await stop(false);}
+      await writeJson(serviceFile,next);settings=next;lastError='';
+      if(restart)await start();
+      return status();
     }),
     key:()=>({apiKey:settings.apiKey}),
     'key/rotate':()=>mutate(async()=>{if(state!=='stopped')fail('请先停止代理再更换密钥',409);settings={...settings,apiKey:randomBytes(32).toString('hex')};await writeJson(serviceFile,settings);return{apiKey:settings.apiKey};}),

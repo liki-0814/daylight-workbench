@@ -241,7 +241,7 @@ const uiCases = [
     await pressUi(page, '[data-conflict-adopt]'); await dialog(page).waitFor();
     const adopt = await dialog(page).boundingBox(); check.ok(adopt.x >= 0 && adopt.x + adopt.width <= 760, '采用确认在视口内');
     await dialog(page).locator('[data-preview-cancel]').click(); await gone(page);
-  }, { widths: [760] }),
+  }, { widths: [760], widthLocked: true }),
   unit('ext-pr11-08', '禁用原因：Skill 已停用时只挡「采用」（写明原因），「保留」「对比」仍可用；后端 EXTENSIONS_SKILL_DISABLED 也有人话', async ({ page, url, fixture, assert: check }) => {
     const { skill } = await conflictTarget(fixture);
     const off = await applyAction(fixture, { type: 'skill.disable', id: skill.id }); check.equal(off.applied.status, 200, '停用 api-design');

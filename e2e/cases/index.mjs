@@ -12,6 +12,7 @@ import extensionsPr6 from './extensions-pr6.mjs';
 import extensionsPr8 from './extensions-pr8.mjs';
 import tasksR1 from './tasks-r1.mjs';
 import settingsExtUi from './settings-ext-ui.mjs';
+import settingsR1 from './settings-r1.mjs';
 import shellPr4 from './shell-pr4.mjs';
 import uiComponents from './ui-components.mjs';
 
@@ -23,7 +24,7 @@ const contains = (file, text) => { try { const content = fs.readFileSync(root + 
 const gate = (cases, applies, present, reason) => present ? cases : cases.map(item => applies(item.id) && !item.expectedFail ? { ...item, expectedFail: reason } : item);
 const FRONTEND_PR1_PR3 = new Set(['ext-a11y-03', 'ext-sk-16', 'ext-sk-17', 'ext-sk-09', 'ext-mcp-02', 'ext-mcp-03', 'ext-mcp-09']);
 
-export default gate(gate(gate(gate([...extensionsP0, ...extensionsPr1, ...extensionsPr3, ...extensionsE11, ...extensionsMcpConflict, ...extensionsRevealRestore, ...extensionsFollowups, ...extensionsPr5, ...extensionsPr6, ...extensionsPr8, ...settingsExtUi, ...shellPr4, ...uiComponents, ...tasksR1],
+export default gate(gate(gate(gate([...extensionsP0, ...extensionsPr1, ...extensionsPr3, ...extensionsE11, ...extensionsMcpConflict, ...extensionsRevealRestore, ...extensionsFollowups, ...extensionsPr5, ...extensionsPr6, ...extensionsPr8, ...settingsExtUi, ...shellPr4, ...uiComponents, ...tasksR1, ...settingsR1],
   id => FRONTEND_PR1_PR3.has(id) || id.startsWith('ext-pr3-'), contains('public/components/switch.js'),
   '需要 0.7 扩展页前端（PR-1 / PR-3：role=switch、横幅、28px 命中区）：该前端合入后此标记自动消失'),
   id => id.startsWith('shell-pr4-'), contains('public/style.css', 'reduce-transparency'),

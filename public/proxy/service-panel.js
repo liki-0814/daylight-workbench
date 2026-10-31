@@ -1,62 +1,88 @@
-import {sectionHeading,refreshButton,setRefreshState,disclosureSection,mountDisclosures} from '../components/section.js';
-import {selectField} from '../components/select.js';
+// 反向代理页顶部：状态卡（四态）+ 配置卡 + 接入卡。全部由 0.8 组件库拼装，用 morph 增量更新（焦点停在开关上不动）。
+// 行为约定：开关乐观切换（100ms 内出反馈）；状态变化写进 role="status"；失败走 role="alert"；配置在任何状态下都可改。
+import {morph} from '../ui/core/morph.js';
+import {html,trusted,slot} from '../ui/core/html.js';
+import {serviceHero} from '../ui/patterns/service-status/service-status.js';
+import {settingsGroup,settingsRow,settingsReadout} from '../ui/patterns/settings/settings.js';
+import {input} from '../ui/components/input/input.js';
+import {select} from '../ui/components/select/select.js';
+import {switchControl} from '../ui/components/switch/switch.js';
+import {button} from '../ui/components/button/button.js';
 import {createDialogShell} from '../components/dialog-shell.js';
-const template=`<div class="workspace proxy-common"><section class="proxy-panel" aria-label="代理服务">        <div class="proxy-service">
-          <div><h2><span id="service-dot" class="proxy-dot"></span><span id="service-state">正在读取状态…</span></h2><p id="service-note">代理默认关闭，按需开启。</p></div>
-          <button id="service-switch" class="proxy-switch" type="button" role="switch" aria-checked="false" aria-label="开启代理" disabled><span></span></button>
-        </div>
-        <div id="service-error" class="proxy-error" role="alert" hidden></div>
-</section>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',description:'地址、密钥与请求示例',content:`
-        <div class="ui-form-row"><span class="proxy-caption">客户端协议</span><div id="protocol-control" class="proxy-protocol"></div></div>
-        <div class="ui-form-row"><label class="proxy-caption" for="base-url">Base URL</label>
-        <div class="proxy-copy"><input id="base-url" readonly value="正在读取…" spellcheck="false"><button id="copy-url" class="small-button" disabled>复制</button></div></div>
-        <div class="ui-form-row"><label class="proxy-caption" for="api-key">API Key</label>
-        <div class="proxy-copy"><input id="api-key" type="password" readonly value="" placeholder="正在读取…" autocomplete="off" spellcheck="false"><button id="show-key" class="small-button" disabled>显示</button><button id="copy-key" class="small-button" disabled>复制</button></div></div>
-        <div class="proxy-connect-actions ui-form-offset"><button id="copy-example" class="secondary" disabled>复制请求示例</button><button id="test-connection" class="text-button" disabled>测试连接</button></div>
-        <p id="connection-result" class="proxy-hint ui-form-offset" role="status">开启代理后，即可在客户端中填写以上地址与密钥。</p>
-      `})}
-</div>`;
-const settingsTemplate=`${sectionHeading({title:'反向代理',description:'全局端口、自动启动与运行环境',actions:refreshButton({ariaLabel:'刷新代理设置',attrs:{id:'refresh-proxy-settings'}})})}<p id="proxy-settings-loading" class="proxy-hint" role="status">正在读取代理状态…</p><p id="proxy-settings-error" class="ui-feedback" role="alert" hidden></p><form id="settings-form" class="proxy-settings-form">
-        <p id="settings-readonly" class="proxy-hint ui-feedback-row" hidden></p>
-        <div id="settings-edit" hidden>
-        <label class="proxy-field">本机端口<input id="proxy-port" type="number" min="1024" max="65535" required value="4319"></label>
-        <label class="proxy-checkbox"><input id="auto-start" type="checkbox">随 Daylight 启动代理</label>
-        </div>
-        <p class="proxy-hint">关闭窗口后继续运行，退出 Daylight 时停止。修改端口、运行环境或密钥前，请先在<a class="text-button" href="#proxy">反向代理</a>页停止服务。</p>
-        <div class="proxy-node"><span class="proxy-caption">Node 运行环境</span><p id="node-info" class="proxy-hint">正在检测…</p><div id="node-setting" hidden><label class="proxy-field">Node 路径 <input id="node-path" placeholder="留空自动检测，或填写绝对路径" spellcheck="false"></label><button id="save-node" type="button" class="text-button">重新检测 / 应用路径</button></div></div>
-        <div id="settings-actions" class="proxy-section-title" hidden><button id="save-settings" class="secondary" type="submit">保存设置</button><button id="rotate-key" class="danger-link" type="button">更换 API Key</button></div><p id="settings-result" class="proxy-hint" role="status"></p>
-      </form>`;
+import {saveProxySetting} from '../pages/proxy-settings-actions.js';
+import {START_SLOW_MS,heroProps,viewState,portHint,validPort} from '../pages/proxy-service-view.js';
 
-export function createServicePanel({store,getExampleModel}){
- const root=document.createElement('div');root.innerHTML=template;
- const element=root.firstElementChild,settingsElement=document.createElement('section');settingsElement.className='settings-panel proxy-global-settings';settingsElement.setAttribute('aria-label','反向代理');settingsElement.innerHTML=settingsTemplate;
- mountDisclosures(element);
- const nodes=new Map([...root.querySelectorAll('[id]'),...settingsElement.querySelectorAll('[id]')].map(n=>[n.id,n]));const $=id=>nodes.get(id);
- $('protocol-control').innerHTML=selectField({id:'protocol',name:'protocol',label:'客户端协议',value:'chat',compact:true,hideLabel:true,options:[{value:'chat',label:'Chat Completions'},{value:'responses',label:'Responses'},{value:'messages',label:'Anthropic Messages'}]});nodes.set('protocol',$('protocol-control').querySelector('#protocol'));
- let working=false,checking=false,savingSettings=false,savingNode=false,settingsDirty=false,key='',keyLoading,disposed=false;
- const names={stopped:'已停止',starting:'启动中…',running:'运行中',stopping:'停止中…'};
- function error(message=''){for(const id of ['service-error','proxy-settings-error']){$(id).textContent=message;$(id).hidden=!message;}}
+const protocols=[{value:'chat',label:'Chat Completions'},{value:'responses',label:'Responses'},{value:'messages',label:'Anthropic Messages'}];
+const MASK='••••••••••••••••';
+
+export function createServicePanel({store,getExampleModel,onViewLogs=()=>{}}){
+ const element=document.createElement('div');element.className='workspace proxy-common';
+ element.innerHTML='<section class="px-service" aria-label="代理服务"><div data-slot="body"></div></section>';
+ const host=element.querySelector('[data-slot="body"]');
+ const local={pending:'',slow:false,announce:'',portDraft:null,portError:'',protocol:'chat',keyVisible:false,key:'',keyError:'',copied:{},check:'',checking:false,today:undefined,todayAt:0,message:'',shown:'',cancelling:false};
+ let keyLoading,disposed=false,slowTimer=0,startingSince=0,announced='';
+ const status=()=>store.status;
+ const sourcesSummary=()=>{const enabled=store.sources.filter(source=>source.enabled);return enabled.length?{total:enabled.length,available:enabled.filter(source=>source.state==='ready').length}:undefined;};
+
+ const hostOf=url=>url.replace(/^https?:\/\//,'').replace(/\/v1$/,'');
+ function stateNow(){return viewState(status(),local.pending);}
+ function actions(props){
+  const error=props.error;if(!error)return props;
+  const alternate=error.alternate?button({label:`改用 ${error.alternate}`,variant:'ghost',attrs:{'data-action':'use-port','data-port':String(error.alternate)}}):'';
+  return {...props,error:{what:error.what,why:error.why,todo:error.todo,actions:html`${button({label:'重试',attrs:{'data-action':'retry'}})}${alternate}${button({label:'查看日志',variant:'ghost',attrs:{'data-action':'view-logs'}})}`}};
+ }
+ function baseUrl(){const url=status()?.baseUrl||'';return local.protocol==='messages'?url.replace(/\/v1$/,''):url;}
+ function view(){
+  const current=status(),state=stateNow(),running=current?.state==='running'&&!local.pending;
+  const props=actions(heroProps({status:current,pending:local.pending,slow:local.slow,sources:sourcesSummary(),today:local.today,announce:local.announce}));
+  const portValue=local.portDraft??String(current?.port??4319);
+  const config=settingsGroup({title:'',key:'config',flush:true,rows:[
+   settingsRow({key:'port',label:'本机端口',hint:local.portError||portHint(state,{slow:local.slow}),hintTone:local.portError?'error':undefined,control:input({name:'port',value:portValue,label:'本机端口',type:'number',mono:true,invalid:!!local.portError,attrs:{min:'1024',max:'65535',inputmode:'numeric'}})}),
+   settingsRow({key:'autoStart',label:'随 Daylight 启动',hint:'关闭窗口后继续运行，退出 Daylight 时停止',control:switchControl({name:'autoStart',checked:!!current?.autoStart,label:'随 Daylight 启动代理'})}),
+  ]});
+  const keyReady=!!local.key,unavailable=!!current?.runtimeError;
+  const connect=settingsGroup({title:'接入配置',key:'connect',flush:true,rows:[
+   settingsRow({key:'protocol',label:'客户端协议',hint:'决定下面的 Base URL 与请求示例',control:select({name:'protocol',value:local.protocol,label:'客户端协议',options:protocols})}),
+   settingsRow({key:'base',label:'Base URL',control:html`${settingsReadout({text:baseUrl()||'正在读取…',mono:true,attrs:{'data-copy-source':''}})}${button({label:local.copied.url?'已复制':'复制',variant:'ghost',disabled:!baseUrl(),attrs:{'data-action':'copy-url'}})}`}),
+   settingsRow({key:'apikey',label:'API Key',hint:local.keyError||(keyReady?'':'正在读取…'),hintTone:local.keyError?'error':undefined,control:html`${settingsReadout({text:local.keyVisible&&keyReady?local.key:MASK,mono:true,attrs:{'data-key-readout':''}})}${button({label:local.keyVisible?'隐藏':'显示',variant:'ghost',disabled:!keyReady,attrs:{'data-action':'toggle-key'}})}${button({label:local.copied.key?'已复制':'复制',variant:'ghost',disabled:!keyReady,attrs:{'data-action':'copy-key'}})}`}),
+   settingsRow({key:'example',label:'请求示例',hint:'curl，含当前协议、Base URL 与模型',control:button({label:local.copied.example?'已复制':'复制请求示例',disabled:!keyReady||unavailable,attrs:{'data-action':'copy-example'}})}),
+   settingsRow({key:'check',label:'连接测试',hint:html`<span role="status">${local.check||'开启代理后，验证本机接口、鉴权与模型目录'}</span>`,control:button({label:local.checking?'测试中…':'测试连接',disabled:!running||local.checking,busy:local.checking,attrs:{'data-action':'test-connection'}})}),
+  ]});
+  return html`<div class="px-hero" data-key="hero">${serviceHero(props)}</div>${(local.message||store.error)?html`<p class="px-message" role="alert" data-key="message">${local.message||store.error}</p>`:''}<div class="px-config" data-key="config">${config}</div><div class="px-connect" data-key="connect">${connect}</div>`;
+ }
+ function sync(){
+  // 开关的 aria-checked 由组件自己维护（morph 不覆盖），所以状态来自服务端 / 回滚时在这里写回。
+  const state=stateNow(),on=state==='running'||state==='starting';
+  const hero=host.querySelector('.dl-hero__switch .dl-switch');if(hero&&hero.getAttribute('aria-checked')!==String(on))hero.setAttribute('aria-checked',String(on));
+  const auto=host.querySelector('.dl-switch[data-name="autoStart"]');if(auto&&auto.getAttribute('aria-checked')!==String(!!status()?.autoStart))auto.setAttribute('aria-checked',String(!!status()?.autoStart));
+  const live=host.querySelector('.dl-hero [role="status"]');if(live&&live.textContent!==local.announce)live.textContent=local.announce;
+ }
+ function tick(){
+  const state=stateNow();
+  if(state==='starting'){if(!startingSince){startingSince=Date.now();clearTimeout(slowTimer);slowTimer=setTimeout(()=>{if(stateNow()==='starting'){local.slow=true;paint();}},START_SLOW_MS);}}
+  else if(startingSince||local.slow){startingSince=0;local.slow=false;clearTimeout(slowTimer);}
+  if(state!==announced){
+   if(announced){const addr=hostOf(status()?.baseUrl||'');local.announce=state==='running'?`反向代理已启用，地址 ${addr}`:state==='starting'?'正在启动反向代理…':state==='error'?'反向代理启动失败':'反向代理已停用';}
+   announced=state;
+  }
+  if(state==='running'&&Date.now()-local.todayAt>15000){local.todayAt=Date.now();void loadToday();}
+ }
+ async function loadToday(){try{const report=await store.api.request('statistics');const n=report?.summary?.requests;local.today=Number.isFinite(n)?n:undefined;}catch{local.today=undefined;}if(!disposed)paint();}
  function paint(){
-  const status=store.status;$('proxy-settings-loading').hidden=!!status;$('proxy-settings-loading').textContent=store.error?'代理状态读取失败，请点击刷新重试。':'正在读取代理状态…';if(!status){if(store.error)error(store.error);return;}
-  const running=status.state==='running',transition=working||['starting','stopping'].includes(status.state),unavailable=!!status.runtimeError,locked=running||transition;
-  $('service-state').textContent=working?(running?'停止中…':'启动中…'):unavailable?'运行环境待设置':names[status.state]||'正在准备…';
-  $('service-dot').classList.toggle('running',running);$('service-switch').setAttribute('aria-checked',String(running));$('service-switch').setAttribute('aria-label',running?'停止代理':'开启代理');$('service-switch').setAttribute('aria-busy',String(transition));$('service-switch').disabled=transition||unavailable||checking;
-  $('service-note').textContent=unavailable?'请在左侧“设置”的“反向代理”中选择 Node 22 或更新版本。':running?`${status.activeRequests} 个请求进行中 · 所有来源共用此开关`:'统一代理 · 至少一个来源可用即可开启';
-  $('base-url').value=$('protocol').value==='messages'?status.baseUrl?.replace(/\/v1$/,'')||'':status.baseUrl||'';
-  $('copy-url').disabled=!$('base-url').value;$('test-connection').disabled=!running||transition||checking;$('copy-example').disabled=!key||unavailable;
-  $('settings-edit').hidden=locked;$('settings-readonly').hidden=!locked;$('settings-readonly').textContent=`本机端口 ${status.port} · ${status.autoStart?'随 Daylight 自动启动':'手动启动'}`;
-  $('settings-actions').hidden=locked;$('settings-result').hidden=locked;$('save-settings').disabled=locked||unavailable||savingSettings;
-  $('proxy-port').disabled=locked;$('auto-start').disabled=locked;$('rotate-key').disabled=locked||unavailable;
-  if(!settingsDirty){$('proxy-port').value=status.port||4319;$('auto-start').checked=!!status.autoStart;}
-  $('node-info').textContent=status.runtimeError||`${status.node?.version||''} · ${status.node?.path||''}`;$('node-setting').hidden=!status.native||locked;$('save-node').disabled=locked||savingNode;$('node-path').disabled=locked;
-  error(store.error||status.runtimeError||status.lastError||'');
-  if(!key&&!unavailable&&!keyLoading)void loadKey().catch(e=>error(e.message));
+  if(disposed)return;
+  tick();
+  if(status()||store.error||local.message)morph(host,view());
+  sync();
+  if(status()&&!local.key&&!status().runtimeError&&!keyLoading)void loadKey().catch(e=>{local.keyError=e.message;paint();});
  }
  async function loadKey(){
   if(keyLoading)return keyLoading;
-  keyLoading=store.api.request('key').then(result=>{if(disposed)return;key=result.apiKey;$('api-key').value=key;$('show-key').disabled=false;$('copy-key').disabled=false;paint();}).finally(()=>{keyLoading=null;});return keyLoading;
+  keyLoading=store.api.request('key').then(result=>{if(disposed)return;local.key=result.apiKey;local.keyError='';paint();}).finally(()=>{keyLoading=null;});return keyLoading;
  }
- async function copy(button,value){try{await navigator.clipboard.writeText(value);const label=button.textContent;button.textContent='已复制';button.disabled=true;setTimeout(()=>{if(!disposed){button.textContent=label;button.disabled=false;}},1600);}catch{error('复制未完成，请选中输入框内容后手动复制。');}}
+ async function copy(id,value){
+  try{await navigator.clipboard.writeText(value);local.copied[id]=true;paint();setTimeout(()=>{delete local.copied[id];paint();},1600);}
+  catch{local.message='复制未完成，请选中内容后手动复制。';paint();}
+ }
  let confirmResolve;
  const confirm=createDialogShell({title:'确认操作',onClose(){confirmResolve?.(false);confirmResolve=null;}});
  function confirmAction(title,message,label){return new Promise(resolve=>{
@@ -68,26 +94,63 @@ export function createServicePanel({store,getExampleModel}){
   const finish=value=>{confirmResolve=null;resolve(value);confirm.close();};actions.querySelector('[data-confirm-cancel]').onclick=()=>finish(false);actions.querySelector('[data-confirm-ok]').onclick=()=>finish(true);
   if(!confirm.open()){resolve(false);return;}confirmResolve=resolve;actions.querySelector('[data-confirm-cancel]').focus();
  });}
- $('refresh-proxy-settings').onclick=async()=>{const button=$('refresh-proxy-settings'),restore=document.activeElement===button;setRefreshState(button,{loading:true});await store.refresh();setRefreshState(button);if(restore&&document.activeElement===document.body)button.focus();};
- $('service-switch').onclick=async()=>{
-  if(working||!store.status)return;const enabled=store.status.state!=='running';let force=false;
-  if(!enabled&&store.status.activeRequests){force=await confirmAction('停止代理？',`将中断 ${store.status.activeRequests} 个正在进行的请求。`,'停止代理');if(!force)return;}
-  working=true;error();paint();try{await store.api.request('service',{enabled,force});}catch(e){error(e.message);}finally{working=false;await store.refresh();paint();}
- };
- $('protocol').onchange=paint;$('copy-url').onclick=()=>copy($('copy-url'),$('base-url').value);$('copy-key').onclick=()=>copy($('copy-key'),key);
- $('show-key').onclick=()=>{const visible=$('api-key').type==='password';$('api-key').type=visible?'text':'password';$('show-key').textContent=visible?'隐藏':'显示';};
- $('copy-example').onclick=()=>{
-  const protocol=$('protocol').value,model=getExampleModel()||'替换为模型 ID',body=protocol==='responses'?{model,input:'你好',stream:true}:{model,messages:[{role:'user',content:'你好'}],...(protocol==='messages'?{max_tokens:1024}:{}),stream:true};
+
+ async function setService(enabled,force=false){
+  local.message='';local.pending=enabled?'starting':'stopping';paint();
+  try{await store.api.request('service',{enabled,force});}
+  catch(e){if(!/已取消启动/.test(e.message))local.message=enabled?'':e.message;}
+  finally{await store.refresh();local.pending='';local.cancelling=false;paint();}
+ }
+ async function toggle(enabled){
+  if(!status()||local.pending)return paint();
+  if(!enabled&&status().activeRequests){
+   const force=await confirmAction('停止代理？',`将中断 ${status().activeRequests} 个正在进行的请求。`,'停止代理');
+   if(!force)return paint();return setService(false,true);
+  }
+  return setService(enabled);
+ }
+ async function savePort(raw){
+  const text=String(raw).trim();
+  if(!validPort(text)){local.portDraft=text;local.portError='端口需为 1024–65535 的整数';return paint();}
+  local.portDraft=null;local.portError='';
+  if(Number(text)===status()?.port)return paint();
+  if(status()?.state==='running')local.pending='starting'; // 运行中改端口 = 自动重启，先给「启动中」的反馈
+  paint();
+  const failure=await saveProxySetting(store,'port',Number(text));
+  if(failure&&!/已被占用/.test(failure))local.portError=failure; // 端口被占用时，状态卡会显示「启动失败」三段话
+  local.pending='';paint();
+ }
+ async function saveAutoStart(value){
+  local.message=await saveProxySetting(store,'autoStart',value);paint();
+ }
+ function example(){
+  const protocol=local.protocol,model=getExampleModel()||'替换为模型 ID',body=protocol==='responses'?{model,input:'你好',stream:true}:{model,messages:[{role:'user',content:'你好'}],...(protocol==='messages'?{max_tokens:1024}:{}),stream:true};
   const route={chat:'/chat/completions',responses:'/responses',messages:'/messages'}[protocol],quote=value=>`'${value.replaceAll("'","'\\''")}'`;
-  void copy($('copy-example'),`curl -N ${quote(store.status.baseUrl+route)} \\\n  -H ${quote(`Authorization: Bearer ${key}`)} \\\n  -H 'Content-Type: application/json' \\\n  -d ${quote(JSON.stringify(body))}`);
- };
- $('test-connection').onclick=async()=>{checking=true;paint();$('test-connection').textContent='测试中…';$('connection-result').textContent='正在验证本机接口、鉴权与模型目录…';try{$('connection-result').textContent=(await store.api.request('check',{})).message;}catch(e){$('connection-result').textContent=e.message;}finally{checking=false;$('test-connection').textContent='测试连接';paint();}};
- $('settings-form').oninput=()=>{settingsDirty=true;};
- $('settings-form').onsubmit=async e=>{e.preventDefault();if(savingSettings)return;savingSettings=true;$('save-settings').textContent='保存中…';paint();try{await store.api.request('settings',{port:Number($('proxy-port').value),autoStart:$('auto-start').checked});settingsDirty=false;$('settings-result').textContent='设置已保存';error();await store.refresh();}catch(e){$('settings-result').textContent=e.message;}finally{savingSettings=false;$('save-settings').textContent='保存设置';paint();}};
- $('save-node').onclick=async()=>{if(savingNode)return;savingNode=true;paint();try{await store.api.request('runtime',{nodePath:$('node-path').value.trim()});await store.refresh();error();}catch(e){error(e.message);}finally{savingNode=false;paint();}};
- $('rotate-key').onclick=async()=>{if(!await confirmAction('更换 API Key？','现有客户端中的旧密钥将立即失效，需要重新复制配置。','更换密钥'))return;try{await store.api.request('key/rotate',{});await loadKey();$('settings-result').textContent='密钥已更换，请更新客户端配置';}catch(e){error(e.message);}};
- function hideKey(){$('api-key').type='password';$('show-key').textContent='显示';}
- $('proxy-connect-details').addEventListener('toggle',()=>{if(!$('proxy-connect-details').open){hideKey();$('protocol-control').querySelector('workbench-select')?.setOpen(false);}});
+  return `curl -N ${quote(status().baseUrl+route)} \\\n  -H ${quote(`Authorization: Bearer ${local.key}`)} \\\n  -H 'Content-Type: application/json' \\\n  -d ${quote(JSON.stringify(body))}`;
+ }
+ element.addEventListener('ui:change',event=>{
+  const target=event.target,name=target.dataset?.name||target.name||target.closest?.('[data-name]')?.dataset.name;
+  if(target.closest('.dl-hero')&&target.classList.contains('dl-switch')){void toggle(event.detail.value);return;}
+  if(name==='port'){void savePort(event.detail.value);return;}
+  if(name==='autoStart'){void saveAutoStart(event.detail.value);return;}
+  if(name==='protocol'){local.protocol=String(event.detail.value);paint();}
+ });
+ element.addEventListener('click',async event=>{
+  const control=event.target.closest?.('[data-action]');if(!control||!element.contains(control))return;
+  const action=control.dataset.action;
+  if(action==='copy-address')return copy('address',control.dataset.copy);
+  if(action==='copy-url')return copy('url',baseUrl());
+  if(action==='copy-key')return copy('key',local.key);
+  if(action==='copy-example')return copy('example',example());
+  if(action==='toggle-key'){local.keyVisible=!local.keyVisible;return paint();}
+  if(action==='cancel-start'){if(local.cancelling)return;local.cancelling=true;try{await store.api.request('service/cancel',{});}catch(e){local.message=e.message;paint();}return;}
+  if(action==='retry')return setService(true);
+  if(action==='use-port'){await savePort(control.dataset.port);return setService(true);}
+  if(action==='view-logs')return onViewLogs();
+  if(action==='test-connection'){local.checking=true;local.check='正在验证本机接口、鉴权与模型目录…';paint();try{local.check=(await store.api.request('check',{})).message;}catch(e){local.check=e.message;}finally{local.checking=false;paint();}}
+ });
+ function hideKey(){if(local.keyVisible){local.keyVisible=false;paint();}}
  const unsubscribe=store.subscribe(paint);
- return{element,settingsElement,hideKey,confirmAction,dispose(){disposed=true;unsubscribe();hideKey();confirm.dispose();}};
+ paint();
+ return{element,hideKey,confirmAction,paint,dispose(){disposed=true;clearTimeout(slowTimer);unsubscribe();confirm.dispose();}};
 }

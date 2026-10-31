@@ -33,3 +33,6 @@
 @import url("./patterns/composer/composer.css") layer(ui);
 @import url("./patterns/service-status/service-status.css") layer(ui);
 @import url("./patterns/shell/shell.css") layer(ui);
+
+/* 页面级布局（层 page） */
+@import url("../pages/pages.css") layer(page);

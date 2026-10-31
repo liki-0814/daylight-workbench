@@ -30,7 +30,7 @@ const stepA = [
     const overflow = await detail(page).evaluate(el => getComputedStyle(el).overflowY);
     check.equal(overflow, 'auto', '检查器自身滚动');
   } },
-  { id: 'ext-l-03', priority: 'P0', widths: [760], title: '760：检查器是覆盖层，清单仍在下面；顶部第一个控件是「‹ 返回清单」，点击后收起并清掉路由里的 id（E-22）', async run({ page, url, assert: check, shot }) {
+  { id: 'ext-l-03', priority: 'P0', widths: [760], widthLocked: true, title: '760：检查器是覆盖层，清单仍在下面；顶部第一个控件是「‹ 返回清单」，点击后收起并清掉路由里的 id（E-22）', async run({ page, url, assert: check, shot }) {
     await open(page, url, 'skills'); const before = await rows(page).count(); await selectRow(page, 'review-code');
     check.equal(await detail(page).evaluate(el => getComputedStyle(el).position), 'fixed', '≤999 是覆盖层');
     check.equal(await rows(page).count(), before, '清单没有被隐藏');
@@ -184,7 +184,7 @@ const stepB = [
     await detail(page).locator('button').first().focus(); await page.keyboard.press('Escape'); await page.locator('.extension-detail').waitFor({ state: 'hidden' });
     check.equal(await activeId(page), next, '焦点在检查器里按 Esc，焦点回到那一行');
   } },
-  { id: 'ext-l-13', priority: 'P0', widths: [760], title: '760：打开覆盖层后焦点进入「‹ 返回清单」；Esc 和点按钮都关闭覆盖层并把焦点还给触发行', async run({ page, url, assert: check }) {
+  { id: 'ext-l-13', priority: 'P0', widths: [760], widthLocked: true, title: '760：打开覆盖层后焦点进入「‹ 返回清单」；Esc 和点按钮都关闭覆盖层并把焦点还给触发行', async run({ page, url, assert: check }) {
     await open(page, url, 'skills'); const id = (await ids(page))[1];
     await page.locator(`.extension-row-open[data-extension-id="${id}"]`).focus(); await page.keyboard.press('Enter');
     await detail(page).waitFor(); await page.waitForFunction(() => document.activeElement?.classList.contains('extension-back'), null, { timeout: 4000 });

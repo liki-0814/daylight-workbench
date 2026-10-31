@@ -10,8 +10,7 @@ import { updateSidebar } from './pages/shell.js';
 import { mountTasks } from './pages/tasks.js';
 import { openNewTask } from './pages/new-task.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
-import { settingsPage, mountSettingsPage } from './components/settings-page.js';
-import { mountAISettings } from './ai-settings.js';
+import { createSettingsPage } from './pages/settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
 import { createTaskClient } from './task-client.js';
 import { taskRow as renderTaskRow } from './components/task-row.js';
@@ -24,6 +23,8 @@ import { createFocusPanel } from './focus/panel.js';
 import { createTodaySummary } from './focus/today-summary.js';
 import { createTaskSummary } from './focus/task-summary.js';
 import { mountFocusSettings } from './focus/settings.js';
+import { createExtensionsClient } from './extensions/client.js';
+import { aiBackends } from '../core/ai-backends.js';
 import { pageViews, isPage, sectionFor, esc, empty } from './app-helpers.js';
 
 const app = document.querySelector('#app');
@@ -291,13 +292,13 @@ function render() {
   extensionsPage?.setVisible(view === 'extensions');
   proxyPage?.setSettingsVisible(view === 'settings');
   if (view === 'extensions') {
-    proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
+    proxyPage?.setVisible(false); aiPage?.setVisible(false); settingsPageControl?.setVisible(false);
     if (!extensionsPage) { opening('正在打开扩展管理…'); void ensureExtensions().then(() => { if (view === 'extensions') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     extensionsPage.updateRoute(parseRoute(location.hash, state)); extensionsPage.setVisible(true);
     document.title = 'Daylight · 扩展管理'; return;
   }
   if (view === 'update') {
-    proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
+    proxyPage?.setVisible(false); aiPage?.setVisible(false); settingsPageControl?.setVisible(false);
     if (!updatePage) { opening('正在打开更新…'); void ensureUpdate().then(() => { if (view === 'update') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     updatePage.setVisible(true);
     document.title = 'Daylight · 更新';
@@ -306,7 +307,7 @@ function render() {
   if (view === 'cli') {
     proxyPage?.setVisible(false);
     aiPage?.setVisible(false);
-    if (settingsRoot) settingsRoot.hidden = true;
+    settingsPageControl?.setVisible(false);
     if (!cliPage) { opening('正在打开 CLI 配置…'); void ensureCLI().then(() => { if (view === 'cli') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     cliPage.setVisible(true);
     document.title = 'Daylight · CLI 配置';
@@ -314,13 +315,13 @@ function render() {
   }
   if (view === 'ai') {
     proxyPage?.setVisible(false);
-    if (settingsRoot) settingsRoot.hidden = true;
+    settingsPageControl?.setVisible(false);
     if (!aiPage) { opening('正在打开 AI 对话…'); void ensureAI().then(() => { if (view === 'ai') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     aiPage.setVisible(true); document.title = 'Daylight · AI 对话'; return;
   }
   aiPage?.setVisible(false);
   if (view === 'proxy') {
-    if (settingsRoot) settingsRoot.hidden = true;
+    settingsPageControl?.setVisible(false);
     if (!proxyPage) { opening('正在打开反向代理…'); void ensureProxy().then(() => { if (view === 'proxy') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     proxyPage.setVisible(true);
     document.title = 'Daylight · 反向代理';
@@ -330,21 +331,16 @@ function render() {
     proxyPage?.setVisible(false);
     if (!proxyPage) { opening('正在打开设置…'); void ensureProxy().then(() => { if (view === 'settings') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     if (!settingsRoot) {
-      settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
-      settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
-      settingsPageControl = mountSettingsPage(settingsRoot, { getToken: () => token });
-      settingsRoot.querySelector('[data-settings-slot="proxy"]').append(proxyPage.settingsElement);
-      mountAISettings(settingsRoot, () => token);
-      focusSettings=mountFocusSettings(settingsRoot.querySelector('[data-settings-slot="focus"]'),{controller:focusController,notify});
+      settingsPageControl = createSettingsPage({ getToken: () => token, extensionsClient: createExtensionsClient({ getToken: () => token }), aiBackends, proxyStore: proxyPage.store, confirmAction: proxyPage.confirmAction, mountFocus: root => { focusSettings = mountFocusSettings(root, { controller: focusController, notify }); focusSettings.setVisible?.(true); } });
+      settingsRoot = settingsPageControl.element; app.append(settingsRoot);
     }
-    settingsRoot.hidden = false;
-    void settingsPageControl?.refresh();
+    settingsPageControl.setVisible(true);
     proxyPage.setSettingsVisible(true);
     document.title = 'Daylight · 设置';
     return;
   }
   proxyPage?.setVisible(false);
-  if (settingsRoot) settingsRoot.hidden = true;
+  settingsPageControl?.setVisible(false);
   if (view === 'focus') {
     if (!statisticsPage) { opening('正在打开专注统计…'); void ensureStatistics().then(() => { if (view === 'focus') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     statisticsPage.updateState(); statisticsPage.setVisible(true);document.title='Daylight · 专注统计';return;
@@ -546,7 +542,7 @@ document.addEventListener('change', event => {
 const scopeToView = value => value === 'unassigned' ? 'inbox' : value === '' ? 'all' : value;
 document.addEventListener('ui:select', async event => {
   const { value } = event.detail, target = event.target;
-  if (target.dataset?.ui === 'nav') { navigate(value); return; }
+  if (target.dataset?.ui === 'nav') { if (sidebarRoot?.contains(target)) navigate(value); return; }
   if (target.dataset?.ui === 'row') { selectedTaskId = selectedTaskId === value ? selectedTaskId : value; render(); return; }
   if (target.dataset?.name === 'scope') { if (value === '__new__') openModal({ type: 'project' }); return; }
   if (target.dataset?.name === 'more' && selectedTaskId) {
