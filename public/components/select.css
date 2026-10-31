@@ -49,7 +49,7 @@ workbench-select {
 
 .select-trigger[aria-expanded="true"] {
   border-color: var(--green);
-  background: var(--workbench-background);
+  background: var(--bg-secondary);
 }
 
 .select-trigger[aria-expanded="true"] svg {

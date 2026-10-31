@@ -61,7 +61,7 @@ html {
   width: var(--sidebar-width);
   flex-shrink: 0;
   padding: var(--space-32) var(--space-20) 22px;
-  background: var(--bg-secondary);
+  background: var(--color-bg-sidebar);
   border-right: 1px solid var(--separator-strong);
   position: fixed;
   inset: 0 auto 0 0;

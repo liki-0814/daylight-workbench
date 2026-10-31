@@ -92,7 +92,7 @@
 .extension-row .ui-chip-accent { background: linear-gradient(var(--info-bg), var(--info-bg)) #fff; }
 .extension-row-main { min-width: 0; align-self: stretch; display: flex; }
 .extension-row-open { display: flex; flex: 1; min-width: 0; min-height: 56px; align-items: center; text-align: left; background: transparent; border: 0; padding: var(--space-8) 0; color: var(--ink); font: inherit; cursor: pointer; border-radius: 6px; }
-.extension-row-open:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
+.extension-row-open:focus-visible { outline: var(--button-focus-width, 2px) solid var(--accent); outline-offset: -2px; }
 .extension-row-copy > span:empty { display: none; }
 .extension-row-id { font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); overflow-wrap: anywhere; }
 .extension-row-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); min-width: 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
@@ -130,7 +130,7 @@
 
 /* PR-5 step B：键盘滚动时避开 52px 吸顶工具栏；检查器可被程序聚焦（Return 进入）。 */
 .extension-row, .extension-row-open { scroll-margin-block: calc(var(--toolbar-height, 52px) + var(--space-12)) var(--space-12); }
-.extension-detail:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
+.extension-detail:focus-visible { outline: var(--button-focus-width, 2px) solid var(--accent); outline-offset: -2px; }
 
 /* 0.7 PR-6：暂存底栏、读取条、批量预览、危险操作组 */
 .extension-staging-bar[hidden], .extension-load-strip[hidden], [data-cancelled-slot]:empty { display: none; }
@@ -257,7 +257,7 @@
 .extension-row-more { display: flex; justify-content: flex-end; }
 .extension-row-more-button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary, #636366); font-size: 18px; line-height: 1; cursor: pointer; }
 .extension-row-more-button:hover { background: var(--fill-control, rgba(0,0,0,.05)); color: var(--text); }
-.extension-row-more-button:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
+.extension-row-more-button:focus-visible { outline: var(--button-focus-width, 2px) solid var(--accent); outline-offset: -2px; }
 @container (max-width: 1100px) {
   .extension-table[data-tab=mcp] { --cols: minmax(150px, 190px) minmax(100px, 150px) minmax(0, 1fr) 56px 52px minmax(140px, 190px) 24px; }
   .extension-table[data-tab=mcp] .extension-table-head, .extension-table[data-tab=mcp] .extension-row { column-gap: 12px; }
