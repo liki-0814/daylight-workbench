@@ -1,0 +1,32 @@
+/* 组件令牌：hover 取值从旧别名 --button-hover-* 收敛到这里（映射表见 README） */
+.dl-btn {
+  --ui-button-bg: var(--color-bg-surface);
+  --ui-button-fg: var(--color-text-primary);
+  --ui-button-border: var(--color-border-default);
+  --ui-button-hover-bg: var(--color-bg-hover);
+  --ui-button-active-bg: var(--color-bg-selected);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-6);
+  height: var(--control-h); min-width: var(--min-target); padding: 0 var(--control-px);
+  border: 1px solid var(--ui-button-border); border-radius: var(--radius-control);
+  background: var(--ui-button-bg); color: var(--ui-button-fg);
+  font: var(--weight-medium) var(--control-font)/var(--control-line) var(--font-sans);
+  white-space: nowrap; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out), color var(--motion-fast) var(--ease-in-out), border-color var(--motion-fast) var(--ease-in-out);
+}
+.dl-btn:hover:not(:disabled) { background-image: linear-gradient(var(--ui-button-hover-bg), var(--ui-button-hover-bg)); }
+.dl-btn:active:not(:disabled) { background-image: linear-gradient(var(--ui-button-active-bg), var(--ui-button-active-bg)); }
+.dl-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.dl-btn:disabled { color: var(--color-text-disabled); cursor: default; }
+.dl-btn[aria-busy="true"] { cursor: progress; }
+.dl-btn--primary { --ui-button-bg: var(--color-accent); --ui-button-fg: var(--color-text-on-accent); --ui-button-border: transparent; --ui-button-hover-bg: var(--color-accent-hover); --ui-button-active-bg: var(--color-accent-active); }
+.dl-btn--primary:hover:not(:disabled) { background-color: var(--color-accent-hover); background-image: none; }
+.dl-btn--primary:active:not(:disabled) { background-color: var(--color-accent-active); background-image: none; }
+.dl-btn--primary:disabled { background: var(--color-bg-sunken); color: var(--color-text-disabled); }
+.dl-btn--ghost { --ui-button-bg: transparent; --ui-button-border: transparent; --ui-button-fg: var(--color-text-secondary); }
+.dl-btn--danger { --ui-button-fg: var(--color-error-text); }
+.dl-btn__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dl-kbd {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-4);
+  border: 1px solid currentColor; border-radius: var(--radius-sm); opacity: .75;
+  font: var(--weight-regular) var(--text-xs)/var(--leading-xs) var(--font-mono); color: inherit; background: transparent;
+}

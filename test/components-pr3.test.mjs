@@ -52,9 +52,9 @@ test('sheet footer: cancel first (left), primary/danger confirm second, inline e
 });
 test('banner icons exist for every tone', () => { for (const name of ['info', 'warning', 'error', 'success']) assert.match(icon(name), /<path|<circle/); });
 test('new component assets are registered and linked', async () => {
-  const assets = JSON.parse(await readFile(new URL('../core/web-assets.json', import.meta.url), 'utf8')), html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  const assets = JSON.parse(await readFile(new URL('../core/web-assets.json', import.meta.url), 'utf8')), html = await readFile(new URL('../public/legacy.css', import.meta.url), 'utf8');
   for (const name of ['switch', 'search-field', 'banner', 'chip', 'sheet']) {
     assert.equal(assets[`/components/${name}.js`], `components/${name}.js`); assert.equal(assets[`/components/${name}.css`], `components/${name}.css`);
-    assert.ok(html.includes(`href="/components/${name}.css"`), name + '.css must be linked from index.html');
+    assert.ok(html.includes(`@import url("./components/${name}.css") layer(legacy)`), name + '.css must be imported by legacy.css');
   }
 });

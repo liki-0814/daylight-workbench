@@ -1,0 +1,14 @@
+.dl-dialog {
+  box-sizing: border-box; width: min(var(--dl-dialog-w, 680px), calc(100vw - 2 * var(--space-32))); max-height: calc(100vh - 2 * var(--space-32));
+  padding: 0; border: var(--border-hairline); border-radius: var(--radius-dialog);
+  background: var(--color-bg-raised); color: var(--color-text-primary); box-shadow: var(--shadow-dialog);
+  overflow: visible; /* 项目菜单等可以越过弹窗边缘 */
+}
+.dl-dialog[open] { animation: dl-rise-in var(--motion-base) var(--ease-out); }
+.dl-dialog::backdrop { background: var(--scrim-light); backdrop-filter: blur(var(--scrim-blur)); animation: dl-fade-in var(--motion-base) var(--ease-out); }
+.dl-dialog__body { border-radius: inherit; }
+/* 宽度档位（CSP 禁内联 style：用 data-width 选择器，不写 style 属性） */
+.dl-dialog[data-width="480"] { --dl-dialog-w: 480px; }
+.dl-dialog[data-width="560"] { --dl-dialog-w: 560px; }
+.dl-dialog[data-width="680"] { --dl-dialog-w: 680px; }
+.dl-dialog[data-width="760"] { --dl-dialog-w: 760px; }

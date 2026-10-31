@@ -1,0 +1,8 @@
+.dl-toolbar {
+  display: flex; align-items: center; gap: var(--space-16); height: var(--toolbar-h); padding: 0 var(--space-page);
+  box-sizing: border-box; border-bottom: var(--border-hairline); background: var(--color-bg-app);
+}
+.dl-toolbar__title { display: flex; align-items: baseline; gap: var(--space-8); margin: 0; font: var(--weight-semibold) var(--text-lg)/var(--leading-lg) var(--font-sans); color: var(--color-text-primary); white-space: nowrap; }
+.dl-toolbar__count { color: var(--color-text-tertiary); font: var(--weight-regular) var(--text-sm)/var(--leading-sm) var(--font-sans); font-variant-numeric: tabular-nums; }
+.dl-toolbar__start { display: flex; flex: 1; align-items: center; gap: var(--space-12); min-width: 0; }
+.dl-toolbar__end { display: flex; align-items: center; gap: var(--space-8); }
