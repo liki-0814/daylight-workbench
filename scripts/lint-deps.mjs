@@ -8,12 +8,13 @@
 //   4. 旧 public/components/* 逐步变成纯 re-export 垫片（shim）：非垫片文件数有棘轮（scripts/lint-deps-baseline.json），只降不升，PR-Z 前清零。
 //   5. 组件 / pattern 派发事件只能经 core/events.js 的 emit()：禁止 .dispatchEvent( / new CustomEvent( / new Event(；emit 的动词必须是 ui:* 约定内的动词。
 //   6. ui/ 与 pages/ 的标记里不得写 style="…"（CSP style-src 'self'）。
-//   7. 页面不得伸手改组件内部：public/pages/**/*.js 里禁止 querySelector[All]('.dl-…') / closest('.dl-…') / matches('.dl-…')（组件契约缺 prop 或方法才会这样做，补契约，不补页面），
+//   7. 页面不得伸手改组件内部（public/*.js 同样适用，存量记在 debts.topLevelInternals）：public/pages/**/*.js 里禁止 querySelector[All]('.dl-…') / closest('.dl-…') / matches('.dl-…')（组件契约缺 prop 或方法才会这样做，补契约，不补页面），
 //      也禁止 setAttribute('aria-…')（状态要经 props 传给组件）。public/pages/**/*.css 禁止写 `__` 元素选择器（组件内部类）。
-//   8. 三处存量债务棘轮（scripts/lint-deps-baseline.json 的 debts，只许减少，不许增加，也不许换成别的文件）：
+//   8. 四处存量债务棘轮（scripts/lint-deps-baseline.json 的 debts，只许减少，不许增加，也不许换成别的文件）：
 //        serverPublicImports  服务端（根目录 *.mjs、core/**）import 了 public/ 下的哪些文件
 //        componentsUpward     旧 public/components/** 与 ui/** 依赖 routes.js / task-view.js / app.js / pages/ 的文件
 //        messageHandlerFiles  直接访问 webkit.messageHandlers 的 public/ 文件
+//        topLevelInternals    public/*.js 里查询 .dl-… 或补写 aria-* 的文件（规则 7 的扩展）
 //   node scripts/lint-deps.mjs [--root <dir>]     --root 指向含 public/ 与 scripts/ 的目录（测试夹具用）
 //   node scripts/lint-deps.mjs --update           把非垫片数量写回基线（只在变少时使用）
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -85,13 +86,14 @@ export function lintDeps({ root = defaultRoot } = {}) {
   }
 
   // 7. 页面不碰组件内部
+  const PAGE_QUERY = /\b(?:querySelector(?:All)?|closest|matches)\(\s*[`'"][^`'"]*\.dl-/, PAGE_ARIA = /\.setAttribute\(\s*['"]aria-/;
   const pagesDir = path.join(publicDir, 'pages');
   if (existsSync(pagesDir)) {
     for (const file of walk(pagesDir, f => /\.(js|css)$/.test(f))) {
       const rel = relOf(file), code = file.endsWith('.css') ? read(file).replace(/\/\*[\s\S]*?\*\//g, '') : stripComments(read(file));
       if (file.endsWith('.js')) {
-        if (/\b(?:querySelector(?:All)?|closest|matches)\(\s*[`'"][^`'"]*\.dl-/.test(code)) add(rel, 'pages-no-internals', "pages may not query component classes (.dl-…): add a prop / method / event to the component instead");
-        if (/\.setAttribute\(\s*['"]aria-/.test(code)) add(rel, 'pages-no-internals', 'pages may not patch aria-* state after render: pass it through the component props');
+        if (PAGE_QUERY.test(code)) add(rel, 'pages-no-internals', "pages may not query component classes (.dl-…): add a prop / method / event to the component instead");
+        if (PAGE_ARIA.test(code)) add(rel, 'pages-no-internals', 'pages may not patch aria-* state after render: pass it through the component props');
       } else if (/[^\s{},;][^{}]*__[\w-]+[^{}]*\{/.test(code.replace(/@[^{;]*\{/g, ''))) {
         for (const m of code.matchAll(/([^{}]+)\{/g)) if (/\.[\w-]*__[\w-]+/.test(m[1])) { add(rel, 'pages-css-internals', `pages CSS may not select component internals (${m[1].trim().slice(0, 60)}): extend the component / pattern tokens`); break; }
       }
@@ -113,6 +115,8 @@ export function lintDeps({ root = defaultRoot } = {}) {
     serverPublicImports: [...new Set(serverEdges)].sort(),
     componentsUpward: debtFiles(['public/components', 'public/ui'], (file, code) => importsOf(code).some(spec => /(?:^|\/)(?:routes|task-view|app)\.js$/.test(spec) || /(?:^|\/)pages\//.test(spec))),
     messageHandlerFiles: debtFiles(['public'], (file, code) => /\bmessageHandlers\b/.test(code)),
+    // 规则 7 的扩展：public/*.js（app.js、quick.js、cli-config.js…，不含子目录）同样不得查询 .dl-… 或补写 aria-*。存量只有下面两处，不许新增。
+    topLevelInternals: existsSync(publicDir) ? readdirSync(publicDir).filter(n => n.endsWith('.js')).filter(n => { const code = stripComments(read(path.join(publicDir, n))); return PAGE_QUERY.test(code) || PAGE_ARIA.test(code); }).map(n => `public/${n}`).sort() : [],
   };
   const baselineDebts = existsSync(baselineFile0(root)) ? JSON.parse(readFileSync(baselineFile0(root), 'utf8')).debts ?? {} : {};
   const debtsBetter = {};
@@ -139,7 +143,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const root = rootArg > 0 ? path.resolve(process.argv[rootArg + 1]) : defaultRoot;
   const { violations, nonShims, baseline, debts, debtsBetter } = lintDeps({ root });
   if (process.argv.includes('--update')) {
-    writeFileSync(path.join(root, 'scripts/lint-deps-baseline.json'), JSON.stringify({ note: 'nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: three legacy architectural debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access); each list may only shrink, never grow or swap.', nonShims, debts }, null, 2) + '\n');
+    writeFileSync(path.join(root, 'scripts/lint-deps-baseline.json'), JSON.stringify({ note: 'nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: four legacy debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access, public/*.js querying .dl-… or patching aria-*); each list may only shrink, never grow or swap.', nonShims, debts }, null, 2) + '\n');
     console.log(`lint-deps: baseline written (${nonShims.length} non-shim files)`);
     process.exit(0);
   }
