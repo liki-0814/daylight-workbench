@@ -81,7 +81,7 @@ function ensureAI() {
 function ensureStatistics() {
   return ensurePage('focus', async () => {
     const { createStatisticsPage } = await import('./focus/statistics-page.js');
-    statisticsPage = createStatisticsPage({ client: focusClient, controller: focusController, getTaskSnapshot: () => ({ state, version }), onRoute(hash) { focusSelection = parseRoute(hash, state); history.replaceState(null, '', '/' + hash); }, openTask: id => openModal({ type: 'task', id }), notify });
+    statisticsPage = createStatisticsPage({ client: focusClient, controller: focusController, getTaskSnapshot: () => ({ state, version }), onRoute(hash) { focusSelection = parseRoute(hash, state); history.replaceState(null, '', '/' + hash); }, openTask: id => openModal({ type: 'task', id }), notify, onStartFocus: () => openFocusPicker() });
     app.append(statisticsPage.element);
     statisticsPage.updateRoute(focusSelection);
   });
