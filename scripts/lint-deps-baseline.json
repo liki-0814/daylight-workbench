@@ -1,5 +1,5 @@
 {
-  "note": "public/components/* files that are not yet pure re-export shims. Only shrinks; must be empty before PR-Z.",
+  "note": "nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: three legacy architectural debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access); each list may only shrink, never grow or swap.",
   "nonShims": [
     "action-links.js",
     "ai-backend.js",
@@ -36,5 +36,24 @@
     "task-picker.js",
     "task-range-tabs.js",
     "task-row.js"
-  ]
+  ],
+  "debts": {
+    "serverPublicImports": [
+      "agent-api.mjs -> public/model.js",
+      "core/contracts.js -> public/task-view.js",
+      "core/task-write.js -> public/model.js",
+      "server.mjs -> public/model.js",
+      "server.mjs -> public/task-view.js",
+      "storage.mjs -> public/model.js"
+    ],
+    "componentsUpward": [
+      "public/components/action-links.js",
+      "public/components/task-picker.js"
+    ],
+    "messageHandlerFiles": [
+      "public/extensions/folder-picker.js",
+      "public/focus/platform.js",
+      "public/quick.js"
+    ]
+  }
 }

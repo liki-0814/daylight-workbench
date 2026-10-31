@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -89,4 +89,49 @@ test('import 解析与垫片判定', () => {
 test('lint-deps 已接入 npm run check', async () => {
   const { readFileSync } = await import('node:fs');
   assert.match(readFileSync(path.join(root, 'scripts/check.mjs'), 'utf8'), /scripts\/lint-deps\.mjs/);
+});
+
+test('页面不得 querySelector / closest / matches 组件内部类，也不得补写 aria-*', () => {
+  const dir = fixture({
+    'public/pages/a.js': "export const a = el => el.querySelector('.dl-dialog__body');\n",
+    'public/pages/b.js': "export const b = el => el.closest(\".dl-set__nav\");\n",
+    'public/pages/c.js': "export const c = el => el.querySelector('.dl-switch').setAttribute('aria-checked', 'true');\n",
+    'public/pages/ok.js': "export const ok = el => el.querySelector('#task-page') && el.closest('[data-name=\"tab\"]');\n",
+  });
+  try {
+    const got = rules(lintDeps({ root: dir }));
+    assert.deepEqual(got, ['pages-no-internals:pages/a.js', 'pages-no-internals:pages/b.js', 'pages-no-internals:pages/c.js', 'pages-no-internals:pages/c.js']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('pages/*.css 不得写 `__` 元素选择器（组件内部类）；页面布局类通过', () => {
+  const dir = fixture({
+    'public/pages/pages.css': ".px-layout { display: grid; }\n/* .dl-srow__control { width: 1px } */\n@media (min-width: 1px) { .px-layout > .x { gap: 4px; } }\n",
+    'public/pages/bad.css': ".dl-srow__control .dl-btn { min-width: 112px; }\n",
+  });
+  try { assert.deepEqual(rules(lintDeps({ root: dir })), ['pages-css-internals:pages/bad.css']); } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('三处存量债务棘轮：新增 server→public、旧组件→routes/pages、messageHandlers 文件都会失败；已登记的不会', () => {
+  const files = {
+    'server.mjs': "import { a } from './public/model.js';\nimport { b } from './public/extra.js';\n",
+    'public/model.js': 'export const a = 1;\n', 'public/extra.js': 'export const b = 1;\n',
+    'public/components/up.js': "import { r } from '../routes.js';\nexport const x = r;\n",
+    'public/components/up2.js': "import { r } from '../pages/tasks.js';\nexport const x = r;\n",
+    'public/bridge.js': "window.webkit.messageHandlers.x.postMessage(1);\n",
+    'public/bridge2.js': "window.webkit.messageHandlers.y.postMessage(1);\n",
+    'scripts/lint-deps-baseline.json': JSON.stringify({ nonShims: ['up.js', 'up2.js'], debts: { serverPublicImports: ['server.mjs -> public/model.js'], componentsUpward: ['public/components/up.js'], messageHandlerFiles: ['public/bridge.js'] } }),
+  };
+  const dir = fixture(files);
+  try {
+    const got = rules(lintDeps({ root: dir }));
+    assert.deepEqual(got, ['debt-ratchet:public/bridge2.js', 'debt-ratchet:public/components/up2.js', 'debt-ratchet:server.mjs -> public/extra.js']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('债务基线登记了三处存量债务，且和仓库现状一致', () => {
+  const { debts } = lintDeps({ root });
+  const baseline = JSON.parse(readFileSync(path.join(root, 'scripts/lint-deps-baseline.json'), 'utf8')).debts;
+  assert.deepEqual(Object.keys(baseline).sort(), ['componentsUpward', 'messageHandlerFiles', 'serverPublicImports']);
+  for (const key of Object.keys(baseline)) for (const item of debts[key]) assert.ok(baseline[key].includes(item), `${key}: ${item}`);
 });
