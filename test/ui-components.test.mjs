@@ -193,3 +193,9 @@ test('nav：updateNav 由组件保住 .dl-nav__scroll 的 scrollTop（页面不�
   const shell = readFileSync(new URL('../public/pages/shell.js', import.meta.url), 'utf8');
   assert.match(shell, /updateNav/);
 });
+
+test('子任务行对齐用 token（--leading-base），不用 Safari 16.0–16.3 不支持的 1lh', () => {
+  const css = readFileSync(new URL('../public/ui/patterns/inspector/inspector.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /\b1lh\b/);
+  assert.match(css, /\.dl-sub__title\s*\{[^}]*line-height:\s*var\(--leading-base\)[^}]*padding-block:\s*calc\(\(var\(--min-target\) - var\(--leading-base\)\) \/ 2\)/);
+});
