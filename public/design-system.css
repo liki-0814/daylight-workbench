@@ -203,42 +203,7 @@
   font-synthesis: none;
 }
 
-/* 深色令牌（后续版本）：与浅色成对书写，值与 design-spec.md §1.2 一致。
-   0.7 只交付浅色：没有任何元素带 data-color-scheme="dark"，也不使用 prefers-color-scheme，所以这一段当前不生效。
-   spec 未给出的深色值（--text-tertiary、*-bg）是占位，启用深色前须复核。 */
-:root[data-color-scheme="dark"] {
-  color-scheme: dark;
-  --bg: #1c1c1e;
-  --bg-secondary: #2c2c2e;
-  --bg-grouped: #242426;
-  --fill-hover: rgba(255, 255, 255, .06);
-  --fill-selected: rgba(10, 132, 255, .22);
-  --fill-control: rgba(255, 255, 255, .10);
-  --separator: rgba(255, 255, 255, .10);
-  --separator-strong: rgba(255, 255, 255, .18);
-  --text: #f5f5f7;
-  --text-secondary: #a1a1a6;
-  --text-tertiary: #86868b;
-  --accent: #0071e3;
-  --accent-text: #64d2ff;
-  --success: #30d158;
-  --warning: #ff9f0a;
-  --danger: #ff453a;
-  --success-text: var(--success);
-  --warning-text: var(--warning);
-  --danger-text: var(--danger);
-  --success-bg: rgba(48, 209, 88, .14);
-  --warning-bg: rgba(255, 159, 10, .14);
-  --danger-bg: rgba(255, 69, 58, .14);
-  --info-bg: rgba(10, 132, 255, .14);
-  --surface: #3a3a3c;
-  --material: rgba(28, 28, 30, .8);
-  --on-accent: #ffffff;
-  --switch-off: #48484a;
-  --control-border: #8e8e93;
-  --scrim: rgba(0, 0, 0, .5);
-  --focus-ring: 0 0 0 3px rgba(100, 210, 255, .45);
-}
+/* 深色令牌：0.8 起由 ui/tokens/themes/mist.css 的 [data-theme="dark"] 提供（当前强制浅色，见 ui/theme-boot.js）；旧的 data-color-scheme 深色块已删除（它从未生效）。 */
 
 /* Explicit paragraph rhythm removes browser-default 1em margins. */
 p { margin: 0; }

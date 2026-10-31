@@ -71,7 +71,7 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 }
 .ui-button-destructive:hover:not(:disabled) { background: var(--danger-bg); }
 :is(.ui-button,.primary,.secondary,.small-button,.text-button,.icon-button,.danger-link,.ui-refresh-button):hover:not(:disabled) { filter: brightness(.96); }
-:is(.ui-button-text,.ui-button-icon,.text-button,.icon-button,.ui-refresh-button):hover:not(:disabled) { background: var(--workbench-background); }
+:is(.ui-button-text,.ui-button-icon,.text-button,.icon-button,.ui-refresh-button):hover:not(:disabled) { background: var(--fill-hover); }
 .small-button.selected { background: var(--selection-background); color: var(--accent-text); }
 
 /* Navigation, form selection and toggles retain their semantic variants. */
