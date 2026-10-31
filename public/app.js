@@ -5,9 +5,8 @@ import { selectField } from './components/select.js';
 import './components/search-field.js';   // 副作用：安装 daylight-find（⌘F）监听，所有页面共用
 import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
-import { morph } from './ui/core/morph.js';
-import { showToast } from './ui/components/toast/toast.js';
-import { sidebarNav } from './pages/shell.js';
+import { showToast, hasToast, dropToastActions } from './ui/components/toast/toast.js';
+import { updateSidebar } from './pages/shell.js';
 import { mountTasks } from './pages/tasks.js';
 import { openNewTask } from './pages/new-task.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
@@ -168,14 +167,14 @@ const button = (action, label, symbol, extra = '', style = 'icon-button') => act
 let softToast = null;
 function notify(message, undo = false, tone = undo ? 'success' : 'info') {
   if (tone === 'error' || tone === 'warning') {
-    if ([...document.querySelectorAll(`.dl-toast--${tone} .dl-toast__text`)].some(node => node.textContent === message)) return;
+    if (hasToast({ message, tone })) return;
     showToast({ message, tone });
     return;
   }
   softToast?.dismiss();
   softToast = showToast({ message, tone, actions: undo ? [{ label: '撤销', value: 'undo' }] : [] });
 }
-const dropUndoActions = () => document.querySelectorAll('.dl-toast__action[data-value="undo"]').forEach(node => node.remove());
+const dropUndoActions = () => dropToastActions('undo');
 
 async function load() {
   const response = await fetch('/api/state');
@@ -272,9 +271,7 @@ function sidebarCounts() {
 }
 function renderSidebar() {
   if (!sidebarRoot) return;
-  const scroll = sidebarRoot.querySelector('.dl-nav__scroll')?.scrollTop || 0;
-  morph(sidebarRoot, sidebarNav({ view, projects: state.projects, counts: sidebarCounts(), aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady }));
-  const list = sidebarRoot.querySelector('.dl-nav__scroll'); if (list) list.scrollTop = scroll;
+  updateSidebar(sidebarRoot, { view, projects: state.projects, counts: sidebarCounts(), aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady });
 }
 function render() {
   if (!state) return;
@@ -467,12 +464,12 @@ function openModal(value) {
 }
 
 document.addEventListener('click', async event => {
-  const brand = event.target.closest('.dl-nav__brand');
+  const brand = event.target.closest('[data-brand]');
   if (brand && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('all'); return; }
   if (event.target.closest('[data-open-conversation]')) { dialog.close(); return; }
   const target = event.target.closest('button');
   if (!target || target.disabled || busy) return;
-  if (target.dataset.view && !target.closest('.dl-nav')) { navigate(target.dataset.view); return; }
+  if (target.dataset.view && !target.closest('[data-ui="nav"]')) { navigate(target.dataset.view); return; }
   if (target.dataset.tab) { tab = target.dataset.tab; writeTaskURL(); render(); return; }
   const { action, id } = target.dataset;
   if (action && ![taskRoot, sidebarRoot, dialog].some(root => root?.contains(target))) return;
@@ -545,8 +542,8 @@ document.addEventListener('change', event => {
 const scopeToView = value => value === 'unassigned' ? 'inbox' : value === '' ? 'all' : value;
 document.addEventListener('ui:select', async event => {
   const { value } = event.detail, target = event.target;
-  if (target.matches?.('.dl-nav')) { if (sidebarRoot?.contains(target)) navigate(value); return; }
-  if (target.matches?.('.dl-row')) { selectedTaskId = selectedTaskId === value ? selectedTaskId : value; render(); return; }
+  if (target.dataset?.ui === 'nav') { if (sidebarRoot?.contains(target)) navigate(value); return; }
+  if (target.dataset?.ui === 'row') { selectedTaskId = selectedTaskId === value ? selectedTaskId : value; render(); return; }
   if (target.dataset?.name === 'scope') { if (value === '__new__') openModal({ type: 'project' }); return; }
   if (target.dataset?.name === 'more' && selectedTaskId) {
     const id = selectedTaskId;
@@ -557,7 +554,7 @@ document.addEventListener('ui:select', async event => {
     else if (value === 'plan' || value === 'unplan') await mutate({ type: value, id }, value === 'plan' ? '已加入今天' : '已移出今天，任务仍保留');
     return;
   }
-  if (target.matches?.('.dl-toast') && value === 'undo') {
+  if (target.dataset?.ui === 'toast' && value === 'undo') {
     try { await taskClient.undo(); notify('已撤销上一次修改'); } catch (error) { notify(error.message, false, 'error'); }
   }
 });
@@ -574,19 +571,19 @@ document.addEventListener('ui:change', async event => {
     return;
   }
   if (name === 'subdone' && target.closest('#task-page')) {
-    const li = target.closest('.dl-sub'), id = selectedTaskId;
+    const li = target.closest('[data-sub]'), id = selectedTaskId;
     if (!li || !id || busy) { event.preventDefault(); return; }
     const ok = await mutate({ type: 'subtask.toggle', id, subId: li.dataset.sub }, '已更新子任务');
-    if (!ok) target.setAttribute('aria-checked', String(event.detail.previousValue));
+    if (!ok) render(); // 保存失败：用未变的 state 重绘，checkbox 是受控组件，会自己回到原状态
     return;
   }
-  const row = target.closest?.('.dl-row');
+  const row = target.closest?.('[data-ui="row"]');
   if (row && name === 'done') {
     const id = row.dataset.id, task = state.tasks.find(t => t.id === id);
     if (!task || busy) { event.preventDefault(); return; }
     if (task.status !== 'done' && !confirmTaskCompletion(id)) { event.preventDefault(); return; }
     const ok = await mutate({ type: 'toggle', id }, task.status === 'done' ? '任务已恢复为待办' : '任务已完成');
-    if (!ok) target.setAttribute('aria-checked', String(event.detail.previousValue));
+    if (!ok) render();
   }
 });
 dialog.addEventListener('close', () => { if (dialog.open) return; taskSummary?.dispose();taskSummary=null;legacyPicker?.dispose();legacyPicker=null; if (modal?.type === 'task' && modal.id && !modal.saved) { const form=dialog.querySelector('#task-form'); if (form) formDrafts.set(modal.id,{fields:[...new FormData(form)],version:formDrafts.get(modal.id)?.version ?? version}); } modal = null; });

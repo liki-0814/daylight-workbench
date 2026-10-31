@@ -135,4 +135,55 @@ export default [
     const clipped = await page.evaluate(() => [...document.querySelectorAll('.dl-insp *')].filter(e => e.children.length === 0 && e.offsetWidth > 1 && (e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1) && e.tagName !== 'INPUT').map(e => e.className));
     check.deepEqual(clipped, [], '详情栏没有被截断的文字');
   } },
+  { id: 'shell-pr3-20', priority: 'P0', widths: [1440], title: '保存失败：行复选框与子任务复选框由组件自己回滚（页面用未变的 state 重绘，不补写 aria）', async run({ page, url, assert: check }) {
+    await go(page, url);
+    const row = page.locator('#task-page .dl-row').first(), rowCheck = row.locator('.dl-check');
+    await row.click(); await page.locator('#task-page .dl-insp__title').waitFor();
+    await page.locator('#subtask-input').click(); await page.keyboard.type('先加一条'); await page.keyboard.press('Enter');
+    await page.locator('.dl-sub').first().waitFor();
+    await page.route('**/api/task-actions', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: '磁盘已满，无法保存' }) }));
+    await page.route('**/api/state', route => route.request().method() === 'PUT' ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: '磁盘已满，无法保存' }) }) : route.continue());
+    const sub = page.locator('.dl-sub .dl-check').first();
+    check.equal(await sub.getAttribute('aria-checked'), 'false');
+    await sub.click();
+    await page.locator('.dl-toast--error').waitFor();
+    check.equal(await sub.getAttribute('aria-checked'), 'false', '子任务勾选失败后回到未勾选');
+    check.equal(await page.locator('.dl-sub.is-done').count(), 0);
+    check.equal(await rowCheck.getAttribute('aria-checked'), 'false');
+    await rowCheck.click();
+    await page.waitForFunction(() => document.querySelectorAll('.dl-toast--error').length >= 1);
+    await page.waitForFunction(() => document.querySelector('#task-page .dl-row .dl-check').getAttribute('aria-checked') === 'false');
+    check.equal(await rowCheck.getAttribute('aria-checked'), 'false', '任务勾选失败后回到未勾选');
+  } },
+  { id: 'shell-pr3-21', priority: 'P0', widths: [1440], title: '侧栏重绘后滚动位置保持（由 nav 组件的 updateNav 保住，页面不查 .dl-nav__scroll）', async run({ page, url, assert: check }) {
+    await page.setViewportSize({ width: 1440, height: 420 });
+    await go(page, url);
+    const area = page.locator('.dl-nav--sidebar .dl-nav__scroll');
+    const room = await area.evaluate(el => el.scrollHeight - el.clientHeight);
+    check.ok(room > 20, '侧栏在矮窗口里可滚动：' + room);
+    await area.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    const before = await area.evaluate(el => el.scrollTop); check.ok(before > 0);
+    await page.locator('#task-page .dl-row').first().click();            // 触发 render() → 侧栏重绘
+    await page.locator('#task-page .dl-insp__title').waitFor();
+    await page.locator('#task-page .dl-row').nth(1).click();
+    await page.waitForTimeout(200);
+    check.equal(await area.evaluate(el => el.scrollTop), before, '重绘后 scrollTop 不变');
+  } },
+  { id: 'shell-pr3-22', priority: 'P1', widths: [1240, 1440], title: '子任务行：勾选框与 × 和标题第一行顶对齐；× 的底色只在悬停 / 聚焦时出现', async run({ page, url, assert: check }) {
+    await go(page, url);
+    await page.locator('#task-page .dl-row').first().click(); await page.locator('#task-page .dl-insp__title').waitFor();
+    await page.locator('#subtask-input').click(); await page.keyboard.type('一个相当长的子任务标题，用来检查换行时勾选框和删除按钮都贴着第一行而不是居中 abcdefghijklmnopqrstuvwxyz'); await page.keyboard.press('Enter');
+    const li = page.locator('.dl-sub').first(); await li.waitFor();
+    const m = await li.evaluate(el => { const t = el.querySelector('.dl-sub__title'), c = el.querySelector('.dl-check'), x = el.querySelector('.dl-icon-btn'); const lh = parseFloat(getComputedStyle(t).lineHeight), pad = parseFloat(getComputedStyle(t).paddingTop); const mid = r => r.top + r.height / 2; const tr = t.getBoundingClientRect(); return { lines: Math.round((tr.height - 2 * pad) / lh), firstMid: tr.top + pad + lh / 2, check: mid(c.getBoundingClientRect()), x: mid(x.getBoundingClientRect()), bg: getComputedStyle(x).backgroundColor }; });
+    check.ok(m.lines >= 2, '标题换成了多行：' + m.lines);
+    check.ok(Math.abs(m.check - m.firstMid) <= 1.5, `勾选框与第一行居中对齐：${m.check} vs ${m.firstMid}`);
+    check.ok(Math.abs(m.x - m.firstMid) <= 1.5, `× 与第一行居中对齐：${m.x} vs ${m.firstMid}`);
+    check.equal(m.bg, 'rgba(0, 0, 0, 0)', '平时 × 没有底色');
+    await page.mouse.move(0, 0);
+    await li.locator('.dl-icon-btn').hover();
+    check.ok(await li.locator('.dl-icon-btn').evaluate(el => getComputedStyle(el).backgroundColor) !== 'rgba(0, 0, 0, 0)', '悬停时出现底色');
+    await page.mouse.move(0, 0);
+    await li.locator('.dl-icon-btn').focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+    check.ok(await li.locator('.dl-icon-btn').evaluate(el => getComputedStyle(el).backgroundColor) !== 'rgba(0, 0, 0, 0)', '键盘聚焦时出现底色');
+  } },
 ];

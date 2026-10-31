@@ -13,6 +13,7 @@ import { menu } from '../public/ui/components/menu/menu.js';
 import { chip } from '../public/ui/components/chip/chip.js';
 import { switchControl } from '../public/ui/components/switch/switch.js';
 import { checkbox } from '../public/ui/components/checkbox/checkbox.js';
+import * as navModule from '../public/ui/components/nav/nav.js';
 import { dialog } from '../public/ui/components/dialog/dialog.js';
 import { statusTag } from '../public/ui/components/status-tag/status-tag.js';
 import { nav } from '../public/ui/components/nav/nav.js';
@@ -175,4 +176,20 @@ test('settings：控件列令牌 + controlWidth / scroll / flush 选项 + settin
   assertInert(settingsReadout({ text: EVIL, mono: true, attrs: { 'data-x': EVIL } }), 'readout');
   const css = readFileSync(new URL('../public/ui/patterns/settings/settings.css', import.meta.url), 'utf8');
   assert.match(css, /--ui-srow-control-w:\s*200px/);
+});
+
+test('checkbox：受控组件（aria-checked 来自 props，不进 data-ui-keep），保存失败后用未变 state 重绘即可回滚；app.js 不再补写 aria', () => {
+  const on = String(checkbox({ name: 'done', label: 'x', checked: true })), off = String(checkbox({ name: 'done', label: 'x' }));
+  assert.match(on, /aria-checked="true"/); assert.match(off, /aria-checked="false"/);
+  assert.doesNotMatch(on + off, /data-ui-keep/);
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(app, /setAttribute\(\s*['"]aria-/);
+  assert.doesNotMatch(app, /\b(?:querySelector(?:All)?|closest|matches)\??\.?\(\s*[`'"][^`'"]*\.dl-/);
+});
+
+test('nav：updateNav 由组件保住 .dl-nav__scroll 的 scrollTop（页面不再手动存取）', () => {
+  assert.equal(typeof navModule.updateNav, 'function');
+  assert.match(String(navModule.updateNav), /scrollTop/);
+  const shell = readFileSync(new URL('../public/pages/shell.js', import.meta.url), 'utf8');
+  assert.match(shell, /updateNav/);
 });

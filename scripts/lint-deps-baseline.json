@@ -1,5 +1,5 @@
 {
-  "note": "nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: three legacy architectural debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access); each list may only shrink, never grow or swap.",
+  "note": "nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: four legacy debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access, public/*.js querying .dl-… or patching aria-*); each list may only shrink, never grow or swap.",
   "nonShims": [
     "action-links.js",
     "ai-backend.js",
@@ -52,6 +52,11 @@
     "messageHandlerFiles": [
       "public/extensions/folder-picker.js",
       "public/focus/platform.js",
+      "public/quick.js"
+    ],
+    "topLevelInternals": [
+      "public/cli-config.js",
+      "public/model-routes.js",
       "public/quick.js"
     ]
   }

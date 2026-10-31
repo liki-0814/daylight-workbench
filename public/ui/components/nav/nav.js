@@ -3,6 +3,7 @@ import { icon } from '../../core/icons.js';
 import { dot } from '../chip/chip.js';
 import { emit, sourceOf } from '../../core/events.js';
 import { install, moveFocus } from '../../core/behave.js';
+import { morph } from '../../core/morph.js';
 
 // navItem({ value, label, icon, dot, count, active, kbd, attrs })
 function navItem({ value, label, icon: iconName, dot: dotColor, count, active = false, kbd, attrs: extra }) {
@@ -17,6 +18,16 @@ export function nav({ label, name, sections = [], footer = [], header = '', kind
   if (!label) throw new TypeError('nav needs a label (aria-label)');
   const body = sections.map(section => html`<section class="dl-nav__section" data-key="${section.key ?? section.title ?? 'main'}">${section.title ? html`<h2 class="dl-nav__title">${section.title}${section.action ? html`<button class="dl-nav__add" type="button" aria-label="${section.action.label}" title="${section.action.label}"${attrs(section.action.attrs)}>${icon('plus', { size: 14 })}</button>` : ''}</h2>` : ''}${section.items.map(navItem)}${section.empty ? html`<p class="dl-nav__empty">${section.empty}</p>` : ''}</section>`);
   return html`<nav class="${cx('dl-nav', `dl-nav--${kind === 'list' ? 'list' : 'sidebar'}`)}" aria-label="${label}" data-ui="nav"${name ? html` data-name="${name}"` : ''}${attrs(extra)}>${header ? html`<div class="dl-nav__header">${slot(header)}</div>` : ''}<div class="dl-nav__scroll">${body}</div>${footer.length ? html`<div class="dl-nav__footer">${footer.map(navItem)}</div>` : ''}</nav>`;
+}
+
+// updateNav(host, content) —— 重绘侧栏 / 列表导航（morph）并保住可滚动区域的 scrollTop。页面不要自己去查 .dl-nav__scroll。
+export function updateNav(host, content) {
+  const area = () => host.querySelector('.dl-nav__scroll');
+  const top = area()?.scrollTop ?? 0;
+  morph(host, content);
+  const next = area();
+  if (next && next.scrollTop !== top) next.scrollTop = top;
+  return host;
 }
 
 install('nav', doc => {

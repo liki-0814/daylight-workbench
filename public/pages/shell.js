@@ -1,6 +1,6 @@
 // 全局侧栏（0.8）：品牌 + 工作 / 项目 / 工具三组入口，只用 nav 组件。
 import { html } from '../ui/core/html.js';
-import { nav } from '../ui/components/nav/nav.js';
+import { nav, updateNav } from '../ui/components/nav/nav.js';
 
 const TOOLS = [['ai', 'AI 对话', 'chat'], ['proxy', '反向代理', 'grid'], ['cli', 'CLI 配置', 'terminal'], ['extensions', '扩展管理', 'puzzle'], ['update', '更新', 'refresh']];
 
@@ -12,7 +12,7 @@ export function sidebarNav({ view, projects = [], counts = {}, aiActivity = '', 
   const tool = ([value, label, icon]) => item([value, label, icon], { count: value === 'ai' ? aiActivity : value === 'update' && updateAvailable ? '有更新' : '' });
   return nav({
     label: '主要导航', kind: 'sidebar',
-    header: html`<a class="dl-nav__brand" href="/" aria-label="Daylight 工作台首页"><img src="/favicon.svg" alt="" width="24" height="24"><span class="dl-nav__brand-text">Daylight</span></a>`,
+    header: html`<a class="dl-nav__brand" data-brand href="/" aria-label="Daylight 工作台首页"><img src="/favicon.svg" alt="" width="24" height="24"><span class="dl-nav__brand-text">Daylight</span></a>`,
     sections: [
       { key: 'work', title: '工作', items: [
         item(['all', '任务', 'tasks'], { active: view === 'all' || view === 'done', count: counts.open ?? '' }),
@@ -29,3 +29,6 @@ export function sidebarNav({ view, projects = [], counts = {}, aiActivity = '', 
     footer: [item(['settings', '设置', 'gear'])],
   });
 }
+
+// 重绘全局侧栏：焦点、滚动位置由 morph / updateNav 保住。
+export const updateSidebar = (host, props) => updateNav(host, sidebarNav(props));
