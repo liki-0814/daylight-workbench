@@ -17,3 +17,5 @@
 | `--button-active-bg` | `--ui-button-active-bg` | `--color-bg-selected`（primary：`--color-accent-active`） |
 | `--button-border` | `--ui-button-border` | `--color-border-default`（primary：透明） |
 | `--button-radius` | `--radius-control` | semantic.css 里原 `--button-radius` 已搬走，值 `var(--radius-md)` 留给旧页面 |
+
+快捷键（`kbd`）：文字色来自组件令牌 `--ui-button-kbd-fg`，每个变体自己声明（默认 / ghost / danger 用 `--color-text-secondary`，primary 用 `--color-text-on-accent`，disabled 用 `--color-text-disabled`），都按「对该变体底色 ≥4.5:1」取值，不再用 opacity 冲淡；新增变体必须同时声明它。页面不要覆盖 `.dl-btn > kbd`。
