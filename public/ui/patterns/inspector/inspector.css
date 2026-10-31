@@ -20,7 +20,7 @@
 /* 子任务行：勾选框、× 与标题第一行顶对齐（标题换行时不再居中）；× 的圆形底色只在悬停 / 聚焦时出现 */
 .dl-sub { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; gap: var(--space-8); min-height: var(--min-target); }
 .dl-sub > .dl-check { margin-block: calc((var(--min-target) - 16px) / 2); }
-.dl-sub__title { padding-block: calc((var(--min-target) - 1lh) / 2); overflow-wrap: anywhere; }
+.dl-sub__title { line-height: var(--leading-base); padding-block: calc((var(--min-target) - var(--leading-base)) / 2); overflow-wrap: anywhere; }
 .dl-sub.is-done .dl-sub__title { color: var(--color-text-tertiary); text-decoration: line-through; }
 .dl-sub > .dl-icon-btn { background: transparent; }
 .dl-sub > .dl-icon-btn:hover:not(:disabled), .dl-sub > .dl-icon-btn:focus-visible { background: var(--color-bg-selected); color: var(--color-text-primary); }
