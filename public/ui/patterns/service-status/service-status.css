@@ -2,8 +2,8 @@
 .dl-hero__top { display: flex; align-items: center; gap: var(--space-12); }
 .dl-hero__title { margin: 0; font: var(--weight-semibold) var(--text-lg)/var(--leading-lg) var(--font-sans); }
 .dl-hero__switch { margin-left: auto; }
-.dl-hero__addr { display: flex; align-items: center; gap: var(--space-10); height: var(--control-h); margin-top: var(--space-16); padding: 0 var(--space-12); border-radius: var(--radius-control); background: var(--color-bg-sunken); font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-mono); }
-.dl-hero__url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; user-select: all; }
+.dl-hero__addr { display: flex; align-items: center; gap: var(--space-10); min-height: var(--control-h); margin-top: var(--space-16); padding: 0 var(--space-12); border-radius: var(--radius-control); background: var(--color-bg-sunken); font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-mono); }
+.dl-hero__url { flex: 1; min-width: 0; overflow-wrap: anywhere; user-select: all; }
 .dl-hero__addr.is-muted { color: var(--color-text-secondary); animation: dl-text-in var(--motion-base) var(--ease-out); }
 .dl-hero__addr.is-live, .dl-hero__meta.is-live { animation: dl-rise-in-half var(--motion-base) var(--ease-out); }
 .dl-hero__addr .dl-btn { height: var(--min-target); }

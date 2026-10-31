@@ -1,11 +1,14 @@
 import { selectTasks } from './task-view.js';
 import { parseRoute, taskRoute, calendarRoute, focusRoute, conversationRoute, viewProjectId } from './routes.js';
-import { change, localDate } from './model.js';
+import { change, localDate, taskSeqs, taskCode } from './model.js';
 import { selectField } from './components/select.js';
 import './components/search-field.js';   // 副作用：安装 daylight-find（⌘F）监听，所有页面共用
 import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
-import { sidebarContent } from './components/sidebar.js';
+import { showToast, hasToast, dropToastActions } from './ui/components/toast/toast.js';
+import { updateSidebar } from './pages/shell.js';
+import { mountTasks } from './pages/tasks.js';
+import { openNewTask } from './pages/new-task.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
 import { settingsPage, mountSettingsPage } from './components/settings-page.js';
 import { mountAISettings } from './ai-settings.js';
@@ -25,16 +28,15 @@ import { pageViews, isPage, sectionFor, esc, empty } from './app-helpers.js';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
-const toast = document.querySelector('#toast');
 let heldTaskFocus = null;
 let state, version, token, busy = false, today = localDate();
-let view = 'all', query = '', tab = 'open', modal = null, toastTimer;
+let view = 'all', query = '', tab = 'open', modal = null, selectedTaskId = null;
 let refreshing = false, taskReturn = null, aiActivity = '';
 const formDrafts = new Map();
 let aiPage, calendarPage, focusController, focusClient, focusWidget, todayPanel, todaySummary, statisticsPage, focusSettings, taskSummary, switchShell, pickerShell, picker, legacyPicker;
 let focusSelection = {};
 let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
-const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
+const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) dropUndoActions(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, settingsPageControl, updatePage, updaterReady = false, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, update: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
@@ -147,7 +149,7 @@ async function showRelated(scope) {
     const data = await response.json(); if (!response.ok) throw new Error(data.error);
     if (dialog.open) { captureTaskDraft(); dialog.close(); }
     openModal({ type: 'related', scope, conversations: data.conversations });
-  } catch (e) { notify(e.message); }
+  } catch (e) { notify(e.message, false, 'error'); }
 }
 
 const project = task => state.projects.find(p => p.id === task.projectId);
@@ -160,12 +162,18 @@ const oldTasks = () => {
 };
 const button = (action, label, symbol, extra = '', style = 'icon-button') => actionButton({label,symbol,variant:'icon',iconOnly:true,className:style,attrs:{'data-action':action,disabled:busy},extra});
 
-function notify(message, undo = false) {
-  clearTimeout(toastTimer);
-  toast.innerHTML = `${icon('check')}<span>${esc(message)}</span>${undo ? '<button data-action="undo">撤销</button>' : ''}`;
-  toast.classList.add('visible');
-  toastTimer = setTimeout(() => toast.classList.remove('visible'), 6500);
+// 通知：success / info 6.5 秒后收起；error / warning 不会自动消失，必须手动关闭（toast 组件）。
+let softToast = null;
+function notify(message, undo = false, tone = undo ? 'success' : 'info') {
+  if (tone === 'error' || tone === 'warning') {
+    if (hasToast({ message, tone })) return;
+    showToast({ message, tone });
+    return;
+  }
+  softToast?.dismiss();
+  softToast = showToast({ message, tone, actions: undo ? [{ label: '撤销', value: 'undo' }] : [] });
 }
+const dropUndoActions = () => dropToastActions('undo');
 
 async function load() {
   const response = await fetch('/api/state');
@@ -181,7 +189,7 @@ async function save(next, message, allowUndo = true) {
     notify(message + (result.warnings?.length ? '，计时状态待恢复' : ''), Boolean(taskClient.getUndo()));
     return true;
   } catch (error) {
-    notify(error.message);
+    notify(error.message, false, 'error');
     if (dialog.open) {
       const warning = document.createElement('p'); warning.className = 'dialog-error'; warning.setAttribute('role', 'alert');
       warning.textContent = error.message + (modal?.needsRefresh ? '。当前输入已保留，请核对最新数据后再保存。' : '');
@@ -194,7 +202,7 @@ async function save(next, message, allowUndo = true) {
 async function mutate(action, message) {
   if (busy) return;
   try { return await save(change(state, action, today), message); }
-  catch (error) { notify(error.message); return false; }
+  catch (error) { notify(error.message, false, 'error'); return false; }
 }
 
 function taskRow(task, {reorder=false, choose=false, grouped=false} = {}) {
@@ -243,7 +251,7 @@ async function startFocus(taskId) {
   await focusController.act({type:'focus.start',phase:'work',taskId},{taskVersion:version});notify('专注已开始');return true;
 }
 function openFocusPicker() {
-  openTaskPicker({targetDay:today,mode:'focus',onChoose:async id=>{pickerShell?.close();try{return await startFocus(id);}catch(error){notify(error.message);return false;}}});
+  openTaskPicker({targetDay:today,mode:'focus',onChoose:async id=>{pickerShell?.close();try{return await startFocus(id);}catch(error){notify(error.message, false, 'error');return false;}}});
 }
 function initializeFocus() {
   focusClient=createFocusClient({getToken:()=>token});focusController=createFocusController({client:focusClient,getToken:async({refresh}={})=>{if(refresh){const response=await fetch('/api/state');if(!response.ok)throw new Error('无法读取服务凭证');const latest=await response.json();token=latest.token;}return token;}});
@@ -254,26 +262,25 @@ function initializeFocus() {
 
 
 
+const taskCodes = () => { const seqs = taskSeqs(state.tasks); return new Map(state.tasks.map((t, i) => [t.id, taskCode(seqs[i])])); };
+function sidebarCounts() {
+  const open = state.tasks.filter(t => t.status !== 'done'), byProject = {};
+  for (const task of open) if (task.projectId) byProject[task.projectId] = (byProject[task.projectId] || 0) + 1;
+  return { open: open.length, today: (state.plans[today] || []).length, byProject, inbox: open.filter(t => !t.projectId).length };
+}
+function renderSidebar() {
+  if (!sidebarRoot) return;
+  updateSidebar(sidebarRoot, { view, projects: state.projects, counts: sidebarCounts(), aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady });
+}
 function render() {
   if (!state) return;
   if (!['today', 'inbox', 'all', 'done', 'calendar', ...pageViews].includes(view) && !state.projects.some(p => p.id === viewProjectId(view))) { view = 'all'; query = ''; notify('项目已删除，已返回任务列表'); }
   if (!sidebarRoot) {
-    sidebarRoot = document.createElement('aside'); sidebarRoot.className = 'sidebar';
-    taskRoot = document.createElement('main'); taskRoot.id = 'task-page';
+    sidebarRoot = document.createElement('div'); sidebarRoot.id = 'sidebar';
+    taskRoot = document.createElement('div'); taskRoot.id = 'task-root'; taskRoot.className = 'dl-root';
     app.replaceChildren(sidebarRoot, taskRoot);
   }
-  const markup = sidebarContent({ state, day: today, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady });
-  if (markup !== sidebarMarkup) {
-    const scroll = sidebarRoot.scrollTop;
-    sidebarRoot.innerHTML = markup; sidebarMarkup = markup;
-    sidebarRoot.scrollTop = scroll;
-  }
-  sidebarRoot.querySelectorAll('[data-view]').forEach(button => {
-    const active = button.dataset.view === 'all' ? !isPage(view) : button.dataset.view === view;
-    button.classList.toggle('active', active);
-    button.classList.toggle('parent-active', button.dataset.view === 'all' && state.projects.some(p => p.id === viewProjectId(view)));
-    if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
-  });
+  renderSidebar();
   taskRoot.hidden = isPage(view) || view === 'calendar';
   calendarPage?.setVisible(view === 'calendar');
   statisticsPage?.setVisible(view === 'focus');
@@ -285,13 +292,13 @@ function render() {
   proxyPage?.setSettingsVisible(view === 'settings');
   if (view === 'extensions') {
     proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
-    if (!extensionsPage) { opening('正在打开扩展管理…'); void ensureExtensions().then(() => { if (view === 'extensions') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!extensionsPage) { opening('正在打开扩展管理…'); void ensureExtensions().then(() => { if (view === 'extensions') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     extensionsPage.updateRoute(parseRoute(location.hash, state)); extensionsPage.setVisible(true);
     document.title = 'Daylight · 扩展管理'; return;
   }
   if (view === 'update') {
     proxyPage?.setVisible(false); aiPage?.setVisible(false); if (settingsRoot) settingsRoot.hidden = true;
-    if (!updatePage) { opening('正在打开更新…'); void ensureUpdate().then(() => { if (view === 'update') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!updatePage) { opening('正在打开更新…'); void ensureUpdate().then(() => { if (view === 'update') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     updatePage.setVisible(true);
     document.title = 'Daylight · 更新';
     return;
@@ -300,7 +307,7 @@ function render() {
     proxyPage?.setVisible(false);
     aiPage?.setVisible(false);
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!cliPage) { opening('正在打开 CLI 配置…'); void ensureCLI().then(() => { if (view === 'cli') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!cliPage) { opening('正在打开 CLI 配置…'); void ensureCLI().then(() => { if (view === 'cli') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     cliPage.setVisible(true);
     document.title = 'Daylight · CLI 配置';
     return;
@@ -308,20 +315,20 @@ function render() {
   if (view === 'ai') {
     proxyPage?.setVisible(false);
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!aiPage) { opening('正在打开 AI 对话…'); void ensureAI().then(() => { if (view === 'ai') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!aiPage) { opening('正在打开 AI 对话…'); void ensureAI().then(() => { if (view === 'ai') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     aiPage.setVisible(true); document.title = 'Daylight · AI 对话'; return;
   }
   aiPage?.setVisible(false);
   if (view === 'proxy') {
     if (settingsRoot) settingsRoot.hidden = true;
-    if (!proxyPage) { opening('正在打开反向代理…'); void ensureProxy().then(() => { if (view === 'proxy') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!proxyPage) { opening('正在打开反向代理…'); void ensureProxy().then(() => { if (view === 'proxy') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     proxyPage.setVisible(true);
     document.title = 'Daylight · 反向代理';
     return;
   }
   if (view === 'settings') {
     proxyPage?.setVisible(false);
-    if (!proxyPage) { opening('正在打开设置…'); void ensureProxy().then(() => { if (view === 'settings') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!proxyPage) { opening('正在打开设置…'); void ensureProxy().then(() => { if (view === 'settings') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     if (!settingsRoot) {
       settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
@@ -339,11 +346,11 @@ function render() {
   proxyPage?.setVisible(false);
   if (settingsRoot) settingsRoot.hidden = true;
   if (view === 'focus') {
-    if (!statisticsPage) { opening('正在打开专注统计…'); void ensureStatistics().then(() => { if (view === 'focus') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!statisticsPage) { opening('正在打开专注统计…'); void ensureStatistics().then(() => { if (view === 'focus') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     statisticsPage.updateState(); statisticsPage.setVisible(true);document.title='Daylight · 专注统计';return;
   }
   if (view === 'calendar') {
-    if (!calendarPage) { opening('正在打开日历…'); void ensureCalendar().then(() => { if (view === 'calendar') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
+    if (!calendarPage) { opening('正在打开日历…'); void ensureCalendar().then(() => { if (view === 'calendar') render(); }).catch(error => { notify(error.message, false, 'error'); loadFailed(error.message, () => render()); }); return; }
     calendarPage.updateRoute(calendar); calendarPage.setVisible(true); document.title='Daylight · 日历'; return;
   }
   document.title = 'Daylight · 任务管理';
@@ -352,12 +359,16 @@ function render() {
   const tasks = result.tasks, { open: openCount, done: doneCount } = result.counts;
   const active = state.tasks.find(t => t.status === 'active');
   const heading = currentProject?.name || '任务';
+  if (view !== 'today') {
+    mountTasks(taskRoot, { state, view, tab, query, selectedId: selectedTaskId, tasks, counts: result.counts, today, currentProject, codes: taskCodes() });
+    return;
+  }
   const rangeLabel = currentProject?.name || (view === 'inbox' ? '未归类' : view === 'today' ? '今天' : '全部项目');
   const old = oldTasks();
   const grouped = view === 'all';
   const taskList = grouped ? [...state.projects.map(p => ({...p, tasks:tasks.filter(t=>t.projectId===p.id)})), {id:null,name:'未归类',color:'neutral',tasks:tasks.filter(t=>t.projectId===null)}].filter(p=>p.tasks.length).map(p=>`<section class="task-project-group"><div class="task-group-heading"><button data-view="${esc(p.id === null ? 'inbox' : 'project:'+p.id)}"><i class="dot ${esc(p.color)}"></i><strong>${esc(p.name)}</strong><span>${p.tasks.length}</span>${icon('arrow')}</button></div>${p.tasks.map(t=>taskRow(t,{grouped:true})).join('')}</section>`).join('') : tasks.map(t=>taskRow(t,{reorder:view==='today'&&!query})).join('');
   const focusTarget = taskFocusTarget() || heldTaskFocus;
-  taskRoot.innerHTML = `
+  taskRoot.innerHTML = `<main id="task-page" class="legacy-today">
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> ${view === 'today' ? '今天' : '任务'}${currentProject ? ' / ' + esc(currentProject.name) : ''}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索${esc(rangeLabel)}…" aria-label="搜索${esc(rangeLabel)}中的${tab === 'done' ? '已完成' : '待办'}任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
     <div class="workspace task-workspace ${view === 'today' ? 'today-workspace' : ''}">
       <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${openCount} 项待办 · ${doneCount} 项已完成${query ? ' · 当前范围搜索结果' : ''}</p></div>${view === 'today' ? `<div class="date-stamp"><strong>${new Date().getDate()}</strong><span>${new Intl.DateTimeFormat('zh-CN', { month: 'long', weekday: 'long' }).format(new Date())}</span></div>` : `<button class="primary" data-action="new">${icon('plus')}新建任务</button>`}</section>
@@ -372,7 +383,7 @@ function render() {
       ${tab === 'open' ? '<button class="add-row" data-action="new">' + icon('plus') + '添加任务</button>' : ''}</section>
       ${view === 'today' ? '<p class="quiet-note">未加入今天的任务可在“任务”中查看。</p>' : ''}
       </section></div><footer class="workspace-footer"><span>本地任务管理</span><span>${state.projects.length} 个项目 · ${state.tasks.length} 项任务</span></footer>
-    </div>`;
+    </div></main>`;
   if(view==='today'&&!query&&todayPanel){ const column=taskRoot.querySelector('.task-column');column.prepend(todaySummary.element);column.prepend(todayPanel.element); }
   restoreTaskFocus(focusTarget);
 }
@@ -434,7 +445,22 @@ function renderDialog() {
   if(modal.type==='task'&&modal.id&&focusController){taskSummary=createTaskSummary({taskId:modal.id,client:focusClient,controller:focusController,onStartTask:startFocus,onStatistics:openFocusStatistics,notify,getTask:()=>state.tasks.find(task=>task.id===modal?.id),hasUnsavedEdits(){const saved=state.tasks.find(task=>task.id===modal.id),form=dialog.querySelector('#task-form');return form.elements.title.value!==saved.title||form.elements.notes.value!==saved.notes||form.elements.projectId.value!==(saved.projectId||'');}});dialog.querySelector('.dialog-footer').before(taskSummary.element);}
 }
 
+function openComposer(planDay) {
+  if (document.querySelector('dialog[open]')) return;
+  const taskView = isPage(view) ? lastTaskView : view;
+  const projectId = state.projects.some(p => p.id === viewProjectId(taskView)) ? viewProjectId(taskView) : null;
+  const created = openNewTask({
+    projects: state.projects, projectId, today,
+    async onCreate(values) {
+      if (busy) throw new Error('正在保存，请稍候再试');
+      await taskClient.saveState(change(state, { type: 'add', at: new Date().toISOString(), id: crypto.randomUUID(), ...values, ...(planDay ? { planDay } : {}) }, today), { allowUndo: true });
+      notify('任务已创建', Boolean(taskClient.getUndo()));
+    },
+    onNewProject() { created.close(); openModal({ type: 'project' }); },
+  });
+}
 function openModal(value) {
+  if (value.type === 'task' && !value.id) { openComposer(value.planDay); return; }
   modal = value;
   renderDialog();
   if (!dialog.open) dialog.showModal();
@@ -442,20 +468,21 @@ function openModal(value) {
 }
 
 document.addEventListener('click', async event => {
-  const brand = event.target.closest('.brand');
+  const brand = event.target.closest('[data-brand]');
   if (brand && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('all'); return; }
   if (event.target.closest('[data-open-conversation]')) { dialog.close(); return; }
   const target = event.target.closest('button');
   if (!target || target.disabled || busy) return;
-  if (target.dataset.view) { navigate(target.dataset.view); return; }
+  if (target.dataset.view && !target.closest('[data-ui="nav"]')) { navigate(target.dataset.view); return; }
   if (target.dataset.tab) { tab = target.dataset.tab; writeTaskURL(); render(); return; }
   const { action, id } = target.dataset;
-  if (action && ![taskRoot, sidebarRoot, dialog, toast].some(root => root?.contains(target))) return;
+  if (action && ![taskRoot, sidebarRoot, dialog].some(root => root?.contains(target))) return;
   if (action === 'discard-draft') { formDrafts.delete(modal.id); modal.needsRefresh=false; renderDialog(); return; }
   if (action === 'discuss') { startDiscussion({kind:target.dataset.kind,...(id ? {id} : {})}); return; }
   if (action === 'related') { void showRelated({kind:target.dataset.kind,id}); return; }
   if (action === 'search-all') { view='all'; lastTaskView=view; writeTaskURL(); render(); return; }
   if (action === 'new') openModal({ type: 'task' });
+  if (action === 'focus-task') { try { await startFocus(id); } catch (error) { notify(error.message, false, 'error'); } }
   if (action === 'edit') openModal({ type: 'task', id });
   if (action === 'choose' || action === 'leftovers') openModal({ type: 'choose', old: action === 'leftovers' });
   if (action === 'delete-task' || action === 'delete-project') {
@@ -465,12 +492,13 @@ document.addEventListener('click', async event => {
   if (action === 'edit-project') openModal({ type: 'project', id });
   if (action === 'new-project') openModal({ type: 'project' });
   if (action === 'close') { captureTaskDraft(); dialog.close(); }
+  if (action === 'remove-subtask') await mutate({ type: 'subtask.remove', id, subId: target.dataset.sub }, '子任务已删除');
   if (action === 'clear-search') { query = ''; writeTaskURL(true); render(); }
   if (action === 'toggle' && (state.tasks.find(task=>task.id===id).status==='done'||confirmTaskCompletion(id))) await mutate({ type: 'toggle', id }, state.tasks.find(t => t.id === id).status === 'done' ? '任务已恢复为待办' : '任务已完成');
   if (action === 'start') await mutate({ type: 'start', id }, state.tasks.find(t => t.id === id).status === 'active' ? '任务已暂停' : '已设为当前任务，并加入今天');
   if (action === 'plan' || action === 'unplan') await mutate({ type: action, id }, action === 'plan' ? '已加入今天' : '已移出今天，任务仍保留');
   if (action === 'up' || action === 'down') await mutate({ type: 'move', id, direction: action === 'up' ? -1 : 1 }, '已调整任务顺序');
-  if (action === 'undo') { try { await taskClient.undo(); notify('已撤销上一次修改'); } catch(error) { notify(error.message); } }
+  if (action === 'undo') { try { await taskClient.undo(); notify('已撤销上一次修改'); } catch(error) { notify(error.message, false, 'error'); } }
   if (action === 'copy') {
     try { await navigator.clipboard.writeText(state.projects.find(p => p.id === id).path); notify('项目路径已复制'); }
     catch { notify('复制失败，可在项目详情中选择并复制路径'); }
@@ -493,7 +521,7 @@ document.addEventListener('submit', async event => {
   if (form.id === 'project-form') success = await mutate({ type: modal.id ? 'project.update' : 'project', id: modal.id || crypto.randomUUID(), name: data.get('name'), path: data.get('path') }, modal.id ? '项目修改已保存' : '项目已创建');
   else if (!modal.id && (modal.planDay || (!isPage(view) ? view : lastTaskView)==='calendar')) {
     try { await taskClient.act({type:'task.create',id:crypto.randomUUID(),title:data.get('title'),projectId:data.get('projectId')||null,notes:data.get('notes'),...(data.has('planDay')?{planDay:String(data.get('planDay'))}:{})});notify('任务已创建',Boolean(taskClient.getUndo()));success=true; }
-    catch(error) { notify(error.message);const warning=document.createElement('p');warning.className='dialog-error';warning.setAttribute('role','alert');warning.textContent=error.message;form.querySelector('.form-body').append(warning);success=false; }
+    catch(error) { notify(error.message, false, 'error');const warning=document.createElement('p');warning.className='dialog-error';warning.setAttribute('role','alert');warning.textContent=error.message;form.querySelector('.form-body').append(warning);success=false; }
   }
   else success = await mutate({ type: modal.id ? 'edit' : 'add', id: modal.id || crypto.randomUUID(), title: data.get('title'), projectId: data.get('projectId') || null, notes: data.get('notes'), today: data.has('today'), ...(data.has('planDay') ? {planDay: String(data.get('planDay'))} : {}) }, modal.id ? '修改已保存' : '任务已创建');
   if (success) { modal.saved = true; if (modal.id) formDrafts.delete(modal.id); dialog.close(); }
@@ -502,7 +530,7 @@ document.addEventListener('submit', async event => {
 document.addEventListener('input', event => {
   event.target.setCustomValidity?.('');
   if (event.target.matches('[data-picker-search]')) { const position=event.target.selectionStart; modal.query=event.target.value; renderDialog(); const input=dialog.querySelector('[data-picker-search]'); input.focus(); input.setSelectionRange(position,position); return; }
-  if (event.target.id !== 'search') return;
+  if (event.target.id !== 'search' || event.target.name) return;   // 今天视图仍是旧搜索框；新任务页的搜索框走 ui:change
   const position = event.target.selectionStart;
   query = event.target.value;
   writeTaskURL(true);
@@ -513,6 +541,54 @@ document.addEventListener('change', event => {
   const control = event.target.matches('workbench-select') ? event.target.querySelector('input') : event.target;
   if (control.name === 'task-filter') { const value=control.value; navigate(value.startsWith('project:') ? value : value === 'unassigned' ? 'inbox' : 'all'); }
   if (control.name === 'picker-project') { modal.projectId=control.value; renderDialog(); }
+});
+// 0.8 组件事件（ui:*）。页面只在这里响应组件，不再去猜原生 click。
+const scopeToView = value => value === 'unassigned' ? 'inbox' : value === '' ? 'all' : value;
+document.addEventListener('ui:select', async event => {
+  const { value } = event.detail, target = event.target;
+  if (target.dataset?.ui === 'nav') { navigate(value); return; }
+  if (target.dataset?.ui === 'row') { selectedTaskId = selectedTaskId === value ? selectedTaskId : value; render(); return; }
+  if (target.dataset?.name === 'scope') { if (value === '__new__') openModal({ type: 'project' }); return; }
+  if (target.dataset?.name === 'more' && selectedTaskId) {
+    const id = selectedTaskId;
+    if (value === 'edit') openModal({ type: 'task', id });
+    else if (value === 'discuss') startDiscussion({ kind: 'task', id });
+    else if (value === 'related') void showRelated({ kind: 'task', id });
+    else if (value === 'delete-task') openModal({ type: 'delete', kind: 'task', id });
+    else if (value === 'plan' || value === 'unplan') await mutate({ type: value, id }, value === 'plan' ? '已加入今天' : '已移出今天，任务仍保留');
+    return;
+  }
+  if (target.dataset?.ui === 'toast' && value === 'undo') {
+    try { await taskClient.undo(); notify('已撤销上一次修改'); } catch (error) { notify(error.message, false, 'error'); }
+  }
+});
+document.addEventListener('ui:change', async event => {
+  const { value } = event.detail, target = event.target, name = target.dataset?.name ?? target.name;
+  if (target.dataset?.name === 'tab') { tab = value; writeTaskURL(); render(); return; }
+  if (target.dataset?.name === 'scope') { navigate(scopeToView(value)); return; }
+  if (name === 'search' && target.closest('#task-page')) { query = value; writeTaskURL(true); render(); return; }
+  if (name === 'subtask' && target.closest('#task-page')) {
+    const title = String(value).trim(), id = target.dataset.task;
+    if (!title || busy) return;
+    const ok = await mutate({ type: 'subtask.add', id, subId: crypto.randomUUID(), title }, '子任务已添加');
+    if (ok) { const box = document.querySelector('#subtask-input'); if (box) { box.value = ''; box.dataset.prev = ''; box.focus(); } }
+    return;
+  }
+  if (name === 'subdone' && target.closest('#task-page')) {
+    const li = target.closest('[data-sub]'), id = selectedTaskId;
+    if (!li || !id || busy) { event.preventDefault(); return; }
+    const ok = await mutate({ type: 'subtask.toggle', id, subId: li.dataset.sub }, '已更新子任务');
+    if (!ok) render(); // 保存失败：用未变的 state 重绘，checkbox 是受控组件，会自己回到原状态
+    return;
+  }
+  const row = target.closest?.('[data-ui="row"]');
+  if (row && name === 'done') {
+    const id = row.dataset.id, task = state.tasks.find(t => t.id === id);
+    if (!task || busy) { event.preventDefault(); return; }
+    if (task.status !== 'done' && !confirmTaskCompletion(id)) { event.preventDefault(); return; }
+    const ok = await mutate({ type: 'toggle', id }, task.status === 'done' ? '任务已恢复为待办' : '任务已完成');
+    if (!ok) render();
+  }
 });
 dialog.addEventListener('close', () => { if (dialog.open) return; taskSummary?.dispose();taskSummary=null;legacyPicker?.dispose();legacyPicker=null; if (modal?.type === 'task' && modal.id && !modal.saved) { const form=dialog.querySelector('#task-form'); if (form) formDrafts.set(modal.id,{fields:[...new FormData(form)],version:formDrafts.get(modal.id)?.version ?? version}); } modal = null; });
 dialog.addEventListener('click', event => {
@@ -532,18 +608,7 @@ setInterval(() => {
 
 // Keep external skill writes visible without replacing an in-progress form.
 const releaseIntervalMs = 6 * 60 * 60 * 1000;
-function syncUpdateBadge() {
-  const button = sidebarRoot?.querySelector('[data-view="update"]');
-  if (!button) return;
-  const existing = button.querySelector('[data-app-update]');
-  if (appRelease?.status === 'available' || updaterReady) {
-    if (existing) return;
-    const badge = document.createElement('small');
-    badge.dataset.appUpdate = '';
-    badge.textContent = '有更新';
-    button.append(badge);
-  } else existing?.remove();
-}
+function syncUpdateBadge() { renderSidebar(); }
 async function refreshAppRelease(force = false) {
   if (!token) return;
   if (releaseCheck) return releaseCheck;
@@ -579,7 +644,7 @@ async function refreshExternal() {
       const selection = search ? document.activeElement.selectionStart : 0;
       state = latest.state;
       version = latest.version;
-      taskClient.invalidateUndo(); toast.querySelector('[data-action=undo]')?.remove();
+      taskClient.invalidateUndo(); dropUndoActions();
       render();
       if (search) { const input = document.querySelector('#search'); input.focus(); input.setSelectionRange(selection, selection); }
       notify('已同步工作台的最新修改');
@@ -589,7 +654,7 @@ async function refreshExternal() {
 }
 async function refreshAIActivity() {
   if (!aiPage || document.hidden) return;
-  try { const r=await fetch('/api/ai/conversations',{headers:{'X-Workbench-Token':token}}); if (!r.ok) return; const data=await r.json(); const active=data.conversations.find(c=>c.status==='waiting') || data.conversations.find(c=>c.status==='running'); aiActivity=active ? active.status==='waiting'?'等待确认':'运行中' : ''; const badge=sidebarRoot?.querySelector('[data-ai-activity]'); if (badge) badge.textContent=aiActivity; } catch { /* Retry with the next visible refresh. */ }
+  try { const r=await fetch('/api/ai/conversations',{headers:{'X-Workbench-Token':token}}); if (!r.ok) return; const data=await r.json(); const active=data.conversations.find(c=>c.status==='waiting') || data.conversations.find(c=>c.status==='running'); aiActivity=active ? active.status==='waiting'?'等待确认':'运行中' : ''; renderSidebar(); } catch { /* Retry with the next visible refresh. */ }
 }
 setInterval(() => { void refreshExternal(); void refreshAIActivity(); }, 3000);
 window.addEventListener('focus', refreshExternal);

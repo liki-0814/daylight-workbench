@@ -3,7 +3,7 @@
 .ui-search:focus-within { background: var(--surface); box-shadow: var(--focus-ring); }
 .ui-search-icon { display: inline-flex; flex: 0 0 auto; padding-left: var(--space-12); color: var(--text-secondary); pointer-events: none; }
 .ui-search-icon .icon { width: 16px; height: 16px; }
-.ui-search-input { flex: 1 1 auto; min-width: 0; height: calc(var(--compact-control-height) - 2px); padding: 0 var(--space-8); border: 0; background: transparent; color: inherit; font: inherit; text-overflow: ellipsis; outline: none; }
+.ui-search-input { flex: 1 1 auto; min-width: 0; height: calc(var(--compact-control-height) - 2px); padding: 0 var(--space-8); border: 0; background: transparent; color: inherit; font: inherit; outline: none; overflow-wrap: anywhere; }
 .ui-search-input::placeholder { color: var(--text-secondary); opacity: 1; }
 .ui-search-input::-webkit-search-cancel-button, .ui-search-input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
 .ui-search-clear { display: inline-flex; flex: 0 0 28px; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 2px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; }

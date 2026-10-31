@@ -176,7 +176,7 @@ const cases = [
     await open(page, url); await needSwitch(page);
     { const overflow = await horizontalOverflow(page); check.equal(overflow.overflow, false, '页面没有横向滚动：' + JSON.stringify(overflow)); }
     const heights = await rows(page).evaluateAll(list => list.map(el => Math.round(el.getBoundingClientRect().height)));
-    check.ok(heights.every(h => h >= 52 && h <= 90), '行高在 52–90 之间（含超长名称与超长命令）：' + heights);
+    check.ok(heights.every(h => h >= 52), '行高 ≥ 52（含超长名称与超长命令；0.8 起文字完整换行，不设上限）：' + heights);
     check.equal(await page.locator('[data-probe-all]').isVisible(), true, '检测全部按钮可见');
     const clipped = await rows(page).evaluateAll(list => list.filter(el => el.scrollWidth > el.clientWidth + 1).length); check.equal(clipped, 0, '没有行内容溢出');
     const sizes = await page.locator('.extension-list [data-mcp-switch]').evaluateAll(list => list.map(el => { const box = (el.closest('label') || el).getBoundingClientRect(); return [Math.round(box.width), Math.round(box.height)]; }));

@@ -129,9 +129,21 @@ test('三处存量债务棘轮：新增 server→public、旧组件→routes/pag
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('债务基线登记了三处存量债务，且和仓库现状一致', () => {
+test('规则 7 覆盖 public/*.js：新增的 .dl- 查询 / aria 补写会被棘轮拦下，存量文件不会', () => {
+  const files = {
+    'public/ui/core/events.js': 'export const x = 1;\n',
+    'public/app.js': "document.querySelector('.dl-nav__scroll');\n",
+    'public/old.js': "el.setAttribute('aria-checked', 'true');\n",
+    'scripts/lint-deps-baseline.json': JSON.stringify({ nonShims: [], debts: { topLevelInternals: ['public/old.js'] } }),
+  };
+  const dir = fixture(files);
+  try { assert.deepEqual(rules(lintDeps({ root: dir })), ['debt-ratchet:public/app.js']); } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('债务基线登记了四处存量债务，且和仓库现状一致', () => {
   const { debts } = lintDeps({ root });
   const baseline = JSON.parse(readFileSync(path.join(root, 'scripts/lint-deps-baseline.json'), 'utf8')).debts;
-  assert.deepEqual(Object.keys(baseline).sort(), ['componentsUpward', 'messageHandlerFiles', 'serverPublicImports']);
+  assert.deepEqual(Object.keys(baseline).sort(), ['componentsUpward', 'messageHandlerFiles', 'serverPublicImports', 'topLevelInternals']);
+  assert.deepEqual(baseline.topLevelInternals, ['public/cli-config.js', 'public/model-routes.js', 'public/quick.js']);
   for (const key of Object.keys(baseline)) for (const item of debts[key]) assert.ok(baseline[key].includes(item), `${key}: ${item}`);
 });

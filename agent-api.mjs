@@ -6,8 +6,8 @@ export const operations = {
   'project.create': 'name, path?, id?',
   'project.update': 'id, name?, path?',
   'project.delete': 'id (deletes project, all its tasks including completed tasks, and their plan references; local files are untouched)',
-  'task.create': 'title, projectId? (null = 未归类（旧称收件箱）), notes?, today?, planDay?, id?',
-  'task.update': 'id, title?, projectId?, notes?',
+  'task.create': 'title, projectId? (null = 未归类（旧称收件箱）), notes?, today?, planDay?, id?, priority? (low | medium | high), due? (YYYY-MM-DD | null), estimate? (minutes, 1–5760 | null), status? (todo | active)',
+  'task.update': 'id, title?, projectId?, notes?, priority?, due?, estimate?',
   'task.status': 'id, status (todo | active | done)',
   'task.delete': 'id (also removes plan references)',
   'plan.add': 'id',
@@ -27,7 +27,7 @@ export function applyAction(state, action, day) {
     day = action.day;
   }
   if (action.type === 'task.create' && action.planDay !== undefined && (!isCivilDate(action.planDay) || action.today === true)) throw new Error('planDay 必须为有效日期且不能同时指定 today:true');
-  if (action.type === 'task.create' && action.planDay !== undefined && Object.keys(action).some(key => !['type', 'title', 'projectId', 'notes', 'today', 'planDay', 'id'].includes(key))) throw new Error('日期任务创建包含未知字段');
+  if (action.type === 'task.create' && action.planDay !== undefined && Object.keys(action).some(key => !['type', 'title', 'projectId', 'notes', 'today', 'planDay', 'id', 'priority', 'due', 'estimate', 'status'].includes(key))) throw new Error('日期任务创建包含未知字段');
   if (action.type === 'plan.remove' && action.preserveExecution !== undefined && typeof action.preserveExecution !== 'boolean') throw new Error('preserveExecution 必须为布尔值');
   if (action.type === 'plan.remove' && action.preserveExecution !== undefined && Object.keys(action).some(key => !['type', 'id', 'preserveExecution', 'day'].includes(key))) throw new Error('日期移除包含未知字段');
   if (action.type === 'plan.reschedule' && Object.keys(action).some(key => !['type', 'id', 'fromDay', 'toDay'].includes(key))) throw new Error('改期包含未知字段');
@@ -45,8 +45,8 @@ export function applyAction(state, action, day) {
     case 'project.create': return change(next, { type: 'project', id: action.id ?? randomUUID(), name: action.name, path: action.path ?? '' }, day);
     case 'project.update': return change(next, action, day);
     case 'project.delete': return change(next, action, day);
-    case 'task.create': return change(next, { type: 'add', id: action.id ?? randomUUID(), title: action.title, projectId: action.projectId ?? null, notes: action.notes ?? '', today: action.today === true, planDay: action.planDay }, day);
-    case 'task.update': return change(next, { type: 'edit', id: action.id, title: action.title ?? task.title, notes: action.notes ?? task.notes, projectId: action.projectId === undefined ? task.projectId : action.projectId }, day);
+    case 'task.create': return change(next, { type: 'add', at: new Date().toISOString(), id: action.id ?? randomUUID(), title: action.title, projectId: action.projectId ?? null, notes: action.notes ?? '', today: action.today === true, planDay: action.planDay, status: action.status, priority: action.priority, due: action.due, estimate: action.estimate }, day);
+    case 'task.update': return change(next, { type: 'edit', id: action.id, title: action.title ?? task.title, notes: action.notes ?? task.notes, projectId: action.projectId === undefined ? task.projectId : action.projectId, priority: action.priority, due: action.due, estimate: action.estimate }, day);
     case 'task.status':
       if (!['todo', 'active', 'done'].includes(action.status)) throw new Error('status 必须为 todo、active 或 done');
       if (action.status === 'active') {

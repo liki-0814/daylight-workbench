@@ -15,7 +15,7 @@
 .dl-nav__add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 .dl-nav__add:focus-visible, .dl-nav__item:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
 .dl-nav__item {
-  display: flex; align-items: center; gap: var(--space-10); width: 100%; height: var(--nav-item-h); padding: 0 var(--space-10);
+  display: flex; align-items: center; gap: var(--space-10); width: 100%; min-height: var(--nav-item-h); padding-block: var(--space-4); padding: 0 var(--space-10);
   border: 0; border-radius: var(--radius-control); background: transparent; color: inherit;
   font: var(--weight-medium) var(--control-font)/var(--control-line) var(--font-sans); text-align: left; cursor: pointer;
   --ui-kbd-fg: var(--color-text-secondary);
@@ -23,7 +23,7 @@
 }
 .dl-nav__item:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 .dl-nav__item.is-active { background: var(--color-bg-selected); color: var(--color-text-primary); }
-.dl-nav__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-nav__label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .dl-nav__count { min-width: 24px; text-align: right; color: var(--color-text-tertiary); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .dl-nav__empty { margin: 0; padding: var(--space-6) var(--space-10); color: var(--color-text-tertiary); font-size: var(--text-sm); }
 .dl-nav__footer { margin-top: var(--space-12); padding-top: var(--space-12); border-top: var(--border-hairline); }
@@ -34,3 +34,7 @@
   .dl-nav--sidebar .dl-kbd, .dl-nav--sidebar .dl-nav__label, .dl-nav--sidebar .dl-nav__count, .dl-nav--sidebar .dl-nav__title { display: none; }
   .dl-nav--sidebar .dl-nav__item { justify-content: center; padding: 0; }
 }
+.dl-nav__brand { display: flex; min-height: var(--control-h); align-items: center; gap: var(--space-8); min-width: 0; color: inherit; text-decoration: none; }
+.dl-nav__brand img { border-radius: var(--radius-control); flex: none; }
+.dl-nav__brand:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: var(--radius-control); }
+@media (max-width: 999px) { .dl-nav--sidebar .dl-nav__brand-text { display: none; } }

@@ -23,7 +23,7 @@
 .extension-list-heading > span, .extension-row small { color: var(--muted); font-size: var(--font-caption-size); }
 .extension-row-copy { display: flex; flex-direction: column; gap: var(--space-4); flex: 1; min-width: 0; }
 .extension-row-copy strong { font-size: var(--font-reading-size); overflow-wrap: anywhere; }
-.extension-row-copy > span { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.extension-row-copy > span { color: var(--muted); overflow-wrap: anywhere; }
 .extension-row-copy small { overflow-wrap: anywhere; }
 .extension-problem-filter input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
 .extension-detail p, .extension-detail dd, .extension-detail code, .extension-receipt, .extension-impact { overflow-wrap: anywhere; }
@@ -75,7 +75,7 @@
 .extension-browser { --inspector-width: 360px; display: grid; grid-template-columns: minmax(0, 1fr) var(--inspector-width); align-items: start; gap: var(--space-20); }
 .extension-browser:has(.extension-detail[hidden]) { grid-template-columns: minmax(0, 1fr); }
 .extension-list { min-width: 0; container-type: inline-size; }
-.extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; clip-path: inset(50%); clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .extension-table { --cols: minmax(0, 1fr) minmax(120px, 48%); }
 .extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 104px minmax(120px, 36%); }
 .extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 64px 104px 176px; }
@@ -157,7 +157,7 @@
 .extension-batch-note { margin: var(--space-8) 0 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
 
 /* 0.7 PR-7：MCP 行（命令行 / 启用开关 / 状态 + 引用徽标）、检测结果卡片、引用表（E-12/E-20/E-23） */
-.extension-row-command { display: block; font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.extension-row-command { display: block; font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); max-width: 100%; overflow-wrap: anywhere; }
 .extension-row-copy > .extension-row-command:empty { display: none; }
 .extension-mcp-switch { margin: var(--space-8) 0 var(--space-12); }
 .extension-probe-hint { margin: var(--space-4) 0 var(--space-8); color: var(--text-secondary, var(--muted)); }
@@ -185,7 +185,7 @@
 .extension-probe-list li { overflow-wrap: anywhere; }
 .extension-probe-list code { display: block; color: var(--text-secondary, var(--muted)); }
 /* MCP 行：名称单行省略（完整名称在检查器里，DOM 里仍是全文），长名字不把行撑到 90px 以上（R13） */
-.extension-table[data-tab=mcp] .extension-row-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.extension-table[data-tab=mcp] .extension-row-copy strong { display: block; overflow-wrap: anywhere; }
 
 /* ---- Skill 接入冲突（E-11）：检查器里的冲突块、对比弹窗。颜色沿用 .extension-warning 的令牌；差异行同时用符号和读屏文字，不只靠颜色 ---- */
 .extension-conflict { display: grid; gap: var(--space-8); margin: var(--space-8) 0 var(--space-12); padding: var(--space-8) var(--space-12); color: var(--warning-text, #9a4300); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); overflow-wrap: anywhere; }
@@ -248,8 +248,8 @@
 .extension-table[data-tab=mcp] .extension-row { min-height: 58px; }
 .extension-table[data-tab=mcp] .extension-row-open { min-height: 58px; }
 .extension-row-source { display: grid; gap: 2px; min-width: 0; font-size: 12px; line-height: 16px; color: var(--text-secondary, #636366); }
-.extension-row-source strong { font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.extension-row-source small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; }
+.extension-row-source strong { font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.extension-row-source small { font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
 .extension-row-commandcell { min-width: 0; display: flex; }
 .extension-row-commandcell .extension-row-command { display: block; max-width: 100%; padding: 3px 8px; border-radius: 6px; background: var(--fill-control, rgba(0,0,0,.05)); color: #3a3a3c; }
 .extension-row-commandcell .extension-row-command:empty { display: none; }
