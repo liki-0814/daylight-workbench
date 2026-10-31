@@ -8,6 +8,12 @@
 //   4. 旧 public/components/* 逐步变成纯 re-export 垫片（shim）：非垫片文件数有棘轮（scripts/lint-deps-baseline.json），只降不升，PR-Z 前清零。
 //   5. 组件 / pattern 派发事件只能经 core/events.js 的 emit()：禁止 .dispatchEvent( / new CustomEvent( / new Event(；emit 的动词必须是 ui:* 约定内的动词。
 //   6. ui/ 与 pages/ 的标记里不得写 style="…"（CSP style-src 'self'）。
+//   7. 页面不得伸手改组件内部：public/pages/**/*.js 里禁止 querySelector[All]('.dl-…') / closest('.dl-…') / matches('.dl-…')（组件契约缺 prop 或方法才会这样做，补契约，不补页面），
+//      也禁止 setAttribute('aria-…')（状态要经 props 传给组件）。public/pages/**/*.css 禁止写 `__` 元素选择器（组件内部类）。
+//   8. 三处存量债务棘轮（scripts/lint-deps-baseline.json 的 debts，只许减少，不许增加，也不许换成别的文件）：
+//        serverPublicImports  服务端（根目录 *.mjs、core/**）import 了 public/ 下的哪些文件
+//        componentsUpward     旧 public/components/** 与 ui/** 依赖 routes.js / task-view.js / app.js / pages/ 的文件
+//        messageHandlerFiles  直接访问 webkit.messageHandlers 的 public/ 文件
 //   node scripts/lint-deps.mjs [--root <dir>]     --root 指向含 public/ 与 scripts/ 的目录（测试夹具用）
 //   node scripts/lint-deps.mjs --update           把非垫片数量写回基线（只在变少时使用）
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -41,6 +47,7 @@ function layerOf(rel) {   // rel 相对 public/，如 ui/components/button/butto
 }
 const isEntry = rel => { const m = rel.match(/^ui\/(components|patterns)\/([^/]+)\/([^/]+)\.js$/); return !!m && m[2] === m[3]; };
 
+const baselineFile0 = root => path.join(root, 'scripts/lint-deps-baseline.json');
 export function lintDeps({ root = defaultRoot } = {}) {
   const publicDir = path.join(root, 'public');
   const violations = [];
@@ -77,6 +84,45 @@ export function lintDeps({ root = defaultRoot } = {}) {
     if ((from.layer === 'components' || from.layer === 'patterns' || from.layer === 'pages') && /\sstyle\s*=\s*["'\\$]/.test(stripComments(text))) add(rel, 'inline-style', 'no inline style="…" attributes (CSP style-src self); use classes / CSSOM');
   }
 
+  // 7. 页面不碰组件内部
+  const pagesDir = path.join(publicDir, 'pages');
+  if (existsSync(pagesDir)) {
+    for (const file of walk(pagesDir, f => /\.(js|css)$/.test(f))) {
+      const rel = relOf(file), code = file.endsWith('.css') ? read(file).replace(/\/\*[\s\S]*?\*\//g, '') : stripComments(read(file));
+      if (file.endsWith('.js')) {
+        if (/\b(?:querySelector(?:All)?|closest|matches)\(\s*[`'"][^`'"]*\.dl-/.test(code)) add(rel, 'pages-no-internals', "pages may not query component classes (.dl-…): add a prop / method / event to the component instead");
+        if (/\.setAttribute\(\s*['"]aria-/.test(code)) add(rel, 'pages-no-internals', 'pages may not patch aria-* state after render: pass it through the component props');
+      } else if (/[^\s{},;][^{}]*__[\w-]+[^{}]*\{/.test(code.replace(/@[^{;]*\{/g, ''))) {
+        for (const m of code.matchAll(/([^{}]+)\{/g)) if (/\.[\w-]*__[\w-]+/.test(m[1])) { add(rel, 'pages-css-internals', `pages CSS may not select component internals (${m[1].trim().slice(0, 60)}): extend the component / pattern tokens`); break; }
+      }
+    }
+  }
+
+  // 8. 存量债务棘轮
+  const debtFiles = (dirs, test, exts = /\.(?:js|mjs)$/) => {
+    const out = [];
+    for (const d of dirs) { const abs = path.join(root, d); if (!existsSync(abs)) continue; for (const file of walk(abs, f => exts.test(f) && !f.includes('/node_modules/') && !f.includes('/_candidates/'))) if (test(file, stripComments(read(file)))) out.push(path.relative(root, file).split(path.sep).join('/')); }
+    return out.sort();
+  };
+  const resolvesTo = (file, spec) => spec.startsWith('.') ? path.posix.normalize(path.posix.join(path.posix.dirname(path.relative(root, file).split(path.sep).join('/')), spec)) : spec;
+  const serverEdges = [];   // 'server.mjs -> public/model.js'
+  for (const name of ['server.mjs', 'agent-api.mjs', 'storage.mjs']) { const f = path.join(root, name); if (existsSync(f)) for (const spec of importsOf(read(f))) { const t = resolvesTo(f, spec); if (t.startsWith('public/')) serverEdges.push(`${name} -> ${t}`); } }
+  const coreDir = path.join(root, 'core');
+  if (existsSync(coreDir)) for (const f of walk(coreDir, x => /\.(?:js|mjs)$/.test(x))) for (const spec of importsOf(read(f))) { const t = resolvesTo(f, spec); if (t.startsWith('public/')) serverEdges.push(`${path.relative(root, f).split(path.sep).join('/')} -> ${t}`); }
+  const debts = {
+    serverPublicImports: [...new Set(serverEdges)].sort(),
+    componentsUpward: debtFiles(['public/components', 'public/ui'], (file, code) => importsOf(code).some(spec => /(?:^|\/)(?:routes|task-view|app)\.js$/.test(spec) || /(?:^|\/)pages\//.test(spec))),
+    messageHandlerFiles: debtFiles(['public'], (file, code) => /\bmessageHandlers\b/.test(code)),
+  };
+  const baselineDebts = existsSync(baselineFile0(root)) ? JSON.parse(readFileSync(baselineFile0(root), 'utf8')).debts ?? {} : {};
+  const debtsBetter = {};
+  for (const [key, list] of Object.entries(debts)) {
+    const allowed = baselineDebts[key] ?? [];
+    for (const item of list) if (!allowed.includes(item)) add(item, 'debt-ratchet', `${key}: '${item}' is not in the allowed debt list (${allowed.length} entries); debts may only shrink`);
+    const gone = allowed.filter(item => !list.includes(item));
+    if (gone.length) debtsBetter[key] = gone;
+  }
+
   // 垫片棘轮
   const componentsDir = path.join(publicDir, 'components');
   const nonShims = existsSync(componentsDir)
@@ -85,21 +131,23 @@ export function lintDeps({ root = defaultRoot } = {}) {
   const baselineFile = path.join(root, 'scripts/lint-deps-baseline.json');
   const baseline = existsSync(baselineFile) ? JSON.parse(readFileSync(baselineFile, 'utf8')).nonShims ?? [] : [];
   for (const name of nonShims) if (!baseline.includes(name)) add(`components/${name}`, 'shim-ratchet', 'new logic in old public/components/*: only pure re-export shims are allowed there; build it in ui/');
-  return { violations, nonShims, baseline };
+  return { violations, nonShims, baseline, debts, debtsBetter };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const rootArg = process.argv.indexOf('--root');
   const root = rootArg > 0 ? path.resolve(process.argv[rootArg + 1]) : defaultRoot;
-  const { violations, nonShims, baseline } = lintDeps({ root });
+  const { violations, nonShims, baseline, debts, debtsBetter } = lintDeps({ root });
   if (process.argv.includes('--update')) {
-    writeFileSync(path.join(root, 'scripts/lint-deps-baseline.json'), JSON.stringify({ note: 'public/components/* files that are not yet pure re-export shims. Only shrinks; must be empty before PR-Z.', nonShims }, null, 2) + '\n');
+    writeFileSync(path.join(root, 'scripts/lint-deps-baseline.json'), JSON.stringify({ note: 'nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: three legacy architectural debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access); each list may only shrink, never grow or swap.', nonShims, debts }, null, 2) + '\n');
     console.log(`lint-deps: baseline written (${nonShims.length} non-shim files)`);
     process.exit(0);
   }
   for (const v of violations) console.error(`✗ [${v.rule}] ${v.file}: ${v.message}`);
   const better = baseline.filter(n => !nonShims.includes(n));
   if (better.length) console.log(`lint-deps: ${better.length} component(s) became shims — run with --update to lower the ratchet (${better.join(', ')})`);
+  for (const [k, list] of Object.entries(debtsBetter)) console.log(`lint-deps: debt ${k} shrank (${list.join(', ')}) — run with --update to lower the ratchet`);
+  console.log(`lint-deps: debts ${Object.entries(debts).map(([k, v]) => `${k}=${v.length}`).join(' ')}`);
   console.log(`lint-deps: ${violations.length} violation(s); old components/ non-shim ratchet ${nonShims.length}/${baseline.length}`);
   process.exit(violations.length ? 1 : 0);
 }
