@@ -1,0 +1,23 @@
+{
+  "ai.css": 44,
+  "cli-config.css": 34,
+  "components/chip.css": 1,
+  "components/chip.js": 1,
+  "components/dialog-shell.css": 1,
+  "components/image-input.css": 8,
+  "components/image-input.js": 1,
+  "components/purify.js": 1,
+  "components/segmented-control.css": 1,
+  "components/select.css": 1,
+  "design-system.css": 67,
+  "extensions/extensions.css": 45,
+  "focus/bar-chart.css": 1,
+  "focus/focus.css": 1,
+  "focus/stats-model.js": 19,
+  "focus/stats.css": 18,
+  "proxy.css": 28,
+  "quick.css": 17,
+  "settings.css": 15,
+  "style.css": 31,
+  "update.css": 10
+}
