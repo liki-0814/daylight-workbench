@@ -38,6 +38,7 @@ const contracts = [];
 for (const script of ['scripts/check-proxy.mjs', 'scripts/check-ai.mjs', 'scripts/check-focus.mjs', 'scripts/check-extensions.mjs']) contracts.push(await run([script], script));
 contracts.push(await run(['scripts/sync-web-assets.mjs', '--check'], 'scripts/sync-web-assets.mjs --check'));
 contracts.push(await run(['scripts/lint-ui.mjs'], 'scripts/lint-ui.mjs'));
+contracts.push(await run(['scripts/lint-deps.mjs'], 'scripts/lint-deps.mjs'));
 
 const failed = [...syntax, ...contracts].filter(result => result.code !== 0);
 for (const { label, stderr } of failed) process.stderr.write(`✗ ${label}\n${stderr}\n`);

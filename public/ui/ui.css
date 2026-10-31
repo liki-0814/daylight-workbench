@@ -1,6 +1,11 @@
-/* Daylight 0.8 UI 入口：只放 @import，顺序固定。
-   令牌 → 共享语义层 → 旧名别名（迁移期，最后一个 PR 删除）。
-   回滚「换肤」：删掉下面 legacy-aliases 这一行（旧值仍在 design-system.css 里原封未动）。 */
-@import "./tokens/theme.css";
-@import "./tokens/semantic.css";
-@import "./tokens/legacy-aliases.css";
+/* Daylight 0.8 UI 入口。层顺序固定（后者优先），与 <link> 加载顺序无关：
+     legacy  旧的 design-system.css（只剩旧页面的全局规则；尺寸令牌已迁到 semantic.css）
+     tokens  主题 → 共享语义层 / 尺寸 → 旧名别名
+     ui      组件库（ui/components、ui/patterns）
+     page    页面级布局（只写摆放，不写组件外观）
+   回滚「换肤」：删掉 legacy-aliases 这一行（旧值仍在 design-system.css 里原封未动）。 */
+@layer legacy, tokens, ui, page;
+@import url("../design-system.css") layer(legacy);
+@import url("./tokens/theme.css") layer(tokens);
+@import url("./tokens/semantic.css") layer(tokens);
+@import url("./tokens/legacy-aliases.css") layer(tokens);

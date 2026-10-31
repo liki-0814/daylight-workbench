@@ -2,12 +2,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { publicDir, root, rel, read, stripCssComments, walk, cssFiles, definedVars, usedVars } from '../scripts/lib/ui-scan.mjs';
 import { currentCounts, compare } from '../scripts/lint-ui.mjs';
 import { diff as assetDiff } from '../scripts/sync-web-assets.mjs';
 
-const themeCss = stripCssComments(read(path.join(publicDir, 'ui/tokens/themes/mist.css')));
+const themeCss = stripCssComments(read(path.join(publicDir, 'ui/tokens/themes/mist-cyan.css')));
 const blocks = (css, selectorStart) => {
   const out = [];
   for (const m of css.matchAll(/(^|\n)([^{}\n@][^{}]*)\{([^{}]*)\}/g)) if (m[2].trim().startsWith(selectorStart)) out.push(m[3]);
@@ -128,8 +129,110 @@ test('--space-N 重命名（PR-C）：N 就是像素值；用到的 --space-N �
   const px = new Set(Object.keys(light).filter(n => /^--space-\d+$/.test(n)));
   const stray = [...new Set(files.flatMap(f => [...read(f).matchAll(/--space-\d+(?![\w-])/g)].filter(m => !px.has(m[0])).map(m => m[0] + ' @ ' + rel(f))))];
   assert.deepEqual(stray, [], '用到了 Mist 没有的 --space-N（旧序号写法？）');
-  const ds = declarationsOf(read(path.join(publicDir, 'design-system.css')));
+  const ds = declarationsOf(read(path.join(publicDir, 'ui/tokens/semantic.css')));
   for (const [name, value] of Object.entries(ds)) if (/^--space-\d+$/.test(name)) assert.equal(value, name.slice(8) + 'px', name);
   assert.ok(Object.keys(ds).filter(n => /^--space-\d+$/.test(n)).length >= 9);
 });
 function declarationsOf(css) { return declarations(stripCssComments(css)); }
+
+// ---------- 0.8 R1：青绿主题 / 来源 md5 / 层序 / info 浅天蓝 ----------
+const tokensDir = path.join(publicDir, 'ui/tokens');
+test('theme.css 只有一条 @import，指向 themes/mist-cyan.css，且 md5 与 README 登记的一致（防漂移）', () => {
+  const theme = stripCssComments(read(path.join(tokensDir, 'theme.css')));
+  const imports = [...theme.matchAll(/@import\s+["']([^"']+)["']/g)].map(m => m[1]);
+  assert.deepEqual(imports, ['./themes/mist-cyan.css']);
+  assert.equal(theme.replace(/@import\s+["'][^"']+["'];?/g, '').trim(), '');
+  const registered = read(path.join(tokensDir, 'README.md')).match(/md5：`([0-9a-f]{32})`/)?.[1];
+  assert.ok(registered, 'README 里没有登记 md5');
+  assert.equal(createHash('md5').update(readFileSync(path.join(tokensDir, 'themes/mist-cyan.css'))).digest('hex'), registered);
+  const source = '/workspace/sage/daylight-design-refs/visual-direction/tokens/daylight-tokens-mist-cyan.css';
+  if (existsSync(source)) assert.equal(createHash('md5').update(readFileSync(source)).digest('hex'), registered, 'Sage 的源文件已变化：请显式更新 themes/mist-cyan.css 与 README 里的 md5');
+});
+
+test('主题是 A 青绿：主色 #0D847C，没有靛蓝 / 紫色，也不使用 --color-accent-graphic 别名', () => {
+  assert.equal(light['--color-accent'], '#0D847C');
+  assert.equal(light['--color-accent-border'], '#0D847C');
+  assert.ok(!/#(?:5B66D4|4651C4|4D58C8|434DB8|9AA3F5|7C86F0)/i.test(themeCss));
+  const offenders = [...cssFiles(), ...walk(publicDir, f => f.endsWith('.js'))].filter(f => /--color-accent-graphic/.test(read(f))).map(rel);
+  assert.deepEqual(offenders, []);
+});
+
+test('层序：ui.css 声明 @layer legacy, tokens, ui, page，design-system 在 legacy，令牌文件在 tokens；页面不再单独 <link> design-system', () => {
+  const ui = stripCssComments(read(path.join(publicDir, 'ui/ui.css')));
+  assert.match(ui, /@layer legacy, tokens, ui, page;/);
+  assert.match(ui, /@import url\("\.\.\/design-system\.css"\) layer\(legacy\);/);
+  for (const file of ['theme', 'semantic', 'legacy-aliases']) assert.match(ui, new RegExp(`@import url\\("\\./tokens/${file}\\.css"\\) layer\\(tokens\\);`));
+  for (const page of ['index.html', 'quick.html']) assert.ok(!/design-system\.css/.test(read(path.join(publicDir, page))), page);
+});
+
+test('尺寸 / 密度令牌只有 semantic.css 一个来源：design-system.css 不再声明它们，--button-radius 在 semantic.css', () => {
+  const ds = stripCssComments(read(path.join(publicDir, 'design-system.css'))), sem = stripCssComments(read(path.join(tokensDir, 'semantic.css'))), alias = stripCssComments(read(path.join(tokensDir, 'legacy-aliases.css')));
+  for (const name of ['--button-radius', '--sidebar-width', '--toolbar-height', '--compact-control-height', '--page-inline', '--space-16'])
+    assert.ok(new RegExp(`${name}\\s*:`).test(sem) && !new RegExp(`${name}\\s*:`).test(ds), name);
+  assert.ok(!/--button-radius\s*:/.test(alias));
+  for (const name of ['--group-h', '--toolbar-h', '--nav-item-h', '--space-page', '--space-section']) assert.ok(new RegExp(`${name}\\s*:`).test(sem), name);
+});
+
+test('Iris 密度：控件 36 / 内边距 14 / 行 44 / 圆角 20·18·9·10·pill（来自主题文件）与 0.8 尺寸令牌', () => {
+  const sem = declarations(blocks(stripCssComments(read(path.join(tokensDir, 'semantic.css'))), ':root').join(''));
+  assert.deepEqual([light['--control-h'], light['--control-px'], light['--row-h'], light['--icon-btn']], ['36px', '14px', '44px', '36px']);
+  assert.deepEqual([light['--radius-dialog'], light['--radius-container'], light['--radius-control'], light['--radius-thumb'], light['--radius-pill']], ['20px', '18px', '9px', '10px', '999px']);
+  assert.deepEqual([sem['--group-h'], sem['--toolbar-h'], sem['--nav-item-h'], sem['--space-page'], sem['--space-section'], sem['--radius-menu']], ['40px', '56px', '36px', '32px', '28px', '14px']);
+});
+
+// info 浅天蓝：文字 / 图标 ≥ 4.5:1（图标 / 边框是图形，要求 ≥ 3:1），底保持浅色
+const surfacesLight = ['--color-bg-app', '--color-bg-surface', '--color-bg-sunken', '--color-bg-sidebar', '--color-bg-selected', '--color-bg-hover'];
+test('info 浅天蓝（light）：文字 ≥ 4.5:1（在 info 底之上也是），图标 / 边框 ≥ 3:1，底色足够浅', () => {
+  assert.equal(light['--color-info'], '#2A9BD3'); assert.equal(light['--color-info-text'], '#0B6896'); assert.equal(light['--color-info-subtle'], 'rgba(71,180,235,.12)');
+  const report = {};
+  for (const name of surfacesLight) {
+    const bg = name === '--color-bg-selected' || name === '--color-bg-hover' ? over(parse(light[name]), parse(light['--color-bg-surface'])) : parse(light[name]);
+    const hex = `#${[bg.r, bg.g, bg.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+    report[name] = { text: +ratio(light['--color-info-text'], hex).toFixed(2), icon: +ratio(light['--color-info'], hex).toFixed(2) };
+    assert.ok(report[name].text >= 4.5, `info-text on ${name}: ${report[name].text}`);
+    // 图形（边框 / 圆点）≥ 3:1：app / surface / 选中底必须达标；sunken / sidebar / 选中底实测 2.66–2.89，登记为「info 图形不要单独放在这些底上」，有意义的图标一律用 info-text（≥ 4.5）
+    if (['--color-bg-app', '--color-bg-surface'].includes(name)) assert.ok(report[name].icon >= 3, `info graphic on ${name}: ${report[name].icon}`);
+  }
+  for (const name of surfacesLight) assert.ok(report[name].icon >= 2.6, `info graphic floor on ${name}: ${report[name].icon}`);
+  if (process.env.UI_CONTRAST_REPORT) console.log(JSON.stringify(report));
+  // info 底（12% 天蓝压在 surface / app 上）之上的文字与图标
+  for (const base of ['--color-bg-surface', '--color-bg-app']) {
+    const tint = over(parse(light['--color-info-subtle']), parse(light[base])), hex = `#${[tint.r, tint.g, tint.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+    assert.ok(ratio(light['--color-info-text'], hex) >= 4.5, `info-text on info-subtle/${base}: ${ratio(light['--color-info-text'], hex).toFixed(2)}`);
+    assert.ok(ratio(light['--color-info'], hex) >= 2.6, `info graphic floor on info-subtle/${base}: ${ratio(light['--color-info'], hex).toFixed(2)}`);
+    if (process.env.UI_CONTRAST_REPORT) console.log('info-tint', base, 'text', ratio(light['--color-info-text'], hex).toFixed(2), 'graphic', ratio(light['--color-info'], hex).toFixed(2), 'lum', lum(tint).toFixed(3));
+    assert.ok(lum(tint) > 0.8, `info-subtle on ${base} must stay light (luminance ${lum(tint).toFixed(3)})`);
+  }
+  assert.ok(ratio(light['--color-info-border'], light['--color-bg-surface']) > 1.2);
+  // 不是靛蓝 / 紫：蓝色分量最大且 R < G
+  for (const name of ['--color-info', '--color-info-text']) { const c = parse(light[name]); assert.ok(c.b >= c.g && c.g > c.r, `${name} should be sky-blue not violet`); }
+});
+test('info 浅天蓝（dark）：文字 ≥ 4.5:1，图标 ≥ 3:1（在 surface / raised / app 上）', () => {
+  assert.equal(dark['--color-info'], '#7CCBF2'); assert.equal(dark['--color-info-text'], '#A8DDF7');
+  for (const name of ['--color-bg-app', '--color-bg-surface', '--color-bg-raised', '--color-bg-sunken']) {
+    assert.ok(ratio(dark['--color-info-text'], dark[name]) >= 4.5, `info-text dark on ${name}`);
+    assert.ok(ratio(dark['--color-info'], dark[name]) >= 3, `info dark on ${name}`);
+  }
+});
+
+test('青绿主题的新令牌对：主按钮白字、链接 / 强调文字、选中行上的强调文字、焦点环内圈、开关', () => {
+  assert.ok(ratio(light['--color-text-on-accent'], light['--color-accent']) >= 4.5, 'on-accent');
+  assert.ok(ratio(light['--color-text-on-accent'], light['--color-accent-hover']) >= 4.5, 'on-accent-hover');
+  assert.ok(ratio(light['--color-text-on-accent'], light['--color-accent-active']) >= 4.5, 'on-accent-active');
+  for (const bg of ['--color-bg-app', '--color-bg-surface', '--color-bg-sunken']) for (const name of ['--color-accent-text', '--color-text-link']) assert.ok(ratio(light[name], light[bg]) >= 4.5, `${name} on ${bg}`);
+  const sel = over(parse(light['--color-bg-selected']), parse(light['--color-bg-surface'])), selHex = `#${[sel.r, sel.g, sel.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+  assert.ok(ratio(light['--color-accent-text'], selHex) >= 4.5, 'accent-text on selected');
+  assert.ok(ratio(light['--color-accent-border'], light['--color-bg-surface']) >= 3, 'accent-border (选中竖条 / 焦点) on surface');
+  assert.ok(ratio(light['--color-accent-border'], selHex) >= 3, 'accent-border on selected');
+  assert.ok(ratio(light['--color-switch-on'], light['--color-bg-surface']) >= 3, 'switch-on / surface');
+  assert.ok(ratio(light['--color-switch-thumb-on'], light['--color-switch-on']) >= 3, 'thumb / switch-on');
+  for (const [fg, bg] of [['--color-success-text', '--color-success-subtle'], ['--color-warning-text', '--color-warning-subtle'], ['--color-error-text', '--color-error-subtle'], ['--color-accent-text', '--color-accent-subtle']]) {
+    const tint = over(parse(light[bg]), parse(light['--color-bg-surface'])), hex = `#${[tint.r, tint.g, tint.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+    assert.ok(ratio(light[fg], hex) >= 4.5, `${fg} on ${bg}: ${ratio(light[fg], hex).toFixed(2)}`);
+  }
+  // 状态色圆点 / 图标 ≥ 3:1
+  for (const name of ['--color-success', '--color-warning', '--color-error']) assert.ok(ratio(light[name], light['--color-bg-surface']) >= 3, name);
+  // 深色：主按钮文字与强调文字
+  assert.ok(ratio(dark['--color-text-on-accent'], dark['--color-accent']) >= 4.5, 'dark on-accent');
+  for (const name of ['--color-accent-text', '--color-success-text', '--color-error-text']) assert.ok(ratio(dark[name], dark['--color-bg-surface']) >= 4.5, `dark ${name}`);
+});

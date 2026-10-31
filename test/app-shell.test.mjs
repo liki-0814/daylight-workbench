@@ -18,11 +18,11 @@ test('sidebar keeps a readable name for every control when the 64px icon rail hi
 });
 
 test('shell tokens: 224 / 208 / 64 sidebar tiers, 52px toolbar, opaque fallbacks for the material', () => {
-  const ds = css('design-system.css');
-  assert.match(ds, /--sidebar-width: 224px;/);
-  assert.match(ds, /--toolbar-height: 52px;/);
-  assert.match(ds, /@media \(max-width: 1339px\) \{\s*:root \{ --sidebar-width: 208px; \}/);
-  assert.match(ds, /@media \(max-width: 999px\) \{\s*:root \{ --sidebar-width: 64px; \}/);
+  const ds = css('design-system.css'), sem = css('ui/tokens/semantic.css');   // 0.8：尺寸令牌迁到 semantic.css，数值不变
+  assert.match(sem, /--sidebar-width: 224px;/);
+  assert.match(sem, /--toolbar-height: 52px;/);
+  assert.match(sem, /@media \(max-width: 1339px\) \{\s*:root \{ --sidebar-width: 208px; \}/);
+  assert.match(sem, /@media \(max-width: 999px\) \{\s*:root \{ --sidebar-width: 64px; \}/);
   assert.match(ds, /:root\[data-reduce-transparency\] \{ --material: var\(--bg\); --material-filter: none; \}/);
   assert.match(ds, /@media \(prefers-reduced-transparency: reduce\)/);
   assert.match(ds, /@supports not \(\(-webkit-backdrop-filter: blur\(1px\)\) or \(backdrop-filter: blur\(1px\)\)\)/);

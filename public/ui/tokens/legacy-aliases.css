@@ -4,7 +4,6 @@
    本文件只写 var(--color-*) 等引用，不写任何原始色值。 */
 :root {
   --font-ui: var(--font-sans);
-  --button-radius: var(--radius-md);
 
   /* 背景 */
   --bg: var(--color-bg-surface);

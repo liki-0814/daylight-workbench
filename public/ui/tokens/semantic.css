@@ -27,3 +27,143 @@
   --material-popover-bg: var(--material-popover-solid);
   --material-popover-filter: none;
 }
+
+/* ===== 0.7 尺寸 / 密度令牌（从 design-system.css 原值迁入；0.8 第一阶段保留 0.7 数值）=====
+   单一来源：尺寸与密度只在这里定义；design-system.css 不再新增令牌。 */
+:root {
+  /* Spacing scale and the relationships shared by all pages. */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --heading-copy-gap: var(--space-8);
+  --page-heading-gap: var(--space-32);
+  --page-footer-gap: var(--space-48);
+  --paragraph-gap: var(--space-12);
+  --metadata-gap: var(--space-4);
+  --section-gap: var(--space-24);
+  --form-field-gap: var(--space-20);
+  --field-label-gap: var(--space-8);
+  --feedback-inset: var(--space-16);
+  --text-action-height: calc(var(--font-button-line) + var(--space-8) + var(--space-8));
+  --feedback-row-height: max(var(--compact-control-height), var(--text-action-height));
+  --toolbar-row-height: var(--feedback-row-height);
+  --section-action-gap: var(--space-16);
+  --disclosure-inline-start: 2px;
+  --disclosure-marker-width: 21px;
+  --refresh-icon-size: 14px;
+  --button-icon-size: 16px;
+  --button-icon-gap: var(--space-8);
+  --button-font-weight: 500;
+  --button-disabled-opacity: .45;
+  --button-focus-width: 2px;
+  --button-focus-offset: 3px;
+  --tab-indicator-width: 3px;
+  --tab-font-weight: 600;
+  --selection-control-size: 16px;
+  --button-padding-block: var(--space-8);
+  --button-padding-inline: var(--space-16);
+  --compact-button-padding-block: var(--space-4);
+  --compact-button-padding-inline: var(--space-12);
+  --panel-block-inset: var(--space-24);
+  --panel-inline-inset: 26px;
+  --dialog-inline-inset: 28px;
+  --form-control-height: 44px;
+  --form-control-line-height: var(--font-control-line);
+  --compact-control-height: 36px;
+  --form-control-padding-block: calc((var(--form-control-height) - var(--font-control-line) - 2px) / 2);
+  --form-control-padding: var(--form-control-padding-block) var(--space-12);
+  --compact-control-padding-block: calc((var(--compact-control-height) - var(--font-compact-line) - 2px) / 2);
+  --compact-control-padding: var(--compact-control-padding-block) 10px;
+  --button-height: 42px;
+  --compact-button-height: 36px;
+  --composer-action-size: 38px;
+  --icon-button-size: 28px;
+
+  /* Page containers stop growing at a comfortable measure and centre on wide windows; forms keep a readable measure. */
+  --page-max-width: 1320px;
+  --form-reading-width: 760px;
+  --form-panel-min-width: 520px;
+  --form-label-width: 128px;
+  --form-label-gap: var(--space-20);
+  --form-control-max-width: 560px;
+  --dialog-width: 650px;
+  --drawer-width: 720px;
+  --confirmation-width: 460px;
+  --quick-panel-width: 600px;
+
+  /* Page and task-column alignment, including responsive variants below. */
+  --page-inline: 43px;
+  --sidebar-width: 224px;
+  --toolbar-height: 52px;
+  --task-row-inset: var(--space-24);
+  --task-leading-width: 18px;
+  --task-column-gap: 13px;
+  --task-title-size: var(--font-body-size);
+  /* 来自 legacy-aliases.css：按钮圆角属于尺寸类令牌，统一在这里。 */
+  --button-radius: var(--radius-md);
+}
+@media (min-width: 1500px) {
+  :root { --page-inline: 60px; }
+}
+@media (max-width: 1150px) {
+  :root {
+    --page-inline: 26px;
+    --page-footer-gap: var(--space-32);
+    --task-row-inset: var(--space-16);
+    --task-column-gap: 9px;
+  }
+}
+@media (max-width: 650px) {
+  :root {
+    --font-page-line: 36px;
+    --font-date-size: 32px;
+    --font-date-line: 40px;
+    --font-brand-size: 16px;
+    --font-brand-line: 24px;
+    --font-pi-mark-size: 26px;
+      --icon-button-size: 24px;
+    --page-inline: 18px;
+    --page-heading-gap: var(--space-24);
+    --panel-block-inset: var(--space-20);
+    --panel-inline-inset: 18px;
+    --dialog-inline-inset: var(--space-20);
+    --task-row-inset: 14px;
+    --task-column-gap: 10px;
+  }
+}
+
+/* 0.7 PR-4 应用外壳：侧栏三档（224 / ≤1339 → 208 / ≤999 → 64 图标栏），与 760 / 1240 / 1440 三档对应，不新增断点。 */
+@media (max-width: 1339px) {
+  :root { --sidebar-width: 208px; }
+}
+@media (max-width: 999px) {
+  :root { --sidebar-width: 64px; }
+}
+
+
+/* ===== 0.8 重设计尺寸令牌（Iris v3/v5；控件 / 行高 / 圆角等已在主题文件里：--control-h --control-px --icon-btn --row-h --radius-*）===== */
+:root {
+  --group-h: 40px;
+  --toolbar-h: 56px;
+  --nav-item-h: 36px;
+  --space-page: 32px;
+  --space-section: 28px;
+  --sidebar-w: 232px;
+  --inspector-w: 300px;
+  --min-target: 28px;
+  --control-font: var(--text-base);
+  --control-line: var(--leading-base);
+  --border-hairline: 1px solid var(--color-border-default);
+  --radius-menu: 14px;
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-fast: 0.01ms; --motion-base: 0.01ms; }
+}
