@@ -5,6 +5,7 @@ import { morph } from '../ui/core/morph.js';
 import { toolbar } from '../ui/components/toolbar/toolbar.js';
 import { segmented } from '../ui/components/segmented/segmented.js';
 import { select } from '../ui/components/select/select.js';
+import { menu } from '../ui/components/menu/menu.js';
 import { input } from '../ui/components/input/input.js';
 import { button } from '../ui/components/button/button.js';
 import { checkbox } from '../ui/components/checkbox/checkbox.js';
@@ -51,9 +52,9 @@ function taskInspector({ task, code, project, planned, today, currentProject, st
     const done = task.status === 'done';
     return inspector({
       label: '任务详情', kicker: `${code} · ${project?.name || '未归类'}`, title: task.title,
-      primary: html`${done ? button({ label: '恢复为待办', attrs: { 'data-action': 'toggle', 'data-id': task.id } }) : html`${button({ label: '开始专注', attrs: { 'data-action': 'focus-task', 'data-id': task.id } })}${button({ label: '完成', variant: 'primary', attrs: { 'data-action': 'toggle', 'data-id': task.id } })}`}${select({ name: 'more', variant: 'field', placement: 'end', label: '更多操作', value: '', placeholder: '更多', options: [
-        ...(done ? [] : [{ value: planned ? 'unplan' : 'plan', label: planned ? '移出今天' : '加入今天', action: true }]),
-        { value: 'edit', label: '编辑', action: true }, { value: 'discuss', label: '讨论', action: true }, { value: 'related', label: '相关对话', action: true }, { divider: true }, { value: 'delete-task', label: '删除', icon: 'trash', action: true }] })}`,
+      primary: html`${done ? button({ label: '恢复为待办', attrs: { 'data-action': 'toggle', 'data-id': task.id } }) : html`${button({ label: '开始专注', attrs: { 'data-action': 'focus-task', 'data-id': task.id } })}${button({ label: '完成', variant: 'primary', attrs: { 'data-action': 'toggle', 'data-id': task.id } })}`}${menu({ attrs: { 'data-name': 'more' }, placement: 'end', label: '更多操作', trigger: { text: '更多' }, options: [
+        ...(done ? [] : [{ value: planned ? 'unplan' : 'plan', label: planned ? '移出今天' : '加入今天' }]),
+        { value: 'edit', label: '编辑' }, { value: 'discuss', label: '讨论' }, { value: 'related', label: '相关对话' }, { divider: true }, { value: 'delete-task', label: '删除', icon: 'trash', danger: true }] })}`,
       props: [
         { label: '状态', value: STATUS[task.status] || task.status },
         { label: '优先级', value: PRIORITY[task.priority || 'medium'] },
