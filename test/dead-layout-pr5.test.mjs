@@ -15,7 +15,7 @@ test('shared stylesheets keep ≤650 because the quick panel (default 600px wide
   const quick = read('quick.html');
   assert.match(quick, /\/ui\/ui\.css/); assert.match(read('ui/ui.css'), /design-system\.css"\) layer\(legacy\)/, 'design-system.css reaches quick.html through ui.css (@layer legacy)');
   for (const name of ['ai.css', 'design-system.css', 'ui/tokens/semantic.css']) assert.match(read(name), /max-width:\s*650px/, name);
-  assert.match(quick, /\/ai\.css/);
+  assert.match(read('legacy-quick.css'), /ai\.css/);
 });
 
 // ≤930 在 760–930 之间是活的（760 窗口下的单列），不属于死布局。

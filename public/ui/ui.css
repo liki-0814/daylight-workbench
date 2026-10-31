@@ -9,3 +9,27 @@
 @import url("./tokens/theme.css") layer(tokens);
 @import url("./tokens/semantic.css") layer(tokens);
 @import url("./tokens/legacy-aliases.css") layer(tokens);
+
+/* 组件库（层 ui）：先组件后 pattern；每个文件只用主题 / 语义令牌，不写原始色值 */
+@import url("./base.css") layer(ui);
+@import url("./components/kbd/kbd.css") layer(ui);
+@import url("./components/button/button.css") layer(ui);
+@import url("./components/icon-button/icon-button.css") layer(ui);
+@import url("./components/input/input.css") layer(ui);
+@import url("./components/select/select.css") layer(ui);
+@import url("./components/menu/menu.css") layer(ui);
+@import url("./components/chip/chip.css") layer(ui);
+@import url("./components/switch/switch.css") layer(ui);
+@import url("./components/checkbox/checkbox.css") layer(ui);
+@import url("./components/dialog/dialog.css") layer(ui);
+@import url("./components/status-tag/status-tag.css") layer(ui);
+@import url("./components/nav/nav.css") layer(ui);
+@import url("./components/toolbar/toolbar.css") layer(ui);
+@import url("./components/segmented/segmented.css") layer(ui);
+@import url("./components/toast/toast.css") layer(ui);
+@import url("./patterns/data-row/data-row.css") layer(ui);
+@import url("./patterns/settings/settings.css") layer(ui);
+@import url("./patterns/inspector/inspector.css") layer(ui);
+@import url("./patterns/composer/composer.css") layer(ui);
+@import url("./patterns/service-status/service-status.css") layer(ui);
+@import url("./patterns/shell/shell.css") layer(ui);

@@ -1,0 +1,11 @@
+.dl-seg { display: inline-flex; gap: var(--space-2); padding: var(--space-2); border-radius: var(--radius-control); background: var(--color-bg-sunken); }
+.dl-seg__item {
+  display: inline-flex; align-items: center; gap: var(--space-6); height: var(--min-target); padding: 0 var(--space-12);
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary);
+  font: var(--weight-medium) var(--text-sm)/var(--leading-sm) var(--font-sans); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out), color var(--motion-fast) var(--ease-in-out);
+}
+.dl-seg__item:hover { color: var(--color-text-primary); }
+.dl-seg__item.is-active { background: var(--color-bg-surface); color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--color-border-default); }
+.dl-seg__item:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
+.dl-seg__count { color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }

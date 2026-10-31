@@ -1,0 +1,32 @@
+/* 旧页面的样式表，整体放进 @layer legacy（层顺序见 ui/ui.css），让 ui 层的组件样式压过旧的元素级选择器。
+   页面迁完后逐个删掉这里的 @import。 */
+@import url("./style.css") layer(legacy);
+@import url("./components/select.css") layer(legacy);
+@import url("./proxy.css") layer(legacy);
+@import url("./proxy/statistics.css") layer(legacy);
+@import url("./components/distribution-list.css") layer(legacy);
+@import url("./ai.css") layer(legacy);
+@import url("./cli-config.css") layer(legacy);
+@import url("./update.css") layer(legacy);
+@import url("./settings.css") layer(legacy);
+@import url("./extensions/extensions.css") layer(legacy);
+@import url("./components/segmented-control.css") layer(legacy);
+@import url("./components/date-field.css") layer(legacy);
+@import url("./components/dialog-shell.css") layer(legacy);
+@import url("./components/sheet.css") layer(legacy);
+@import url("./components/switch.css") layer(legacy);
+@import url("./components/search-field.css") layer(legacy);
+@import url("./components/chip.css") layer(legacy);
+@import url("./components/banner.css") layer(legacy);
+@import url("./components/calendar-grid.css") layer(legacy);
+@import url("./calendar/calendar.css") layer(legacy);
+@import url("./components/metric-card.css") layer(legacy);
+@import url("./components/progress-meter.css") layer(legacy);
+@import url("./components/bar-chart.css") layer(legacy);
+@import url("./components/pagination.css") layer(legacy);
+@import url("./components/date-range.css") layer(legacy);
+@import url("./focus/focus.css") layer(legacy);
+@import url("./focus/stats.css") layer(legacy);
+@import url("./focus/bar-chart.css") layer(legacy);
+@import url("./components/button.css") layer(legacy);
+@import url("./components/media-models.css") layer(legacy);

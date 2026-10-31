@@ -1,0 +1,8 @@
+/* 旧页面的样式表，整体放进 @layer legacy（层顺序见 ui/ui.css），让 ui 层的组件样式压过旧的元素级选择器。
+   页面迁完后逐个删掉这里的 @import。 */
+@import url("./components/button.css") layer(legacy);
+@import url("./components/segmented-control.css") layer(legacy);
+@import url("./components/image-input.css") layer(legacy);
+@import url("./components/dialog-shell.css") layer(legacy);
+@import url("./ai.css") layer(legacy);
+@import url("./quick.css") layer(legacy);

@@ -1,0 +1,7 @@
+/* kbd：快捷键提示 <kbd class="dl-kbd">。前景色只读 --ui-kbd-fg（契约与取值要求见 README），本文件不认识任何宿主组件。 */
+.dl-kbd {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 var(--space-4);
+  border: 1px solid currentColor; border-radius: var(--radius-sm);
+  font: var(--weight-regular) var(--text-xs)/var(--leading-xs) var(--font-mono); background: transparent;
+  color: var(--ui-kbd-fg, var(--color-text-secondary));   /* 契约见 README：宿主只赋值 --ui-kbd-fg；不用 opacity */
+}

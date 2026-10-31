@@ -1,0 +1,28 @@
+/* 动作菜单：触发按钮 + 共用的 .dl-menu 面板（样式在 select.css，14 圆角）。 */
+.dl-menubtn { position: relative; display: inline-block; min-width: 0; }
+.dl-menubtn__trigger {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8);
+  min-height: var(--control-h); min-width: 0; padding: 0 var(--control-px);
+  border: 1px solid var(--color-control-border); border-radius: var(--radius-control);
+  background: var(--color-bg-surface); color: var(--color-text-primary);
+  font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-sans); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out), border-color var(--motion-fast) var(--ease-in-out);
+}
+.dl-menubtn--ghost .dl-menubtn__trigger { border-color: transparent; background: transparent; }
+.dl-menubtn__trigger:hover:not(:disabled) { background: var(--color-bg-hover); }
+.dl-menubtn__trigger:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.dl-menubtn__trigger[aria-expanded="true"] { border-color: var(--color-accent-border); }
+.dl-menubtn__trigger:disabled { color: var(--color-text-disabled); cursor: default; }
+.dl-menubtn__chev { flex: none; color: var(--color-text-tertiary); transition: transform var(--motion-fast) var(--ease-out); }
+[aria-expanded="true"] > .dl-menubtn__chev { transform: rotate(180deg); }
+.dl-menubtn__text { min-width: 0; overflow-wrap: anywhere; }
+.dl-menubtn[data-placement="down"] .dl-menu { left: 0; right: auto; }
+.dl-menubtn[data-placement="end"] .dl-menu { left: auto; right: 0; transform-origin: top right; }
+.dl-menubtn[data-placement="up"] .dl-menu, .dl-menubtn[data-placement="up-end"] .dl-menu { top: auto; bottom: calc(100% + var(--space-6)); transform-origin: bottom left; }
+.dl-menubtn[data-placement="up-end"] .dl-menu { left: auto; right: 0; transform-origin: bottom right; }
+.dl-menubtn[data-flip="1"]:not([data-placement^="up"]) .dl-menu { top: auto; bottom: calc(100% + var(--space-6)); }
+.dl-menubtn[data-flip="1"][data-placement^="up"] .dl-menu { bottom: auto; top: calc(100% + var(--space-6)); }
+.dl-menu__item.is-danger { color: var(--color-error-text); }
+.dl-menu__item:disabled { color: var(--color-text-disabled); cursor: default; }
+.dl-menu__item:disabled:hover { background: transparent; }
+@media (prefers-reduced-motion: reduce) { .dl-menubtn__chev { transition: none; } }

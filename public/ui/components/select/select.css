@@ -1,0 +1,58 @@
+.dl-select { position: relative; display: inline-block; min-width: 0; }
+.dl-select__trigger {
+  --ui-select-hover-bg: var(--color-bg-hover);
+  display: inline-flex; align-items: center; gap: var(--space-8); width: 100%;
+  height: var(--control-h); padding: 0 var(--control-px);
+  border: 1px solid var(--color-control-border); border-radius: var(--radius-control);
+  background: var(--color-bg-surface); color: var(--color-text-primary);
+  font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-sans); text-align: left; cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out), border-color var(--motion-fast) var(--ease-in-out);
+}
+.dl-select__trigger:hover:not(:disabled) { background: var(--ui-select-hover-bg); }
+.dl-select__trigger:focus-visible, .dl-select .dl-chip:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.dl-select__trigger[aria-expanded="true"] { border-color: var(--color-accent-border); }
+.dl-select__trigger.is-empty { color: var(--color-text-tertiary); }
+.dl-select__trigger--ghost { border-color: transparent; background: transparent; }
+.dl-select__trigger:disabled { color: var(--color-text-disabled); cursor: default; }
+.dl-select__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-select__chev { flex: none; color: var(--color-text-tertiary); transition: transform var(--motion-fast) var(--ease-out); }
+[aria-expanded="true"] > .dl-select__chev { transform: rotate(180deg); }
+.dl-select .dl-chip { cursor: pointer; }
+.dl-select .dl-chip:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.dl-select .dl-chip[aria-expanded="true"] { border-color: var(--color-accent-border); color: var(--color-text-primary); }
+
+/* 菜单：向下展开，14 圆角，可以越过弹窗边缘 */
+.dl-menu {
+  position: absolute; z-index: 30; top: calc(100% + var(--space-6)); left: 0;
+  min-width: max(100%, 240px); max-width: 360px; max-height: 320px; overflow-y: auto;
+  padding: var(--space-6); border: var(--border-hairline); border-radius: var(--radius-menu);
+  background: var(--color-bg-surface); box-shadow: var(--shadow-soft);
+  transform-origin: top left; animation: dl-menu-in var(--motion-fast) var(--ease-out);
+}
+.dl-menu[hidden] { display: none; }
+.dl-select[data-placement="up"] .dl-menu { top: auto; bottom: calc(100% + var(--space-6)); transform-origin: bottom left; }
+.dl-select[data-placement="end"] .dl-menu { left: auto; right: 0; transform-origin: top right; }
+.dl-menu__item {
+  display: flex; align-items: center; gap: var(--space-8); width: 100%; min-height: var(--min-target); padding: var(--space-6) var(--space-10);
+  border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-text-primary);
+  font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-sans); text-align: left; cursor: pointer;
+}
+.dl-menu__item:hover, .dl-menu__item:focus-visible { background: var(--color-bg-hover); outline: 0; }
+.dl-menu__item:focus-visible { box-shadow: inset 0 0 0 2px var(--color-focus-ring); }
+.dl-menu__item[aria-selected="true"] { background: var(--color-bg-selected); font-weight: var(--weight-medium); }
+.dl-menu__item.is-action { color: var(--color-accent-text); }
+.dl-menu__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-menu__meta { flex: none; color: var(--color-text-tertiary); font-size: var(--text-xs); }
+.dl-menu__check { flex: none; color: var(--color-accent-text); }
+.dl-menu__divider { height: 1px; margin: var(--space-6) 0; background: var(--color-border-subtle); }
+.dl-menu__search {
+  box-sizing: border-box; width: 100%; height: var(--control-h); margin-bottom: var(--space-6); padding: 0 var(--space-12);
+  border: 1px solid var(--color-control-border); border-radius: var(--radius-control); background: var(--color-bg-surface); color: inherit;
+  font: inherit; outline: 0;
+}
+.dl-menu__search:focus-visible { border-color: var(--color-accent-border); box-shadow: 0 0 0 3px var(--color-accent-subtle); }
+@keyframes dl-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .dl-menu { animation-name: dl-fade-in; }
+  .dl-select__chev { transition: none; }
+}

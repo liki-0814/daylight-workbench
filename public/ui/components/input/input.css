@@ -1,0 +1,27 @@
+.dl-input {
+  display: inline-flex; align-items: center; gap: var(--space-8);
+  min-width: 0; height: var(--control-h); padding: 0 var(--control-px);
+  border: 1px solid var(--color-control-border); border-radius: var(--radius-control);
+  background: var(--color-bg-surface); color: var(--color-text-primary); --ui-kbd-fg: var(--color-text-secondary);
+  transition: border-color var(--motion-fast) var(--ease-in-out), box-shadow var(--motion-fast) var(--ease-in-out);
+}
+.dl-input:hover { border-color: var(--color-text-secondary); }
+.dl-input:focus-within { border-color: var(--color-accent-border); box-shadow: 0 0 0 3px var(--color-accent-subtle); outline: 2px solid transparent; }
+.dl-input.is-invalid { border-color: var(--color-error); }
+.dl-input__control {
+  flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: inherit;
+  font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-sans);
+}
+.dl-input__control::placeholder { color: var(--color-text-tertiary); }
+.dl-input--mono .dl-input__control { font-family: var(--font-mono); }
+.dl-input--end .dl-input__control { text-align: right; font-variant-numeric: tabular-nums; }
+.dl-input .dl-icon { flex: none; color: var(--color-text-tertiary); }
+.dl-input--pill { border-radius: var(--radius-full); background: var(--color-bg-sunken); border-color: transparent; }
+.dl-input--pill:hover { border-color: var(--color-border-strong); }
+.dl-input--title, .dl-input--bare { height: auto; padding: 0; border-color: transparent; background: transparent; }
+.dl-input--title:hover, .dl-input--bare:hover { border-color: transparent; }
+.dl-input--title:focus-within, .dl-input--bare:focus-within { border-color: transparent; box-shadow: none; }
+.dl-input--title .dl-input__control { font: var(--weight-semibold) var(--text-lg)/var(--leading-lg) var(--font-sans); }
+.dl-input--title .dl-input__control:focus-visible, .dl-input--bare .dl-input__control:focus-visible { outline: 0; }
+.dl-input--bare textarea.dl-input__control { resize: none; height: auto; min-height: 3.5em; color: var(--color-text-secondary); }
+textarea.dl-input__control { line-height: var(--leading-base); padding-block: var(--space-8); }

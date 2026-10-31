@@ -32,9 +32,13 @@
    单一来源：尺寸与密度只在这里定义；design-system.css 不再新增令牌。 */
 :root {
   /* Spacing scale and the relationships shared by all pages. */
+  --space-2: 2px;
   --space-4: 4px;
+  --space-6: 6px;
   --space-8: 8px;
+  --space-10: 10px;
   --space-12: 12px;
+  --space-14: 14px;
   --space-16: 16px;
   --space-20: 20px;
   --space-24: 24px;
@@ -164,6 +168,18 @@
   --motion-fast: 150ms;
   --motion-base: 200ms;
 }
-@media (prefers-reduced-motion: reduce) {
-  :root { --motion-fast: 0.01ms; --motion-base: 0.01ms; }
+/* 缓动（proxy/motion.md）；reduced-motion 不在这里改时长：位移类（transform）在各组件里改成直接切换，颜色 / 透明度保留 */
+:root {
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+  --dot-green: var(--color-accent);
+  --dot-amber: var(--sun-noon);
+  --dot-neutral: var(--color-text-tertiary);
+  --shadow-dialog: 0 2px 6px color-mix(in srgb, var(--color-text-primary) 5%, transparent), 0 24px 64px color-mix(in srgb, var(--color-text-primary) 14%, transparent);
+  --shadow-soft: 0 1px 2px color-mix(in srgb, var(--color-text-primary) 4%, transparent), 0 6px 20px color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+/* 弹窗遮罩：浅色 + 轻微模糊。::backdrop 自己也要有令牌（部分引擎不从 :root 继承） */
+:root, ::backdrop {
+  --scrim-light: color-mix(in srgb, var(--color-bg-app) 58%, transparent);
+  --scrim-blur: 3px;
 }

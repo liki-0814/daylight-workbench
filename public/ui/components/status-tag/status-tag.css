@@ -1,0 +1,20 @@
+.dl-tag {
+  display: inline-flex; align-items: center; gap: var(--space-6); height: 24px; padding: 0 var(--space-10);
+  border: 1px solid var(--tag-border, transparent); border-radius: var(--radius-full);
+  background: var(--tag-bg, var(--color-bg-sunken)); color: var(--tag-fg, var(--color-text-secondary));
+  font: var(--weight-medium) var(--text-xs)/var(--leading-xs) var(--font-sans); white-space: nowrap;
+  animation: dl-fade-in var(--motion-base) var(--ease-out);
+}
+.dl-tag__dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--tag-dot, var(--color-text-tertiary)); }
+.dl-tag--success { --tag-bg: var(--color-success-subtle); --tag-fg: var(--color-success-text); --tag-border: transparent; --tag-dot: var(--color-success); }
+.dl-tag--error { --tag-bg: var(--color-error-subtle); --tag-fg: var(--color-error-text); --tag-border: transparent; --tag-dot: var(--color-error); }
+.dl-tag--warning { --tag-bg: var(--color-warning-subtle); --tag-fg: var(--color-warning-text); --tag-border: transparent; --tag-dot: var(--color-warning); }
+.dl-tag--info { --tag-bg: var(--color-info-subtle); --tag-fg: var(--color-info-text); --tag-border: transparent; --tag-dot: var(--color-info); }
+.dl-tag.is-dashed { border-style: dashed; border-color: var(--color-border-strong); background: var(--color-bg-sunken); }
+.dl-spinner {
+  box-sizing: border-box; display: inline-block; flex: none; width: 12px; height: 12px; border: 2px solid var(--color-accent-subtle);
+  border-top-color: var(--color-accent-border); border-radius: var(--radius-full); animation: dl-spin 800ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl-spinner { animation: none; border-color: var(--color-accent-border); border-radius: var(--radius-full); transform: scale(.6); } /* 静态圆点 */
+}

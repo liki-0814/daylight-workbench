@@ -1,0 +1,13 @@
+.dl-check {
+  position: relative; display: inline-flex; flex: none; align-items: center; justify-content: center;
+  width: 16px; height: 16px; padding: 0; border: 1.5px solid var(--color-control-border); border-radius: var(--radius-full);
+  background: var(--color-bg-surface); color: var(--color-text-on-accent); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out), border-color var(--motion-fast) var(--ease-in-out);
+}
+.dl-check::before { content: ""; position: absolute; inset: -6px; } /* 点击区 28 */
+.dl-check .dl-icon { opacity: 0; transition: opacity var(--motion-fast) var(--ease-in-out); }
+.dl-check[aria-checked="true"] { background: var(--color-accent); border-color: var(--color-accent); }
+.dl-check[aria-checked="true"] .dl-icon { opacity: 1; }
+.dl-check:hover:not(:disabled):not([aria-checked="true"]) { border-color: var(--color-accent-border); }
+.dl-check:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.dl-check:disabled { opacity: .5; cursor: default; }

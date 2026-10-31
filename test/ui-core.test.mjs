@@ -13,8 +13,8 @@ test('html``：插值默认转义，SafeHtml 与它们的数组原样，false / 
   assert.equal(String(html`<a title="${'" onmouseover="x'}">`), '<a title="&quot; onmouseover=&quot;x">');
 });
 test('trusted() / 子内容槽：裸字符串按文本处理，只有 SafeHtml 才不转义；嵌套 html`` 的结果本身可信', () => {
-  assert.equal(slot(evil), esc(evil));
-  assert.equal(slot(trusted('<b>x</b>')), '<b>x</b>');
+  assert.equal(String(slot(evil)), esc(evil)); assert.ok(slot(evil) instanceof SafeHtml);
+  assert.equal(String(slot(trusted('<b>x</b>'))), '<b>x</b>');
   assert.ok(isTrusted(html`<b></b>`) && isTrusted(trusted('x')) && !isTrusted('<b></b>'));
   assert.ok(trusted(trusted('a')) instanceof SafeHtml);
   const inner = html`<i>${evil}</i>`;

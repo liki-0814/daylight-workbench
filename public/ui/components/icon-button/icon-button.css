@@ -1,0 +1,16 @@
+.dl-icon-btn {
+  display: inline-flex; flex: none; align-items: center; justify-content: center;
+  width: var(--icon-btn); height: var(--icon-btn); padding: 0; border: 0; border-radius: var(--radius-full);
+  background: var(--color-bg-sunken); color: var(--color-text-secondary); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out), color var(--motion-fast) var(--ease-in-out);
+}
+.dl-icon-btn--sm { width: var(--min-target); height: var(--min-target); }
+.dl-icon-btn:hover:not(:disabled) { background: var(--color-bg-selected); color: var(--color-text-primary); }
+.dl-icon-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.dl-icon-btn:disabled { color: var(--color-text-disabled); cursor: default; }
+.dl-icon-btn--ghost { background: transparent; }
+.dl-icon-btn--send { background: var(--color-accent); color: var(--color-text-on-accent); }
+.dl-icon-btn--send:hover:not(:disabled) { background: var(--color-accent-hover); color: var(--color-text-on-accent); }
+.dl-icon-btn--send:active:not(:disabled) { background: var(--color-accent-active); }
+.dl-icon-btn--send:disabled { background: var(--color-bg-sunken); }
+.dl-icon-btn .dl-icon { opacity: 1; }

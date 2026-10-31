@@ -1,0 +1,15 @@
+.dl-switch {
+  position: relative; flex: none; width: 34px; height: 20px; padding: 0; border: 0; border-radius: var(--radius-full);
+  background: var(--color-control-border); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-in-out);
+}
+.dl-switch::before { content: ""; position: absolute; inset: -4px -2px; } /* 点击区高 ≥ 28 */
+.dl-switch[aria-checked="true"] { background: var(--color-accent); }
+.dl-switch:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.dl-switch:disabled { opacity: .5; cursor: default; }
+.dl-switch__thumb {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: var(--radius-full); background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px var(--color-border-strong); transition: transform var(--motion-fast) var(--ease-out);
+}
+.dl-switch[aria-checked="true"] .dl-switch__thumb { transform: translateX(14px); }
+@media (prefers-reduced-motion: reduce) { .dl-switch__thumb { transition: none; } }

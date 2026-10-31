@@ -51,6 +51,19 @@ export function html(strings, ...values) {
   return new SafeHtml(out);
 }
 // 子内容槽：SafeHtml 原样，其它（含裸字符串）转义。
-export const slot = part;
+export const slot = value => new SafeHtml(part(value));
 // 布尔属性：true → ` name`，false → ''（返回 SafeHtml，可直接插进 html`` 里）。
 export const flag = (name, on) => new SafeHtml(on ? ` ${name}` : '');
+
+// 属性表：attrs({ 'data-action': 'create', disabled: true }) → ` data-action="create" disabled`
+// 属性名白名单（小写字母 / 数字 / - / :），拒绝 on* 事件属性和 style（CSP 禁内联样式）；值经 esc()。
+const ATTR_NAME = /^[a-z][a-z0-9:-]*$/;
+export function attrs(map) {
+  let out = '';
+  for (const [name, value] of Object.entries(map || {})) {
+    if (value === false || value === null || value === undefined) continue;
+    if (!ATTR_NAME.test(name) || name.startsWith('on') || name === 'style') throw new TypeError(`attribute name not allowed: ${name}`);
+    out += value === true ? ` ${name}` : ` ${name}="${esc(value)}"`;
+  }
+  return new SafeHtml(out);
+}
