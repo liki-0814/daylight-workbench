@@ -18,7 +18,7 @@
 }
 
 .cli-workspace {
-  padding-bottom: var(--space-8);
+  padding-bottom: var(--space-40);
 }
 
 .cli-heading h1 {
@@ -122,7 +122,7 @@
   min-height: 58px;
   font-size: var(--font-meta-size);
   flex-wrap: wrap;
-  padding: var(--space-3) 0;
+  padding: var(--space-12) 0;
   line-height: var(--font-meta-line);
 }
 
@@ -151,7 +151,7 @@
 .cli-key-state {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-4);
   color: var(--text-secondary);
   font-size: var(--font-meta-size);
   line-height: var(--font-meta-line);
@@ -168,7 +168,7 @@
   gap: 7px;
   white-space: nowrap;
   color: var(--text-secondary);
-  padding: var(--space-2) var(--space-1);
+  padding: var(--space-8) var(--space-4);
   min-height: var(--compact-control-height);
   cursor: pointer;
 }
@@ -219,14 +219,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-5);
+  gap: var(--space-20);
   margin-bottom: 18px;
 }
 
 .cli-catalog-heading>div:first-child {
   display: flex;
   align-items: baseline;
-  gap: var(--space-3);
+  gap: var(--space-12);
 }
 
 .cli-catalog-heading h2 {
@@ -247,7 +247,7 @@
 .cli-tools {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-16);
 }
 
 .cli-search {
@@ -442,7 +442,7 @@
 .cli-model-text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-4);
   min-width: 0;
 }
 
@@ -508,7 +508,7 @@
 
 .cli-model-state {
   color: var(--text-secondary);
-  gap: var(--space-1);
+  gap: var(--space-4);
   white-space: nowrap;
   font-size: var(--font-caption-size);
   line-height: var(--font-caption-line);
@@ -561,9 +561,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-12);
   color: var(--text-secondary);
-  padding: var(--section-gap) var(--space-4);
+  padding: var(--section-gap) var(--space-16);
   text-align: center;
   font-size: var(--font-caption-size);
   line-height: var(--font-caption-line);
@@ -577,10 +577,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-5);
+  gap: var(--space-20);
   border-top: 1px solid #dce3d7;
   margin-top: var(--section-gap);
-  padding: var(--space-5) 0 var(--space-4);
+  padding: var(--space-20) 0 var(--space-16);
   background: #f7f8f5;
 }
 
@@ -625,7 +625,7 @@
 .cli-api-picker .select-field {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-8);
   margin: 0;
 }
 
@@ -717,7 +717,7 @@
   color: var(--text-secondary);
   line-height: var(--font-caption-line);
   margin: var(--paragraph-gap) 0 0;
-  padding-top: var(--space-4);
+  padding-top: var(--space-16);
   border-top: 1px dashed #e0e6d8;
   overflow-wrap: anywhere;
 }
@@ -741,7 +741,7 @@
 }
 
 .cli-diff-summary {
-  margin: var(--space-6) 0;
+  margin: var(--space-24) 0;
 }
 
 .cli-diff-summary>div {
@@ -776,10 +776,10 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: #fff;
-  padding: var(--space-5);
+  padding: var(--space-20);
   border: 1px solid #e0e7d9;
   border-radius: 6px;
-  margin: var(--space-4) 0 28px;
+  margin: var(--space-16) 0 28px;
 }
 
 @media(max-width:1150px) {
@@ -788,7 +788,7 @@
     gap: 15px;
   }
   .cli-client {
-    gap: var(--space-5);
+    gap: var(--space-20);
   }
   .cli-client-default {
     min-width: 120px;
@@ -798,7 +798,7 @@
   }
   .cli-table-head,.cli-model-row {
     grid-template-columns: minmax(0,1fr) 72px var(--icon-button-size);
-    gap: var(--space-2);
+    gap: var(--space-8);
     padding-left: 8px;
     padding-right: 8px;
   }
@@ -887,7 +887,7 @@
 .cli-config-capabilities {
   display: flex;
   gap: 22px;
-  margin: var(--space-6) 0;
+  margin: var(--space-24) 0;
   font-size: var(--font-caption-size);
   line-height: var(--font-caption-line);
 }
@@ -903,8 +903,8 @@
   display: grid;
   grid-template-columns: 80px minmax(0,1fr);
   align-items: center;
-  gap: var(--space-3);
-  margin: var(--space-3) 0;
+  gap: var(--space-12);
+  margin: var(--space-12) 0;
 }
 
 .cli-model-form .cli-subtext {
@@ -922,7 +922,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-8);
 }
 
 .cli-config-capabilities input {

@@ -2,7 +2,7 @@
   display: flex;
   align-items: flex-end;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-16);
 }
 
 .ui-date-range-custom {
@@ -12,7 +12,7 @@
   flex-wrap: wrap;
   min-width: 0;
   max-width: 100%;
-  gap: var(--space-3);
+  gap: var(--space-12);
 }
 
 .ui-date-range-custom .ui-date-field {

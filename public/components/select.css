@@ -18,7 +18,7 @@ workbench-select {
 .select-trigger {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-12);
   width: 100%;
   text-align: left;
   border: 1px solid var(--control-border);
@@ -80,7 +80,7 @@ workbench-select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-12);
   padding: 10px 11px;
   min-height: 40px;
   border-radius: 4px;
@@ -121,7 +121,7 @@ workbench-select {
 }
 
 .select-compact .select-option {
-  padding: var(--space-2) 10px;
+  padding: var(--space-8) 10px;
   font-size: var(--font-compact-size);
   min-height: 36px;
   line-height: var(--font-compact-line);

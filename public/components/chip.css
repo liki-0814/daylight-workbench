@@ -1,4 +1,4 @@
-.ui-chip { display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; min-height: 20px; padding: 0 var(--space-2); border-radius: 10px; background: var(--fill-control); color: var(--text-secondary); font-size: var(--font-meta-size); font-weight: 600; line-height: 18px; white-space: nowrap; }
+.ui-chip { display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; min-height: 20px; padding: 0 var(--space-8); border-radius: 10px; background: var(--fill-control); color: var(--text-secondary); font-size: var(--font-meta-size); font-weight: 600; line-height: 18px; white-space: nowrap; }
 .ui-chip-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 /* 已接入配色：success 与 connected 同款——中性胶囊底 + 绿点，文字不再是绿色，行底不染色 */
 .ui-chip-success, .ui-chip-connected { background: var(--connected-chip); color: var(--connected-text); box-shadow: inset 0 0 0 1px var(--connected-line); font-weight: 500; }
