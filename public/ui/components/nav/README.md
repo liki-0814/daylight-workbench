@@ -12,4 +12,4 @@
 ## 转义
 所有 `label` / `title` / `value` / `count` / `empty` 经 `esc()`；`header` 只接受 `trusted()` / 组件返回值。
 
-快捷键 `kbd` 用 `.dl-kbd` 的令牌 `--ui-kbd-fg`：`.dl-nav__item` 默认 secondary，hover / 选中 primary（契约见 button/README.md）。
+快捷键 `kbd`：`.dl-kbd` 的契约归 [kbd](../kbd/README.md)。nav 只赋值 `--ui-kbd-fg: var(--color-text-secondary)`（`.dl-nav__item`），所有状态（默认 / hover / 选中）同一个值，不随状态变化（hover / 选中底色上仍 ≥4.5:1）。

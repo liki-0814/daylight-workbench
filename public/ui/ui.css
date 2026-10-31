@@ -12,6 +12,7 @@
 
 /* 组件库（层 ui）：先组件后 pattern；每个文件只用主题 / 语义令牌，不写原始色值 */
 @import url("./base.css") layer(ui);
+@import url("./components/kbd/kbd.css") layer(ui);
 @import url("./components/button/button.css") layer(ui);
 @import url("./components/icon-button/icon-button.css") layer(ui);
 @import url("./components/input/input.css") layer(ui);
