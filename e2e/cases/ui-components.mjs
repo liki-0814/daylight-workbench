@@ -177,4 +177,27 @@ export default [
     check.deepEqual(c, a, '整体倒序后，计算值应一致');
     check.equal(a.tokens['--control-h'], '36px'); check.equal(a.btn.height, '36px', '按钮 36 高');
   } },
+  { id: 'ui-menu-01', priority: 'P0', widths: [1440, 1240], title: 'menu（动作菜单）：role=menu/menuitem、键盘打开 / 方向键 / Enter 选择 → 一次 ui:select（不派发 ui:change）、Esc 关闭回到触发器、点菜单外关闭、右对齐向下展开、update 不派发', async run({ page, url, assert: check }) {
+    await prepare(page, url);
+    await mount(page, '/ui/components/menu/menu.js', 'menu', { label: '更多操作', trigger: { text: '更多' }, placement: 'end', options: [{ value: 'a', label: '加入今天' }, { value: 'b', label: '编辑' }, { divider: true }, { value: 'del', label: '删除', icon: 'trash', danger: true }] });
+    const trigger = page.locator('#ui-host .dl-menubtn__trigger'), list = page.locator('#ui-host [role=menu]');
+    check.equal(await trigger.getAttribute('aria-haspopup'), 'menu'); check.equal(await trigger.getAttribute('aria-expanded'), 'false');
+    check.equal(await page.locator('#ui-host [role=menuitem]').count(), 3);
+    await clear(page); await trigger.focus(); await page.keyboard.press('ArrowDown');
+    check.equal(await trigger.getAttribute('aria-expanded'), 'true'); check.ok(await page.evaluate(() => document.activeElement.getAttribute('role') === 'menuitem'), '打开后焦点在第一项');
+    const box = await trigger.boundingBox(), menu = await list.boundingBox();
+    check.ok(menu.y >= box.y + box.height - 1, '菜单在触发器下方'); check.ok(Math.abs(menu.x + menu.width - (box.x + box.width)) <= 2, `菜单右边与触发器右边对齐：${menu.x + menu.width} vs ${box.x + box.width}`);
+    await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+    let events = await seen(page);
+    check.equal(events.filter(e => e.type === 'ui:select').length, 1, 'ui:select 一次'); check.deepEqual(events.find(e => e.type === 'ui:select').detail, { value: 'b', source: 'keyboard' });
+    check.equal(events.filter(e => e.type === 'ui:change').length, 0, '动作菜单不派发 ui:change');
+    check.equal(await trigger.getAttribute('aria-expanded'), 'false'); check.ok(await page.evaluate(() => document.activeElement.className.includes('dl-menubtn__trigger')), '选择后焦点回到触发器');
+    await clear(page); await trigger.click(); await page.keyboard.press('Escape');
+    check.equal(await trigger.getAttribute('aria-expanded'), 'false', 'Esc 关闭'); check.equal((await seen(page)).filter(e => e.type === 'ui:select').length, 0, 'Esc 不选择');
+    await trigger.click(); await page.mouse.click(5, 5);
+    check.equal(await trigger.getAttribute('aria-expanded'), 'false', '点击外部关闭');
+    await trigger.click(); await page.locator('#ui-host [role=menuitem]').nth(2).click();
+    events = await seen(page); check.equal(events.filter(e => e.type === 'ui:select').at(-1).detail.value, 'del'); check.equal(events.filter(e => e.type === 'ui:select').at(-1).detail.source, 'user');
+    await updateSilently(page, check, 'menu', {});
+  } },
 ];
