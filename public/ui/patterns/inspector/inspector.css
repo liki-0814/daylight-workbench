@@ -17,9 +17,13 @@
 .dl-insp__hint { margin: 0; color: var(--color-text-tertiary); font-size: var(--text-sm); }
 .dl-insp__text { margin: 0; color: var(--color-text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
 .dl-insp__list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.dl-sub { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: var(--space-8); min-height: var(--min-target); }
-.dl-sub__title { overflow-wrap: anywhere; }
+/* 子任务行：勾选框、× 与标题第一行顶对齐（标题换行时不再居中）；× 的圆形底色只在悬停 / 聚焦时出现 */
+.dl-sub { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; gap: var(--space-8); min-height: var(--min-target); }
+.dl-sub > .dl-check { margin-block: calc((var(--min-target) - 16px) / 2); }
+.dl-sub__title { padding-block: calc((var(--min-target) - 1lh) / 2); overflow-wrap: anywhere; }
 .dl-sub.is-done .dl-sub__title { color: var(--color-text-tertiary); text-decoration: line-through; }
+.dl-sub > .dl-icon-btn { background: transparent; }
+.dl-sub > .dl-icon-btn:hover:not(:disabled), .dl-sub > .dl-icon-btn:focus-visible { background: var(--color-bg-selected); color: var(--color-text-primary); }
 .dl-log { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-8); min-height: var(--min-target); align-items: center; font-size: var(--text-sm); }
 .dl-log time { color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
 .dl-insp__empty { margin: 0; color: var(--color-text-tertiary); }

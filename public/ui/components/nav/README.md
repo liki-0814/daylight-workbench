@@ -7,6 +7,8 @@
 |---|---|---|
 | `ui:select` | 点击 / Enter / Space 某个条目 | `{ value, source }` |
 
+`updateNav(host, content)`：把 `nav(...)` 的新结果 morph 进 host，并保住滚动区（`.dl-nav__scroll`）的 `scrollTop`；页面不查组件内部类。
+
 组件**不**自己切换 `is-active`——页面收到 `ui:select` 后更新状态再 `update()` 重绘（morph 保留焦点）。分区标题上的「+」按钮是页面级命令，用 `section.action.attrs` 带 `data-action`。
 
 ## 转义

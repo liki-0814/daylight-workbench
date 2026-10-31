@@ -43,6 +43,10 @@ export function showToast({ message, tone = 'info', actions = [], persistent = f
   return { el, dismiss };
 }
 
+// 页面不查 .dl-toast…：是否已有同样的通知、收掉某个动作按钮（如撤销）都经组件。
+export const hasToast = ({ message, tone }) => [...document.querySelectorAll('[data-ui="toast"]')].some(el => el.classList.contains(`dl-toast--${tone}`) && el.querySelector('.dl-toast__text')?.textContent === String(message));
+export const dropToastActions = value => document.querySelectorAll('[data-ui="toast"] .dl-toast__action').forEach(node => { if (node.dataset.value === value) node.remove(); });
+
 install('toast', doc => doc.addEventListener('click', event => {
   const el = event.target.closest?.('.dl-toast');
   if (!el) return;
