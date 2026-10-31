@@ -2,10 +2,11 @@ import { html, attrs, cx, esc, slot, uid } from '../../core/html.js';
 import { nav } from '../../components/nav/nav.js';
 
 // settingsLayout({ navLabel, sections, title, subtitle, children, scroll })
+//   左栏导航的 data-name 固定为 'section'：页面在 ui:select 里用 event.target.dataset.name === 'section' 识别。
 //   左侧二级导航（200 宽）+ 右侧内容。右侧 children 只接受 trusted() / 组件返回值。
 //   scroll: 'body'（默认，右侧内容自己滚动）| 'page'（整页滚动，由外层页面决定高度；设置页用这个）
 export function settingsLayout({ navLabel = '设置分类', sections = [], title, subtitle = '', children = '', scroll = 'body' } = {}) {
-  return html`<div class="dl-set" data-scroll="${scroll === 'page' ? 'page' : 'body'}"><aside class="dl-set__nav">${nav({ label: navLabel, kind: 'list', sections })}</aside><div class="dl-set__body"><h2 class="dl-set__title">${title}</h2>${subtitle ? html`<p class="dl-set__sub">${subtitle}</p>` : ''}${slot(children)}</div></div>`;
+  return html`<div class="dl-set" data-scroll="${scroll === 'page' ? 'page' : 'body'}"><aside class="dl-set__nav">${nav({ label: navLabel, name: 'section', kind: 'list', sections })}</aside><div class="dl-set__body"><h2 class="dl-set__title">${title}</h2>${subtitle ? html`<p class="dl-set__sub">${subtitle}</p>` : ''}${slot(children)}</div></div>`;
 }
 
 // settingsGroup({ title, rows, key, flush }) —— 一张分组卡片（18 圆角，细线）

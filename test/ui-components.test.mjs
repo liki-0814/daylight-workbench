@@ -168,6 +168,9 @@ test('settings：控件列令牌 + controlWidth / scroll / flush 选项 + settin
   assert.match(String(settingsRow({ label: 'a', control: trusted('') })), /data-control="auto"/);
   assert.match(String(settingsRow({ label: 'a', control: trusted(''), controlWidth: 'fixed' })), /data-control="fixed"/);
   assert.match(String(settingsLayout({ title: 't', scroll: 'page' })), /data-scroll="page"/);
+  assert.match(String(settingsLayout({ title: 't' })), /<nav[^>]* data-name="section"/, 'settings nav is named so pages can tell navs apart by data-name');
+  assert.match(String(nav({ label: 'x', name: 'main' })), /<nav[^>]* data-name="main"/);
+  assert.doesNotMatch(String(nav({ label: 'x' })), /data-name/);
   assert.match(String(settingsGroup({ rows: [], flush: true })), /data-flush/);
   assertInert(settingsReadout({ text: EVIL, mono: true, attrs: { 'data-x': EVIL } }), 'readout');
   const css = readFileSync(new URL('../public/ui/patterns/settings/settings.css', import.meta.url), 'utf8');
