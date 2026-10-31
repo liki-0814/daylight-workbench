@@ -16,14 +16,14 @@ test('only shared servers with a boolean enabled get a row switch', () => {
 
 test('health vocabulary: every state has text; disabled wins; stale never shows a green dot', () => {
   const cases = [
-    [shared({ enabled: false, lastProbe: probe('running') }), 'disabled', '已停用', 'neutral'],
+    [shared({ enabled: false, lastProbe: probe('running') }), 'disabled', '已停用', 'off'],
     [shared({ scope: 'client' }), 'client', '用户级配置', 'neutral'],
     [shared(), 'untested', '尚未检测', 'neutral'],
     [shared({ lastProbe: probe('queued') }), 'queued', '排队中', 'accent'],
     [shared({ lastProbe: probe('running') }), 'running', '正在检测', 'accent'],
     [shared({ lastProbe: probe('succeeded', { toolCount: 3 }) }), 'succeeded', '握手成功', 'success'],
-    [shared({ lastProbe: probe('failed') }), 'failed', '检测失败', 'danger'],
-    [shared({ lastProbe: probe('timed_out') }), 'timed_out', '检测超时', 'danger'],
+    [shared({ lastProbe: probe('failed') }), 'failed', '检测失败', 'failure'],
+    [shared({ lastProbe: probe('timed_out') }), 'timed_out', '检测超时', 'failure'],
     [shared({ lastProbe: probe('cancelled') }), 'cancelled', '已取消', 'neutral'],
     [shared({ lastProbe: probe('succeeded', { stale: true }) }), 'stale', '配置已变更 · 上次握手成功', 'neutral'],
     [shared({ revision: 'r2', lastProbe: probe('failed') }), 'stale', '配置已变更 · 上次检测失败', 'neutral'],

@@ -1,0 +1,110 @@
+/* 设置页 B 版（0.7）：一列分组卡片 + 顶部分区胶囊 + 右侧接入状态。
+   全部限定在 #settings-page 之内；更新页也复用 .settings-panel / .settings-facts，不能被这里影响。 */
+#settings-page { --settings-line: var(--connected-line, #e5e5ea); background: var(--bg-secondary); min-height: 100vh; }
+#settings-page .settings-workspace { padding-top: 0; }
+#settings-page .page-heading { padding-top: 32px; margin-bottom: var(--space-4); }
+
+/* 分区胶囊：吸在工具栏下方；当前分区深底白字（17:1）。 */
+#settings-page .settings-pills { position: sticky; top: var(--toolbar-height); z-index: 20; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 calc(var(--page-inline) * -1) 24px; padding: 10px var(--page-inline); background: var(--bg-secondary); border-bottom: .5px solid var(--settings-line); }
+#settings-page .settings-pill { display: inline-flex; align-items: center; height: 28px; padding: 0 14px; border-radius: 14px; background: #fff; box-shadow: inset 0 0 0 .5px var(--settings-line); color: var(--text); font-size: 13px; font-weight: 500; text-decoration: none; }
+#settings-page .settings-pill:hover { background: var(--row-hover); }
+#settings-page .settings-pill[aria-current="true"] { background: #1d1d1f; color: #fff; box-shadow: none; }
+#settings-page .settings-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+#settings-page .settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 40px; align-items: start; }
+#settings-page .settings-main { display: grid; gap: 28px; min-width: 0; }
+#settings-page .settings-group { scroll-margin-top: calc(var(--toolbar-height) + 56px); min-width: 0; outline: none; }
+#settings-page .settings-group:empty { display: none; }
+
+/* 模块自带的 .settings-panel 变成透明分组：标题在卡片外，表单 / 列表本身就是卡片。 */
+#settings-page .settings-panel { background: none; border: 0; box-shadow: none; padding: 0; margin: 0; }
+#settings-page .settings-panel[data-feedback] { padding: 0; }
+#settings-page .settings-group > * + *, #settings-page .settings-panel > * + * { margin-top: 0; }
+#settings-page .settings-heading, #settings-page .settings-panel > .ui-section-heading { display: flex; align-items: baseline; justify-content: flex-start; flex-wrap: wrap; gap: 4px 12px; margin: 0 0 8px; padding: 0 4px; }
+#settings-page .settings-heading h2, #settings-page .settings-panel > .ui-section-heading h2 { font-size: 13px; line-height: 20px; font-weight: 700; color: var(--text); margin: 0; }
+#settings-page .settings-heading p, #settings-page .settings-panel > .ui-section-heading p { font-size: 12px; line-height: 18px; color: var(--text-secondary); margin: 0; }
+#settings-page .settings-panel > .ui-section-heading > :last-child:not(div) { margin-left: auto; }
+#settings-page .settings-subheading { margin-top: 20px; }
+
+#settings-page .settings-card, #settings-page .settings-panel > form, #settings-page .focus-permission { background: #fff; border-radius: 12px; box-shadow: 0 0 0 .5px var(--settings-line), 0 1px 2px rgba(0,0,0,.03); overflow: hidden; }
+#settings-page .focus-permission { margin-top: 12px; padding: 0; }
+#settings-page .settings-panel > .ui-feedback, #settings-page .settings-panel > .proxy-hint { margin: 0 4px 8px; }
+
+/* 行：左文案右控件，56px 起，细线分隔。 */
+#settings-page .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; min-height: 56px; box-sizing: border-box; }
+#settings-page .settings-row + .settings-row { border-top: .5px solid var(--settings-line); }
+#settings-page .settings-row-text { min-width: 0; display: grid; gap: 2px; }
+#settings-page .settings-row-text strong { font-size: 13px; line-height: 20px; font-weight: 600; }
+#settings-page .settings-row-text span { font-size: 12px; line-height: 18px; color: var(--text-secondary); }
+#settings-page .settings-row-control { display: flex; align-items: center; gap: 12px; flex: none; }
+#settings-page .settings-path { font-family: var(--font-mono); font-size: 12px; background: var(--fill-control, #f2f2f4); color: #3a3a3c; border-radius: 6px; padding: 3px 8px; }
+#settings-page .settings-link-button { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-size: 13px; }
+
+#settings-page .shortcut-list { margin: 0; }
+#settings-page .shortcut-list li { padding: 12px 16px; min-height: 56px; box-sizing: border-box; border-top: .5px solid var(--settings-line); }
+#settings-page .shortcut-list li:first-child { border-top: 0; }
+#settings-page .shortcut-list strong { font-size: 13px; line-height: 20px; font-weight: 600; margin: 0; }
+#settings-page .settings-facts { margin: 0; }
+#settings-page .settings-facts > div { padding: 12px 16px; border-top: .5px solid var(--settings-line); }
+#settings-page .settings-facts > div:first-child { border-top: 0; }
+#settings-page .settings-facts dt { color: var(--text-secondary); }
+
+/* 表单卡片内的行（AI 对话 / 反向代理 / 专注）。 */
+#settings-page .settings-panel > form { display: block; padding: 0; margin: 0; }
+#settings-page .settings-panel form > :not([hidden]) ~ :not([hidden]), #settings-page .focus-settings-options > * + *, #settings-page .focus-settings-durations > * + *, #settings-page .focus-permission > :not(.ui-section-heading):not([hidden]) ~ :not([hidden]) { border-top: .5px solid var(--settings-line); }
+#settings-page .settings-panel form .select-field, #settings-page .settings-panel form > label, #settings-page .focus-settings-durations > label, #settings-page .proxy-field, #settings-page .ui-setting-row, #settings-page .proxy-checkbox { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 12px 16px; min-height: 56px; box-sizing: border-box; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--text); }
+#settings-page .settings-panel form .select-label { margin: 0; color: var(--text); font-size: 13px; font-weight: 600; }
+#settings-page .settings-panel form workbench-select { width: 280px; flex: none; }
+#settings-page .settings-panel form input:not([type=checkbox]):not([type=hidden]), #settings-page .proxy-field input, #settings-page .focus-settings-durations input { width: 280px; flex: none; margin: 0; min-height: 32px; box-sizing: border-box; }
+#settings-page .focus-settings-durations input, #settings-page #proxy-port { width: 120px; }
+#settings-page .proxy-node { border-top: 0; padding: 0; }
+#settings-page .proxy-node > .proxy-caption, #settings-page .proxy-node > .proxy-hint, #settings-page .proxy-node > #node-setting { display: block; padding: 0 16px; }
+#settings-page .proxy-node > .proxy-caption { padding-top: 12px; font-weight: 600; font-size: 13px; color: var(--text); }
+#settings-page .proxy-node > #node-setting { padding-bottom: 12px; }
+#settings-page .proxy-node > #node-setting[hidden] { display: none; }
+#settings-page .proxy-node .proxy-field { padding-inline: 0; min-height: 44px; }
+#settings-page .proxy-node .proxy-field input { width: 280px; }
+#settings-page .proxy-node > .proxy-hint:last-child { padding-bottom: 12px; }
+#settings-page .proxy-settings-form { gap: 0; }
+#settings-page .proxy-settings-form > .proxy-hint, #settings-page .settings-panel form > .ai-setting-hint, #settings-page .settings-panel form > .quiet-note, #settings-page .settings-panel form > .ui-feedback-row, #settings-page .settings-panel form > p { padding: 10px 16px; margin: 0; font-size: 12px; line-height: 18px; font-weight: 400; color: var(--text-secondary); }
+#settings-page .proxy-settings-form > #settings-edit { padding: 0; }
+#settings-page #settings-edit > :not([hidden]) ~ :not([hidden]) { border-top: .5px solid var(--settings-line); }
+#settings-page .settings-panel form > .ui-refresh-button, #settings-page .settings-panel form > button { margin: 12px 16px; }
+#settings-page .settings-panel form > .ui-refresh-button { display: inline-flex; }
+#settings-page .ai-card-actions, #settings-page .focus-actions, #settings-page #settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px; margin: 0; }
+#settings-page .focus-permission > .focus-actions, #settings-page .focus-permission > p, #settings-page .focus-permission > details, #settings-page .focus-permission > div[data-focus-delivery] { margin: 0; padding: 12px 16px; }
+#settings-page .focus-permission > .ui-section-heading { padding: 12px 16px 0; margin: 0; }
+#settings-page .focus-settings-options { margin: 0; }
+#settings-page [data-focus-setting-error]:empty, #settings-page .ai-settings-status:empty { display: none; }
+#settings-page .ui-setting-row { cursor: pointer; }
+#settings-page .ui-setting-row + .ui-setting-row { border-top: 0; }
+#settings-page .ui-setting-title { font-size: 13px; font-weight: 600; }
+#settings-page .ui-setting-description { font-weight: 400; margin-top: 2px; }
+
+/* 复选框 → 开关外观（原控件与数据绑定不变，只换皮）。 */
+#settings-page .ui-setting-row input[type=checkbox], #settings-page .proxy-checkbox input[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; order: 2; flex: 0 0 38px; box-sizing: border-box; width: 38px; height: 22px; margin: 0; border: 1px solid var(--control-border); border-radius: 11px; background: var(--switch-off, #8e8e93); cursor: pointer; transition: background-color .15s; }
+#settings-page .ui-setting-row input[type=checkbox]::after, #settings-page .proxy-checkbox input[type=checkbox]::after { content: ""; position: absolute; top: 1px; left: 1px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+#settings-page .ui-setting-row input[type=checkbox]:checked, #settings-page .proxy-checkbox input[type=checkbox]:checked { background: var(--accent); border-color: var(--accent); }
+#settings-page .ui-setting-row input[type=checkbox]:checked::after, #settings-page .proxy-checkbox input[type=checkbox]:checked::after { transform: translateX(16px); }
+#settings-page .ui-setting-row input[type=checkbox]:focus-visible, #settings-page .proxy-checkbox input[type=checkbox]:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+#settings-page .proxy-checkbox { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { #settings-page input[type=checkbox], #settings-page input[type=checkbox]::after { transition: none !important; } }
+
+/* 右侧「接入状态」：吸顶，不随主列滚动。 */
+#settings-page .settings-rail { position: sticky; top: calc(var(--toolbar-height) + 56px); display: grid; gap: 16px; }
+#settings-page .settings-rail-card { background: #fff; border-radius: 12px; box-shadow: 0 0 0 .5px var(--settings-line), 0 1px 2px rgba(0,0,0,.03); padding: 16px; }
+#settings-page .settings-rail-head { display: flex; align-items: baseline; justify-content: space-between; }
+#settings-page .settings-rail-head h2 { margin: 0; font-size: 13px; line-height: 20px; font-weight: 700; }
+#settings-page .settings-rail-total { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 12px; color: var(--text-secondary); font-size: 12px; }
+#settings-page .settings-rail-total strong { font-size: 40px; line-height: 44px; font-weight: 700; color: var(--text); letter-spacing: 0; }
+#settings-page .settings-rail-list { list-style: none; margin: 0; padding: 0; }
+#settings-page .settings-rail-row { display: flex; align-items: center; gap: 10px; min-height: 44px; border-top: .5px solid var(--settings-line); }
+#settings-page .settings-rail-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#settings-page .settings-avatar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: #f2f2f4; color: #3a3a3c; font-size: 13px; font-weight: 700; }
+#settings-page .settings-rail-card[data-state="error"] .settings-rail-total strong { color: var(--text-secondary); }
+
+@media (max-width: 1300px) { #settings-page .settings-layout { grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; } }
+@media (max-width: 1000px) { #settings-page .settings-layout { grid-template-columns: minmax(0, 1fr); } #settings-page .settings-rail { position: static; order: -1; } }
+#settings-page .focus-settings-durations { display: block; }
+#settings-page .focus-settings-durations > label { white-space: nowrap; }
+#settings-page .focus-settings-options { border-top: .5px solid var(--settings-line); }

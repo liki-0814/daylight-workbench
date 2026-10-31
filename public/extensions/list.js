@@ -6,7 +6,7 @@ import { escapeButtonText as esc } from '../components/button.js';
 
 export const columnTitles = {
   skills: ['名称与用途', '启用', '接入软件'],
-  mcp: ['名称与 ID', '传输', '启用', '状态'],
+  mcp: ['名称与 ID', '来源', '命令', '传输', '启用', '状态', ''],   // 最后一列是 ⋯（打开详情），表头只给读屏一个「操作」
   clients: ['名称与说明', '接入'],
 };
 export const emptyCopy = {
@@ -36,15 +36,30 @@ export function probeTime(probe) {
 }
 
 export function tableHeader(tab) {
-  return `<div class="extension-table-head" role="row">${(columnTitles[tab] || columnTitles.skills).map(title => `<span role="columnheader">${esc(title)}</span>`).join('')}</div>`;
+  return `<div class="extension-table-head" role="row">${(columnTitles[tab] || columnTitles.skills).map(title => `<span role="columnheader">${title ? esc(title) : '<span class="extension-visually-hidden">操作</span>'}</span>`).join('')}</div>`;
 }
 // 一行。statusCells 是已经拼好的 HTML 数组（skills 一个格：开关组；mcp 两格：传输 + 状态；clients 一格），由 page.js 提供，
 // 因为开关/chip 的转义与属性都在组件里。MCP 行的 summary 是命令/URL 一行（等宽，summaryClass）。
-export function rowMarkup({ tab, item, active, query = '', summary = '', summaryClass = '', sourceText = '', statusCells = [], tabindex = null }) {
+export function rowMarkup({ tab, item, active, query = '', summary = '', summaryClass = '', sourceText = '', sourceCell = null, statusCells = [], tabindex = null }) {
   const attrs = (active ? ' aria-current="true"' : '') + (tabindex === null ? '' : ` tabindex="${tabindex}"`);
   const idLine = tab === 'mcp' ? `<code class="extension-row-id">${highlight(item.id, query)}</code>` : '';
-  const source = tab !== 'clients' && sourceText ? `<small>${highlight(sourceText, query)}</small>` : '';
-  return `<div class="extension-row ${active ? 'selected' : ''}" role="row"><span role="cell" class="extension-row-main"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}"${attrs}><span class="extension-row-copy"><strong>${highlight(item.name, query)}</strong>${idLine}<span${summaryClass ? ` class="${esc(summaryClass)}"` : ''}>${highlight(summary, query)}</span>${source}</span></button></span>${statusCells.map((cell, index) => `<span role="cell" class="extension-row-status extension-row-cell-${index}">${cell}</span>`).join('')}</div>`;
+  const source = tab !== 'clients' && tab !== 'mcp' && sourceText ? `<small>${highlight(sourceText, query)}</small>` : '';
+  const open = `<span role="cell" class="extension-row-main"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}"${attrs}><span class="extension-row-copy"><strong>${highlight(item.name, query)}</strong>${idLine}${tab === 'mcp' ? '' : `<span${summaryClass ? ` class="${esc(summaryClass)}"` : ''}>${highlight(summary, query)}</span>`}${source}</span></button></span>`;
+  const status = statusCells.map((cell, index) => `<span role="cell" class="extension-row-status extension-row-cell-${index}">${cell}</span>`).join('');
+  // MCP 行（扩展管理 A 版）：名称与 ID | 来源 | 命令 | 传输 | 启用 | 状态 | ⋯。来源与命令各占一格；⋯ 和名称按钮打开同一个详情。
+  if (tab === 'mcp') {
+    const cells = sourceCell ? `<span role="cell" class="extension-row-source"><strong>${highlight(sourceCell.title, query)}</strong>${sourceCell.detail ? `<small>${highlight(sourceCell.detail, query)}</small>` : ''}</span>` : '<span role="cell" class="extension-row-source"></span>';
+    const command = `<span role="cell" class="extension-row-commandcell"><span${summaryClass ? ` class="${esc(summaryClass)}"` : ''}${summary ? ` title="${esc(summary)}"` : ''}>${highlight(summary, query)}</span></span>`;
+    const more = `<span role="cell" class="extension-row-more"><button type="button" class="extension-row-more-button" data-open-extension="${esc(item.id)}" aria-label="${esc(item.name)} · 打开详情" title="打开详情"><span aria-hidden="true">⋯</span></button></span>`;
+    return `<div class="extension-row ${active ? 'selected' : ''}" role="row">${open}${cells}${command}${status}${more}</div>`;
+  }
+  return `<div class="extension-row ${active ? 'selected' : ''}" role="row">${open}${status}</div>`;
+}
+
+// MCP 清单按「已启用 / 未启用」分组（按已保存的 enabled 分，不跟着暂存开关跳动）。rows 是已拼好的行 HTML。
+export const mcpGroups = [{ key: 'enabled', label: '已启用' }, { key: 'disabled', label: '未启用' }];
+export function groupMarkup({ key, label, count, rows }) {
+  return `<div class="extension-group" role="rowgroup" aria-label="${esc(label)} ${count} 项" data-extension-group="${esc(key)}"><div class="extension-group-head" aria-hidden="true"><span>${esc(label)}</span><span class="extension-group-count">${count}</span></div>${rows}</div>`;
 }
 
 // 骨架：只在加载超过 300ms 才渲染（页面决定何时调用）；装饰性，对读屏隐藏。

@@ -1,0 +1,38 @@
+/* 柱状图模块样式（配合 bar-chart.js）。颜色只引用 CSS 变量，宿主按需覆盖 --bc-*；回退值都是应用已有令牌，这里没有色值。
+   可覆盖：--bc-bar 柱  --bc-bar-active 悬停/聚焦柱  --bc-track 零值短线  --bc-text 文字  --bc-grid 网格线与刻度
+           --bc-focus 焦点环  --bc-marker 竖线标记  --bc-band-night / --bc-band-day 色带  --bc-surface 气泡与数值底  --bc-height 绘图区高度 */
+.bc { --bc-bar: var(--text-secondary); --bc-bar-active: var(--text); --bc-track: var(--separator-strong); --bc-text: var(--text-secondary); --bc-grid: var(--separator-strong); --bc-focus: var(--accent); --bc-marker: var(--accent); --bc-surface: var(--surface); --bc-band-night: var(--text); --bc-band-day: var(--text-secondary); --bc-y: 40px; position: relative; }
+.bc-plot { display: flex; gap: 8px; height: var(--bc-height, 168px); margin-top: 14px; }
+.bc-y { position: relative; width: var(--bc-y); flex: none; }
+.bc-yl { position: absolute; right: 0; transform: translateY(-50%); font-size: 11px; line-height: 14px; color: var(--bc-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bc-area { position: relative; flex: 1; min-width: 0; }
+.bc-gl { position: absolute; left: 0; right: 0; height: 0; border-top: .5px solid var(--bc-grid); }
+.bc-cols { position: absolute; inset: 0; z-index: 1; display: grid; grid-template-columns: repeat(var(--bc-n, 1), minmax(0, 1fr)); }
+.bc-col { position: relative; display: flex; align-items: flex-end; justify-content: center; min-width: 0; border-radius: 3px; cursor: default; }
+.bc-col:focus { outline: none; }
+.bc-col:focus-visible { outline: 2px solid var(--bc-focus); outline-offset: 1px; z-index: 2; }
+.bc-bar { display: block; width: 62%; max-width: 24px; min-width: 1px; border-radius: 3px 3px 0 0; background: var(--bc-bar); }
+.bc-col:hover .bc-bar, .bc-col:focus-visible .bc-bar { background: var(--bc-bar-active); }
+.bc-zero { height: 2px; border-radius: 1px; background: var(--bc-track); }
+.bc-future { height: 0; }
+.bc-val { position: absolute; left: 50%; transform: translateX(-50%); padding: 0 2px; font-size: 11px; line-height: 14px; color: var(--bc-text); background: var(--bc-surface); font-variant-numeric: tabular-nums; pointer-events: none; }
+.bc-now { position: absolute; top: -8px; bottom: 0; width: 1px; background: var(--bc-marker); z-index: 0; pointer-events: none; }
+.bc-now span { position: absolute; left: 6px; top: -2px; padding: 0 3px; font-size: 11px; line-height: 14px; font-weight: 600; color: var(--accent-text); background: var(--bc-surface); white-space: nowrap; }
+.bc-now-left span { left: auto; right: 6px; }
+.bc-tip { position: absolute; z-index: 5; transform: translateX(-50%); width: max-content; max-width: 260px; padding: 6px 10px; border-radius: 8px; background: var(--bc-surface); color: var(--text); border: 1px solid var(--separator-strong); box-shadow: 0 6px 20px var(--bc-shadow, rgba(0, 0, 0, .14)); font-size: 12px; line-height: 18px; pointer-events: none; font-variant-numeric: tabular-nums; }
+.bc-tip[hidden] { display: none; }
+.bc-axis { padding-left: calc(var(--bc-y) + 8px); margin-top: 4px; }
+.bc-ruler { position: relative; height: 24px; }
+.bc-has-band .bc-ruler { height: 38px; }
+.bc-ticks { position: absolute; left: 0; right: 0; top: 0; height: 8px; }
+.bc-tk { position: absolute; top: 0; height: 4px; border-left: .5px solid var(--bc-grid); }
+.bc-tk.bc-major { height: 8px; }
+.bc-band { position: absolute; left: 0; right: 0; top: 11px; height: 6px; }
+.bc-band i { position: absolute; top: 0; height: 6px; background: var(--bc-band-night); box-shadow: inset -1px 0 0 var(--bc-surface); }
+.bc-band i[data-tone="day"] { background: var(--bc-band-day); }
+.bc-band i:first-child { border-radius: 3px 0 0 3px; }
+.bc-band i:last-child { border-radius: 0 3px 3px 0; box-shadow: none; }
+.bc-tl { position: absolute; top: 9px; transform: translateX(-50%); font-size: 11px; line-height: 14px; color: var(--bc-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bc-has-band .bc-tl { top: 21px; }
+@media (prefers-reduced-transparency: reduce) { .bc-tip { box-shadow: none; border-color: var(--control-border); } }
+@media (prefers-contrast: more) { .bc-bar { outline: 1px solid var(--control-border); outline-offset: -1px; } }

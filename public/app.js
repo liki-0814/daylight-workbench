@@ -7,7 +7,7 @@ import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
 import { sidebarContent } from './components/sidebar.js';
 import { taskRangeTabs } from './components/task-range-tabs.js';
-import { settingsPage } from './components/settings-page.js';
+import { settingsPage, mountSettingsPage } from './components/settings-page.js';
 import { mountAISettings } from './ai-settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
 import { createTaskClient } from './task-client.js';
@@ -36,7 +36,7 @@ let focusSelection = {};
 let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
-let sidebarRoot, taskRoot, proxyPage, settingsRoot, updatePage, updaterReady = false, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
+let sidebarRoot, taskRoot, proxyPage, settingsRoot, settingsPageControl, updatePage, updaterReady = false, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, update: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
 const pageLoads = new Map();
 function ensurePage(key, load) {
@@ -81,7 +81,7 @@ function ensureAI() {
 function ensureStatistics() {
   return ensurePage('focus', async () => {
     const { createStatisticsPage } = await import('./focus/statistics-page.js');
-    statisticsPage = createStatisticsPage({ client: focusClient, controller: focusController, getTaskSnapshot: () => ({ state, version }), onRoute(hash) { focusSelection = parseRoute(hash, state); history.replaceState(null, '', '/' + hash); }, openTask: id => openModal({ type: 'task', id }), notify });
+    statisticsPage = createStatisticsPage({ client: focusClient, controller: focusController, getTaskSnapshot: () => ({ state, version }), onRoute(hash) { focusSelection = parseRoute(hash, state); history.replaceState(null, '', '/' + hash); }, openTask: id => openModal({ type: 'task', id }), notify, onStartFocus: () => openFocusPicker() });
     app.append(statisticsPage.element);
     statisticsPage.updateRoute(focusSelection);
   });
@@ -325,11 +325,13 @@ function render() {
     if (!settingsRoot) {
       settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
+      settingsPageControl = mountSettingsPage(settingsRoot, { getToken: () => token });
+      settingsRoot.querySelector('[data-settings-slot="proxy"]').append(proxyPage.settingsElement);
       mountAISettings(settingsRoot, () => token);
-      focusSettings=mountFocusSettings(settingsRoot.querySelector('.ui-panel-stack'),{controller:focusController,notify});
-      settingsRoot.querySelector('.ui-panel-stack').prepend(proxyPage.settingsElement);
+      focusSettings=mountFocusSettings(settingsRoot.querySelector('[data-settings-slot="focus"]'),{controller:focusController,notify});
     }
     settingsRoot.hidden = false;
+    void settingsPageControl?.refresh();
     proxyPage.setSettingsVisible(true);
     document.title = 'Daylight · 设置';
     return;

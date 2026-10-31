@@ -163,6 +163,18 @@
   --warning-bg: rgba(178, 80, 0, .10);
   --danger-bg: rgba(215, 0, 21, .08);
   --info-bg: rgba(0, 113, 227, .08);
+  /* 0.7「已接入」配色（设置页 B / 扩展页 A 评审通过）：点 + 文字表达状态，胶囊底中性，整行不染色。
+     圆点/✓ #1F7A35（白底 5.39:1）；文字 #3A3A3C（胶囊底 10.15:1）；未接入＝空心圆环 + #636366；需要更新＝#B25E00 点 + #8A4B00 文字。 */
+  --connected-dot: #1f7a35;
+  --connected-text: #3a3a3c;
+  --connected-chip: #f2f2f4;
+  --connected-line: #e5e5ea;
+  --row-bg: #ffffff;
+  --row-hover: #f5f5f7;
+  --idle-ring: #8e8e93;
+  --idle-text: #636366;
+  --update-dot: #b25e00;
+  --update-text: #8a4b00;
   --surface: #ffffff;
   --material: rgba(255, 255, 255, .8);
   --material-filter: saturate(180%) blur(20px);

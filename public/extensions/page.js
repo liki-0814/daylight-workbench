@@ -10,7 +10,7 @@ import { backupList, backupMeta, restoreNoticeText, revealBody, revealErrorMessa
 import { mcpCompareSupported, mcpCompareView, conflictChoiceList, replaceConfirm, cleanChoices, allChosen, adoptedIds, mcpCompareErrorMessage, mcpShouldRefresh, resolutionLabel, settleDuplicateFieldError } from './mcp-conflict.js';
 import { connectedState, stageKey, hasMasterSwitch, skillEnabled, stageChange, stagedValue, stagedKindFor, pruneStaged, actionFor, rememberedLabel, describeChange, tildePath, tildeText, batchTitle, barLabel, partialSummary, appliedMessage, undoable, undoActions } from './staging.js';
 import { probeAllPlan, chunkIds, PROBE_BATCH_SIZE, resumablePlan, redactArgs, progressOf, progressText, finishText, hasMcpSwitch, mcpHealth, toolCountLabel, commandLine, refRows, refBadge, refHints, refStatusLabels, refNote, probeCard, activeProbe, finishedProbe, mcpErrorMessage, shouldRefresh, disabledProbeHint } from './mcp.js';
-import { rowMarkup, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
+import { rowMarkup, groupMarkup, mcpGroups, tableHeader, loadingState, failureState, emptyState, noMatchState, countLabel, probeTime } from './list.js';
 import { extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc, actionButton } from '../components/button.js';
 import { sectionHeading, refreshButton, setRefreshState } from '../components/section.js';
@@ -206,6 +206,12 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const nothingFiltered = () => !route.query && !route.client && !route.problems;
   // 共享来源是默认情况，行里不再重复（详情里有完整路径）；只有软件本地配置才在行里标出来。
   const sourceOf = item => item.scope === 'client' ? (state.clients.find(client => client.id === item.clientId)?.name || '') + ' · 本地配置' : '';
+  // MCP 来源格：共享来源（~/.agents）或某个软件的本地配置；第二行是配置文件路径（有才显示）。
+  function mcpSource(item) {
+    const where = item.relativePath || item.path || '';
+    if (shared(item)) return { title: '共享来源', detail: where };
+    return { title: state.clients.find(client => client.id === item.clientId)?.name || item.clientId || '软件', detail: ['本地配置', where].filter(Boolean).join(' · ') };
+  }
   function mcpStatus(item) {
     const probe = probeOf(item), health = mcpHealth(item, probe), time = health.key === 'disabled' ? '' : probeTime(probe), badge = shared(item) ? refBadge(item) : null;
     const note = [toolCountLabel(probe), time ? '检测于 ' + time : ''].filter(Boolean).join(' · ');
@@ -249,9 +255,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const active = item.id === route.id, query = route.query || '';
     const summary = route.tab === 'skills' ? (item.valid ? item.description : item.problem) : route.tab === 'mcp' ? commandLine(item) : item.note;
     const statusCells = route.tab === 'skills' ? [masterControl(item), item.bindings.length ? `<span class="extension-binding-group">${item.bindings.map(binding => bindingControl(item, binding, true)).join('')}</span>` : '<small>未选择软件</small>']
-      : route.tab === 'mcp' ? [chip({ label: item.transport, tone: 'neutral' }), mcpSwitch(item), mcpStatus(item)]
+      : route.tab === 'mcp' ? [`<span class="extension-transport">${esc(item.transport)}</span>`, mcpSwitch(item), mcpStatus(item)]
       : [switchControl({ label: item.name + ' · 接入扩展管理', text: item.selected ? '已接入' : '选择接入', hint: item.installed ? '已发现命令' : '未找到命令', checked: !!item.selected, disabled: selectionPreviewing, className: 'extension-binding-control', inputAttrs: { 'data-cli-selection': true, 'data-client': item.id } })];
-    return rowMarkup({ tab: route.tab, item, active, query, summary, summaryClass: route.tab === 'mcp' ? 'extension-row-command' : '', sourceText: sourceOf(item), statusCells });
+    return rowMarkup({ tab: route.tab, item, active, query, summary, summaryClass: route.tab === 'mcp' ? 'extension-row-command' : '', sourceText: sourceOf(item), sourceCell: route.tab === 'mcp' ? mcpSource(item) : null, statusCells });
   }
   function renderList() {
     clearTimeout(loadingTimers.pop()); loadingTimers.length = 0;
@@ -272,7 +278,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     updateCreateAvailability(banner);
     // 配置文件读不出来时列表为空只是表象，横幅已说明原因，不再叠一个“还没有 MCP 服务”。
     const empty = !filtered.length ? (!all.length && nothingFiltered() ? (banner?.blocksCreate ? '' : emptyState(route.tab)) : noMatchState()) : '';
-    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
+    const markup = `${banner ? bannerMarkupFor(banner) : ''}<div class="extension-list-heading"><h2 tabindex="-1">${category().title}</h2><span data-list-count>${countLabel(filtered.length, all.length)}</span>${route.tab === 'mcp' && all.length ? probeAllMarkup(filtered) : ''}</div>${filtered.length ? `<div class="extension-table" role="table" aria-label="${esc(category().title)}" data-tab="${route.tab}">${tableHeader(route.tab)}${route.tab === 'mcp' ? mcpGroups.map(group => { const rows = filtered.filter(item => (liveServer(item).enabled === false ? 'disabled' : 'enabled') === group.key); return rows.length ? groupMarkup({ ...group, count: rows.length, rows: rows.map(rowFor).join('') }) : ''; }).join('') : filtered.map(rowFor).join('')}</div>` : ''}${empty}${tabProblems.length ? `<details class="extension-static-diagnostics" ${tabProblems.length <= 3 ? 'open' : ''}><summary>${category().label} 静态问题 ${tabProblems.length} 项</summary>${tabProblems.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     const status = `${category().label}：${countLabel(filtered.length, all.length)}`;
     if (status !== listStatus) { listStatus = status; const live = $('[data-list-status]'); if (live) live.textContent = status; }
     if (markup === listMarkup) { applyRoving(); return; }
@@ -283,6 +289,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     else if (focus?.cancelAllProbes !== undefined) $('[data-cancel-all-probes]')?.focus({ preventScroll: true });
     else if (focus?.probeAll !== undefined) $('[data-probe-all]')?.focus({ preventScroll: true });
     else if (focus?.extensionId) [...element.querySelectorAll('[data-extension-id]')].find(item => item.dataset.extensionId === focus.extensionId)?.focus({preventScroll:true});
+    else if (focus?.openExtension) [...element.querySelectorAll('[data-open-extension]')].find(item => item.dataset.openExtension === focus.openExtension)?.focus({preventScroll:true});
     applyRoving();
   }
   // 检查器顶部的「‹ 返回清单」（design-spec §3：≤999 覆盖层必须有；宽屏下同一个按钮收起检查器）。‹ 对读屏隐藏，可访问名称仍是「返回清单」。
@@ -952,8 +959,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   element.addEventListener('click', async event => {
     const button = event.target.closest('button'); if (!button) return;
     try {
-      if (button.dataset.extensionId) {
-        const id = button.dataset.extensionId; rovingId = id;
+      if (button.dataset.extensionId || button.dataset.openExtension) {
+        const id = button.dataset.extensionId || button.dataset.openExtension; rovingId = id;
         if (id === route.id && !$('.extension-detail').hidden) focusDetail();   // 已选中的行再按 Return/点击：焦点进检查器（§11）
         else { focusDetailOnRender = overlayMode(); changeRoute({ id, operation: null, file: null }); }
       }
