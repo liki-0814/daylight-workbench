@@ -20,8 +20,8 @@ const withCapabilities = (page, capabilities) => page.route(/\/api\/extensions\/
 });
 
 export default [
-  { id: 'ext-pr3-01', priority: 'P0', title: '后端没有 capabilities 时：不显示「在访达中显示」「从备份恢复」，改用「复制路径」；复制成功 / 失败都用 role=status 播报，失败时选中路径文字', async run({ page, url, assert: check, fixture }) {
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });
+  { id: 'ext-pr3-01', priority: 'P0', title: '后端没有 capabilities 时：不显示「在访达中显示」「从备份恢复」，改用「复制路径」；复制成功 / 失败都用 role=status 播报，失败时选中路径文字', async run({ page, url, assert: check, fixture, browserName }) {
+    if (browserName === 'chromium') await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin });   // 只有 chromium 认这两个权限名；WebKit 靠点击手势写剪贴板
     await withCapabilities(page, { reveal: false, restoreBackup: false, mcpConflictCompare: false });   // 「没有 capability」要显式造出来：含 #36 的后端会真实声明 restoreBackup:true
     await open(page, url, 'mcp');
     const broken = await breakMcp(page, fixture);
@@ -30,8 +30,10 @@ export default [
     check.equal(await page.getByRole('button', { name: /从备份恢复/ }).count(), 0, '没有 capability 不应出现「从备份恢复」');
     const path0 = (await banner(page).locator('[data-config-path]').innerText()).trim(), copy = banner(page).getByRole('button', { name: '复制路径', exact: true });
     check.ok(path0.endsWith('servers.json'), '横幅里有配置文件路径：' + path0);
+    if (browserName !== 'chromium') await page.evaluate(() => { const write = navigator.clipboard.writeText.bind(navigator.clipboard); navigator.clipboard.writeText = text => { window.__copied = text; return write(text); }; });
     await copy.click(); await toasts(page).filter({ hasText: '已复制路径' }).waitFor();
-    check.equal(await page.evaluate(() => navigator.clipboard.readText()), path0, '剪贴板里是该路径');
+    // chromium 读真实剪贴板；WebKit 的 readText 必须有用户手势（page.evaluate 没有），改读 writeText 收到的参数（点击手势里真实调用了它）
+    check.equal(await page.evaluate(browserName === 'chromium' ? () => navigator.clipboard.readText() : () => window.__copied), path0, '剪贴板里是该路径');
     check.equal(await page.locator('.ui-toast-region').getAttribute('aria-live'), 'polite');
     check.equal(await page.evaluate(() => document.activeElement?.textContent), '复制路径', 'toast 不抢焦点：焦点仍在按钮上');
     await toasts(page).first().waitFor({ state: 'detached', timeout: 7000 });   // 4 秒后自动消失

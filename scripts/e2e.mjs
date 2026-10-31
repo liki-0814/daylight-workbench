@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Daylight L2/L3 end-to-end runner (Playwright library API, fixture-v1, isolated temp HOME). See docs/e2e.md.
-// Usage: node scripts/e2e.mjs [--grep id-substring] [--widths 760,1240,1440] [--visual]
+// Usage: node scripts/e2e.mjs [--grep id-substring] [--widths 760,1240,1440] [--browser chromium|webkit] [--visual]
+//   --widths 覆盖各用例自己的宽度；带 widthLocked 的用例（只在 ≤999 覆盖层 / 窄屏才成立）不受覆盖，永远只跑自己声明的宽度。
+//   --browser webkit 用 Playwright 的 WebKit；视觉基线只有 chromium 的，所以 webkit 不能和 --visual / --update-baseline 一起用。
 //                             [--update-baseline --reason "why"] [--list]
 // Exit codes: 0 all as expected; 1 unexpected failure / unexpectedly passing expectedFail; 2 browser unavailable (not verified).
 import fs from 'node:fs/promises';
@@ -12,25 +14,28 @@ import cases from '../e2e/cases/index.mjs';
 
 const args = process.argv.slice(2), flag = name => args.includes(name), value = name => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
 const grep = value('--grep'), widths = (value('--widths') || '').split(',').filter(Boolean).map(Number), update = flag('--update-baseline'), reason = value('--reason'), visual = flag('--visual') || update;
+const browserName = value('--browser') || process.env.DAYLIGHT_BROWSER || 'chromium';
+if (!['chromium', 'webkit'].includes(browserName)) { console.error('--browser 只能是 chromium 或 webkit'); process.exit(1); }
+if (browserName !== 'chromium' && (flag('--visual') || flag('--update-baseline'))) { console.error('视觉基线只有 chromium 的：--browser ' + browserName + ' 不能和 --visual / --update-baseline 同用'); process.exit(1); }
 const selected = cases.filter(item => !grep || item.id.includes(grep));
 if (flag('--list')) { for (const item of selected) console.log(`${item.id}\t${item.priority}\t${item.expectedFail ? 'expectedFail\t' : ''}${item.title}`); process.exit(0); }
 if (update && !reason) { console.error('--update-baseline 必须同时给出 --reason "…"'); process.exit(1); }
 
 const playwright = await loadPlaywright();
 if (!playwright) { console.error('未验证：找不到 playwright（可设 DAYLIGHT_PLAYWRIGHT_MODULE）。E2E 未运行。'); process.exit(2); }
-let browser; try { browser = await launchBrowser(playwright); } catch (error) { console.error('未验证：无法启动 Chromium（' + error.message.split('\n')[0] + '）。可设 DAYLIGHT_CHROME_EXECUTABLE。'); process.exit(2); }
+let browser; try { browser = await launchBrowser(playwright, browserName); } catch (error) { console.error('未验证：无法启动 ' + browserName + '（' + error.message.split('\n')[0] + '）。chromium 可设 DAYLIGHT_CHROME_EXECUTABLE；webkit 需要 Playwright 的 WebKit 已安装。'); process.exit(2); }
 
 const results = [], out = path.join(E2E_DIR, '.out');
 await fs.mkdir(out, { recursive: true });
 let fixtureVersion = '';
 try {
-  for (const item of selected) for (const width of (widths.length ? widths : item.widths || WIDTHS)) {
+  for (const item of selected) for (const width of (widths.length && !item.widthLocked ? widths : item.widths || WIDTHS)) {
     const fixture = await startFixture(); fixtureVersion = fixture.version;
     const label = `${item.id}@${width}`, { context, page, errors, blocked } = await newPage(browser, { url: fixture.url, width });
     const notes = [], visuals = [];
     const shot = async name => { await settle(page); if (visual) { const loose = await uncoveredPathText(page); if (loose.length) throw new Error(`截图里有未打码的路径文字（要加进 PATH_MASK_SELECTORS）：${loose.join(' ; ')}`); } const buffer = await page.screenshot({ animations: 'disabled', caret: 'initial', ...(visual ? { mask: maskLocators(page), maskColor: PATH_MASK_COLOR } : {}) }); const key = `${item.id}-${name}-${width}`; await fs.writeFile(path.join(out, key + '.png'), buffer); if (visual) visuals.push(await checkBaseline({ name: key, buffer, update, reason })); };
     let outcome = 'pass', detail = '';
-    try { await item.run({ page, url: fixture.url, fixture, errors, blocked, width, assert, shot, note: text => notes.push(text) }); }
+    try { await item.run({ page, url: fixture.url, fixture, errors, blocked, width, browserName, assert, shot, note: text => notes.push(text) }); }
     catch (error) { outcome = 'fail'; detail = (error.message || String(error)).split('\n').slice(0, 3).join(' | '); }
     for (const check of visuals) if (check.status === 'different') { outcome = 'fail'; detail += ` 视觉差异 ${(check.ratio * 100).toFixed(3)}%`; }
     const status = item.expectedFail ? (outcome === 'fail' ? 'known-fail' : 'unexpected-pass') : outcome;

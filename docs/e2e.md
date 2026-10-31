@@ -10,7 +10,8 @@ export DAYLIGHT_PLAYWRIGHT_MODULE=/path/to/node_modules/playwright/index.mjs   #
 export DAYLIGHT_CHROME_EXECUTABLE=/path/to/chrome                              # 缺省：Playwright 自带 Chromium
 node scripts/e2e.mjs                       # 全部用例，各自规定的宽度（缺省 760/1240/1440）
 node scripts/e2e.mjs --grep ext-sk-16      # 只跑某条
-node scripts/e2e.mjs --widths 1440         # 指定宽度
+node scripts/e2e.mjs --widths 1240,1440   # 覆盖各用例的宽度（带 widthLocked 的用例不受覆盖，只跑自己声明的宽度，如 ≤999 覆盖层的 760 用例）
+node scripts/e2e.mjs --browser webkit      # 用 Playwright 的 WebKit（需已安装；不能与 --visual 同用，基线只有 chromium）
 node scripts/e2e.mjs --list                # 列出用例
 node scripts/e2e.mjs --visual              # 同时做像素基线比对
 node scripts/e2e.mjs --update-baseline --reason "为什么变"   # 更新基线（必须写原因）
