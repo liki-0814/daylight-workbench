@@ -1,0 +1,6 @@
+/* Daylight 0.8 UI 入口：只放 @import，顺序固定。
+   令牌 → 共享语义层 → 旧名别名（迁移期，最后一个 PR 删除）。
+   回滚「换肤」：删掉下面 legacy-aliases 这一行（旧值仍在 design-system.css 里原封未动）。 */
+@import "./tokens/theme.css";
+@import "./tokens/semantic.css";
+@import "./tokens/legacy-aliases.css";

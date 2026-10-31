@@ -1,0 +1,29 @@
+/* T2 共享语义层：主题无关，只引用 themes/*.css 里的变量名（除非另有说明）。
+   - 复合令牌（焦点环、日光刻度当前时刻线）
+   - Mist 与 0.7 原生壳之间的适配（降低透明度属性）
+   - 0.8 第一阶段「保留 0.7 尺寸 / 密度」：字阶角色、控件高度、行高、工具栏、侧栏仍由 design-system.css 提供
+     （28/38 页面标题、36/44 控件、52 工具栏、224/208/64 侧栏、56/44 扩展行）。Mist 的 text / control / row / sidebar / toolbar 系列
+     只作为将来「密度」PR 的备用刻度，当前不被任何页面引用。 */
+:root {
+  /* 焦点环：内圈 1px accent + 外圈 3px --color-focus-ring（单靠浅色圈对页面底只有 ~1.9:1，内圈让它 ≥ 3:1）。 */
+  --shadow-focus: 0 0 0 1px var(--color-accent), 0 0 0 3px var(--color-focus-ring);
+
+  /* 日光刻度「当前时刻」线（方案 §4.7，Iris 已同意）：靛蓝 accent 对四个时段色都 < 3:1，
+     所以线 = 主文字色，并带 1px 页面底色光晕；线旁必须有「现在 HH:MM」文字标签。 */
+  --daylight-now: var(--color-text-primary);
+  --daylight-now-halo: var(--color-bg-app);
+  --daylight-now-width: 2px;
+  --daylight-now-halo-width: 1px;
+}
+
+/* 降低透明度：原生壳设置的是 <html data-reduce-transparency>（属性存在、值为空串，见 native/DisplayAccessibility.swift），
+   而 Mist 文件只认 data-reduce-transparency="true"，所以这里补一条「属性存在即回退为不透明」。
+   放在主题文件之后，:root:root 提高优先级。 */
+:root:root[data-reduce-transparency] {
+  --material-sidebar-bg: var(--material-sidebar-solid);
+  --material-sidebar-filter: none;
+  --material-toolbar-bg: var(--material-toolbar-solid);
+  --material-toolbar-filter: none;
+  --material-popover-bg: var(--material-popover-solid);
+  --material-popover-filter: none;
+}
