@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 保证 public/ui/** 里每个 html/js/css/svg 都登记在 core/web-assets.json（否则线上 404），
+// 保证 public/ui/** 与 public/pages/** 里每个 html/js/css/svg 都登记在 core/web-assets.json（否则线上 404），
 // 且登记的 /ui/ 条目都指向真实存在的文件。
 //   node scripts/sync-web-assets.mjs --check   有差异就失败（接入 npm run check）
 //   node scripts/sync-web-assets.mjs --write   把缺的条目补进 web-assets.json（本地用）
@@ -15,9 +15,14 @@ const servable = /\.(?:html|js|css|svg)$/;
 const skipped = new Set(['_candidates']);
 
 export function uiFiles(dir = path.join(publicDir, 'ui')) {
+  // ui/ 与 pages/ 都由本脚本守护
+  if (dir === path.join(publicDir, 'ui')) return [...scan(dir), ...(existsSync(path.join(publicDir, 'pages')) ? scan(path.join(publicDir, 'pages')) : [])].sort();
+  return scan(dir);
+}
+function scan(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) { if (!skipped.has(entry.name)) out.push(...uiFiles(path.join(dir, entry.name))); continue; }
+    if (entry.isDirectory()) { if (!skipped.has(entry.name)) out.push(...scan(path.join(dir, entry.name))); continue; }
     if (servable.test(entry.name)) out.push(path.relative(publicDir, path.join(dir, entry.name)).split(path.sep).join('/'));
   }
   return out.sort();
@@ -27,7 +32,7 @@ export function diff() {
   const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
   const files = uiFiles();
   const missing = files.filter(file => manifest['/' + file] !== file);
-  const dangling = Object.entries(manifest).filter(([key, value]) => key.startsWith('/ui/') && !existsSync(path.join(publicDir, value))).map(([key]) => key);
+  const dangling = Object.entries(manifest).filter(([key, value]) => (key.startsWith('/ui/') || key.startsWith('/pages/')) && !existsSync(path.join(publicDir, value))).map(([key]) => key);
   return { manifest, files, missing, dangling };
 }
 

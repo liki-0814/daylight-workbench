@@ -1,3 +1,4 @@
+.dl-root { flex: 1; min-width: 0; }
 .dl-page { display: flex; flex-direction: column; box-sizing: border-box; min-width: 0; min-height: 100vh; height: 100vh; margin-left: var(--sidebar-width); background: var(--color-bg-app); color: var(--color-text-primary); }
 .dl-page[hidden] { display: none; }
 .dl-page__split { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; }

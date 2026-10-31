@@ -45,7 +45,7 @@ export function applyAction(state, action, day) {
     case 'project.create': return change(next, { type: 'project', id: action.id ?? randomUUID(), name: action.name, path: action.path ?? '' }, day);
     case 'project.update': return change(next, action, day);
     case 'project.delete': return change(next, action, day);
-    case 'task.create': return change(next, { type: 'add', id: action.id ?? randomUUID(), title: action.title, projectId: action.projectId ?? null, notes: action.notes ?? '', today: action.today === true, planDay: action.planDay, status: action.status, priority: action.priority, due: action.due, estimate: action.estimate }, day);
+    case 'task.create': return change(next, { type: 'add', at: new Date().toISOString(), id: action.id ?? randomUUID(), title: action.title, projectId: action.projectId ?? null, notes: action.notes ?? '', today: action.today === true, planDay: action.planDay, status: action.status, priority: action.priority, due: action.due, estimate: action.estimate }, day);
     case 'task.update': return change(next, { type: 'edit', id: action.id, title: action.title ?? task.title, notes: action.notes ?? task.notes, projectId: action.projectId === undefined ? task.projectId : action.projectId, priority: action.priority, due: action.due, estimate: action.estimate }, day);
     case 'task.status':
       if (!['todo', 'active', 'done'].includes(action.status)) throw new Error('status 必须为 todo、active 或 done');

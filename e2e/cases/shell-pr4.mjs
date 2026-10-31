@@ -1,6 +1,6 @@
 // 0.7 PR-4 (frontend) cases: app shell — sidebar tiers (224 / 208 / 64 rail), 52px sticky material toolbar, reduce-transparency fallback.
 // The native side (#24) only sets <html data-reduce-transparency>; here the attribute is toggled by hand, exactly as the injected user script would.
-const go = async (page, url, hash = 'today') => { await page.goto(`${url}/#${hash}`); await page.locator('.sidebar').first().waitFor({ timeout: 10000 }); };
+const go = async (page, url, hash = 'today') => { await page.goto(`${url}/#${hash}`); await page.locator('.dl-nav--sidebar').first().waitFor({ timeout: 10000 }); };
 const px = value => Number.parseFloat(value);
 const alpha = color => { const m = color.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[,/ ]+/).filter(Boolean); return p.length > 3 ? Number(p[3]) : 1; };
 
@@ -8,19 +8,17 @@ export default [
   { id: 'shell-pr4-01', priority: 'P0', title: '侧栏宽度分三档：1440 → 224px、1240 → 208px、760 → 64px 图标栏；图标栏下每个入口仍有可访问名称，页面无横向溢出', async run({ page, url, width, assert: check }) {
     await go(page, url);
     const expected = width >= 1340 ? 224 : width >= 1000 ? 208 : 64;
-    const box = await page.locator('.sidebar').first().boundingBox();
+    const box = await page.locator('.dl-nav--sidebar').first().boundingBox();
     check.equal(Math.round(box.width), expected, `${width}px 视口侧栏应为 ${expected}px，实际 ${box.width}`);
-    const nav = await page.locator('.sidebar [data-view]').evaluateAll(els => els.map(el => ({ view: el.dataset.view, name: (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim(), w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height })));
-    check.equal(nav.length, 8, '8 个页面入口');
+    const nav = await page.locator('.dl-nav--sidebar [data-view]').evaluateAll(els => els.map(el => ({ view: el.dataset.view, name: (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim(), w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height })));
+    check.equal(nav.filter(item => !item.view.startsWith('project:')).length, 10, '10 个页面入口（任务 / 今天 / 日历 / 专注统计 + 5 个工具 + 设置）');
     for (const item of nav) check.ok(item.name.length > 0, `入口 ${item.view} 没有名称`);
-    const capture = await page.locator('.sidebar [data-action="new"]').first().evaluate(el => ({ name: (el.getAttribute('title') || '') + el.textContent, w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height }));
-    check.ok(/新建任务/.test(capture.name), '新建任务按钮保留名称：' + capture.name);
     if (expected === 64) {
       for (const item of nav) check.ok(item.w >= 36 && item.h >= 36, `图标栏入口 ${item.view} 点击区域 ${item.w}×${item.h} 应 ≥ 36`);
-      const visibleLabels = await page.locator('.sidebar .nav-label, .sidebar .brand-text, .sidebar .capture-label').evaluateAll(els => els.filter(el => { const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).visibility !== 'hidden'; }).length);
+      const visibleLabels = await page.locator('.dl-nav--sidebar .dl-nav__label, .dl-nav--sidebar .dl-nav__brand-text').evaluateAll(els => els.filter(el => { const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).visibility !== 'hidden'; }).length);
       check.equal(visibleLabels, 0, '图标栏下文字标签只做视觉隐藏');
     } else {
-      check.ok(await page.locator('.sidebar .nav-label').first().isVisible(), '宽屏下文字标签可见');
+      check.ok(await page.locator('.dl-nav--sidebar .dl-nav__label').first().isVisible(), '宽屏下文字标签可见');
     }
     check.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, '无横向滚动');
   } },

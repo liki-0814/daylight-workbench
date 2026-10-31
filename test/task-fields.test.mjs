@@ -51,3 +51,19 @@ test('task.create / task.update 经 agent API 透传新字段；due:null 清除'
   assert.equal(state.tasks[0].estimate, 30, '没提到的字段保持不变');
   assert.throws(() => applyAction(state, { type: 'task.create', title: 'b', planDay: day, bogus: 1 }, day), /未知字段/);
 });
+
+test('子任务：添加 / 勾选 / 删除；校验标题与重复 id；删光后不留空数组', () => {
+  let state = base();
+  state = change(state, { type: 'subtask.add', id: 'a', subId: 's1', title: ' 买咖啡豆 ' }, day);
+  state = change(state, { type: 'subtask.add', id: 'a', subId: 's2', title: '预约' }, day);
+  assert.deepEqual(state.tasks[0].subtasks.map(s => [s.id, s.title, s.done]), [['s1', '买咖啡豆', false], ['s2', '预约', false]]);
+  state = change(state, { type: 'subtask.toggle', id: 'a', subId: 's1' }, day);
+  assert.equal(state.tasks[0].subtasks[0].done, true);
+  assert.throws(() => change(state, { type: 'subtask.add', id: 'a', subId: 's3', title: '   ' }, day));
+  assert.throws(() => change(state, { type: 'subtask.toggle', id: 'a', subId: 'nope' }, day));
+  assert.throws(() => change(state, { type: 'subtask.add', id: 'missing', subId: 's9', title: 'x' }, day));
+  state = change(state, { type: 'subtask.remove', id: 'a', subId: 's1' }, day);
+  state = change(state, { type: 'subtask.remove', id: 'a', subId: 's2' }, day);
+  assert.equal(state.tasks[0].subtasks, undefined);
+  assert.throws(() => validate({ ...state, tasks: [{ ...state.tasks[0], subtasks: [{ id: 'd', title: 'x', done: false }, { id: 'd', title: 'y', done: false }] }] }));
+});

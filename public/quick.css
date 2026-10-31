@@ -104,7 +104,7 @@ html[data-reduce-transparency] .quick-shell, html[data-reduce-transparency]:not(
 html:not(.embedded) .quick-shell:has(.quick-result:not([hidden])) { height: min(var(--quick-height, 480px), calc(100dvh - 40px)); }
 .quick-result { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 22px 16px; gap: 10px; }
 .quick-result-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; color: var(--secondary); font-size: var(--font-caption-size); }
-#quick-model { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#quick-model {; overflow-wrap: anywhere; }
 #quick-buttons { flex-shrink: 0; }
 .quick-status { color: var(--secondary); font-size: var(--font-caption-size); }
 .quick-answer { flex: 1; min-height: 0; overflow: auto; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; font-size: var(--font-body-size); line-height: var(--font-body-line); }
@@ -118,5 +118,5 @@ html:not(.embedded) .quick-shell:has(.quick-result:not([hidden])) { height: min(
   .quick-result { padding-inline: 16px; }
   .quick-footer { gap: 8px; }
   .quick-action { min-width: 0; }
-  #quick-action { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #quick-action {; overflow-wrap: anywhere; }
 }

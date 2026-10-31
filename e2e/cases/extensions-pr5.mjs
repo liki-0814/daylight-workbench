@@ -46,13 +46,13 @@ const stepA = [
     await back.click(); await page.locator('.extension-detail').waitFor({ state: 'hidden' });
     check.equal(await page.evaluate(() => location.hash.includes('id=')), false, '路由里的 id 已清除');
   } },
-  { id: 'ext-l-04', priority: 'P1', title: '清单是表格：role=table + 表头 + 行高 ≥ 56；Skill 行不再 106–150px（E-09）', async run({ page, url, note, assert: check, shot }) {
+  { id: 'ext-l-04', priority: 'P1', title: '清单是表格：role=table + 表头 + 行高 ≥ 56；Skill 行文字完整换行、不裁切（E-09 / 0.8 不截断）', async run({ page, url, note, assert: check, shot }) {
     await open(page, url, 'skills');
     const table = page.locator('.extension-list [role=table]'); check.equal(await table.count(), 1);
     check.ok(await table.locator('[role=columnheader]').count() >= 2, '有列标题');
     const heights = await rows(page).evaluateAll(els => els.map(el => Math.round(el.getBoundingClientRect().height)));
     note('Skill 行高：' + heights.join(','));
-    check.ok(heights.every(h => h >= 56), '行高 ≥ 56：' + heights); check.ok(heights.every(h => h <= 90), '行高 ≤ 90（旧版 106–150）：' + heights);
+    check.ok(heights.every(h => h >= 56), '行高 ≥ 56：' + heights); { const clipped = await rows(page).evaluateAll(els => els.filter(el => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1).length); check.equal(clipped, 0, '文字完整换行显示，行内容不被裁切（0.8：不再截断，不设行高上限）'); }
     await shot('skills-table');
   } },
   { id: 'ext-l-05', priority: 'P1', title: 'MCP 行显示 ID（等宽）、传输类型和探测状态（E-20）', async run({ page, url, assert: check, shot }) {
