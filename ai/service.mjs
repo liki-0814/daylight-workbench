@@ -53,6 +53,8 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
         if(input.action?.type!=='ai.conversation.delete')throw httpError('此接口仅支持删除对话');
         return send(res,200,await conversations.applyAI({requestId:input.requestId,version:input.expectedVersion,action:input.action}));
       }
+      const settingMatch = route.match(/^\/settings\/([A-Za-z]+)$/);
+      if (settingMatch) { if (req.method !== 'POST') throw httpError('方法不允许', 405); return send(res, 200, conversations.setting(settingMatch[1], input)); }
       if (route === '/settings') return send(res, 200, conversations.settings(req.method === 'POST' ? input : undefined));
       if (route === '/discover' && req.method === 'POST') {
         if (!aiBackends.some(item => item.id === input.backend) || !providers[input.backend]) throw httpError('不支持的后端');

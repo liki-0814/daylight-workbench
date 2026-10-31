@@ -127,7 +127,23 @@ export function createConversations({ store, providers, api, isRunning, isFocusA
     if (input) { store.settings = validateSettings(input); store.write('settings.json', store.settings); }
     return { settings: store.settings };
   }
-  return { get, save, aiState, newConversation, prepareAI, applyAI, discover, list, detail, setScope, setModel, settings };
+  // 单项写入（设置页即时保存）：backend 切换后端；其余键写入 input.backend（缺省为当前后端）的配置。
+  const SETTING_KEYS = ['backend', 'path', 'model', 'effort', 'accessMode', 'contextWindow', 'maxOutputTokens'];
+  function setting(key, input = {}) {
+    if (!SETTING_KEYS.includes(key)) throw httpError('接口不存在', 404);
+    if (!Object.hasOwn(input, 'value')) throw httpError('缺少 value');
+    const next = structuredClone(store.settings);
+    if (key === 'backend') next.backend = input.value;
+    else {
+      const backend = input.backend || next.backend;
+      if (!aiBackends.some(item => item.id === backend)) throw httpError('不支持的 AI 后端');
+      next[backend] = { ...next[backend], [key]: input.value };
+      if (key === 'model') { next[backend].effort = ''; next[backend].contextWindow = null; }
+    }
+    store.settings = validateSettings(next); store.write('settings.json', store.settings);
+    return { settings: store.settings };
+  }
+  return { get, save, aiState, newConversation, prepareAI, applyAI, discover, list, detail, setScope, setModel, settings, setting };
 }
 
 export function validateSettings(input) {

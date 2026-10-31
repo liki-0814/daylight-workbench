@@ -154,6 +154,8 @@ export function createManagement({registry,router,sourceState,records,viewSettin
    requireMethod('GET');if(route.endsWith('/status'))return{...await status(),recordsError:records.error};if(route.endsWith('/sources'))return{sources:(await sources()).map(source=>({...source,performance:records.speeds(source.id,source.revision),modelUsage:records.frequencies(source.id,source.revision)}))};
    const filters=Object.fromEntries(query),limit=filters.limit===undefined?100:Number(filters.limit);if(!Number.isInteger(limit)||limit<1||limit>1000)fail('记录数量需为 1–1000 的整数');return records.query({...filters,limit});
   }
+  const settingMatch=/^\/api\/proxy\/settings\/([A-Za-z]+)$/.exec(route);
+  if(settingMatch){requireMethod('POST');return service['settings/key'](settingMatch[1],input);}
   if(['/api/proxy/service','/api/proxy/settings','/api/proxy/key','/api/proxy/key/rotate','/api/proxy/check','/api/proxy/runtime'].includes(route)){
    const op=route.slice('/api/proxy/'.length);requireMethod(op==='key'?'GET':'POST');
    if(op==='runtime')fail('请在桌面端设置 Node 运行环境',404);
