@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   rangeForPreset, detectPreset, previousRange, dayCount, weekdayIndex, lastDays, durationLabel, deltaInfo, goalMinutes, percentOf,
-  bucketSessions, heatLevel, heatGrid, rank, projectRanking, sparkPoints, contrastRatio, DAILY_GOAL_MINUTES, sumDays, maxDays
+  bucketSessions, chartModel, niceMax, clockIn, rank, projectRanking, sparkPoints, contrastRatio, DAILY_GOAL_MINUTES, sumDays, maxDays
 } from '../public/focus/stats-model.js';
 
 test('presets: week starts on Monday, month/year are to-date, detectPreset round-trips', () => {
@@ -48,11 +48,32 @@ test('bucketSessions splits work segments by hour in the statistics time zone an
   assert.equal(maxDays(across.longest, '2026-10-31', '2026-11-01'), 60 * 60000);
 });
 
-test('an unfinished segment runs up to now; heatLevel has four levels plus empty', () => {
+test('an unfinished segment runs up to now and the hourly chart marks the current time', () => {
   const running = { phase: 'work', status: 'running', segments: [{ startAt: Date.parse('2026-10-31T01:00:00Z'), endAt: null }] };
-  const now = Date.parse('2026-10-31T01:30:00Z'), grid = heatGrid(bucketSessions([running], { timeZone: 'UTC', now }).hours, ['2026-10-31']);
-  assert.equal(grid[0].minutes[1], 30); assert.equal(grid[0].total, 30 * 60000);
-  assert.deepEqual([0, 1, 14, 15, 29, 30, 44, 45, 60].map(heatLevel), [0, 1, 1, 2, 2, 3, 3, 4, 4]);
+  const now = Date.parse('2026-10-31T01:30:00Z'), hours = bucketSessions([running], { timeZone: 'UTC', now }).hours;
+  const model = chartModel({ range: { from: '2026-10-31', to: '2026-10-31' }, hours, clock: clockIn(now, 'UTC'), preset: 'today' });
+  assert.equal(model.kind, 'hourly'); assert.equal(model.bars.length, 24); assert.equal(model.bars[1].value, 30); assert.equal(model.totalMinutes, 30);
+  assert.equal(model.bars[1].label, '01:00–02:00，专注 30 分钟'); assert.equal(model.bars[0].label, '00:00–01:00，无专注');
+  assert.deepEqual(model.marker, { pos: 90 / 1440, label: '现在 01:30' });
+  assert.equal(model.bars[1].future, false); assert.equal(model.bars[5].future, true); assert.equal(model.peakIndex, 1); assert.equal(model.peakText, '高峰 01:00–02:00 · 30 分钟');
+  assert.deepEqual(model.xTicks.filter(tick => tick.label).map(tick => tick.label), ['00', '06', '12', '18', '24']);
+  assert.deepEqual(model.band.map(part => part.tone), ['night', 'day', 'night']);
+  const past = chartModel({ range: { from: '2026-10-30', to: '2026-10-30' }, hours, clock: clockIn(now, 'UTC'), preset: 'custom' });
+  assert.equal(past.marker, null); assert.equal(past.bars[3].future, false); assert.match(past.bars[3].label, /^10月30日 周五 03:00–04:00，无专注$/);
+});
+
+test('multi-day ranges use one bar per day with sensible ticks and a nice axis maximum', () => {
+  const day = (iso, minutes) => [iso, [minutes * 60000, ...new Array(23).fill(0)]];
+  const hours = new Map([day('2026-10-26', 40), day('2026-10-28', 125)]), clock = { day: '2026-10-31', hour: 10, minute: 0 };
+  const week = chartModel({ range: { from: '2026-10-26', to: '2026-10-31' }, hours, clock, preset: 'week' });
+  assert.equal(week.kind, 'daily'); assert.equal(week.bars.length, 6); assert.deepEqual(week.bars.map(bar => bar.value), [40, 0, 125, 0, 0, 0]);
+  assert.equal(week.bars[2].label, '10月28日 周三，专注 2 小时 5 分钟'); assert.equal(week.yMax, 180); assert.equal(week.marker, null); assert.deepEqual(week.band, []);
+  assert.deepEqual(week.xTicks.map(tick => tick.label), ['周一', '周二', '周三', '周四', '周五', '周六']); assert.equal(week.peakIndex, 2);
+  const month = chartModel({ range: { from: '2026-10-01', to: '2026-10-31' }, hours, clock, preset: 'month' });
+  assert.equal(month.bars.length, 31); assert.deepEqual(month.xTicks.filter(tick => tick.label).map(tick => tick.label), ['10月', '5', '10', '15', '20', '25']);
+  const year = chartModel({ range: { from: '2026-01-01', to: '2026-10-31' }, hours, clock, preset: 'year' });
+  assert.equal(year.bars.length, 304); assert.equal(year.xTicks.filter(tick => tick.label).length, 10); assert.equal(year.showValues, false);
+  assert.deepEqual([0, 30, 31, 90, 241, 5000].map(niceMax), [30, 30, 60, 90, 300, 5400]);
 });
 
 test('ranking keeps the top N, shares add up and bars scale to the leader', () => {
@@ -71,12 +92,11 @@ for (const [mode, c] of Object.entries(palettes)) {
   test(`stats colours (${mode}): text >= 4.5:1`, () => {
     for (const [fg, bg] of [['text', 'card'], ['text-2', 'card'], ['text-2', 'page'], ['text', 'page'], ['accentText', 'card']]) assert.ok(contrastRatio(c[fg], c[bg]) >= 4.5, `${fg} on ${bg}: ${contrastRatio(c[fg], c[bg]).toFixed(2)}`);
   });
-  test(`stats colours (${mode}): graphics >= 3:1 and heat levels are ordered`, () => {
-    const against = mode === 'light' ? [c.card, c['heat-0']] : [c.card];
-    for (const key of ['accent', 'heat-1', 'heat-2', 'heat-3', 'heat-4', 'bar', 'spark']) for (const bg of against) assert.ok(contrastRatio(c[key], bg) >= 3 || (key === 'accent' && mode === 'light' && contrastRatio(c[key], bg) >= 2.9), `${key} on ${bg}: ${contrastRatio(c[key], bg).toFixed(2)}`);
-    assert.ok(contrastRatio(c.bar, c.track) >= 3, 'bar on track');
-    const steps = ['heat-1', 'heat-2', 'heat-3', 'heat-4'].map(key => contrastRatio(c[key], c['heat-0']));
-    assert.ok(steps.every((value, index) => index === 0 || value > steps[index - 1]), 'levels get monotonically stronger vs empty: ' + steps.map(v => v.toFixed(2)));
+  test(`stats colours (${mode}): graphics >= 3:1 (bars, band, marker, ranking)`, () => {
+    const against = mode === 'light' ? [c.card, c['ring-track'], c.page] : [c.card, c.page];
+    for (const key of ['accent', 'bar', 'spark']) for (const bg of against) assert.ok(contrastRatio(c[key], bg) >= 3 || (key === 'accent' && mode === 'light' && contrastRatio(c[key], bg) >= 2.9), `${key} on ${bg}: ${contrastRatio(c[key], bg).toFixed(2)}`);
+    // 色带：夜间 = 文字色，日间 = 柱色（都是已有令牌），两段彼此、与页面背景都要分得开
+    assert.ok(contrastRatio(c.text, c.bar) >= (mode === 'light' ? 3 : 2.5), 'band night vs day (dark is non-blocking, 2.5)'); assert.ok(contrastRatio(c.bar, c.page) >= 3, 'band day on page'); assert.ok(contrastRatio(c.text, c.page) >= 3, 'band night on page');
   });
 }
 test('light accent matches the app accent so stats do not introduce a new blue', () => {

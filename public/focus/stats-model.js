@@ -1,4 +1,4 @@
-// 专注统计 B 版（仪表盘）的纯函数：范围预设、对比期、按小时/按日分桶、等级、排行、迷你图、对比度。
+// 专注统计 A 版（原生简洁）的纯函数：范围预设、对比期、按小时/按日分桶、柱状图数据、排行、迷你图、对比度。
 // 无 DOM、无网络，便于单测（test/focus-stats-model.test.mjs）。
 import { addCivilDays } from '../../core/date.js';
 
@@ -7,10 +7,10 @@ export const PRESETS = [{ value: 'today', label: '今日' }, { value: 'week', la
 export const PRESET_NAMES = { today: '今日', week: '本周', month: '本月', year: '全年', custom: '所选范围' };
 export const COMPARE_LABELS = { today: '较昨天', week: '较上周同期', month: '较上月同期', year: '较去年同期', custom: '较上一周期' };
 
-// 浅色令牌（与 stats.css 里的变量一一对应；test 会解析 CSS 校验一致并计算 WCAG 对比度）。
+// 浅色令牌（与 stats.css 里的变量一一对应；test 会解析 CSS 校验一致并计算 WCAG 对比度）。均为应用已有色值，未新增。
 export const STATS_COLORS = {
-  light: { bg: '#ffffff', card: '#f5f5f7', text: '#1d1d1f', textSecondary: '#636366', accent: '#0071e3', accentText: '#0066cc', heatEmpty: '#e5e5ea', heat1: '#6f89ae', heat2: '#526c91', heat3: '#3e516d', heat4: '#273446', bar: '#6e6e73', barTrack: '#ffffff', spark: '#6e6e73' },
-  dark: { bg: '#1c1c1e', card: '#2c2c2e', text: '#f5f5f7', textSecondary: '#a1a1a6', accent: '#0a84ff', accentText: '#64d2ff', heatEmpty: '#3a3a3c', heat1: '#5b78a2', heat2: '#7e96b6', heat3: '#a6b6cd', heat4: '#d0d9e5', bar: '#98989d', barTrack: '#1c1c1e', spark: '#98989d' }
+  light: { bg: '#ffffff', card: '#f5f5f7', text: '#1d1d1f', textSecondary: '#636366', accent: '#0071e3', accentText: '#0066cc', ringTrack: '#e5e5ea', bar: '#6e6e73', spark: '#6e6e73' },
+  dark: { bg: '#1c1c1e', card: '#2c2c2e', text: '#f5f5f7', textSecondary: '#a1a1a6', accent: '#0a84ff', accentText: '#64d2ff', ringTrack: '#3a3a3c', bar: '#98989d', spark: '#98989d' }
 };
 
 const parse = day => day.split('-').map(Number);
@@ -68,6 +68,7 @@ function zoned(time, timeZone) {
   return { day: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, minute: Number(p.minute), second: Number(p.second) };
 }
 export const zonedDay = (time, timeZone) => zoned(time, timeZone).day;
+export const clockIn = (time, timeZone) => zoned(time, timeZone); // { day, hour, minute, second }
 
 /**
  * 把工作会话的运行区间按（日期 × 小时）、按任务、按日汇总。
@@ -97,11 +98,57 @@ export function bucketSessions(sessions, { timeZone, now }) {
 export const sumDays = (map, from, to) => { let sum = 0; for (const [day, value] of map) if (day >= from && day <= to) sum += value; return sum; };
 export const maxDays = (map, from, to) => { let max = 0; for (const [day, value] of map) if (day >= from && day <= to) max = Math.max(max, value); return max; };
 
-// 热力图 4 级（分钟/小时格）：1–14、15–29、30–44、≥45；0 为空。
-export function heatLevel(minutes) { return minutes <= 0 ? 0 : minutes < 15 ? 1 : minutes < 30 ? 2 : minutes < 45 ? 3 : 4; }
-export const HEAT_LEGEND = [{ level: 1, label: '1–14 分钟' }, { level: 2, label: '15–29 分钟' }, { level: 3, label: '30–44 分钟' }, { level: 4, label: '45 分钟以上' }];
-export function heatGrid(hours, days) {
-  return days.map(day => { const row = hours.get(day) || new Array(24).fill(0); const minutes = row.map(minutesOf); return { day, minutes, total: row.reduce((a, b) => a + b, 0) }; });
+// —— 柱状图数据（bar-chart.js 的输入）——
+const pad2 = n => String(n).padStart(2, '0');
+export const dayLabel = day => { const [, m, d] = parse(day); return `${m}月${d}日 ${WEEKDAYS[weekdayIndex(day)]}`; };
+const NICE_MAX = [30, 60, 90, 120, 180, 240, 300, 360, 480, 600, 720, 960, 1200, 1440, 1800, 2400, 3000, 3600];
+export const niceMax = minutes => NICE_MAX.find(step => step >= minutes) ?? Math.ceil(minutes / 600) * 600;
+const yLabel = value => value >= 120 ? `${value / 60} 小时` : String(value);
+const ticksFor = max => [max, max / 2, 0].map(value => ({ value, label: value === max ? (max >= 120 ? yLabel(max) : `${max} 分`) : yLabel(value) }));
+// 日间 06–19，其余为夜间（只用中性令牌表达，见 stats.css）
+export const HOURLY_BAND = [{ from: 0, to: 6 / 24, tone: 'night' }, { from: 6 / 24, to: 19 / 24, tone: 'day' }, { from: 19 / 24, to: 1, tone: 'night' }];
+
+/**
+ * 单日 → 24 个小时柱；多日 → 每天一根柱。hours: Map<day, ms[24]>；clock: 统计时区的“现在”{day,hour,minute}，可为 null。
+ * 返回 { kind, title, bars, yMax, yTicks, xTicks, band, marker, peakIndex, peakText, totalMinutes, showValues }。
+ */
+export function chartModel({ range, hours, clock = null, preset = 'custom' }) {
+  const count = Math.min(366, dayCount(range.from, range.to)), days = Array.from({ length: count }, (_, i) => addCivilDays(range.from, i));
+  const rowOf = day => hours.get(day) || new Array(24).fill(0);
+  let model;
+  if (count === 1) {
+    const day = range.from, prefix = preset === 'today' ? '' : `${dayLabel(day)} `, here = clock && clock.day === day;
+    const bars = rowOf(day).map((ms, h) => {
+      const value = minutesOf(ms), span = `${pad2(h)}:00–${pad2((h + 1) % 24)}:00`;
+      return { key: `${day}T${pad2(h)}`, value, future: Boolean(clock && (day > clock.day || (here && h > clock.hour))), label: value ? `${prefix}${span}，专注 ${value} 分钟` : `${prefix}${span}，无专注`, text: value ? `${span} · ${value} 分钟` : `${span} · 无专注` };
+    });
+    const peak = bars.reduce((best, bar, index) => bar.value > (bars[best]?.value ?? 0) ? index : best, -1);
+    model = {
+      kind: 'hourly', title: preset === 'today' ? '今日分时专注' : `${dayLabel(day)} 分时专注`, bars, yMax: 60, yTicks: ticksFor(60), showValues: true, band: HOURLY_BAND,
+      xTicks: Array.from({ length: 25 }, (_, h) => ({ pos: h / 24, major: h % 6 === 0, label: h % 6 === 0 ? pad2(h) : '' })),
+      marker: here ? { pos: (clock.hour * 60 + clock.minute) / 1440, label: `现在 ${pad2(clock.hour)}:${pad2(clock.minute)}` } : null,
+      peakIndex: peak, peakText: peak >= 0 ? `高峰 ${pad2(peak)}:00–${pad2((peak + 1) % 24)}:00 · ${bars[peak].value} 分钟` : ''
+    };
+  } else {
+    const bars = days.map(day => {
+      const value = minutesOf(rowOf(day).reduce((a, b) => a + b, 0)), name = dayLabel(day);
+      return { key: day, value, future: Boolean(clock && day > clock.day), label: value ? `${name}，专注 ${durationLabel(value * 60000)}` : `${name}，无专注`, text: value ? `${name} · ${durationLabel(value * 60000)}` : `${name} · 无专注` };
+    });
+    const max = niceMax(Math.max(30, ...bars.map(bar => bar.value))), peak = bars.reduce((best, bar, index) => bar.value > (bars[best]?.value ?? 0) ? index : best, -1);
+    const xTicks = days.map((day, i) => {
+      const [, m, d] = parse(day); let label = '';
+      if (count <= 8) label = WEEKDAYS[weekdayIndex(day)];
+      else if (count <= 62) label = d === 1 ? `${m}月` : d % 5 === 0 && d <= 25 ? String(d) : '';
+      else label = d === 1 ? `${m}月` : '';
+      return { pos: (i + .5) / count, major: Boolean(label), label };
+    });
+    model = {
+      kind: 'daily', title: '每日专注', bars, yMax: max, yTicks: ticksFor(max), showValues: count <= 8, band: [], xTicks, marker: null,
+      peakIndex: peak, peakText: peak >= 0 ? `最高 ${dayLabel(days[peak])} · ${durationLabel(bars[peak].value * 60000)}` : ''
+    };
+  }
+  model.totalMinutes = model.bars.reduce((sum, bar) => sum + bar.value, 0);
+  return model;
 }
 
 // 排行：取前 limit 项，百分比 = 占范围合计。

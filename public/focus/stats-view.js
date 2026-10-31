@@ -1,6 +1,7 @@
-// 专注统计 B 版：仪表盘各区块的 HTML 渲染（字符串；文本一律转义）。数据与口径见 stats-model.js。
+// 专注统计 A 版（原生简洁）各区块的 HTML 渲染（字符串；文本一律转义）。数据与口径见 stats-model.js。
 import { escapeButtonText as esc } from '../components/button.js';
-import { PRESET_NAMES, COMPARE_LABELS, DAILY_GOAL_MINUTES, WEEKDAYS, HEAT_LEGEND, durationParts, durationLabel, deltaInfo, goalMinutes, percentOf, heatLevel, sparkPoints, weekdayIndex } from './stats-model.js';
+import { barChart } from './bar-chart.js';
+import { PRESET_NAMES, COMPARE_LABELS, DAILY_GOAL_MINUTES, durationParts, durationLabel, deltaInfo, goalMinutes, percentOf, sparkPoints } from './stats-model.js';
 
 const svg = (body, cls = 'fd-ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 export const ICONS = {
@@ -24,21 +25,19 @@ function deltaHtml(info, label, { pct = true } = {}) {
 }
 
 export function ringHtml(percent) {
-  const r = 70, c = 2 * Math.PI * r, shown = Math.min(100, Math.max(0, percent));
-  const arc = shown ? `<circle class="fd-ring-arc" cx="88" cy="88" r="${r}" fill="none" stroke-width="20" stroke-linecap="round" stroke-dasharray="${(c * shown / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 88 88)"/>` : '';
-  return `<div class="fd-ring" role="img" aria-label="目标完成 ${percent}%"><svg viewBox="0 0 176 176" aria-hidden="true"><circle class="fd-ring-track" cx="88" cy="88" r="${r}" fill="none" stroke-width="20"/>${arc}</svg><div class="fd-ring-center"><b>${percent}<small>%</small></b><span>${esc(percent >= 100 ? '已达成目标' : '每日目标 4 小时')}</span></div></div>`;
+  const r = 56, c = 2 * Math.PI * r, shown = Math.min(100, Math.max(0, percent));
+  const arc = shown ? `<circle class="fd-ring-arc" cx="62" cy="62" r="${r}" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(c * shown / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 62 62)"/>` : '';
+  return `<div class="fd-ring" role="img" aria-label="目标完成 ${percent}%"><svg viewBox="0 0 124 124" aria-hidden="true"><circle class="fd-ring-track" cx="62" cy="62" r="${r}" fill="none" stroke-width="12"/>${arc}</svg><div class="fd-ring-center"><b>${percent}<small>%</small></b><span>${esc(percent >= 100 ? '已达成' : '每日目标')}</span></div></div>`;
 }
 
 export function heroHtml(view) {
-  const { preset, range, elapsedMs, prevMs, empty, loading } = view, name = PRESET_NAMES[preset], goal = goalMinutes(range), mins = Math.floor(elapsedMs / 60000), pct = percentOf(mins, goal);
-  const delta = deltaInfo(Math.floor(elapsedMs / 60000), prevMs === null ? null : Math.floor(prevMs / 60000), { unit: '分钟', minutes: true });
-  const remaining = Math.max(0, goal - mins);
-  const goalText = preset === 'today' ? '还差 ' + durationLabel(remaining * 60000) + '达成目标' : '目标 ' + durationLabel(goal * 60000);
-  const sub = empty || loading ? '' : `<div class="fd-sub">${prevMs === null ? '' : `${preset === 'today' ? '昨天' : '对比期'} ${durationLabel(prevMs)} · `}${remaining > 0 ? esc(goalText) : '已达成目标'}</div>`;
-  const start = view.canStart ? `<div class="fd-act"><button type="button" class="ui-button ui-button-primary fd-start" data-focus-statistics="start">${ICONS.play}开始专注</button><span class="fd-goal-note">每日目标 ${DAILY_GOAL_MINUTES / 60} 小时（默认）</span></div>` : '';
-  const body = empty ? `<div class="fd-label">${name}专注</div><div class="fd-big" data-empty="true">0<span class="fd-u"> 分钟</span></div><p class="fd-guide">${preset === 'today' ? '今天' : '这个范围内'}还没有专注记录。开始一轮专注，时长、热力图和排行会自动出现在这里。</p>${start}`
-    : `<div class="fd-label">${name}专注${infoTip('统计工作阶段的运行时间，含睡眠和退出期间经过的时间；休息不计入。', '专注时长说明')}</div><div class="fd-big" aria-live="off">${loading ? '—' : durationHtml(elapsedMs)}</div>${loading ? '' : `<div class="fd-cmp">${deltaHtml(delta, COMPARE_LABELS[preset])}</div>`}${sub}${elapsedMs === 0 && !loading ? `<p class="fd-guide">${preset === 'today' ? '今天' : '这个范围内'}还没有专注记录。</p>` : ''}${start}`;
-  return `<section class="fd-hero fd-card" aria-label="${name}专注概览" ${empty ? 'data-state="empty"' : ''}>${ringHtml(empty || loading ? 0 : pct)}<div class="fd-ht">${body}</div></section>`;
+  const { preset, range, elapsedMs, prevMs, loading } = view, name = PRESET_NAMES[preset], goal = goalMinutes(range), mins = Math.floor(elapsedMs / 60000), pct = percentOf(mins, goal);
+  const delta = deltaInfo(mins, prevMs === null ? null : Math.floor(prevMs / 60000), { unit: '分钟', minutes: true });
+  const remaining = Math.max(0, goal - mins), goalText = '目标 ' + durationLabel(goal * 60000) + ' · ' + (remaining > 0 ? '还差 ' + durationLabel(remaining * 60000) : '已达成');
+  const compare = loading ? '' : `<div class="fd-cmp">${deltaHtml(delta, COMPARE_LABELS[preset])}${prevMs === null ? '' : `<span class="fd-sub">${preset === 'today' ? '昨天' : '对比期'} ${esc(durationLabel(prevMs))}</span>`}</div><div class="fd-sub fd-goal">${esc(goalText)}</div>`;
+  const start = view.canStart ? `<div class="fd-act"><button type="button" class="ui-button ui-button-primary fd-start" data-focus-statistics="start">${ICONS.play}开始专注</button></div>` : '';
+  const guide = elapsedMs === 0 && !loading ? `<p class="fd-guide">${preset === 'today' ? '今天' : '这个范围内'}还没有专注记录。</p>` : '';
+  return `<section class="fd-hero" aria-label="${name}专注概览">${ringHtml(loading ? 0 : pct)}<div class="fd-ht"><div class="fd-label">${name}专注${infoTip('统计工作阶段的运行时间，含睡眠和退出期间经过的时间；休息不计入。', '专注时长说明')}</div><div class="fd-big" aria-live="off">${loading ? '—' : durationHtml(elapsedMs)}</div>${compare}${guide}${start}</div></section>`;
 }
 
 export function sparkHtml(values, label) {
@@ -47,29 +46,26 @@ export function sparkHtml(values, label) {
   const last = points.at(-1);
   return `<svg class="fd-spark" viewBox="0 0 84 32" role="img" aria-label="${esc(label)}：近 7 天 ${values.join('、')}"><polyline fill="none" points="${points.map(p => p.join(',')).join(' ')}"/><circle cx="${last[0]}" cy="${last[1]}" r="2.6"/></svg>`;
 }
-export function metricsHtml(cards, { empty, compareLabel }) {
+export function metricsHtml(cards, { compareLabel }) {
   return `<div class="fd-metrics">${cards.map(card => {
-    const delta = empty ? `<span class="fd-delta" data-dir="none">${esc(compareLabel)} —</span>` : deltaHtml(card.delta, compareLabel, { pct: false });
-    return `<section class="fd-metric fd-card" aria-label="${esc(card.label)}"><h3>${esc(card.label)}${infoTip(card.tip, card.label + '说明')}</h3><p class="fd-mv">${esc(card.value)}<span class="fd-u"> ${esc(card.unit)}</span></p><div class="fd-mr">${delta}${sparkHtml(card.spark, card.label)}</div></section>`;
+    const delta = deltaHtml(card.delta, compareLabel, { pct: false });
+    return `<section class="fd-metric" aria-label="${esc(card.label)}"><div class="fd-mt"><h3>${esc(card.label)}${infoTip(card.tip, card.label + '说明')}</h3><p class="fd-mv">${esc(card.value)}<span class="fd-u"> ${esc(card.unit)}</span></p>${delta}</div>${sparkHtml(card.spark, card.label)}</section>`;
   }).join('')}</div>`;
 }
 
-const dayLabel = day => { const [, m, d] = day.split('-').map(Number); return `${m}月${d}日 ${WEEKDAYS[weekdayIndex(day)]}`; };
-export function heatmapHtml(grid, { today, empty, truncated }) {
-  const header = `<div class="fd-hr fd-hd" aria-hidden="true"><span></span>${Array.from({ length: 24 }, (_, h) => `<span class="fd-hh">${h % 6 === 0 ? String(h).padStart(2, '0') : ''}</span>`).join('')}<span></span></div>`;
-  const rows = grid.map((row, r) => {
-    const isToday = row.day === today, name = isToday ? '今天' : dayLabel(row.day).replace(/^(\d+月\d+日) (.+)$/, '$2 $1');
-    const cells = row.minutes.map((m, h) => {
-      const level = heatLevel(m), range = `${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00`, text = m ? `${dayLabel(row.day)} ${range}，专注 ${m} 分钟` : `${dayLabel(row.day)} ${range}，无专注`;
-      return `<div role="gridcell" class="fd-cell" data-level="${level}" data-r="${r}" data-h="${h}" tabindex="${r === grid.length - 1 && h === 0 ? 0 : -1}" title="${esc(text)}" aria-label="${esc(text)}"></div>`;
-    }).join('');
-    return `<div role="row" class="fd-hr${isToday ? ' fd-today' : ''}"><span role="rowheader" class="fd-rl">${esc(name)}</span>${cells}<span class="fd-rt">${row.total ? esc(durationLabel(row.total)) : '—'}</span></div>`;
-  }).join('');
-  const legend = `<div class="fd-legend"><span class="fd-legend-title">每格 1 小时</span><span class="fd-sw" data-level="0"></span>无${HEAT_LEGEND.map(l => `<span class="fd-sw" data-level="${l.level}"></span>${l.label}`).join('')}</div>`;
-  return `<section class="fd-heat fd-card" aria-label="近 7 天分时分布"><div class="fd-ch"><h2>近 7 天分时分布${infoTip('按统计时区把每段工作计时拆到小时格；颜色越深，该小时专注越久。不随上方范围变化。', '分时分布说明')}</h2><span class="fd-hint">${empty ? '' : '深浅 = 该小时专注分钟数'}</span></div><div role="grid" aria-label="近 7 天每小时专注分钟数，方向键移动" class="fd-hm">${header}${rows}</div><div class="fd-hf">${empty ? '<span>专注后，最常专注的时段会在这里显示。</span>' : legend}${truncated ? '<span>明细仅含最近的部分会话</span>' : ''}</div></section>`;
+export function chartHtml(model, { truncated, initialIndex } = {}) {
+  const legend = model.kind === 'hourly' ? '<span class="fd-legend"><span><i class="fd-sw" data-tone="day"></i>日间 <b>06–19</b></span><span><i class="fd-sw" data-tone="night"></i>夜间 <b>19–06</b></span></span>' : '';
+  const tip = model.kind === 'hourly' ? '按统计时区把每段工作计时拆到小时，柱高为该小时的专注分钟数；色带深浅区分日间与夜间，蓝线是当前时刻。' : '每根柱是一天的专注时长，按统计时区的日期汇总；柱数较多时只标注部分日期。';
+  const chart = barChart({ id: 'fd-chart', label: model.title, bars: model.bars, yMax: model.yMax, yTicks: model.yTicks, xTicks: model.xTicks, band: model.band, marker: model.marker, showValues: model.showValues, initialIndex: initialIndex ?? Math.max(0, model.peakIndex) });
+  return `<section class="fd-chart" aria-label="${esc(model.title)}"><div class="fd-ch"><h2>${esc(model.title)}${infoTip(tip, model.title + '说明')}</h2><span class="fd-hint">${esc(model.peakText)}</span></div>${chart}<div class="fd-cf"><span>${model.kind === 'hourly' ? '' : '范围内'}共专注 ${esc(durationLabel(model.totalMinutes * 60000))}${truncated ? ' · 明细仅含最近的部分会话' : ''}</span>${legend}</div></section>`;
+}
+
+export function emptyHtml({ preset, canStart }) {
+  const where = preset === 'today' ? '今天' : '这个范围内';
+  return `<section class="fd-empty" aria-label="暂无专注记录"><svg class="fd-empty-ic" viewBox="0 0 56 56" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="21" class="fd-empty-ring"/><path d="M28 7a21 21 0 0 1 12 3.9"/><path d="M24 20.5v15l12-7.5Z"/></svg><h2>${where}还没有专注记录</h2><p>开始一轮专注，专注时长、分时分布和项目排行会自动出现在这里。<br>每日目标默认 ${DAILY_GOAL_MINUTES / 60} 小时。</p>${canStart ? `<button type="button" class="ui-button ui-button-primary fd-start" data-focus-statistics="start">${ICONS.play}开始专注</button>` : ''}</section>`;
 }
 
 export function rankingHtml({ title, tip, ranking, emptyText, unitName, limited }) {
   const rows = ranking.rows.map(row => `<li class="fd-rk-row"><span class="fd-rk-i">${row.index}</span><span class="fd-rk-name" title="${esc(row.name)}">${esc(row.name)}${row.sub ? `<span class="fd-rk-sub">${esc(row.sub)}</span>` : ''}</span><span class="fd-rk-v">${esc(durationLabel(row.ms))}</span><span class="fd-rk-p">${row.pct}%</span><span class="fd-bar" aria-hidden="true"><i data-w="${row.width}"></i></span></li>`).join('');
-  return `<section class="fd-rank fd-card" aria-label="${esc(title)}"><div class="fd-ch"><h2>${esc(title)}${infoTip(tip, title + '说明')}</h2><span class="fd-hint">按专注时长</span></div>${ranking.rows.length ? `<ol class="fd-rk">${rows}</ol><div class="fd-foot">${ranking.total > ranking.shown ? `显示前 ${ranking.shown} 项，共 ${ranking.total} ${unitName}` : `共 ${ranking.total} ${unitName}`}${limited ? '（任务明细基于最近的部分会话）' : ''}</div>` : `<p class="fd-none">${esc(emptyText)}</p>`}</section>`;
+  return `<section class="fd-rank" aria-label="${esc(title)}"><div class="fd-ch"><h2>${esc(title)}${infoTip(tip, title + '说明')}</h2><span class="fd-hint">按专注时长</span></div>${ranking.rows.length ? `<ol class="fd-rk">${rows}</ol><div class="fd-foot">${ranking.total > ranking.shown ? `显示前 ${ranking.shown} 项，共 ${ranking.total} ${unitName}` : `共 ${ranking.total} ${unitName}`}${limited ? '（任务明细基于最近的部分会话）' : ''}</div>` : `<p class="fd-none">${esc(emptyText)}</p>`}</section>`;
 }

@@ -7,8 +7,9 @@ import { dateField } from '../components/date-field.js';
 import { pagination, mountPagination } from '../components/pagination.js';
 import { statisticsToday, durationText, endReasonText, timeQualityText, sessionElapsed } from './presentation.js';
 import { createReportRefresh } from './report-refresh.js';
-import { PRESETS, PRESET_NAMES, COMPARE_LABELS, rangeForPreset, detectPreset, previousRange, lastDays, dayCount, minutesOf, deltaInfo, bucketSessions, sumDays, maxDays, heatGrid, taskRanking, projectRanking } from './stats-model.js';
-import { ICONS, heroHtml, metricsHtml, heatmapHtml, rankingHtml } from './stats-view.js';
+import { PRESETS, COMPARE_LABELS, rangeForPreset, detectPreset, previousRange, lastDays, dayCount, minutesOf, deltaInfo, bucketSessions, sumDays, maxDays, chartModel, clockIn, taskRanking, projectRanking } from './stats-model.js';
+import { mountBarChart } from './bar-chart.js';
+import { ICONS, heroHtml, metricsHtml, chartHtml, emptyHtml, rankingHtml } from './stats-view.js';
 
 const MAX_PAGES = 5; // 分时/任务明细由会话分页汇总，最多取 5×100 条
 const EMPTY_FILTERS = { projectId: null, taskId: null, unassigned: false };
@@ -16,7 +17,7 @@ const EMPTY_FILTERS = { projectId: null, taskId: null, unassigned: false };
 export function createStatisticsPage({ client, controller, getTaskSnapshot, onRoute, openTask, notify, onStartFocus }) {
   const element = document.createElement('main'); element.id = 'focus-statistics-page'; element.className = 'focus-statistics-page focus-dash';
   const abort = new AbortController();
-  let visible = false, requestAbort, generation = 0, data = null, records, cursor, pageNumber = 1, paginationDispose, disposeSegments, filters = { ...EMPTY_FILTERS }, phase = 'work', loading = false, failure = '';
+  let visible = false, requestAbort, generation = 0, data = null, records, cursor, pageNumber = 1, paginationDispose, disposeSegments, disposeChart, filters = { ...EMPTY_FILTERS }, phase = 'work', loading = false, failure = '';
   const today = statisticsToday(controller.getSnapshot()); let range = { preset: 'today', today, from: today, to: today };
   element.innerHTML = `<header class="topbar fd-toolbar"><div class="fd-title"><h1>专注统计</h1><span class="fd-date" data-fd-date></span></div>
     <div class="fd-tools"><span class="fd-updated" data-statistics-status role="status" aria-live="polite"></span><div data-fd-range></div>
@@ -82,7 +83,7 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
       sessionPages({ ...base, ...(unionOk ? union : {}) }, signal), covers7 ? null : sessionPages(heatParams, signal)]);
     if (prevReport && prevReport.version !== report.version) throw Object.assign(new Error('数据在读取期间发生变化'), { code: 'VERSION_RACE' });
     const timeZone = report.timeZone, now = main.serverNow ?? report.serverNow ?? Date.now();
-    return { report, prevReport, prev, week, heat: bucketSessions((extra || main).sessions, { timeZone, now }), main: bucketSessions(main.sessions, { timeZone, now }), truncated: main.truncated || Boolean(extra?.truncated), unionOk, range: { ...range }, filters: { ...filters } };
+    return { report, prevReport, prev, week, now, timeZone, heat: bucketSessions((extra || main).sessions, { timeZone, now }), main: bucketSessions(main.sessions, { timeZone, now }), truncated: main.truncated || Boolean(extra?.truncated), unionOk, range: { ...range }, filters: { ...filters } };
   }
 
   // —— 渲染 ——
@@ -102,23 +103,28 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
       { label: '提前结束', value: stopped, unit: '次', delta: metricDelta(stopped, prevStopped, '次'), spark: series(early), tip: '任务被完成、删除或手动中断，未满一轮的计时记为提前结束。' }];
   }
   function renderDash() {
-    const host = $('[data-fd-dash]'), focused = host.contains(document.activeElement) ? document.activeElement : null, restore = focused?.classList.contains('fd-cell') ? { r: focused.dataset.r, h: focused.dataset.h } : null;
-    host.setAttribute('aria-busy', String(loading));
+    const host = $('[data-fd-dash]'), focused = host.contains(document.activeElement) ? document.activeElement : null, restore = focused?.closest('.bc-col')?.dataset.bcIndex;
+    host.setAttribute('aria-busy', String(loading)); disposeChart?.(); disposeChart = null;
+    const extras = [$('[data-statistics-timezone]'), $('[data-fd-records]')];
     if (!data) {
-      host.innerHTML = `<div class="fd-top">${heroHtml({ preset: range.preset, range, elapsedMs: 0, prevMs: null, empty: false, loading: true, canStart: false })}${metricsHtml(['完整轮数', '平均单轮', '最长连续', '提前结束'].map(label => ({ label, value: '—', unit: '', delta: { dir: 'none' }, spark: [], tip: '读取中' })), { empty: true, compareLabel: COMPARE_LABELS[range.preset] })}</div>`;
-      $('[data-statistics-timezone]').textContent = failure ? '' : ''; return;
+      for (const node of extras) node.hidden = false;
+      host.innerHTML = `<div class="fd-top">${heroHtml({ preset: range.preset, range, elapsedMs: 0, prevMs: null, loading: true, canStart: false })}${metricsHtml(['完整轮数', '平均单轮', '最长连续', '提前结束'].map(label => ({ label, value: '—', unit: '', delta: { dir: 'none' }, spark: [], tip: '读取中' })), { compareLabel: COMPARE_LABELS[range.preset] })}</div>`;
+      $('[data-statistics-timezone]').textContent = ''; return;
     }
-    const { report, prevReport, heat, main, week } = data, s = report.summary, tz = report.timeZone;
-    const grid = heatGrid(heat.hours, week), heatTotal = grid.reduce((a, row) => a + row.total, 0);
+    const { report, prevReport, main, timeZone, now } = data, s = report.summary, tz = report.timeZone;
+    const chart = chartModel({ range, hours: main.hours, clock: clockIn(now, timeZone), preset: range.preset });
     const projectRank = projectRanking(report.projects, { limit: 4 }), taskRank = taskRanking(main.tasks, range, { limit: 4 });
-    const empty = s.workElapsedMs === 0 && s.completedRounds + s.stoppedSessions + s.interruptedSessions === 0 && heatTotal === 0 && !projectRank.rows.length;
-    const canStart = Boolean(onStartFocus) && (empty || (range.preset === 'today' && s.workElapsedMs === 0));
-    const hero = heroHtml({ preset: range.preset, range, elapsedMs: s.workElapsedMs, prevMs: prevReport ? prevReport.summary.workElapsedMs : null, empty, loading: false, canStart });
-    host.innerHTML = `<div class="fd-top">${hero}${metricsHtml(buildMetrics(), { empty, compareLabel: COMPARE_LABELS[range.preset] })}</div>${heatmapHtml(grid, { today: range.today, empty, truncated: data.truncated })}<div class="fd-two">${rankingHtml({ title: '项目排行', tip: '按所选范围内各项目的专注计时排序，显示前 4 项。', ranking: projectRank, emptyText: '专注后，项目的时长排行会在这里显示。', unitName: '个项目' })}${rankingHtml({ title: '任务排行', tip: '按所选范围内各任务的专注计时排序，显示前 4 项；来自最近的部分会话明细。', ranking: taskRank, emptyText: '专注后，任务的时长排行会在这里显示。', unitName: '个任务', limited: data.truncated })}</div>`;
+    const empty = s.workElapsedMs === 0 && s.completedRounds + s.stoppedSessions + s.interruptedSessions === 0 && chart.totalMinutes === 0 && !projectRank.rows.length;
+    for (const node of extras) node.hidden = empty;
+    if (empty) { host.innerHTML = emptyHtml({ preset: range.preset, canStart: Boolean(onStartFocus) }); renderFilters(); return; }
+    const canStart = Boolean(onStartFocus) && range.preset === 'today' && s.workElapsedMs === 0;
+    const hero = heroHtml({ preset: range.preset, range, elapsedMs: s.workElapsedMs, prevMs: prevReport ? prevReport.summary.workElapsedMs : null, loading: false, canStart });
+    host.innerHTML = `<div class="fd-top">${hero}${metricsHtml(buildMetrics(), { compareLabel: COMPARE_LABELS[range.preset] })}</div>${chartHtml(chart, { truncated: data.truncated, initialIndex: restore === undefined ? undefined : Number(restore) })}<div class="fd-two">${rankingHtml({ title: '项目排行', tip: '按所选范围内各项目的专注计时排序，显示前 4 项。', ranking: projectRank, emptyText: '专注后，项目的时长排行会在这里显示。', unitName: '个项目' })}${rankingHtml({ title: '任务排行', tip: '按所选范围内各任务的专注计时排序，显示前 4 项；来自最近的部分会话明细。', ranking: taskRank, emptyText: '专注后，任务的时长排行会在这里显示。', unitName: '个任务', limited: data.truncated })}</div>`;
     const warning = controller.getSnapshot().runtime?.largeHistory ? ' 专注记录较大，查询可能需要更长时间。' : '';
     $('[data-statistics-timezone]').textContent = `统计今天：${statisticsToday(controller.getSnapshot())} · ${tz}；轮次按结束日计数，跨日时长分别分配；每日目标暂用默认 4 小时。${warning}`;
     for (const bar of host.querySelectorAll('[data-w]')) bar.style.width = bar.dataset.w + '%'; // CSP 禁止内联 style 属性，宽度走 CSSOM
-    if (restore) host.querySelector(`.fd-cell[data-r="${restore.r}"][data-h="${restore.h}"]`)?.focus({ preventScroll: true });
+    disposeChart = mountBarChart(host.querySelector('.bc'));
+    if (restore !== undefined) host.querySelector(`.bc-col[data-bc-index="${restore}"]`)?.focus({ preventScroll: true });
     renderFilters();
   }
   function renderStatus() {
@@ -190,11 +196,6 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
     if (event.key === 'Escape') { const open = !filterPanel.hidden ? [filterToggle, filterPanel] : !menu.hidden ? [menuToggle, menu] : null; if (open) { event.preventDefault(); event.stopPropagation(); setPopover(open[0], open[1], false); } return; }
     if (event.target.closest('[role=menu]') && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); const items = [...menu.querySelectorAll('[role=menuitem]:not(:disabled)')], i = items.indexOf(event.target); items[(i + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus(); return; }
     if (event.target === menuToggle && event.key === 'ArrowDown') { event.preventDefault(); setPopover(menuToggle, menu, true); return; }
-    const cell = event.target.closest?.('.fd-cell'); if (!cell || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault(); const rows = element.querySelectorAll('.fd-hm [role=row]:not(.fd-hd)').length; let r = Number(cell.dataset.r), h = Number(cell.dataset.h);
-    if (event.key === 'ArrowLeft') h = Math.max(0, h - 1); if (event.key === 'ArrowRight') h = Math.min(23, h + 1); if (event.key === 'ArrowUp') r = Math.max(0, r - 1); if (event.key === 'ArrowDown') r = Math.min(rows - 1, r + 1);
-    if (event.key === 'Home') h = 0; if (event.key === 'End') h = 23;
-    const next = element.querySelector(`.fd-cell[data-r="${r}"][data-h="${h}"]`); cell.tabIndex = -1; next.tabIndex = 0; next.focus();
   }, { signal: abort.signal });
   element.addEventListener('focusout', event => { if (!filterPanel.hidden && event.relatedTarget && !event.relatedTarget.closest?.('.fd-pop-wrap') && element.contains(event.relatedTarget)) setPopover(filterToggle, filterPanel, false, { focus: false }); }, { signal: abort.signal });
 
@@ -203,5 +204,5 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
     filters = { projectId: next.projectId || null, taskId: next.taskId || null, unassigned: Boolean(next.unassigned) }; const day = dayNow();
     range = isCivilDate(next.from) && isCivilDate(next.to) ? { preset: detectPreset(next.from, next.to, day), today: day, from: next.from, to: next.to } : { preset: 'today', today: day, from: day, to: day };
     cursor = null; pageNumber = 1; renderChrome(); if (visible) void refresh();
-  }, updateState() { renderFilters(); }, setVisible(value) { element.hidden = !value; visible = value; refreshLifecycle.setVisible(value); if (!value) closePopovers({ focus: false }); }, dispose() { visible = false; generation++; refreshLifecycle.dispose(); abort.abort(); requestAbort?.abort(); paginationDispose?.(); disposeSegments?.(); element.remove(); } };
+  }, updateState() { renderFilters(); }, setVisible(value) { element.hidden = !value; visible = value; refreshLifecycle.setVisible(value); if (!value) closePopovers({ focus: false }); }, dispose() { visible = false; generation++; refreshLifecycle.dispose(); abort.abort(); requestAbort?.abort(); paginationDispose?.(); disposeSegments?.(); disposeChart?.(); element.remove(); } };
 }
