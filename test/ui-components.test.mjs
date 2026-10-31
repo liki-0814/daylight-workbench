@@ -8,6 +8,7 @@ import { button } from '../public/ui/components/button/button.js';
 import { iconButton } from '../public/ui/components/icon-button/icon-button.js';
 import { input } from '../public/ui/components/input/input.js';
 import { select } from '../public/ui/components/select/select.js';
+import { menu } from '../public/ui/components/menu/menu.js';
 import { chip } from '../public/ui/components/chip/chip.js';
 import { switchControl } from '../public/ui/components/switch/switch.js';
 import { checkbox } from '../public/ui/components/checkbox/checkbox.js';
@@ -53,6 +54,13 @@ test('注入：input / select / switch / checkbox / segmented', () => {
   assertInert(checkbox({ name: EVIL, label: EVIL }), 'checkbox');
   assertInert(segmented({ name: EVIL, value: EVIL, label: EVIL, options: [{ value: EVIL, label: EVIL, count: EVIL }] }), 'segmented');
 });
+test('注入：menu（动作菜单）与角色语义', () => {
+  assertInert(menu({ label: EVIL, id: EVIL, trigger: { text: EVIL }, attrs: { 'data-x': EVIL }, options: [{ value: EVIL, label: EVIL, meta: EVIL }, { divider: true }, { value: EVIL, label: EVIL, danger: true }] }), 'menu');
+  const markup = String(menu({ label: '更多操作', trigger: { text: '更多' }, options: [{ value: 'a', label: '编辑' }, { divider: true }, { value: 'd', label: '删除', danger: true }, { value: 'x', label: '停用', disabled: true }] }));
+  assert.match(markup, /aria-haspopup="menu"/); assert.match(markup, /role="menu"/); assert.equal(markup.match(/role="menuitem"/g).length, 3); assert.doesNotMatch(markup, /role="option"|role="listbox"|aria-selected/);
+  assert.match(markup, /is-danger/); assert.match(markup, /<button class="dl-menu__item" type="button" role="menuitem" tabindex="-1" data-value="x" data-key="x" disabled>/);
+  assert.throws(() => menu({ options: [] }), TypeError);
+});
 test('注入：dialog / nav', () => {
   assertInert(dialog({ id: EVIL, label: EVIL, children: EVIL, className: EVIL }), 'dialog');
   assertInert(nav({ label: EVIL, header: EVIL, sections: [{ title: EVIL, empty: EVIL, action: { label: EVIL }, items: [{ value: EVIL, label: EVIL, count: EVIL, kbd: EVIL }] }], footer: [{ value: EVIL, label: EVIL }] }), 'nav');
@@ -91,7 +99,7 @@ test('attrs()：属性名白名单，拒绝 on* 与 style（CSP 禁内联样式�
   assert.throws(() => button({ label: 'x', attrs: { onclick: 'alert(1)' } }), TypeError);
 });
 test('a11y 必填：控件没有 label 就抛错', () => {
-  for (const [name, fn] of [['iconButton', () => iconButton({ icon: 'plus' })], ['input', () => input({ name: 'a' })], ['select', () => select({ options: [] })], ['switch', () => switchControl({})], ['checkbox', () => checkbox({})], ['dialog', () => dialog({ id: 'a' })], ['nav', () => nav({})], ['segmented', () => segmented({})]]) assert.throws(fn, TypeError, name);
+  for (const [name, fn] of [['iconButton', () => iconButton({ icon: 'plus' })], ['input', () => input({ name: 'a' })], ['select', () => select({ options: [] })], ['menu', () => menu({ options: [] })], ['switch', () => switchControl({})], ['checkbox', () => checkbox({})], ['dialog', () => dialog({ id: 'a' })], ['nav', () => nav({})], ['segmented', () => segmented({})]]) assert.throws(fn, TypeError, name);
 });
 
 test('事件契约：ui:<verb>，detail 模式 { value, previousValue?, source }，只在 emit() 里派发', () => {
@@ -114,7 +122,7 @@ test('事件契约：ui:<verb>，detail 模式 { value, previousValue?, source }
 
 test('每个组件 README 都列出事件（含「无」）与转义说明；pattern 同理', async () => {
   const fs = await import('node:fs');
-  const dirs = ['components/button', 'components/icon-button', 'components/input', 'components/select', 'components/chip', 'components/switch', 'components/checkbox', 'components/dialog', 'components/status-tag', 'components/nav', 'components/toolbar', 'components/segmented', 'components/toast', 'patterns/data-row', 'patterns/settings', 'patterns/inspector', 'patterns/composer', 'patterns/service-status', 'patterns/shell'];
+  const dirs = ['components/button', 'components/icon-button', 'components/input', 'components/select', 'components/menu', 'components/chip', 'components/switch', 'components/checkbox', 'components/dialog', 'components/status-tag', 'components/nav', 'components/toolbar', 'components/segmented', 'components/toast', 'patterns/data-row', 'patterns/settings', 'patterns/inspector', 'patterns/composer', 'patterns/service-status', 'patterns/shell'];
   for (const dir of dirs) {
     const text = fs.readFileSync(new URL(`../public/ui/${dir}/README.md`, import.meta.url), 'utf8');
     assert.match(text, /## 派发的事件/, `${dir}: README 缺「派发的事件」`);

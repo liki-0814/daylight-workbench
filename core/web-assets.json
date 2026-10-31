@@ -189,5 +189,7 @@
   "/ui/patterns/shell/shell.js": "ui/patterns/shell/shell.js",
   "/pages/new-task.js": "pages/new-task.js",
   "/pages/shell.js": "pages/shell.js",
-  "/pages/tasks.js": "pages/tasks.js"
+  "/pages/tasks.js": "pages/tasks.js",
+  "/ui/components/menu/menu.css": "ui/components/menu/menu.css",
+  "/ui/components/menu/menu.js": "ui/components/menu/menu.js"
 }
