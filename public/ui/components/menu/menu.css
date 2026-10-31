@@ -2,13 +2,13 @@
 .dl-menubtn { position: relative; display: inline-block; min-width: 0; }
 .dl-menubtn__trigger {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8);
-  min-height: var(--control-h); min-width: 112px; padding: 0 var(--control-px);
+  min-height: var(--control-h); min-width: 0; padding: 0 var(--control-px);
   border: 1px solid var(--color-control-border); border-radius: var(--radius-control);
   background: var(--color-bg-surface); color: var(--color-text-primary);
   font: var(--weight-regular) var(--control-font)/var(--control-line) var(--font-sans); cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-in-out), border-color var(--motion-fast) var(--ease-in-out);
 }
-.dl-menubtn--ghost .dl-menubtn__trigger { border-color: transparent; background: transparent; min-width: 0; }
+.dl-menubtn--ghost .dl-menubtn__trigger { border-color: transparent; background: transparent; }
 .dl-menubtn__trigger:hover:not(:disabled) { background: var(--color-bg-hover); }
 .dl-menubtn__trigger:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
 .dl-menubtn__trigger[aria-expanded="true"] { border-color: var(--color-accent-border); }
