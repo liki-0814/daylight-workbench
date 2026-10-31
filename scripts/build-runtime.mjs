@@ -11,13 +11,21 @@ import { createHash } from 'node:crypto';
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export async function buildRuntime(resources, root = project) {
-  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'extensions/config-document.mjs', 'proxy/shared/network.js'];
+  const entries = ['ai/adapters/qoder.mjs', 'extensions/skill-files.mjs', 'extensions/mcp-probes.mjs', 'extensions/config-document.mjs', 'proxy/shared/network.js', 'extensions/catalog.mjs', 'extensions/mcp-import.mjs'];
+  // These two import npm packages (jsonc-parser) but also sit next to other extension modules that the
+  // service loads by relative path. Compile only the npm packages into them and keep sibling imports
+  // external, so shared module instances are not duplicated and no node_modules tree has to ship.
+  const siblingExternal = new Set(['extensions/catalog.mjs', 'extensions/mcp-import.mjs']);
   const results = [], artifacts = [];
   for (const entry of entries) {
   const output = path.join(resources, entry);
   const result = await build({
     absWorkingDir: root,
     entryPoints: [entry],
+    ...(siblingExternal.has(entry) ? { plugins: [{ name: 'sibling-external', setup(build) {
+      // Only project sources keep relative imports; relative imports inside npm packages must still be bundled.
+      build.onResolve({ filter: /^\.\.?\// }, args => args.kind === 'entry-point' || args.importer.includes('node_modules') ? undefined : { path: args.path, external: true });
+    } }] } : {}),
     outfile: output,
     bundle: true,
     platform: 'node',
@@ -36,7 +44,7 @@ export async function buildRuntime(resources, root = project) {
   for (const artifact of Object.values(result.metafile.outputs)) {
     for (const dependency of artifact.imports) {
       // Node 22's list omits prefix-only builtins such as node:sqlite.
-      if (dependency.external && !isBuiltin(dependency.path)) {
+      if (dependency.external && !isBuiltin(dependency.path) && !(siblingExternal.has(entry) && /^\.\.?\//.test(dependency.path))) {
         throw new Error(`Unbundled runtime dependency: ${dependency.path}`);
       }
     }
