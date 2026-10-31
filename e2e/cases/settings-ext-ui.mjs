@@ -37,7 +37,7 @@ export default [
     check.equal(await page.locator('.extension-row .extension-row-more-button').count(), 6, '每行有 ⋯');
     const failureChip = await page.locator('.ui-chip-off').count(); check.equal(failureChip, 1, '已停用用短横线胶囊');
   } },
-  { id: 'ext-ui-03', priority: 'P0', widths: [1240, 1440], title: '已接入新配色：扩展表的行、设置页右栏的已接入行、成功胶囊都没有绿色背景；绿点是 #1F7A35', async run({ page, url, assert: check }) {
+  { id: 'ext-ui-03', priority: 'P0', widths: [1240, 1440], title: '已接入新配色：扩展表的行、设置页右栏的已接入行、成功胶囊都没有绿色背景；绿点是 Mist 的 #1E7B3E', async run({ page, url, assert: check }) {
     await page.goto(`${url}/#extensions&tab=mcp`); await rows(page).first().waitFor({ timeout: 10000 });
     for (const rgb of await backgrounds(page, '.extension-row')) check.ok(!greenish(rgb), `扩展行背景不是绿色：${rgb}`);
     for (const rgb of await backgrounds(page, '.extension-row:hover, .extension-group-head')) check.ok(!greenish(rgb), `悬停 / 组头背景不是绿色：${rgb}`);
@@ -47,11 +47,11 @@ export default [
     await page.goto(`${url}/#settings`); await page.locator('[data-settings-rail][data-state="ready"]').waitFor({ timeout: 10000 });
     const connected = page.locator('.settings-rail-row[data-connection="connected"]');
     check.ok(await connected.count() > 0, '夹具里至少有一个已接入的软件');
-    for (const rgb of await backgrounds(page, '.settings-rail-row[data-connection="connected"], .settings-rail-row[data-connection="connected"] *')) check.ok(!greenish(rgb) || rgb.includes('31, 122, 53'), `已接入行没有绿底：${rgb}`);
+    for (const rgb of await backgrounds(page, '.settings-rail-row[data-connection="connected"], .settings-rail-row[data-connection="connected"] *')) check.ok(!greenish(rgb) || rgb.includes('31, 122, 53') || rgb.includes('30, 123, 62'), `已接入行没有绿底（绿点允许 0.7 的 #1F7A35 或 Mist 的 #1E7B3E）：${rgb}`);
     const solid = page.locator('.settings-rail-row .ui-chip-connected'); check.ok(await solid.count() > 0, '夹具里至少有一个「已接入」胶囊（选中且找到命令）');
-    check.equal(await solid.first().locator('.ui-chip-dot').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(31, 122, 53)', '已接入的点是 #1F7A35');
-    check.equal(await solid.first().evaluate(node => getComputedStyle(node).color), 'rgb(58, 58, 60)', '已接入的文字是 #3A3A3C');
+    check.equal(await solid.first().locator('.ui-chip-dot').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(30, 123, 62)', '已接入的点是 Mist 的 --color-success #1E7B3E（0.7 为 #1F7A35）');
+    check.equal(await solid.first().evaluate(node => getComputedStyle(node).color), 'rgb(74, 77, 88)', '已接入的文字是 Mist 的 --color-text-secondary #4A4D58（0.7 为 #3A3A3C）');
     const chipBg = await backgrounds(page, '.settings-rail-row .ui-chip-connected');
-    for (const rgb of chipBg) check.equal(rgb, 'rgb(242, 242, 244)', '已接入胶囊底色 #F2F2F4');
+    for (const rgb of chipBg) check.equal(rgb, 'rgb(245, 246, 248)', '已接入胶囊底色 Mist 的 --color-bg-sunken #F5F6F8（0.7 为 #F2F2F4）');
   } },
 ];
