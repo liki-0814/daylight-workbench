@@ -1,78 +1,78 @@
 .extensions-workspace { padding-bottom: var(--page-footer-gap); }
-.extension-tabs { margin-bottom: var(--space-5); }
-.extension-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
-.extension-toolbar label { display: flex; align-items: center; gap: var(--space-2); }
+.extension-tabs { margin-bottom: var(--space-20); }
+.extension-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-12); margin-bottom: var(--space-20); }
+.extension-toolbar label { display: flex; align-items: center; gap: var(--space-8); }
 .extension-toolbar .extension-search { flex: 1 1 230px; }
-.extension-software-filter { display: flex; align-items: center; gap: var(--space-2); }
+.extension-software-filter { display: flex; align-items: center; gap: var(--space-8); }
 .extension-software-filter .select-field { width: 150px; }
 .extension-category-action { flex: 0 0 140px; }
 /* 「添加 ▾」：外框是布局锚点（宽度、位置与原来的单个按钮一致）；菜单浮层不占位，不挤动工具栏 */
 .extension-add-slot { position: relative; }
 .extension-add-slot > button, .extension-add-trigger { width: 100%; }
-.extension-add-list { position: absolute; z-index: 100; inset-block-start: calc(100% + var(--space-1)); inset-inline-end: 0; min-width: 100%; width: max-content; padding: 5px; border: 1px solid var(--control-border); border-radius: var(--button-radius); background: var(--paper); box-shadow: 0 3px 10px #20382008; }
+.extension-add-list { position: absolute; z-index: 100; inset-block-start: calc(100% + var(--space-4)); inset-inline-end: 0; min-width: 100%; width: max-content; padding: 5px; border: 1px solid var(--control-border); border-radius: var(--button-radius); background: var(--paper); box-shadow: 0 3px 10px #20382008; }
 .extension-add-list[hidden] { display: none; }
 .extension-add-item { display: block; width: 100%; min-height: 40px; padding: 10px 11px; border: 0; border-radius: 4px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--font-control-size); line-height: var(--font-control-line); text-align: start; white-space: nowrap; cursor: pointer; }
 .extension-add-item:hover, .extension-add-item:focus-visible { background: var(--selection-background); color: var(--text); }
 .extension-add-item:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
-.extension-import-pick { margin-block: var(--space-2); }
-.extension-field-hint { color: var(--muted); font-size: var(--font-caption-size); margin-block: var(--space-1) var(--space-2); }
+.extension-import-pick { margin-block: var(--space-8); }
+.extension-field-hint { color: var(--muted); font-size: var(--font-caption-size); margin-block: var(--space-4) var(--space-8); }
 .extension-import-status:empty { display: none; }
-.extension-problem-filter { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; white-space: nowrap; cursor: pointer; }
-.extension-list-heading { display: flex; justify-content: space-between; align-items: baseline; padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
+.extension-problem-filter { display: inline-flex; align-items: center; gap: var(--space-8); min-height: 28px; white-space: nowrap; cursor: pointer; }
+.extension-list-heading { display: flex; justify-content: space-between; align-items: baseline; padding-block: var(--space-12); border-bottom: 1px solid var(--line); }
 .extension-list-heading h2 { font: 600 var(--font-section-size)/var(--font-section-line) var(--font-ui); margin: 0; }
 .extension-list-heading > span, .extension-row small { color: var(--muted); font-size: var(--font-caption-size); }
-.extension-row-copy { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-width: 0; }
+.extension-row-copy { display: flex; flex-direction: column; gap: var(--space-4); flex: 1; min-width: 0; }
 .extension-row-copy strong { font-size: var(--font-reading-size); overflow-wrap: anywhere; }
 .extension-row-copy > span { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .extension-row-copy small { overflow-wrap: anywhere; }
 .extension-problem-filter input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
 .extension-detail p, .extension-detail dd, .extension-detail code, .extension-receipt, .extension-impact { overflow-wrap: anywhere; }
-.extension-detail h3 { font-size: var(--font-section-size); margin: var(--space-5) 0 var(--space-3); }
-.extension-detail pre, .extension-diffs pre { font: var(--font-code-size)/var(--font-code-line) var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--soft); padding: var(--space-3); border-radius: var(--radius-control, 8px); max-height: 420px; overflow: auto; }
+.extension-detail h3 { font-size: var(--font-section-size); margin: var(--space-20) 0 var(--space-12); }
+.extension-detail pre, .extension-diffs pre { font: var(--font-code-size)/var(--font-code-line) var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--soft); padding: var(--space-12); border-radius: var(--radius-control, 8px); max-height: 420px; overflow: auto; }
 .extension-source { color: var(--muted); }
-.extension-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-4); }
-.extension-binding { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
+.extension-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); margin-block: var(--space-16); }
+.extension-binding { display: flex; justify-content: space-between; align-items: center; gap: var(--space-12); padding-block: var(--space-12); border-bottom: 1px solid var(--line); }
 .extension-binding > div { display: flex; flex-direction: column; min-width: 0; }
 .extension-binding small { color: var(--muted); }
-.extension-detail dl { margin-block: var(--space-4); }
-.extension-detail dt { color: var(--muted); margin-top: var(--space-3); }
-.extension-detail dd { margin: var(--space-1) 0 0; white-space: pre-wrap; }
-.extension-empty { padding: var(--space-5); color: var(--muted); }
+.extension-detail dl { margin-block: var(--space-16); }
+.extension-detail dt { color: var(--muted); margin-top: var(--space-12); }
+.extension-detail dd { margin: var(--space-4) 0 0; white-space: pre-wrap; }
+.extension-empty { padding: var(--space-20); color: var(--muted); }
 .extension-error { color: var(--red, #a63c35); }
 .extension-error:empty { display: none; }
-.extension-receipt { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-4); margin-bottom: var(--space-4); background: var(--soft); border: 1px solid var(--line); border-radius: var(--radius-control, 8px); }
-.extension-receipt > div { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
-.ui-sheet.extension-dialog { width: min(800px, calc(100vw - var(--space-8))); }
+.extension-receipt { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-12); padding: var(--space-16); margin-bottom: var(--space-16); background: var(--soft); border: 1px solid var(--line); border-radius: var(--radius-control, 8px); }
+.extension-receipt > div { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); }
+.ui-sheet.extension-dialog { width: min(800px, calc(100vw - var(--space-40))); }
 .extension-editor { display: flex; flex-direction: column; gap: var(--form-field-gap); }
 .extension-editor label { display: flex; flex-direction: column; gap: var(--field-label-gap); }
-.extension-editor input:not([type=checkbox]):not([type=hidden]), .extension-editor textarea { width: 100%; min-width: 0; font: inherit; padding: var(--space-3); border: 1px solid var(--control-border); border-radius: var(--radius-control, 8px); background: var(--paper, #fff); color: var(--ink); }
+.extension-editor input:not([type=checkbox]):not([type=hidden]), .extension-editor textarea { width: 100%; min-width: 0; font: inherit; padding: var(--space-12); border: 1px solid var(--control-border); border-radius: var(--radius-control, 8px); background: var(--paper, #fff); color: var(--ink); }
 .extension-editor textarea[name=content] { font-family: var(--font-mono); }
 .extension-editor > div:not(.dialog-footer):not(.extension-form-grid):not(.select-field) { display: flex; flex-direction: column; gap: var(--form-field-gap); }
 .extension-editor > div[hidden] { display: none !important; }
 .extension-editor .extension-checkbox { flex-direction: row; align-items: start; }
-.extension-form-grid, .extension-diff-columns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.extension-form-grid, .extension-diff-columns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-16); }
 .extension-form-grid > label, .extension-diff-columns > div { min-width: 0; }
 .extension-draft-note { margin: 0; color: var(--muted); }
-.extension-diffs details { margin-block: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control, 8px); padding: var(--space-3); }
+.extension-diffs details { margin-block: var(--space-12); border: 1px solid var(--line); border-radius: var(--radius-control, 8px); padding: var(--space-12); }
 .extension-diffs summary { cursor: pointer; overflow-wrap: anywhere; }
-.extension-diffs summary small { display: block; color: var(--muted); margin-top: var(--space-1); }
+.extension-diffs summary small { display: block; color: var(--muted); margin-top: var(--space-4); }
 .extension-review .extension-diff-columns { grid-template-columns: 1fr; }
-.extension-static-diagnostics { margin-top: var(--space-5); }
-@media (max-width: 600px) { .extension-form-grid, .extension-diff-columns { grid-template-columns: 1fr; } .extension-detail { padding: var(--space-4); } .extension-binding { align-items: start; flex-direction: column; } .extension-dialog { width: calc(100vw - var(--space-6)); } }
+.extension-static-diagnostics { margin-top: var(--space-20); }
+@media (max-width: 600px) { .extension-form-grid, .extension-diff-columns { grid-template-columns: 1fr; } .extension-detail { padding: var(--space-16); } .extension-binding { align-items: start; flex-direction: column; } .extension-dialog { width: calc(100vw - var(--space-24)); } }
 
 /* —— 0.7 PR-1：字段级错误、警告、配置损坏横幅（只在出错/警告状态出现，不改变常态外观）—— */
-.extension-field-error, .extension-field-warning { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--font-body-size, 13px); line-height: 1.5; overflow-wrap: anywhere; }
+.extension-field-error, .extension-field-warning { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-8); margin-top: var(--space-4); font-size: var(--font-body-size, 13px); line-height: 1.5; overflow-wrap: anywhere; }
 .extension-field-error { color: var(--danger, #a04436); }
 .extension-field-warning { color: var(--warning, #9c5b24); }
 .extension-field-error .text-button { font-size: inherit; }
 .extension-editor [aria-invalid="true"] { border-color: var(--danger, #a04436); }
-.extension-warning { color: var(--warning, #9c5b24); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); padding: var(--space-2) var(--space-3); overflow-wrap: anywhere; }
-.extension-detail-error { padding: var(--space-4); border: 1px solid var(--danger, #a04436); border-radius: var(--radius-md, 8px); }
-.extension-detail-error h3 { margin: 0 0 var(--space-2); color: var(--danger, #a04436); }
+.extension-warning { color: var(--warning, #9c5b24); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); padding: var(--space-8) var(--space-12); overflow-wrap: anywhere; }
+.extension-detail-error { padding: var(--space-16); border: 1px solid var(--danger, #a04436); border-radius: var(--radius-md, 8px); }
+.extension-detail-error h3 { margin: 0 0 var(--space-8); color: var(--danger, #a04436); }
 .extension-list-heading h2:focus { outline: var(--button-focus-width, 2px) solid var(--green); outline-offset: var(--button-focus-offset, 3px); }
 
 /* —— 0.7 PR-5：表格清单 + 吸顶检查器（design-spec §3 / §6.1；审计 E-03/E-09/E-14/E-19/E-20/E-22）—— */
-.extension-browser { --inspector-width: 360px; display: grid; grid-template-columns: minmax(0, 1fr) var(--inspector-width); align-items: start; gap: var(--space-5); }
+.extension-browser { --inspector-width: 360px; display: grid; grid-template-columns: minmax(0, 1fr) var(--inspector-width); align-items: start; gap: var(--space-20); }
 .extension-browser:has(.extension-detail[hidden]) { grid-template-columns: minmax(0, 1fr); }
 .extension-list { min-width: 0; container-type: inline-size; }
 .extension-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -80,7 +80,7 @@
 .extension-table[data-tab=skills] { --cols: minmax(0, 1fr) 104px minmax(120px, 36%); }
 .extension-table[data-tab=mcp] { --cols: minmax(0, 1fr) 64px 104px 176px; }
 .extension-table[data-tab=clients] { --cols: minmax(0, 1fr) 160px; }
-.extension-table-head, .extension-row { display: grid; grid-template-columns: var(--cols); column-gap: var(--space-4); align-items: center; padding-inline: var(--space-3); }
+.extension-table-head, .extension-row { display: grid; grid-template-columns: var(--cols); column-gap: var(--space-16); align-items: center; padding-inline: var(--space-12); }
 .extension-table-head { min-height: 28px; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); border-bottom: 1px solid var(--line); }
 .extension-row { min-height: 56px; border-bottom: 1px solid var(--line); background: transparent; }
 .extension-row:hover { background: var(--fill-hover); }
@@ -91,22 +91,22 @@
 .extension-row .ui-chip-danger { background: linear-gradient(var(--danger-bg), var(--danger-bg)) #fff; }
 .extension-row .ui-chip-accent { background: linear-gradient(var(--info-bg), var(--info-bg)) #fff; }
 .extension-row-main { min-width: 0; align-self: stretch; display: flex; }
-.extension-row-open { display: flex; flex: 1; min-width: 0; min-height: 56px; align-items: center; text-align: left; background: transparent; border: 0; padding: var(--space-2) 0; color: var(--ink); font: inherit; cursor: pointer; border-radius: 6px; }
+.extension-row-open { display: flex; flex: 1; min-width: 0; min-height: 56px; align-items: center; text-align: left; background: transparent; border: 0; padding: var(--space-8) 0; color: var(--ink); font: inherit; cursor: pointer; border-radius: 6px; }
 .extension-row-open:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
 .extension-row-copy > span:empty { display: none; }
 .extension-row-id { font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); overflow-wrap: anywhere; }
-.extension-row-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-width: 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
-.extension-binding-group { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
-.extension-status-stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.extension-row-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); min-width: 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+.extension-binding-group { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-16); }
+.extension-status-stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
 .extension-list mark { background: var(--warning-bg, #fff5e8); color: inherit; border-radius: 2px; padding: 0 1px; }
-.extension-detail { position: sticky; top: calc(var(--toolbar-height, 52px) + var(--space-4)); max-height: calc(100dvh - var(--toolbar-height, 52px) - var(--space-6)); overflow: auto; background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); padding: var(--space-5); }
-.extension-inspector-top { margin: calc(var(--space-2) * -1) 0 var(--space-3); }
-.extension-back { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; }
+.extension-detail { position: sticky; top: calc(var(--toolbar-height, 52px) + var(--space-16)); max-height: calc(100dvh - var(--toolbar-height, 52px) - var(--space-24)); overflow: auto; background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); padding: var(--space-20); }
+.extension-inspector-top { margin: calc(var(--space-8) * -1) 0 var(--space-12); }
+.extension-back { display: inline-flex; align-items: center; gap: var(--space-4); min-height: 28px; }
 /* 空 / 无匹配 / 失败 / 加载 */
-.extension-empty h3 { margin: 0 0 var(--space-2); font-size: var(--font-section-size); color: var(--ink); }
-.extension-empty p { margin: 0 0 var(--space-2); }
+.extension-empty h3 { margin: 0 0 var(--space-8); font-size: var(--font-section-size); color: var(--ink); }
+.extension-empty p { margin: 0 0 var(--space-8); }
 .extension-failure h3 { color: var(--danger-text, var(--danger)); }
-.extension-skeleton-row { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-3); border-bottom: 1px solid var(--line); min-height: 56px; }
+.extension-skeleton-row { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-16) var(--space-12); border-bottom: 1px solid var(--line); min-height: 56px; }
 .skeleton-bar { display: block; height: 10px; border-radius: 5px; background: var(--fill-control, var(--soft)); animation: extension-skeleton 1.4s ease-in-out infinite; }
 .skeleton-title { width: 32%; }
 .skeleton-line { width: 62%; height: 8px; }
@@ -119,91 +119,91 @@
   .extension-detail:not([hidden]) { position: fixed; top: var(--toolbar-height, 52px); right: 0; bottom: 0; width: min(400px, 100vw); max-height: none; z-index: 20; border-width: 0 0 0 1px; border-radius: 0; box-shadow: -12px 0 32px rgba(0, 0, 0, .12); }
   /* PR-6：检查器是覆盖层时，暂存底栏要浮在它上面（否则在检查器里改开关后「预览并应用」被盖住点不到）；检查器底部留出底栏的高度，内容不会被挡。 */
   .extensions-workspace .extension-staging-bar { z-index: 25; }   /* 比后面的基础规则特异性高，不依赖书写顺序 */
-  .extension-browser:has(.extension-staging-bar:not([hidden])) .extension-detail:not([hidden]) { padding-bottom: calc(var(--space-6) + 120px); }
+  .extension-browser:has(.extension-staging-bar:not([hidden])) .extension-detail:not([hidden]) { padding-bottom: calc(var(--space-24) + 120px); }
 }
 /* 清单容器窄（检查器打开、或窗口窄）：去掉表头，状态格换到名称下面 */
 @container (max-width: 560px) {
   .extension-table-head { display: none; }
-  .extension-table .extension-row { grid-template-columns: minmax(0, 1fr); row-gap: 0; padding-bottom: var(--space-2); }
+  .extension-table .extension-row { grid-template-columns: minmax(0, 1fr); row-gap: 0; padding-bottom: var(--space-8); }
   .extension-row-open { min-height: 44px; }
 }
 
 /* PR-5 step B：键盘滚动时避开 52px 吸顶工具栏；检查器可被程序聚焦（Return 进入）。 */
-.extension-row, .extension-row-open { scroll-margin-block: calc(var(--toolbar-height, 52px) + var(--space-3)) var(--space-3); }
+.extension-row, .extension-row-open { scroll-margin-block: calc(var(--toolbar-height, 52px) + var(--space-12)) var(--space-12); }
 .extension-detail:focus-visible { outline: var(--button-focus-width, 2px) solid var(--focus-ring, var(--accent)); outline-offset: -2px; }
 
 /* 0.7 PR-6：暂存底栏、读取条、批量预览、危险操作组 */
 .extension-staging-bar[hidden], .extension-load-strip[hidden], [data-cancelled-slot]:empty { display: none; }
-.extension-staging-bar { position: sticky; bottom: var(--space-4); z-index: 15; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); }
+.extension-staging-bar { position: sticky; bottom: var(--space-16); z-index: 15; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-12); margin-top: var(--space-16); padding: var(--space-12) var(--space-16); background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); }
 .extension-staging-count { font-weight: 600; }
-.extension-staging-actions { display: flex; align-items: center; gap: var(--space-3); }
-.extension-load-strip { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+.extension-staging-actions { display: flex; align-items: center; gap: var(--space-12); }
+.extension-load-strip { display: flex; align-items: center; gap: var(--space-12); padding: var(--space-8) 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
 .extension-master-none { color: var(--text-secondary, var(--muted)); }
-.extension-danger-zone { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--line); }
-.extension-danger-zone h3 { margin: 0 0 var(--space-2); color: var(--danger-text, var(--danger)); font-size: var(--font-section-size); }
-.extension-danger-zone p { margin: 0 0 var(--space-3); }
-.extension-archive-intro p { margin: 0 0 var(--space-2); }
-.extension-batch-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-2); }
-.extension-batch-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.extension-danger-zone { margin-top: var(--space-20); padding-top: var(--space-16); border-top: 1px solid var(--line); }
+.extension-danger-zone h3 { margin: 0 0 var(--space-8); color: var(--danger-text, var(--danger)); font-size: var(--font-section-size); }
+.extension-danger-zone p { margin: 0 0 var(--space-12); }
+.extension-archive-intro p { margin: 0 0 var(--space-8); }
+.extension-batch-list { list-style: none; margin: 0 0 var(--space-12); padding: 0; display: grid; gap: var(--space-8); }
+.extension-batch-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4) var(--space-12); align-items: baseline; padding: var(--space-8) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .extension-batch-tag { color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
 .extension-batch-list small { grid-column: 2; color: var(--text-secondary, var(--muted)); }
 .extension-batch-list li[data-status=failed] small { color: var(--danger-text, var(--danger)); font-weight: 600; }
 .extension-batch-list li[data-status=done] small { color: var(--success-text, inherit); }
 .extension-batch-list small:empty { display: none; }
-.extension-batch-conflicts { margin: 0 0 var(--space-3); color: var(--danger-text, var(--danger)); }
-.extension-batch-conflicts p { margin: var(--space-1) 0 0; }
-.extension-batch-detail { margin: var(--space-2) 0; }
+.extension-batch-conflicts { margin: 0 0 var(--space-12); color: var(--danger-text, var(--danger)); }
+.extension-batch-conflicts p { margin: var(--space-4) 0 0; }
+.extension-batch-detail { margin: var(--space-8) 0; }
 .extension-batch-summary:empty { display: none; }
-.extension-batch-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
+.extension-batch-note { margin: var(--space-8) 0 0; color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
 
 /* 0.7 PR-7：MCP 行（命令行 / 启用开关 / 状态 + 引用徽标）、检测结果卡片、引用表（E-12/E-20/E-23） */
 .extension-row-command { display: block; font: var(--font-code-size)/var(--font-code-line) var(--font-mono); color: var(--text-secondary, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .extension-row-copy > .extension-row-command:empty { display: none; }
-.extension-mcp-switch { margin: var(--space-2) 0 var(--space-3); }
-.extension-probe-hint { margin: var(--space-1) 0 var(--space-2); color: var(--text-secondary, var(--muted)); }
-.extension-probe-card { display: grid; gap: var(--space-2); margin: var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.extension-mcp-switch { margin: var(--space-8) 0 var(--space-12); }
+.extension-probe-hint { margin: var(--space-4) 0 var(--space-8); color: var(--text-secondary, var(--muted)); }
+.extension-probe-card { display: grid; gap: var(--space-8); margin: var(--space-12) 0; padding: var(--space-12); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
 .extension-probe-card p { margin: 0; }
-.extension-probe-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.extension-probe-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); }
 .extension-probe-card-head small { color: var(--text-secondary, var(--muted)); }
-.extension-probe-tools ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); }
+.extension-probe-tools ul { margin: var(--space-8) 0 0; padding-left: var(--space-20); display: grid; gap: var(--space-4); }
 .extension-probe-advice strong { color: var(--ink); }
-.extension-refs { margin: var(--space-3) 0; }
-.extension-refs h3 { margin: 0 0 var(--space-2); font-size: var(--font-section-size); }
+.extension-refs { margin: var(--space-12) 0; }
+.extension-refs h3 { margin: 0 0 var(--space-8); font-size: var(--font-section-size); }
 .extension-ref-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--font-caption-size); }
-.extension-ref-table th { text-align: left; font-weight: 600; color: var(--text-secondary, var(--muted)); padding: var(--space-1) var(--space-2) var(--space-1) 0; border-bottom: 1px solid var(--line); }
-.extension-ref-table td { padding: var(--space-2) var(--space-2) var(--space-2) 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
-.extension-ref-table td:last-child { display: grid; gap: var(--space-1); justify-items: start; }
+.extension-ref-table th { text-align: left; font-weight: 600; color: var(--text-secondary, var(--muted)); padding: var(--space-4) var(--space-8) var(--space-4) 0; border-bottom: 1px solid var(--line); }
+.extension-ref-table td { padding: var(--space-8) var(--space-8) var(--space-8) 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.extension-ref-table td:last-child { display: grid; gap: var(--space-4); justify-items: start; }
 .extension-ref-table th:nth-child(1) { width: 38%; } .extension-ref-table th:nth-child(2) { width: 27%; }
-.extension-ref-note { margin: var(--space-2) 0 0; color: var(--text-secondary, var(--muted)); }
-.extension-probe-all { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.extension-ref-note { margin: var(--space-8) 0 0; color: var(--text-secondary, var(--muted)); }
+.extension-probe-all { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12); }
 .extension-probe-progress { color: var(--text-secondary, var(--muted)); font-size: var(--font-caption-size); }
-@container (max-width: 560px) { .extension-table[data-tab=mcp] .extension-row { row-gap: var(--space-1); } }
+@container (max-width: 560px) { .extension-table[data-tab=mcp] .extension-row { row-gap: var(--space-4); } }
 .extension-probe-all { margin-left: auto; }
 /* 「检测全部服务」按钮（36px）比 h2 行高，会让 MCP 页的清单标题比另外两个分类高 18px，三个分类共享的布局锚点（LAY-溢出+锚点）就移位了：用负的块方向外边距把它的占位收回到标题行高内，点击区域仍是 36px */
 .extension-list-heading > .extension-probe-all { margin-block: -9px; }
-.extension-probe-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; max-height: 240px; overflow: auto; display: grid; gap: var(--space-2); }
+.extension-probe-list { list-style: none; margin: 0 0 var(--space-12); padding: 0; max-height: 240px; overflow: auto; display: grid; gap: var(--space-8); }
 .extension-probe-list li { overflow-wrap: anywhere; }
 .extension-probe-list code { display: block; color: var(--text-secondary, var(--muted)); }
 /* MCP 行：名称单行省略（完整名称在检查器里，DOM 里仍是全文），长名字不把行撑到 90px 以上（R13） */
 .extension-table[data-tab=mcp] .extension-row-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- Skill 接入冲突（E-11）：检查器里的冲突块、对比弹窗。颜色沿用 .extension-warning 的令牌；差异行同时用符号和读屏文字，不只靠颜色 ---- */
-.extension-conflict { display: grid; gap: var(--space-2); margin: var(--space-2) 0 var(--space-3); padding: var(--space-2) var(--space-3); color: var(--warning-text, #9a4300); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); overflow-wrap: anywhere; }
+.extension-conflict { display: grid; gap: var(--space-8); margin: var(--space-8) 0 var(--space-12); padding: var(--space-8) var(--space-12); color: var(--warning-text, #9a4300); background: var(--warning-background, #fff5e8); border-radius: var(--radius-sm, 6px); overflow-wrap: anywhere; }
 .extension-conflict p { margin: 0; }
 .extension-conflict[data-conflict-state="kept"] { color: var(--text-secondary, inherit); background: var(--bg-secondary, #f4f4f2); }
 .extension-conflict-path { font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
 .extension-conflict .extension-actions { margin-top: 0; }
-.extension-conflict-intro p { margin: 0 0 var(--space-2); }
-.extension-compare-dialog [data-compare-body] { display: grid; gap: var(--space-2); max-height: 60vh; overflow: auto; }
+.extension-conflict-intro p { margin: 0 0 var(--space-8); }
+.extension-compare-dialog [data-compare-body] { display: grid; gap: var(--space-8); max-height: 60vh; overflow: auto; }
 .extension-compare-readonly, .extension-compare-summary { margin: 0; }
-.extension-compare-paths { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--space-3); margin: 0; font-size: var(--font-caption-size); }
+.extension-compare-paths { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--space-12); margin: 0; font-size: var(--font-caption-size); }
 .extension-compare-paths dt { color: var(--text-secondary, inherit); }
 .extension-compare-paths dd { margin: 0; font-family: var(--font-mono, monospace); overflow-wrap: anywhere; }
-.extension-compare-file { border: 1px solid var(--control-border, #ddd); border-radius: var(--radius-sm, 6px); padding: var(--space-1) var(--space-2); }
-.extension-compare-file summary { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; cursor: pointer; }
+.extension-compare-file { border: 1px solid var(--control-border, #ddd); border-radius: var(--radius-sm, 6px); padding: var(--space-4) var(--space-8); }
+.extension-compare-file summary { display: flex; flex-wrap: wrap; gap: var(--space-8); align-items: baseline; cursor: pointer; }
 .extension-compare-path { font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
 .extension-compare-status { font-size: var(--font-caption-size); }
-.extension-compare-lines { margin: var(--space-1) 0 0; font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); white-space: pre-wrap; overflow-wrap: anywhere; }
+.extension-compare-lines { margin: var(--space-4) 0 0; font-family: var(--font-mono, monospace); font-size: var(--font-caption-size); white-space: pre-wrap; overflow-wrap: anywhere; }
 .extension-compare-line { display: block; }
 .extension-compare-sign { display: inline-block; width: 1.5em; user-select: none; }
 .extension-compare-shared { background: var(--danger-bg, #fdecec); }
@@ -211,22 +211,22 @@
 .extension-compare-hunk-head { color: var(--text-secondary, inherit); }
 
 /* ---- 0.7 PR-12：MCP 同 ID 冲突（只用 token）---- */
-.extension-mcp-conflicts { display: grid; gap: var(--space-3); margin: var(--space-2) 0; }
-.extension-mcp-conflict { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--control-border, #ddd); border-radius: var(--radius-sm, 6px); min-width: 0; }
-.extension-mcp-conflict legend { padding: 0 var(--space-1); font-weight: 600; overflow-wrap: anywhere; }
+.extension-mcp-conflicts { display: grid; gap: var(--space-12); margin: var(--space-8) 0; }
+.extension-mcp-conflict { display: grid; gap: var(--space-8); margin: 0; padding: var(--space-8) var(--space-12); border: 1px solid var(--control-border, #ddd); border-radius: var(--radius-sm, 6px); min-width: 0; }
+.extension-mcp-conflict legend { padding: 0 var(--space-4); font-weight: 600; overflow-wrap: anywhere; }
 .extension-mcp-conflict > button { justify-self: start; }
-.extension-mcp-choices { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.extension-mcp-choice { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; cursor: pointer; }
+.extension-mcp-choices { display: flex; flex-wrap: wrap; gap: var(--space-12); }
+.extension-mcp-choice { display: inline-flex; align-items: center; gap: var(--space-8); min-height: 32px; cursor: pointer; }
 .extension-mcp-choice input { margin: 0; }
 .extension-mcp-compare-table { width: 100%; border-collapse: collapse; font-size: var(--font-caption-size); table-layout: fixed; }
-.extension-mcp-compare-table th, .extension-mcp-compare-table td { padding: var(--space-1) var(--space-2); text-align: left; vertical-align: top; border-top: 1px solid var(--control-border, #ddd); overflow-wrap: anywhere; font-weight: normal; }
+.extension-mcp-compare-table th, .extension-mcp-compare-table td { padding: var(--space-4) var(--space-8); text-align: left; vertical-align: top; border-top: 1px solid var(--control-border, #ddd); overflow-wrap: anywhere; font-weight: normal; }
 .extension-mcp-compare-table thead th { color: var(--text-secondary, inherit); border-top: 0; }
 .extension-mcp-compare-table tbody th { width: 5em; color: var(--text-secondary, inherit); }
-.extension-mcp-refs { margin: 0; padding-left: var(--space-4, 1.25rem); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
-.extension-mcp-refsets { display: grid; gap: var(--space-2); }
+.extension-mcp-refs { margin: 0; padding-left: var(--space-16, 1.25rem); font-size: var(--font-caption-size); overflow-wrap: anywhere; }
+.extension-mcp-refsets { display: grid; gap: var(--space-8); }
 .extension-mcp-import textarea { width: 100%; min-height: 9em; font-family: var(--font-mono, monospace); box-sizing: border-box; }
-.extension-mcp-import-review, .extension-duplicate-panel { display: grid; gap: var(--space-2); }
-.extension-duplicate-panel { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm, 6px); background: var(--warning-background, #fff5e8); color: var(--warning-text, #9a4300); }
+.extension-mcp-import-review, .extension-duplicate-panel { display: grid; gap: var(--space-8); }
+.extension-duplicate-panel { margin-top: var(--space-12); padding: var(--space-8) var(--space-12); border-radius: var(--radius-sm, 6px); background: var(--warning-background, #fff5e8); color: var(--warning-text, #9a4300); }
 .extension-ref-badge { font-size: var(--font-caption-size); white-space: nowrap; }
 .extension-ref-badge[data-tone="warning"] { font-weight: 600; }
 
@@ -269,7 +269,7 @@
 }
 @container (max-width: 560px) {
   .extension-table[data-tab=mcp] .extension-row-source, .extension-table[data-tab=mcp] .extension-row-more { display: none; }
-  .extension-row-commandcell { padding-bottom: var(--space-1); }
+  .extension-row-commandcell { padding-bottom: var(--space-4); }
 }
 /* 开关列只留开关本身（文字「已启用/已停用」仍在 DOM 里给读屏；列头已写「启用」）。 */
 .extension-table[data-tab=mcp] .extension-master-control .ui-switch-copy { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }

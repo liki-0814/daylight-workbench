@@ -122,3 +122,14 @@ test('web-assets 反向检查：页面 CSS @import 链上的文件都登记了�
 test('未选候选主题不会被任何 @import 引用', () => {
   for (const file of cssFiles()) assert.doesNotMatch(read(file), /_candidates/, rel(file));
 });
+
+test('--space-N 重命名（PR-C）：N 就是像素值；用到的 --space-N 都是 Mist 的像素刻度', () => {
+  const files = walk(publicDir, f => /\.(css|js|html)$/.test(f) && !rel(f).startsWith('ui/'));
+  const px = new Set(Object.keys(light).filter(n => /^--space-\d+$/.test(n)));
+  const stray = [...new Set(files.flatMap(f => [...read(f).matchAll(/--space-\d+(?![\w-])/g)].filter(m => !px.has(m[0])).map(m => m[0] + ' @ ' + rel(f))))];
+  assert.deepEqual(stray, [], '用到了 Mist 没有的 --space-N（旧序号写法？）');
+  const ds = declarationsOf(read(path.join(publicDir, 'design-system.css')));
+  for (const [name, value] of Object.entries(ds)) if (/^--space-\d+$/.test(name)) assert.equal(value, name.slice(8) + 'px', name);
+  assert.ok(Object.keys(ds).filter(n => /^--space-\d+$/.test(n)).length >= 9);
+});
+function declarationsOf(css) { return declarations(stripCssComments(css)); }

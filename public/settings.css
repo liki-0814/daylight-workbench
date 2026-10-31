@@ -2,7 +2,7 @@
    全部限定在 #settings-page 之内；更新页也复用 .settings-panel / .settings-facts，不能被这里影响。 */
 #settings-page { --settings-line: var(--connected-line, #e5e5ea); background: var(--bg-secondary); min-height: 100vh; }
 #settings-page .settings-workspace { padding-top: 0; }
-#settings-page .page-heading { padding-top: 32px; margin-bottom: var(--space-4); }
+#settings-page .page-heading { padding-top: 32px; margin-bottom: var(--space-16); }
 
 /* 分区胶囊：吸在工具栏下方；当前分区深底白字（17:1）。 */
 #settings-page .settings-pills { position: sticky; top: var(--toolbar-height); z-index: 20; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 calc(var(--page-inline) * -1) 24px; padding: 10px var(--page-inline); background: var(--bg-secondary); border-bottom: .5px solid var(--settings-line); }

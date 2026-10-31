@@ -38,7 +38,7 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 .ui-button-primary, .primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .ui-button-text, .text-button, .danger-link {
   min-height: var(--compact-button-height);
-  padding: var(--compact-button-padding-block) var(--space-2);
+  padding: var(--compact-button-padding-block) var(--space-8);
   border: 1px solid transparent;
   background: transparent;
   color: var(--accent-text);
@@ -55,7 +55,7 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
   min-width: var(--icon-button-size);
   height: var(--icon-button-size);
   min-height: var(--icon-button-size);
-  padding: var(--space-1);
+  padding: var(--space-4);
   border: 1px solid transparent;
   color: var(--muted);
 }
@@ -79,7 +79,7 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 .proxy-tabs [role="tab"] {
   flex: 0 0 auto;
   white-space: nowrap;
-  padding: var(--space-3) var(--space-1);
+  padding: var(--space-12) var(--space-4);
   border: 0;
   border-bottom: var(--tab-indicator-width) solid transparent;
   border-radius: 0;

@@ -49,7 +49,7 @@ a {
 
 html {
   /* 吸顶工具栏不遮住被聚焦 / 滚动到的元素 */
-  scroll-padding-top: calc(var(--toolbar-height) + var(--space-3));
+  scroll-padding-top: calc(var(--toolbar-height) + var(--space-12));
 }
 
 #app {
@@ -60,7 +60,7 @@ html {
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  padding: var(--space-7) var(--space-5) 22px;
+  padding: var(--space-32) var(--space-20) 22px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--separator-strong);
   position: fixed;
@@ -74,7 +74,7 @@ html {
   display: flex;
   gap: 11px;
   align-items: center;
-  margin: 0 var(--space-3) 35px;
+  margin: 0 var(--space-12) 35px;
   text-decoration: none;
 }
 
@@ -118,10 +118,10 @@ html {
   align-items: center;
   width: 100%;
   text-align: left;
-  gap: var(--space-3);
-  padding: var(--space-3) 13px;
+  gap: var(--space-12);
+  padding: var(--space-12) 13px;
 
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-4);
 
   color: var(--text-secondary);
 }
@@ -204,7 +204,7 @@ main {
 
 .slash {
   color: var(--text-secondary);
-  margin: 0 var(--space-3);
+  margin: 0 var(--space-12);
 }
 
 .search {
@@ -227,7 +227,7 @@ main {
   width: 100%;
   font-size: var(--font-control-size);
   color: #354632;
-  padding: var(--space-2) 0;
+  padding: var(--space-8) 0;
   line-height: var(--font-control-line);
 }
 
@@ -302,7 +302,7 @@ h1 {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
-  padding: 0 var(--space-3) 0 28px;
+  padding: 0 var(--space-12) 0 28px;
   border-left: 1px solid var(--separator-strong);
 }
 
@@ -349,7 +349,7 @@ h1 {
   padding: 0 23px;
   min-height: 62px;
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-12);
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--separator);
@@ -357,7 +357,7 @@ h1 {
 
 .tabs {
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-24);
   font-size: var(--font-body-size);
   line-height: var(--font-body-line);
 }
@@ -396,7 +396,7 @@ h1 {
 }
 
 .empty {
-  padding: var(--space-7) var(--space-5);
+  padding: var(--space-32) var(--space-20);
   text-align: center;
   min-height: 240px;
   display: flex;
@@ -460,7 +460,7 @@ h1 {
 .workspace-footer {
   border-top: 1px solid var(--separator);
   margin-top: var(--page-footer-gap);
-  padding-top: var(--space-5);
+  padding-top: var(--space-20);
   display: flex;
   justify-content: space-between;
   gap: 15px;
@@ -601,7 +601,7 @@ h1 {
 .focus-card {
   background: var(--fill-selected);
   border: 1px solid var(--separator-strong);
-  padding: 22px var(--space-6);
+  padding: 22px var(--space-24);
   border-radius: 10px;
   margin-bottom: 18px;
 }
@@ -633,7 +633,7 @@ h1 {
 .focus-bottom {
   display: flex;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-12);
   align-items: center;
   color: var(--text-secondary);
   font-size: var(--font-meta-size);
@@ -646,15 +646,15 @@ h1 {
 
 .carryover {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-12);
   justify-content: space-between;
   align-items: center;
   font-size: var(--font-meta-size);
   color: #9b885f;
   background: #f6f2e8;
   border-radius: 7px;
-  padding: var(--space-3) 15px;
-  margin-bottom: var(--space-4);
+  padding: var(--space-12) 15px;
+  margin-bottom: var(--space-16);
   line-height: var(--font-meta-line);
 }
 
@@ -692,7 +692,7 @@ h1 {
   margin-left: auto;
   white-space: nowrap;
   font-size: var(--font-meta-size);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-4) var(--space-8);
   border: 1px solid var(--separator-strong);
   border-radius: 4px;
   line-height: var(--font-meta-line);
@@ -707,7 +707,7 @@ h1 {
 }
 
 .single .task-actions {
-  gap: var(--space-3);
+  gap: var(--space-12);
 }
 
 .single .task-panel {
@@ -808,7 +808,7 @@ dialog::backdrop {
 
 .form-body .checkbox-field {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-8);
   align-items: center;
   margin: 0;
 }
@@ -825,11 +825,11 @@ dialog::backdrop {
 
 .dialog-footer {
   border-top: 1px solid var(--line);
-  padding: var(--space-4) var(--dialog-inline-inset);
+  padding: var(--space-16) var(--dialog-inline-inset);
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-12);
 }
 
 .dialog-footer>.muted {
@@ -863,7 +863,7 @@ dialog::backdrop {
   padding: 13px 18px;
   font-size: var(--font-caption-size);
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-12);
   align-items: center;
   box-shadow: 0 5px 20px #15211620;
   opacity: 0;
@@ -889,7 +889,7 @@ dialog::backdrop {
   color: #d4e7bf;
 
   white-space: nowrap;
-  padding: 0 0 0 var(--space-3);
+  padding: 0 0 0 var(--space-12);
   border-left: 1px solid #718367;
 
 }
@@ -906,7 +906,7 @@ dialog::backdrop {
 
 @media(min-width:1500px) {
   .workspace {
-    padding: var(--space-9) var(--page-inline);
+    padding: var(--space-48) var(--page-inline);
   }
   .content-grid {
     grid-template-columns: minmax(0,1fr) 310px;
@@ -917,7 +917,7 @@ dialog::backdrop {
   }
 
   .task-row {
-    padding: var(--space-6);
+    padding: var(--space-24);
   }
 }
 
@@ -952,7 +952,7 @@ dialog::backdrop {
     line-height: var(--font-page-line);
   }
   .tabs {
-    gap: var(--space-4);
+    gap: var(--space-16);
   }
   .empty p {
     font-size: var(--font-caption-size);
@@ -996,8 +996,8 @@ dialog::backdrop {
 }
 
 .dialog-error {
-  margin: var(--space-4) 0 0;
-  padding: var(--space-3);
+  margin: var(--space-16) 0 0;
+  padding: var(--space-12);
   border: 1px solid #decda7;
   border-radius: 6px;
   background: #fcf6e9;
@@ -1008,7 +1008,7 @@ dialog::backdrop {
 
 .footer-actions {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-16);
   align-items: center;
 }
 
@@ -1030,7 +1030,7 @@ dialog::backdrop {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: var(--panel-block-inset) var(--panel-inline-inset) var(--space-2);
+  padding: var(--panel-block-inset) var(--panel-inline-inset) var(--space-8);
   margin: 0;
   min-width: 0;
   box-shadow: 0 3px 5px #20382002;
@@ -1068,7 +1068,7 @@ dialog::backdrop {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: var(--space-4) 0;
+  padding: var(--space-16) 0;
   border-top: 1px solid var(--separator);
 }
 
@@ -1108,17 +1108,17 @@ dialog::backdrop {
   border: 1px solid var(--separator-strong);
   border-bottom-color: var(--separator-strong);
   border-radius: 5px;
-  padding: 6px var(--space-2);
+  padding: 6px var(--space-8);
 }
 
 .settings-facts {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-8) 0 0;
 }
 
 .settings-facts>div {
   display: flex;
   justify-content: space-between;
-  gap: var(--space-5);
+  gap: var(--space-20);
   padding: 15px 0;
   border-top: 1px solid var(--separator);
 }
@@ -1161,7 +1161,7 @@ dialog::backdrop {
 
 .today-workspace .empty {
   min-height: 210px;
-  padding: 28px var(--space-5);
+  padding: 28px var(--space-20);
 }
 
 .today-workspace .project-square {
@@ -1173,13 +1173,13 @@ dialog::backdrop {
 
 .today-workspace .workspace-footer {
   margin-top: var(--section-gap);
-  padding-top: var(--space-4);
+  padding-top: var(--space-16);
 }
 
 @media(max-width:1150px) {
   .today-workspace .content-grid {
     grid-template-columns: minmax(0,1.7fr) minmax(280px,1fr);
-    gap: var(--space-5);
+    gap: var(--space-20);
   }
 
 }
@@ -1232,7 +1232,7 @@ dialog::backdrop {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-12);
   margin-bottom: 9px;
 }
 
@@ -1251,7 +1251,7 @@ dialog::backdrop {
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--bg-grouped);
-  padding: var(--space-3);
+  padding: var(--space-12);
   font-size: var(--font-body-size);
   line-height: var(--font-body-line);
 }
@@ -1275,8 +1275,8 @@ dialog::backdrop {
 
 .notes-link-form:not([hidden]) {
   display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
+  gap: var(--space-12);
+  margin-top: var(--space-12);
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1284,7 +1284,7 @@ dialog::backdrop {
 
 .notes-link-form>div {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-8);
 }
 
 .notes-link-form small {
@@ -1308,9 +1308,9 @@ dialog::backdrop {
 .task-toolbar,.task-conversation-actions,.picker-filters {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-12);
   flex-wrap: wrap;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-16);
 }
 
 .task-toolbar {
@@ -1318,7 +1318,7 @@ dialog::backdrop {
 }
 
 .task-conversation-actions {
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-12) var(--space-24);
 }
 
 .task-conversation-actions small {
@@ -1328,7 +1328,7 @@ dialog::backdrop {
 }
 
 .picker-filters {
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-24);
 }
 
 .picker-filters input {
@@ -1354,21 +1354,21 @@ dialog::backdrop {
   z-index: 5;
   right: 0;
   top: 24px;
-  padding: var(--space-3);
+  padding: var(--space-12);
   background: var(--paper);
   border: 1px solid var(--line);
   white-space: nowrap;
 }
 
 .related-conversations {
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-12) var(--space-24);
   max-height: 55vh;
   overflow: auto;
 }
 
 .related-conversations a {
   display: block;
-  padding: var(--space-3) 0;
+  padding: var(--space-12) 0;
   text-decoration: none;
   border-bottom: 1px solid var(--line);
 }
@@ -1398,9 +1398,9 @@ dialog::backdrop {
 .app-update-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-12);
   align-items: center;
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-12);
 }
 
 .settings-facts dd[data-state="available"] {
@@ -1419,15 +1419,15 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-16);
   margin-bottom: var(--form-field-gap);
 }
 
 .task-range-tabs {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
+  gap: var(--space-4);
+  padding: var(--space-4);
   background: var(--fill-control);
   border-radius: 9px;
 }
@@ -1437,7 +1437,7 @@ dialog::backdrop {
   align-items: center;
   gap: 7px;
   min-height: var(--compact-button-height);
-  padding: var(--space-2) 14px;
+  padding: var(--space-8) 14px;
 
   color: var(--muted);
 }
@@ -1503,8 +1503,8 @@ dialog::backdrop {
 }
 
 .task-project-group .task-row {
-  padding-top: var(--space-4);
-  padding-bottom: var(--space-4);
+  padding-top: var(--space-16);
+  padding-bottom: var(--space-16);
 }
 
 
@@ -1528,12 +1528,12 @@ dialog::backdrop {
    旧的 ≤650 堆叠布局（原生壳 minSize 为 760，到不了）已在 PR-5 清理，这里不再需要加下限。 */
 @media (max-width: 999px) {
   .sidebar {
-    padding: var(--space-5) var(--space-2);
+    padding: var(--space-20) var(--space-8);
     align-items: stretch;
   }
   .sidebar .brand {
     justify-content: center;
-    margin: 0 0 var(--space-6);
+    margin: 0 0 var(--space-24);
   }
   .sidebar .brand-text,
   .sidebar .nav-label,
@@ -1552,10 +1552,10 @@ dialog::backdrop {
     justify-content: center;
     padding: 0;
     min-height: var(--compact-button-height);
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-24);
   }
   .sidebar .capture > span:not(.capture-label) { display: none; }
-  .sidebar .page-navigation { gap: var(--space-1); }
+  .sidebar .page-navigation { gap: var(--space-4); }
   .sidebar .nav-item {
     position: relative;
     justify-content: center;
