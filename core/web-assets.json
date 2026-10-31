@@ -140,6 +140,9 @@
   "/ui/tokens/legacy-aliases.css": "ui/tokens/legacy-aliases.css",
   "/ui/tokens/semantic.css": "ui/tokens/semantic.css",
   "/ui/tokens/theme.css": "ui/tokens/theme.css",
-  "/ui/tokens/themes/mist.css": "ui/tokens/themes/mist.css",
-  "/ui/ui.css": "ui/ui.css"
+  "/ui/ui.css": "ui/ui.css",
+  "/ui/tokens/themes/mist-cyan.css": "ui/tokens/themes/mist-cyan.css",
+  "/ui/core/events.js": "ui/core/events.js",
+  "/ui/core/icons.js": "ui/core/icons.js",
+  "/ui/core/morph.js": "ui/core/morph.js"
 }

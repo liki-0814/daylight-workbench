@@ -1,0 +1,59 @@
+{
+  "note": "nonShims: public/components/* files that are not yet pure re-export shims (only shrinks; empty before PR-Z). debts: three legacy architectural debts (server → public/, old components → routes/task-view/pages, direct webkit.messageHandlers access); each list may only shrink, never grow or swap.",
+  "nonShims": [
+    "action-links.js",
+    "ai-backend.js",
+    "ai-message.js",
+    "banner.js",
+    "bar-chart.js",
+    "button.js",
+    "calendar-grid.js",
+    "chip.js",
+    "date-field.js",
+    "date-range.js",
+    "dialog-shell.js",
+    "distribution-list.js",
+    "focus.js",
+    "format-number.js",
+    "icons.js",
+    "image-input.js",
+    "media-models.js",
+    "metric-card.js",
+    "model-row.js",
+    "model-speed.js",
+    "pagination.js",
+    "progress-meter.js",
+    "proxy-drawer.js",
+    "search-field.js",
+    "section.js",
+    "segmented-control.js",
+    "select.js",
+    "settings-page.js",
+    "sheet.js",
+    "sidebar.js",
+    "switch.js",
+    "task-notes.js",
+    "task-picker.js",
+    "task-range-tabs.js",
+    "task-row.js"
+  ],
+  "debts": {
+    "serverPublicImports": [
+      "agent-api.mjs -> public/model.js",
+      "core/contracts.js -> public/task-view.js",
+      "core/task-write.js -> public/model.js",
+      "server.mjs -> public/model.js",
+      "server.mjs -> public/task-view.js",
+      "storage.mjs -> public/model.js"
+    ],
+    "componentsUpward": [
+      "public/components/action-links.js",
+      "public/components/task-picker.js"
+    ],
+    "messageHandlerFiles": [
+      "public/extensions/folder-picker.js",
+      "public/focus/platform.js",
+      "public/quick.js"
+    ]
+  }
+}

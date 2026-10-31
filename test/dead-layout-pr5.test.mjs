@@ -13,7 +13,9 @@ test('main-window stylesheets no longer carry the unreachable ≤650 stacked lay
 // 这两个文件还被快速面板（quick.html，宽 400–1000，默认 600）加载，≤650 在那里是活的，不能清。
 test('shared stylesheets keep ≤650 because the quick panel (default 600px wide) loads them', () => {
   const quick = read('quick.html');
-  for (const name of ['ai.css', 'design-system.css']) { assert.match(quick, new RegExp(`/${name}`), name + ' is loaded by quick.html'); assert.match(read(name), /max-width:\s*650px/, name); }
+  assert.match(quick, /\/ui\/ui\.css/); assert.match(read('ui/ui.css'), /design-system\.css"\) layer\(legacy\)/, 'design-system.css reaches quick.html through ui.css (@layer legacy)');
+  for (const name of ['ai.css', 'design-system.css', 'ui/tokens/semantic.css']) assert.match(read(name), /max-width:\s*650px/, name);
+  assert.match(quick, /\/ai\.css/);
 });
 
 // ≤930 在 760–930 之间是活的（760 窗口下的单列），不属于死布局。
