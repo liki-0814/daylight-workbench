@@ -1,9 +1,9 @@
 // 新建任务面板（0.8）：composer 模式 + 本页的状态与创建流程。
 //   openNewTask({ projects, projectId, today, onCreate, onNewProject }) → { el, close() }
-//   表单状态保存在这里（select / switch 经 ui:change 回填），渲染用 morph 增量更新，标题输入框的焦点与输入法状态不丢。
-import { morph } from '../ui/core/morph.js';
-import { composerDialog, composerBody } from '../ui/patterns/composer/composer.js';
-import '../ui/components/dialog/dialog.js';
+//   表单状态保存在这里：输入框 / select / switch 都只经 ui:change 回填（页面不监听原生 input，不查询组件内部类）；
+//   重绘走 dialog.update(composerBody(props))（组件内部用 morph 增量更新，标题输入框的焦点与输入法状态不丢）；错误文案走 composer 的 error prop。
+import { composerBody } from '../ui/patterns/composer/composer.js';
+import { mountDialog } from '../ui/components/dialog/dialog.js';
 import { showToast } from '../ui/components/toast/toast.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -20,27 +20,19 @@ const priorityOptions = [{ value: '', label: '默认（中）' }, { value: 'high
 const estimateOptions = [{ value: '', label: '不估算' }, ...[[15, '15 分钟'], [30, '30 分钟'], [60, '1 小时'], [120, '2 小时'], [240, '4 小时']].map(([value, label]) => ({ value: String(value), label }))];
 
 export function openNewTask({ projects, projectId = null, today, onCreate, onNewProject, files = () => pickFiles() }) {
-  const form = { title: '', notes: '', status: 'todo', project: projectId ?? '', priority: '', due: '', estimate: '', attachments: [], keepOpen: false };
+  const form = { title: '', notes: '', status: 'todo', project: projectId ?? '', priority: '', due: '', estimate: '', attachments: [], keepOpen: false, error: '' };
   let busy = false;
   const props = () => ({
     project: form.project, projects: [{ value: '', label: '未归类' }, ...projects.map(p => ({ value: p.id, label: p.name, dot: p.color }))],
     title: form.title, notes: form.notes, status: form.status, statusOptions, priority: form.priority, priorityOptions,
     due: form.due, dueOptions: dueOptions(today), estimate: form.estimate, estimateOptions,
-    attachments: form.attachments.map(f => ({ name: f.name, meta: size(f.size) })), keepOpen: form.keepOpen,
+    attachments: form.attachments.map(f => ({ name: f.name, meta: size(f.size) })), keepOpen: form.keepOpen, error: form.error,
   });
-  const host = document.createElement('div');
-  host.innerHTML = String(composerDialog(props()));
-  const el = host.firstElementChild;
-  document.body.append(el);
-  const paint = () => morph(el.querySelector('.dl-dialog__body'), composerBody(props()));
+  const dialog = mountDialog({ id: 'new-task-dialog', label: '新建任务', width: 680, className: 'dl-composer', children: composerBody(props()) });
+  const el = dialog.el;
+  const paint = () => dialog.update(composerBody(props()));
   const field = name => el.querySelector(`[name="${name}"]`);
-  const setError = message => {
-    el.querySelector('[data-form-error]')?.remove();
-    if (!message) return;
-    const p = document.createElement('p');
-    p.className = 'dl-comp__error'; p.setAttribute('role', 'alert'); p.dataset.formError = ''; p.textContent = message;
-    el.querySelector('.dl-comp__props').before(p);
-  };
+  const setError = message => { form.error = message; paint(); };
 
   el.addEventListener('ui:change', event => {
     const name = event.target.dataset.name || event.target.name || event.target.closest('[data-name]')?.dataset.name;
@@ -49,7 +41,6 @@ export function openNewTask({ projects, projectId = null, today, onCreate, onNew
     if (name in form) form[name] = String(event.detail.value);
   });
   el.addEventListener('ui:select', event => { if (event.detail.value === '__new__') { onNewProject?.(); } });
-  el.addEventListener('input', event => { if (event.target.name === 'title' || event.target.name === 'notes') form[event.target.name] = event.target.value; });
   el.addEventListener('click', async event => {
     const action = event.target.closest('[data-action]')?.dataset.action;
     if (action === 'attach-files') {
@@ -58,11 +49,10 @@ export function openNewTask({ projects, projectId = null, today, onCreate, onNew
     }
     if (action === 'create-task') await create();
   });
-  el.addEventListener('ui:close', event => { if (event.target === el) el.remove(); });
+  el.addEventListener('ui:close', event => { if (event.target === el) dialog.destroy(); });
 
   async function create() {
     if (busy) return;
-    form.title = field('title')?.value ?? form.title; form.notes = field('notes')?.value ?? form.notes;
     if (!form.title.trim()) { setError('请输入任务标题'); field('title')?.focus(); return; }
     busy = true; setError('');
     const notes = [form.notes.trim(), ...form.attachments.map(f => `附件：${f.name}（${size(f.size)}）`)].filter(Boolean).join('\n');
@@ -74,9 +64,9 @@ export function openNewTask({ projects, projectId = null, today, onCreate, onNew
     finally { busy = false; }
   }
 
-  el.showModal();
+  dialog.open();
   field('title')?.focus();
-  return { el, close: () => el.close() };
+  return { el, close: () => dialog.close() };
 }
 
 function pickFiles() {

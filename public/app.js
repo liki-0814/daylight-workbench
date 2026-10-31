@@ -547,8 +547,8 @@ document.addEventListener('ui:select', async event => {
   const { value } = event.detail, target = event.target;
   if (target.matches?.('.dl-nav')) { if (sidebarRoot?.contains(target)) navigate(value); return; }
   if (target.matches?.('.dl-row')) { selectedTaskId = selectedTaskId === value ? selectedTaskId : value; render(); return; }
-  if (target.matches?.('.dl-select[data-name="scope"]')) { if (value === '__new__') openModal({ type: 'project' }); return; }
-  if (target.matches?.('.dl-menubtn[data-name="more"]') && selectedTaskId) {
+  if (target.dataset?.name === 'scope') { if (value === '__new__') openModal({ type: 'project' }); return; }
+  if (target.dataset?.name === 'more' && selectedTaskId) {
     const id = selectedTaskId;
     if (value === 'edit') openModal({ type: 'task', id });
     else if (value === 'discuss') startDiscussion({ kind: 'task', id });
@@ -563,8 +563,8 @@ document.addEventListener('ui:select', async event => {
 });
 document.addEventListener('ui:change', async event => {
   const { value } = event.detail, target = event.target, name = target.dataset?.name ?? target.name;
-  if (target.matches?.('.dl-seg[data-name="tab"]')) { tab = value; writeTaskURL(); render(); return; }
-  if (target.matches?.('.dl-select[data-name="scope"]')) { navigate(scopeToView(value)); return; }
+  if (target.dataset?.name === 'tab') { tab = value; writeTaskURL(); render(); return; }
+  if (target.dataset?.name === 'scope') { navigate(scopeToView(value)); return; }
   if (name === 'search' && target.closest('#task-page')) { query = value; writeTaskURL(true); render(); return; }
   if (name === 'subtask' && target.closest('#task-page')) {
     const title = String(value).trim(), id = target.dataset.task;

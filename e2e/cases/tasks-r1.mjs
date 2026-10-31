@@ -115,8 +115,14 @@ export default [
     check.equal(await page.locator('.dl-insp__actions').count(), 0, '没有钉在底部的操作区');
     await page.locator('.dl-insp [data-name="more"] .dl-menubtn__trigger').click();
     const items = await page.locator('.dl-insp [data-name="more"] .dl-menu__item').allTextContents();
-    check.deepEqual(items.map(t => t.trim()), ['加入今天', '编辑', '讨论', '相关对话', '删除'], '更多菜单里的其他操作');
+    check.deepEqual(items.map(t => t.trim()), ['加入今天', '编辑', '讨论', '相关对话', '删除…'], '更多菜单里的其他操作；删除要二次确认，所以带省略号');
+    check.equal(await page.locator('.dl-insp [data-name="more"] .dl-menu__meta, .dl-insp [data-name="more"] kbd').count(), 0, '更多菜单不显示快捷键提示：⌘K / ⌘, / / 都不对应菜单里的任何一项');
+    check.ok(!/[⌘⌥⌃⇧]/.test(items.join('')), '菜单文字里没有快捷键符号');
     await shot('more-menu');
+    await page.locator('.dl-insp [data-name="more"] .dl-menu__item', { hasText: '删除…' }).click();
+    await page.locator('#dialog-title', { hasText: '确认删除这项任务' }).waitFor();
+    await page.keyboard.press('Escape'); await page.locator('#dialog-title').waitFor({ state: 'detached' }).catch(() => {});
+    await page.locator('.dl-insp [data-name="more"] .dl-menubtn__trigger').click();
     await page.locator('.dl-insp [data-name="more"] .dl-menu__item', { hasText: '加入今天' }).click();
     await page.waitForFunction(() => /已加入|今天/.test(document.querySelector('.dl-insp__props').textContent) && !/未加入/.test(document.querySelector('.dl-insp__props').textContent));
     check.deepEqual(await page.locator('.dl-insp .dl-insp__section h3').allTextContents().then(a => a.map(t => t.replace(/\s+/g, ''))), ['备注', '子任务', '动态'].map((t, i) => t), '三个分区');
