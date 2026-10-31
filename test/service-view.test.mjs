@@ -29,6 +29,17 @@ test('heroProps starting: dashed note, cancel only after the slow threshold', ()
   const slow = heroProps({ status: { state: 'starting', port: 4319 }, slow: true });
   assert.equal(slow.cancel.label, '取消'); assert.equal(slow.cancel.attrs['data-action'], 'cancel-start');
 });
+test('starting copy mentions 「取消」 exactly when the cancel button is shown (and the 5 s promise follows START_SLOW_MS)', () => {
+  const starting = { state: 'starting', port: 4319 };
+  for (const slow of [false, true]) {
+    const props = heroProps({ status: starting, slow });
+    const hint = portHint('starting', { slow });
+    assert.equal(!!props.cancel, slow);
+    if (slow) { assert.match(props.note, /点「取消」/); assert.match(hint, /点「取消」/); assert.doesNotMatch(props.note, /超过 \d+ 秒/); }
+    else { assert.match(props.note, new RegExp(`超过 ${START_SLOW_MS / 1000} 秒会显示「取消」`)); assert.doesNotMatch(hint, /取消/); }
+  }
+  for (const state of ['running', 'stopped', 'error']) assert.doesNotMatch(portHint(state, { slow: true }), /取消/, `${state}: no cancel button, no mention`);
+});
 test('heroProps stopped and error', () => {
   const stopped = heroProps({ status: { state: 'stopped', port: 4319 } });
   assert.equal(stopped.tagLabel, '已停用'); assert.match(stopped.addressNote, /未在监听/); assert.match(stopped.note, /下次启用时生效/);

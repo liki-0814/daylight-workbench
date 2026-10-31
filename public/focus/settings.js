@@ -1,6 +1,6 @@
 import { morph } from '../ui/core/morph.js';
 import { html } from '../ui/core/html.js';
-import { settingsGroup, settingsRow } from '../ui/patterns/settings/settings.js';
+import { settingsGroup, settingsRow, settingsReadout } from '../ui/patterns/settings/settings.js';
 import { input } from '../ui/components/input/input.js';
 import { switchControl } from '../ui/components/switch/switch.js';
 import { button } from '../ui/components/button/button.js';
@@ -33,15 +33,15 @@ export function mountFocusSettings(root, { controller, notify, document: page = 
     const settings = snapshot.settings || {}, off = blocked(), delivery = focusNotificationFeedback(snapshot);
     const toggle = (name, label, hint) => settingsRow({ key: name, label, hint, control: switchControl({ name, checked: !!settings[name], label, disabled: off }) });
     const permissionActions = platform.isNative ? html`${button({ label: '开启系统提醒', variant: 'primary', disabled: permissionBusy, attrs: { 'data-focus-setting': 'authorize' } })}${button({ label: '系统通知设置', disabled: permissionBusy, attrs: { 'data-focus-setting': 'openSettings' } })}${button({ label: '刷新权限', variant: 'ghost', disabled: permissionBusy, attrs: { 'data-focus-setting': 'getStatus' } })}` : '';
-    return html`${settingsGroup({ key: 'focus-main', rows: [
+    return html`${settingsGroup({ key: 'focus-main', flush: true, rows: [
       settingsRow({ key: 'workMinutes', label: '工作时长（分钟）', hint: '1–180', control: input({ name: 'workMinutes', value: String(minutes('workSeconds')), label: '工作时长（分钟）', type: 'number', disabled: off, attrs: { min: '1', max: '180', step: '1' } }) }),
       settingsRow({ key: 'breakMinutes', label: '短休息（分钟）', hint: '1–60', control: input({ name: 'breakMinutes', value: String(minutes('shortBreakSeconds')), label: '短休息（分钟）', type: 'number', disabled: off, attrs: { min: '1', max: '60', step: '1' } }) }),
       toggle('notificationsEnabled', '到期提醒', '工作或短休息结束时提供到期提示。'),
       toggle('soundEnabled', '提醒声音', '系统允许提醒时，播放提示音。'),
       toggle('showTrayTimer', '菜单栏显示剩余时间', '在 macOS 菜单栏查看当前轮次的计时。'),
-      settingsRow({ key: 'tz', label: '统计时区', hint: '首次初始化后固定' + (snapshot.runtime?.largeHistory ? '；专注记录较大，查询可能需要更长时间。' : ''), control: html`<span class="dl-readout dl-readout--mono">${settings.statisticsTimeZone || ''}</span>` }),
-    ] })}<p class="px-note" data-key="focus-note">设置只影响新会话。休息需要手动启动，不会自动连续计时。</p>${message ? html`<p class="px-note px-note--error" role="alert" data-key="focus-error">${message}</p>` : ''}${settingsGroup({ title: '系统通知', key: 'focus-permission', rows: [
-      settingsRow({ key: 'permission', label: '系统提醒权限', hint: permissionError || (delivery ? delivery.message : ''), hintTone: permissionError || delivery ? 'error' : undefined, control: html`<span class="dl-readout">${permissionText(platform, permission, lastKnown)}</span>` }),
+      settingsRow({ key: 'tz', label: '统计时区', hint: '首次初始化后固定' + (snapshot.runtime?.largeHistory ? '；专注记录较大，查询可能需要更长时间。' : ''), control: html`${settingsReadout({ text: settings.statisticsTimeZone || '', mono: true })}` }),
+    ] })}<p class="px-note" data-key="focus-note">设置只影响新会话。休息需要手动启动，不会自动连续计时。</p>${message ? html`<p class="px-note px-note--error" role="alert" data-key="focus-error">${message}</p>` : ''}${settingsGroup({ title: '系统通知', flush: true, key: 'focus-permission', rows: [
+      settingsRow({ key: 'permission', label: '系统提醒权限', hint: permissionError || (delivery ? delivery.message : ''), hintTone: permissionError || delivery ? 'error' : undefined, control: html`${settingsReadout({ text: permissionText(platform, permission, lastKnown) })}` }),
       ...(platform.isNative ? [settingsRow({ key: 'permission-actions', label: '授权与系统设置', hint: permissionDetails || delivery?.details || '', control: permissionActions })] : []),
     ] })}`;
   }

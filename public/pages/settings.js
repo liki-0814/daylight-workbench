@@ -2,7 +2,7 @@
 // 页面只拼装组件库的组件；数据来自反向代理状态仓库（proxyStore）、扩展服务和 AI 服务。
 import { morph } from '../ui/core/morph.js';
 import { html } from '../ui/core/html.js';
-import { settingsLayout, settingsGroup, settingsRow } from '../ui/patterns/settings/settings.js';
+import { settingsLayout, settingsGroup, settingsRow, settingsReadout } from '../ui/patterns/settings/settings.js';
 import { input } from '../ui/components/input/input.js';
 import { select } from '../ui/components/select/select.js';
 import { switchControl } from '../ui/components/switch/switch.js';
@@ -109,7 +109,7 @@ export function createSettingsPage({ getToken, proxyStore, confirmAction, mountF
     const hint = S.clientsState === 'error' ? '暂时无法读取接入状态，请稍后再试' : ready ? `${summary.total} 个已登记，${summary.found} 个检测到命令` : '正在读取接入状态…';
     const statusText = !ready ? '' : summary.missing.length ? html`<span class="px-status">${stateDot('warning')}${summary.missing.join(' · ')} 未找到命令</span>` : html`<span class="px-status">${stateDot('success')}全部可用</span>`;
     return settingsGroup({ title: groupTitle('本地扩展'), key: 'g-ext', rows: [
-      settingsRow({ key: 'agents', label: '主来源目录', hint: 'Skills 与 MCP 的统一存放位置', control: html`<span class="dl-readout dl-readout--mono">~/.agents</span>${S.reveal ? button({ label: '在访达中显示', attrs: { 'data-action': 'reveal' } }) : button({ label: S.copied.agents ? '已复制' : '复制路径', attrs: { 'data-action': 'copy-agents' } })}` }),
+      settingsRow({ key: 'agents', label: '主来源目录', hint: 'Skills 与 MCP 的统一存放位置', control: html`${settingsReadout({ text: '~/.agents', mono: true })}${S.reveal ? button({ label: '在访达中显示', attrs: { 'data-action': 'reveal' } }) : button({ label: S.copied.agents ? '已复制' : '复制路径', attrs: { 'data-action': 'copy-agents' } })}` }),
       settingsRow({ key: 'clients', label: '接入软件', hint, control: html`${statusText}${button({ label: '管理 ›', variant: 'ghost', attrs: { 'data-action': 'goto', 'data-href': '#extensions&tab=clients' } })}` }),
     ] });
   }
@@ -125,7 +125,7 @@ export function createSettingsPage({ getToken, proxyStore, confirmAction, mountF
     const rows = [
       settingsRow({ key: 'port', label: '本机端口', hint: S.portError || (extra ? portHint(state) : ''), hintTone: S.portError ? 'error' : undefined, control: input({ name: 'port', value: portValue, label: '本机端口', type: 'number', mono: true, invalid: !!S.portError, disabled: !current, attrs: { min: '1024', max: '65535', inputmode: 'numeric' } }) }),
       settingsRow({ key: 'autoStart', label: '随 Daylight 启动代理', hint: '关闭窗口后继续运行，退出 Daylight 时停止', control: switchControl({ name: 'autoStart', checked: !!current?.autoStart, label: '随 Daylight 启动代理', disabled: !current }) }),
-      settingsRow({ key: 'node', label: 'Node 运行环境', hint: current?.runtimeError ? '需要 Node 22 或更新版本' : '', hintTone: current?.runtimeError ? 'error' : undefined, control: html`<span class="dl-readout dl-readout--mono">${node}</span>${current?.native ? button({ label: '更改…', attrs: { 'data-action': 'node-path' }, disabled: keyLocked }) : ''}` }),
+      settingsRow({ key: 'node', label: 'Node 运行环境', hint: current?.runtimeError ? '需要 Node 22 或更新版本' : '', hintTone: current?.runtimeError ? 'error' : undefined, control: html`${settingsReadout({ text: node, mono: true })}${current?.native ? button({ label: '更改…', attrs: { 'data-action': 'node-path' }, disabled: keyLocked }) : ''}` }),
       settingsRow({ key: 'apikey', label: 'API Key', hint: S.proxyMessage || (keyLocked ? '停止代理后才能更换' : current?.native ? '已保存在钥匙串' : '已保存在本机'), hintTone: S.proxyMessage ? 'error' : undefined, control: button({ label: '更换…', variant: 'danger', disabled: !current || keyLocked || !!current?.runtimeError, attrs: { 'data-action': 'rotate-key' } }) }),
     ];
     return settingsGroup({ title: groupTitle('反向代理'), key: extra ? 'g-proxy-full' : 'g-proxy', rows });
@@ -175,13 +175,11 @@ export function createSettingsPage({ getToken, proxyStore, confirmAction, mountF
   function view() {
     const sections = [{ key: 'settings-nav', items: settingsSections.map(item => ({ ...item, active: item.value === S.section })) }];
     const label = settingsSections.find(item => item.value === S.section).label;
-    return settingsLayout({ navLabel: '设置分类', sections, title: label, subtitle: SUBTITLES[S.section] || '', children: body() });
+    return settingsLayout({ navLabel: '设置分类', scroll: 'page', sections, title: label, subtitle: SUBTITLES[S.section] || '', children: body() });
   }
   function paint() {
     if (disposed || !visible) return;
     morph(host, view());
-    const switchEl = host.querySelector('.dl-switch[data-name="autoStart"]');
-    if (switchEl) switchEl.setAttribute('aria-checked', String(!!status()?.autoStart));
     const slotEl = host.querySelector('.px-focus');
     if (slotEl && !slotEl.firstChild) { if (!focusMounted) { mountFocus(focusRoot); focusMounted = true; } slotEl.append(focusRoot); }
   }
@@ -205,7 +203,7 @@ export function createSettingsPage({ getToken, proxyStore, confirmAction, mountF
   function openNodeDialog() {
     nodeDialog?.destroy();
     const current = status();
-    nodeDialog = mountDialog({ id: 'node-path-dialog', label: '更改 Node 路径', width: 480, children: html`<div class="px-dlg"><h2 class="px-dlg__title">更改 Node 路径</h2><p class="px-dlg__text">留空自动检测，或填写 Node 22+ 的绝对路径。</p>${input({ name: 'nodePath', value: current?.node?.path || '', label: 'Node 路径', mono: true, placeholder: '自动检测' })}<p class="px-dlg__error" role="alert" data-node-error></p><div class="px-dlg__acts">${button({ label: '取消', variant: 'ghost', attrs: { 'data-dlg': 'cancel' } })}${button({ label: '保存', variant: 'primary', attrs: { 'data-dlg': 'save', 'data-dialog-submit': '' } })}</div></div>` });
+    nodeDialog = mountDialog({ id: 'node-path-dialog', label: '更改 Node 路径', width: 480, children: html`<div class="px-dlg"><h2 class="px-dlg-title">更改 Node 路径</h2><p class="px-dlg-text">留空自动检测，或填写 Node 22+ 的绝对路径。</p>${input({ name: 'nodePath', value: current?.node?.path || '', label: 'Node 路径', mono: true, placeholder: '自动检测' })}<p class="px-dlg-error" role="alert" data-node-error></p><div class="px-dlg-acts">${button({ label: '取消', variant: 'ghost', attrs: { 'data-dlg': 'cancel' } })}${button({ label: '保存', variant: 'primary', attrs: { 'data-dlg': 'save', 'data-dialog-submit': '' } })}</div></div>` });
     const el = nodeDialog.el;
     el.addEventListener('click', async event => {
       const action = event.target.closest?.('[data-dlg]')?.dataset.dlg; if (!action) return;
@@ -216,7 +214,7 @@ export function createSettingsPage({ getToken, proxyStore, confirmAction, mountF
     });
     nodeDialog.open();
   }
-  element.addEventListener('ui:select', event => { if (event.target.closest('.dl-set__nav')) { S.section = event.detail.value; paint(); } });
+  element.addEventListener('ui:select', event => { if (event.target.dataset?.name === 'section') { S.section = event.detail.value; paint(); } });
   element.addEventListener('ui:change', async event => {
     const target = event.target, name = target.dataset?.name || target.name || target.closest?.('[data-name]')?.dataset.name, { value } = event.detail;
     if (target.closest('#node-path-dialog')) return;

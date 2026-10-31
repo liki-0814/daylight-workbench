@@ -55,7 +55,7 @@ export function heroProps({ status, pending = '', slow = false, sources, today, 
     return { ...base, tagLabel: '运行中', address, meta };
   }
   if (state === 'starting') {
-    return { ...base, tagLabel: '启动中…', addressNote: `正在监听 127.0.0.1:${port} …`, note: '通常 1 秒内完成。超过 5 秒会显示「取消」',
+    return { ...base, tagLabel: '启动中…', addressNote: `正在监听 127.0.0.1:${port} …`, note: slow ? '启动比平时慢，可以点「取消」放弃这次启动' : `通常 1 秒内完成。超过 ${START_SLOW_MS / 1000} 秒会显示「取消」`,
       cancel: slow ? { label: '取消', attrs: { 'data-action': 'cancel-start' } } : undefined };
   }
   if (state === 'error') {
@@ -65,7 +65,9 @@ export function heroProps({ status, pending = '', slow = false, sources, today, 
   return { ...base, tagLabel: pending === 'stopping' || status?.state === 'stopping' ? '正在停止…' : '已停用', addressNote: `未在监听 · 启用后地址为 ${address}`, note: '配置保持可读可改，下次启用时生效。' };
 }
 
-export function portHint(state) {
+// slow：「取消」按钮已经出现（只有服务卡会传）。文案只在按钮真的可见时才提到它。
+export function portHint(state, { slow = false } = {}) {
+  if (state === 'starting' && slow) return '可以继续修改；改动在启动完成后生效。不想等可以点「取消」';
   return {
     running: '修改端口会自动重启代理（约 1 秒）',
     starting: '可以继续修改；改动在启动完成后生效',

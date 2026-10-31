@@ -3,7 +3,7 @@
 import {morph} from '../ui/core/morph.js';
 import {html,trusted,slot} from '../ui/core/html.js';
 import {serviceHero} from '../ui/patterns/service-status/service-status.js';
-import {settingsGroup,settingsRow} from '../ui/patterns/settings/settings.js';
+import {settingsGroup,settingsRow,settingsReadout} from '../ui/patterns/settings/settings.js';
 import {input} from '../ui/components/input/input.js';
 import {select} from '../ui/components/select/select.js';
 import {switchControl} from '../ui/components/switch/switch.js';
@@ -36,15 +36,15 @@ export function createServicePanel({store,getExampleModel,onViewLogs=()=>{}}){
   const current=status(),state=stateNow(),running=current?.state==='running'&&!local.pending;
   const props=actions(heroProps({status:current,pending:local.pending,slow:local.slow,sources:sourcesSummary(),today:local.today,announce:local.announce}));
   const portValue=local.portDraft??String(current?.port??4319);
-  const config=settingsGroup({title:'',key:'config',rows:[
-   settingsRow({key:'port',label:'本机端口',hint:local.portError||portHint(state),hintTone:local.portError?'error':undefined,control:input({name:'port',value:portValue,label:'本机端口',type:'number',mono:true,invalid:!!local.portError,attrs:{min:'1024',max:'65535',inputmode:'numeric'}})}),
+  const config=settingsGroup({title:'',key:'config',flush:true,rows:[
+   settingsRow({key:'port',label:'本机端口',hint:local.portError||portHint(state,{slow:local.slow}),hintTone:local.portError?'error':undefined,control:input({name:'port',value:portValue,label:'本机端口',type:'number',mono:true,invalid:!!local.portError,attrs:{min:'1024',max:'65535',inputmode:'numeric'}})}),
    settingsRow({key:'autoStart',label:'随 Daylight 启动',hint:'关闭窗口后继续运行，退出 Daylight 时停止',control:switchControl({name:'autoStart',checked:!!current?.autoStart,label:'随 Daylight 启动代理'})}),
   ]});
   const keyReady=!!local.key,unavailable=!!current?.runtimeError;
-  const connect=settingsGroup({title:'接入配置',key:'connect',rows:[
+  const connect=settingsGroup({title:'接入配置',key:'connect',flush:true,rows:[
    settingsRow({key:'protocol',label:'客户端协议',hint:'决定下面的 Base URL 与请求示例',control:select({name:'protocol',value:local.protocol,label:'客户端协议',options:protocols})}),
-   settingsRow({key:'base',label:'Base URL',control:html`<span class="dl-readout dl-readout--mono" data-copy-source>${baseUrl()||'正在读取…'}</span>${button({label:local.copied.url?'已复制':'复制',variant:'ghost',disabled:!baseUrl(),attrs:{'data-action':'copy-url'}})}`}),
-   settingsRow({key:'apikey',label:'API Key',hint:local.keyError||(keyReady?'':'正在读取…'),hintTone:local.keyError?'error':undefined,control:html`<span class="dl-readout dl-readout--mono" data-key-readout>${local.keyVisible&&keyReady?local.key:MASK}</span>${button({label:local.keyVisible?'隐藏':'显示',variant:'ghost',disabled:!keyReady,attrs:{'data-action':'toggle-key'}})}${button({label:local.copied.key?'已复制':'复制',variant:'ghost',disabled:!keyReady,attrs:{'data-action':'copy-key'}})}`}),
+   settingsRow({key:'base',label:'Base URL',control:html`${settingsReadout({text:baseUrl()||'正在读取…',mono:true,attrs:{'data-copy-source':''}})}${button({label:local.copied.url?'已复制':'复制',variant:'ghost',disabled:!baseUrl(),attrs:{'data-action':'copy-url'}})}`}),
+   settingsRow({key:'apikey',label:'API Key',hint:local.keyError||(keyReady?'':'正在读取…'),hintTone:local.keyError?'error':undefined,control:html`${settingsReadout({text:local.keyVisible&&keyReady?local.key:MASK,mono:true,attrs:{'data-key-readout':''}})}${button({label:local.keyVisible?'隐藏':'显示',variant:'ghost',disabled:!keyReady,attrs:{'data-action':'toggle-key'}})}${button({label:local.copied.key?'已复制':'复制',variant:'ghost',disabled:!keyReady,attrs:{'data-action':'copy-key'}})}`}),
    settingsRow({key:'example',label:'请求示例',hint:'curl，含当前协议、Base URL 与模型',control:button({label:local.copied.example?'已复制':'复制请求示例',disabled:!keyReady||unavailable,attrs:{'data-action':'copy-example'}})}),
    settingsRow({key:'check',label:'连接测试',hint:html`<span role="status">${local.check||'开启代理后，验证本机接口、鉴权与模型目录'}</span>`,control:button({label:local.checking?'测试中…':'测试连接',disabled:!running||local.checking,busy:local.checking,attrs:{'data-action':'test-connection'}})}),
   ]});
