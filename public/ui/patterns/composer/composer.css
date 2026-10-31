@@ -1,5 +1,5 @@
 .dl-comp { padding: var(--space-20) var(--space-20) var(--space-14); }
-.dl-comp__head { display: flex; align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); color: var(--color-text-tertiary); font-size: var(--text-sm); }
+.dl-comp__head { display: flex; align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); color: var(--color-text-tertiary); --ui-kbd-fg: var(--color-text-tertiary); font-size: var(--text-sm); }
 .dl-comp__esc { margin-left: auto; }
 .dl-comp .dl-input--title, .dl-comp .dl-input--bare { display: flex; width: 100%; padding: var(--space-2) var(--space-4); box-sizing: border-box; }
 .dl-comp .dl-input--bare { padding-bottom: var(--space-12); }
