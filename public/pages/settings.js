@@ -119,7 +119,7 @@ export function createSettingsPage({ getToken, proxyStore, confirmAction, mountF
     return settingsGroup({ title: '接入软件状态', key: 'g-clients', rows: S.clients.map(client => { const [tone, text] = stateOf(client); return settingsRow({ key: 'c-' + client.id, label: client.name || client.id, control: html`<span class="px-status">${stateDot(tone)}${text}</span>` }); }) });
   }
   function proxyGroup(extra = false) {
-    const current = status(), state = viewState(current), portValue = S.portDraft ?? String(current?.port ?? 4319);
+    const current = status(), state = viewState(current), portValue = S.portDraft ?? (current ? String(current.port) : '');
     const node = current?.runtimeError || (current?.node ? `${current.node.version || ''} · ${current.node.path || ''}` : '正在检测…');
     const keyLocked = current?.state !== 'stopped';
     const rows = [
