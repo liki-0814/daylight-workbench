@@ -99,6 +99,7 @@ export default [
     const cancels = []; await page.route('**/api/proxy/service/cancel', async route => { cancels.push(1); await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }); });
     await openProxy(page, url);
     check.equal(await page.locator('[data-action="cancel-start"]').count(), 0, '刚开始没有取消');
+    await page.clock.fastForward(5500);   // 页面时钟是假的：直接快进过 START_SLOW_MS（5s），不靠真实等待，负载高时也不会超时
     await page.locator('[data-action="cancel-start"]').waitFor({ timeout: 8000 });
     check.match(await page.locator('[data-action="cancel-start"]').textContent(), /取消/);
     await page.locator('[data-action="cancel-start"]').click(); await page.waitForTimeout(300);
