@@ -190,5 +190,7 @@
   "/pages/shell.js": "pages/shell.js",
   "/pages/tasks.js": "pages/tasks.js",
   "/pages/pages.css": "pages/pages.css",
-  "/pages/settings.js": "pages/settings.js"
+  "/pages/settings.js": "pages/settings.js",
+  "/ui/components/menu/menu.css": "ui/components/menu/menu.css",
+  "/ui/components/menu/menu.js": "ui/components/menu/menu.js"
 }

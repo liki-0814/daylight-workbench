@@ -113,7 +113,7 @@ export default [
     check.equal(geo.rows, 1, '主按钮和更多在同一行');
     check.ok(geo.primaryBottom <= geo.bodyTop && geo.panelBottom - geo.bodyTop > 0, '分区在操作行下面');
     check.equal(await page.locator('.dl-insp__actions').count(), 0, '没有钉在底部的操作区');
-    await page.locator('.dl-insp [data-name="more"] .dl-select__trigger').click();
+    await page.locator('.dl-insp [data-name="more"] .dl-menubtn__trigger').click();
     const items = await page.locator('.dl-insp [data-name="more"] .dl-menu__item').allTextContents();
     check.deepEqual(items.map(t => t.trim()), ['加入今天', '编辑', '讨论', '相关对话', '删除'], '更多菜单里的其他操作');
     await shot('more-menu');

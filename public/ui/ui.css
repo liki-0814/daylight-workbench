@@ -16,6 +16,7 @@
 @import url("./components/icon-button/icon-button.css") layer(ui);
 @import url("./components/input/input.css") layer(ui);
 @import url("./components/select/select.css") layer(ui);
+@import url("./components/menu/menu.css") layer(ui);
 @import url("./components/chip/chip.css") layer(ui);
 @import url("./components/switch/switch.css") layer(ui);
 @import url("./components/checkbox/checkbox.css") layer(ui);

@@ -548,7 +548,7 @@ document.addEventListener('ui:select', async event => {
   if (target.matches?.('.dl-nav')) { if (sidebarRoot?.contains(target)) navigate(value); return; }
   if (target.matches?.('.dl-row')) { selectedTaskId = selectedTaskId === value ? selectedTaskId : value; render(); return; }
   if (target.matches?.('.dl-select[data-name="scope"]')) { if (value === '__new__') openModal({ type: 'project' }); return; }
-  if (target.matches?.('.dl-select[data-name="more"]') && selectedTaskId) {
+  if (target.matches?.('.dl-menubtn[data-name="more"]') && selectedTaskId) {
     const id = selectedTaskId;
     if (value === 'edit') openModal({ type: 'task', id });
     else if (value === 'discuss') startDiscussion({ kind: 'task', id });
