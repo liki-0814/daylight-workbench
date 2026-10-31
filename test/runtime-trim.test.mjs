@@ -43,8 +43,10 @@ test('packaging removes unreachable files while retaining both windows, native A
   // Loading the actual retained AI and proxy services outside the checkout
   // detects imports that would otherwise be accidentally satisfied by npm.
   execFileSync(process.execPath, ['--input-type=module', '-e',
-    'const ai=await import(process.argv[1]);const proxy=await import(process.argv[2]);if(typeof ai.createAIService!=="function"||typeof proxy.createProxyService!=="function")throw Error("service entry");',
+    'const ai=await import(process.argv[1]);const proxy=await import(process.argv[2]);const ext=await import(process.argv[3]);if(typeof ai.createAIService!=="function"||typeof proxy.createProxyService!=="function"||typeof ext.createExtensionsService!=="function")throw Error("service entry");',
     pathToFileURL(path.join(resources, 'ai/service.mjs')).href,
-    pathToFileURL(path.join(resources, 'proxy/service.js')).href],
+    pathToFileURL(path.join(resources, 'proxy/service.js')).href,
+    // The Extensions service (catalog.mjs, mcp-import.mjs) imports jsonc-parser; it must resolve without node_modules.
+    pathToFileURL(path.join(resources, 'extensions/service.mjs')).href],
     { cwd: resources, env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' } });
 });
