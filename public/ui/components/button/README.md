@@ -18,4 +18,7 @@
 | `--button-border` | `--ui-button-border` | `--color-border-default`（primary：透明） |
 | `--button-radius` | `--radius-control` | semantic.css 里原 `--button-radius` 已搬走，值 `var(--radius-md)` 留给旧页面 |
 
-快捷键（`kbd`）：文字色来自组件令牌 `--ui-button-kbd-fg`，每个变体自己声明（默认 / ghost / danger 用 `--color-text-secondary`，primary 用 `--color-text-on-accent`，disabled 用 `--color-text-disabled`），都按「对该变体底色 ≥4.5:1」取值，不再用 opacity 冲淡；新增变体必须同时声明它。页面不要覆盖 `.dl-btn > kbd`。
+快捷键（`.dl-kbd`，定义在 button.css，button / nav / input / composer 共用）只有一个契约令牌 `--ui-kbd-fg`：
+- `.dl-kbd` 自己 `color: var(--ui-kbd-fg, var(--color-text-secondary))`，**不用 opacity**（opacity 会把前景色和底色混合，白字在主色底上掉到 3.26:1）；描边用 `currentColor`。
+- 宿主组件只做一件事：按变体 / 状态给 `--ui-kbd-fg` 赋值，且取值对自己当前底色 ≥4.5:1。button：默认 / ghost / danger = `--color-text-secondary`，primary = `--color-text-on-accent`，disabled = `--color-text-disabled`；nav：默认 secondary、hover / 选中 = `--color-text-primary`；input：secondary；composer 头部：tertiary。
+- 新增变体 / 状态必须同时给出它的 `--ui-kbd-fg`。页面不要覆盖 `.dl-btn > kbd`（lint 规则 7）；不要给 `.dl-kbd` 加 opacity。

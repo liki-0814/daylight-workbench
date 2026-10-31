@@ -13,3 +13,5 @@
 
 ## 转义
 所有 `label` / `title` / `value` / `count` / `empty` 经 `esc()`；`header` 只接受 `trusted()` / 组件返回值。
+
+快捷键 `kbd` 用 `.dl-kbd` 的令牌 `--ui-kbd-fg`：`.dl-nav__item` 默认 secondary，hover / 选中 primary（契约见 button/README.md）。

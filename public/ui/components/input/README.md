@@ -11,3 +11,5 @@
 
 ## 转义
 `value`、`placeholder`、`label`、`name` 都经 `esc()`；`<textarea>` 内容也转义。
+
+`kbd` 用 `.dl-kbd` 的令牌 `--ui-kbd-fg`：`.dl-input` 里取 `--color-text-secondary`（契约见 button/README.md）。
