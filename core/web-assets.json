@@ -134,5 +134,12 @@
   "/components/distribution-list.css": "components/distribution-list.css",
   "/components/format-number.js": "components/format-number.js",
   "/components/media-models.js": "components/media-models.js",
-  "/components/media-models.css": "components/media-models.css"
+  "/components/media-models.css": "components/media-models.css",
+  "/ui/core/html.js": "ui/core/html.js",
+  "/ui/theme-boot.js": "ui/theme-boot.js",
+  "/ui/tokens/legacy-aliases.css": "ui/tokens/legacy-aliases.css",
+  "/ui/tokens/semantic.css": "ui/tokens/semantic.css",
+  "/ui/tokens/theme.css": "ui/tokens/theme.css",
+  "/ui/tokens/themes/mist.css": "ui/tokens/themes/mist.css",
+  "/ui/ui.css": "ui/ui.css"
 }

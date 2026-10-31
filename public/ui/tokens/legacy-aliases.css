@@ -1,0 +1,64 @@
+/* 旧令牌名 → Mist 令牌（迁移期；PR-Z 删除）。「别名翻转」：本文件在 design-system.css 之后加载，
+   同名 :root 声明后者胜出，因此页面里所有 var(--bg) / var(--text) / var(--accent) … 一次性换成 Mist 的值。
+   旧值仍原封不动留在 design-system.css 里：回滚 = 从 ui.css 删掉对本文件的 @import（或 revert 换肤 PR）。
+   本文件只写 var(--color-*) 等引用，不写任何原始色值。 */
+:root {
+  --font-ui: var(--font-sans);
+  --button-radius: var(--radius-md);
+
+  /* 背景 */
+  --bg: var(--color-bg-surface);
+  --bg-secondary: var(--color-bg-sunken);
+  --bg-grouped: var(--color-bg-sunken);
+  --workbench-background: var(--color-bg-app);
+  --surface: var(--color-bg-surface);
+  --row-bg: var(--color-bg-surface);
+  --row-hover: var(--color-bg-hover);
+  --fill-hover: var(--color-bg-hover);
+  --fill-selected: var(--color-bg-selected);
+  --fill-control: var(--color-bg-sunken);
+  --scrim: var(--color-bg-scrim);
+
+  /* 线 */
+  --separator: var(--color-border-subtle);
+  --separator-strong: var(--color-border-default);
+  --connected-line: var(--color-border-default);
+  --control-border: var(--color-control-border);
+
+  /* 文字 */
+  --text: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --on-accent: var(--color-text-on-accent);
+
+  /* 强调 / 状态 */
+  --accent: var(--color-accent);
+  --accent-text: var(--color-accent-text);
+  --success: var(--color-success);
+  --success-text: var(--color-success-text);
+  --success-bg: var(--color-success-subtle);
+  --warning: var(--color-warning);
+  --warning-text: var(--color-warning-text);
+  --warning-bg: var(--color-warning-subtle);
+  --danger: var(--color-error);
+  --danger-text: var(--color-error-text);
+  --danger-bg: var(--color-error-subtle);
+  --info-bg: var(--color-info-subtle);
+
+  /* 「已接入」状态（点 + 文字，胶囊底中性） */
+  --connected-dot: var(--color-success);
+  --connected-text: var(--color-text-secondary);
+  --connected-chip: var(--color-bg-sunken);
+  --idle-ring: var(--color-control-border);
+  --idle-text: var(--color-text-secondary);
+  --update-dot: var(--color-warning);
+  --update-text: var(--color-warning-text);
+
+  /* 控件 */
+  --switch-off: var(--color-switch-off);
+  --focus-ring: var(--shadow-focus);
+
+  /* 毛玻璃：顶栏是唯一使用者（style.css .topbar）；降低透明度时由主题/semantic 把 -bg 换成不透明 -solid。 */
+  --material: var(--material-toolbar-bg);
+  --material-filter: var(--material-toolbar-filter);
+}
