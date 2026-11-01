@@ -7,7 +7,7 @@ const svg = (body, cls = 'fd-ic') => `<svg class="${cls}" viewBox="0 0 24 24" ar
 export const ICONS = {
   info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/>', 'fd-ic fd-ic-info'),
   up: svg('<path d="M12 19V5m-6 6 6-6 6 6"/>'), down: svg('<path d="M12 5v14m-6-6 6 6 6-6"/>'), flat: svg('<path d="M5 12h14"/>'),
-  filter: svg('<path d="M4 6h16M7 12h10M10 18h4"/>'), more: svg('<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>'),
+  filter: svg('<path d="M4 6h16M7 12h10M10 18h4"/>'),
   play: svg('<path d="M8 5.5v13l10-6.5-10-6.5Z" fill="currentColor"/>'), check: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.8 2.8L16 9.6"/>'),
   download: svg('<path d="M12 4v11m-4-4 4 4 4-4M5 20h14"/>')
 };

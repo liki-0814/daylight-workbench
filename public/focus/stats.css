@@ -25,16 +25,12 @@
 .focus-dash .fd-btn:hover { background: var(--fill-hover); }
 .focus-dash .fd-btn[aria-expanded="true"] { background: var(--fill-selected); border-color: var(--accent); }
 .focus-dash .fd-btn .fd-ic { width: 15px; height: 15px; }
-.focus-dash .fd-btn.fd-icon-only { width: 28px; padding: 0; justify-content: center; }
+.focus-dash .fd-btn[aria-busy="true"] { color: var(--fd-text-2); cursor: progress; }
+.focus-dash .fd-btn[aria-busy="true"]:hover { background: var(--surface); }
 .focus-dash .fd-filter-count { color: var(--accent-text); font-weight: 600; }
 .focus-dash .fd-pop-wrap { position: relative; }
 .focus-dash .fd-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; background: var(--surface); border: 1px solid var(--separator-strong); border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .14); padding: 12px; }
 .focus-dash .fd-pop[hidden] { display: none; }
-.focus-dash .fd-menu { min-width: 190px; padding: 6px; }
-.focus-dash .fd-menu button { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: none; font: inherit; color: var(--fd-text); text-align: left; cursor: pointer; }
-.focus-dash .fd-menu button:hover, .focus-dash .fd-menu button:focus-visible { background: var(--fill-hover); }
-.focus-dash .fd-menu button:disabled { color: var(--fd-text-2); cursor: default; }
-.focus-dash .fd-menu .fd-ic { width: 15px; height: 15px; color: var(--fd-text-2); }
 .focus-dash .fd-filter-panel { width: 340px; display: grid; gap: 12px; }
 .focus-dash .fd-filter-panel h2 { margin: 0; font-size: 13px; line-height: 18px; }
 .focus-dash .fd-filter-panel .fd-fields { display: grid; gap: 10px; }
