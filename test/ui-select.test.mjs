@@ -174,14 +174,44 @@ test('选择被取消：data-value、文字、aria-selected 全部回到之前�
   assert.equal(isOpen(s), false, '取消不影响菜单已经关闭');
 });
 
-// 已知缺陷（候选偏差）：原来是空值时，被取消的选择会把文字回滚成占位符，但 is-empty 没有恢复，占位符会按「已选」样式显示。
-test('选择被取消（原来为空）：is-empty 恢复，占位符样式不丢', { todo: 'select.pick 的回滚没有恢复 is-empty' }, t => {
+// 原来是空值时，被取消的选择要把文字回滚成占位符，同时恢复 is-empty（否则占位符会按「已选」样式显示）。
+test('选择被取消（原来为空）：is-empty 恢复，占位符样式不丢', t => {
   const off = preventAll('ui:change'); t.after(off);
   const s = build();
   click(s.trigger);
   click(s.item('a'));
   assert.equal(s.text(), '未选择');
   assert.equal(s.trigger.classList.contains('is-empty'), true);
+  assert.equal(s.trigger.dataset.value, '');
+  assert.deepEqual(selected(s), []);
+});
+
+test('选择被取消（原来有值）：不会误加 is-empty', t => {
+  const off = preventAll('ui:change'); t.after(off);
+  const s = build({ value: 'a' });
+  click(s.trigger);
+  click(s.item('g'));
+  assert.equal(s.trigger.classList.contains('is-empty'), false);
+});
+
+test('回滚 = 按原值整体重新渲染：自定义占位符、原值不在选项里（视作空）、各项 aria-selected 与 data-value 全部一致', t => {
+  const off = preventAll('ui:change'); t.after(off);
+  const custom = build({ placeholder: '请选择项目' });
+  assert.equal(custom.trigger.dataset.placeholder, '请选择项目');
+  click(custom.trigger);
+  click(custom.item('b'));
+  assert.equal(custom.text(), '请选择项目');
+  assert.equal(custom.trigger.classList.contains('is-empty'), true);
+  assert.equal(custom.trigger.dataset.value, '');
+  assert.deepEqual(selected(custom), []);
+  const unknown = build({ value: 'zzz' });
+  assert.equal(unknown.trigger.classList.contains('is-empty'), true);
+  click(unknown.trigger);
+  click(unknown.item('g'));
+  assert.equal(unknown.trigger.dataset.value, 'zzz');
+  assert.equal(unknown.text(), '未选择');
+  assert.equal(unknown.trigger.classList.contains('is-empty'), true);
+  assert.deepEqual(selected(unknown), []);
 });
 
 test('选中当前值只关闭菜单：不派发 ui:change，DOM 不变，焦点回触发按钮', t => {

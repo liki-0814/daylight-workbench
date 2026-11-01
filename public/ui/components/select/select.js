@@ -17,7 +17,7 @@ export function select({ name, value = '', label, options = [], variant = 'field
     : html`<button class="${cx('dl-menu__item', option.action && 'is-action')}" type="button" role="option" aria-selected="${!option.action && String(option.value) === String(value) ? 'true' : 'false'}" data-value="${option.value}" data-label="${option.label}" data-key="${option.value}">${option.dot ? dot(option.dot) : ''}${option.icon ? icon(option.icon, { size: 14 }) : ''}<span class="dl-menu__label">${option.label}</span>${option.meta ? html`<span class="dl-menu__meta">${option.meta}</span>` : ''}${!option.action && String(option.value) === String(value) ? icon('check', { size: 14, className: 'dl-menu__check' }) : ''}</button>`);
   const triggerClass = variant === 'chip' ? 'dl-chip' : variant === 'ghost' ? 'dl-select__trigger dl-select__trigger--ghost' : 'dl-select__trigger';
   return html`<div class="${cx('dl-select', `dl-select--${esc(variant)}`)}" data-ui="select" data-placement="${placement}" data-ui-keep="data-open"${name ? attrs({ 'data-name': name }) : ''}${attrs(extra)}>
-<button class="${cx(triggerClass, !current && 'is-empty')}" type="button" id="${id}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-menu" aria-label="${label}"${flag('disabled', disabled)} data-ui-keep="aria-expanded" data-value="${value}">${current?.dot ? dot(current.dot) : ''}<span class="dl-select__value">${current ? current.label : placeholder}</span>${icon('down', { size: 14, className: 'dl-select__chev' })}</button>
+<button class="${cx(triggerClass, !current && 'is-empty')}" type="button" id="${id}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-menu" aria-label="${label}"${flag('disabled', disabled)} data-ui-keep="aria-expanded" data-value="${value}" data-placeholder="${placeholder}">${current?.dot ? dot(current.dot) : ''}<span class="dl-select__value">${current ? current.label : placeholder}</span>${icon('down', { size: 14, className: 'dl-select__chev' })}</button>
 <div class="dl-menu" id="${id}-menu" role="listbox" aria-label="${label}" hidden data-ui-keep="hidden">${search ? html`<input class="dl-menu__search" type="text" aria-label="搜索 ${label}" placeholder="搜索…" autocomplete="off" data-ui-keep="value">` : ''}${items}</div>
 </div>`;
 }
@@ -41,6 +41,19 @@ function setOpen(root, open, event) {
   }
 }
 
+// 由「当前值」整体渲染选择器的状态：data-value、显示文字（无匹配项 → 占位符）、is-empty、各选项的 aria-selected。
+// 乐观更新与回滚都走这一个函数——回滚就是用原值再渲染一次，不逐个补丁 class / 属性，也就不会漏掉某一项状态。
+function renderValue(root, value) {
+  const { trigger, menu } = parts(root);
+  const label = trigger.querySelector('.dl-select__value');
+  const options = itemsOf(menu);
+  const current = options.find(el => !el.classList.contains('is-action') && (el.dataset.value ?? '') === value);
+  trigger.dataset.value = value;
+  trigger.classList.toggle('is-empty', !current);
+  if (label) label.textContent = current ? (current.dataset.label ?? value) : (trigger.dataset.placeholder ?? '');
+  for (const el of options) el.setAttribute('aria-selected', String(el === current));
+}
+
 function pick(root, item, event) {
   const { trigger } = parts(root);
   const value = item.dataset.value ?? '';
@@ -57,21 +70,9 @@ function pick(root, item, event) {
   }
   const previousValue = trigger.dataset.value ?? '';
   if (previousValue === value) return emitClose();
-  // 乐观更新：先改 DOM，ui:change 被取消就回滚。
-  const previousLabel = trigger.querySelector('.dl-select__value, .dl-chip__label')?.textContent ?? '';
-  const label = trigger.querySelector('.dl-select__value');
-  const previousItem = root.querySelector('.dl-menu__item[aria-selected="true"]');
-  trigger.dataset.value = value;
-  if (label) label.textContent = item.dataset.label ?? value;
-  trigger.classList.remove('is-empty');
-  previousItem?.setAttribute('aria-selected', 'false');
-  item.setAttribute('aria-selected', 'true');
-  if (!emit(root, 'change', { value, previousValue, source }, { cancelable: true })) {
-    trigger.dataset.value = previousValue;
-    if (label) label.textContent = previousLabel;
-    item.setAttribute('aria-selected', 'false');
-    previousItem?.setAttribute('aria-selected', 'true');
-  }
+  // 乐观更新：先按新值渲染，ui:change 被取消就按原值重新渲染（回滚 = 再渲染一次，见 renderValue）。
+  renderValue(root, value);
+  if (!emit(root, 'change', { value, previousValue, source }, { cancelable: true })) renderValue(root, previousValue);
   emitClose();
 }
 
