@@ -30,4 +30,5 @@ export function emit(target, verb, detail, { cancelable = false } = {}) {
   return !event.defaultPrevented;
 }
 // 键盘触发的事件 source 为 'keyboard'，其余为 'user'。
-export const sourceOf = event => (event && (event.type === 'keydown' || event.type === 'keyup' || event.detail === 0 && event.type === 'click' && event.pointerType === '') ? 'keyboard' : 'user');
+// 契约 E-8：keydown / keyup，或 click 且 event.detail === 0（键盘激活按钮）= keyboard。不依赖 pointerType（Safari 16 的 click 是 MouseEvent，没有 pointerType）。
+export const sourceOf = event => (event && (event.type === 'keydown' || event.type === 'keyup' || (event.type === 'click' && event.detail === 0)) ? 'keyboard' : 'user');
