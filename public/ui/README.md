@@ -17,6 +17,21 @@ pages 只 import  ui/components/<n>/<n>.js、ui/patterns/<n>/<n>.js、ui/core/*�
 ui/ 不得 import ui/ 之外；core → components → patterns 单向；页面只能 import 入口文件；
 组件只能经 `emit()` 派发事件；不得出现内联 style；旧 `public/components/*` 的「非垫片」文件数有棘轮（基线 `scripts/lint-deps-baseline.json`，PR-Z 前清零）。
 
+## 前缀约定：`dl-` 与 `ui-`
+
+| 前缀 | 用在哪 | 例子 | 谁可以写 |
+| --- | --- | --- | --- |
+| `dl-` | **类名**：组件 / pattern 的 DOM 标记与样式钩子（BEM：`dl-btn`、`dl-btn--primary`、`dl-insp__title`、`dl-is-*` 状态类用 `is-*`） | `<button class="dl-btn dl-btn--primary">` | 只有 `public/ui/**` 里的组件 / pattern 定义；页面只能用，不能新造 `dl-*` 类、不能覆盖其内部选择器（lint 规则 7） |
+| `ui-` | **自定义属性（CSS 变量）**：组件令牌（T3），即组件对外公开的「调节旋钮」 | `--ui-kbd-fg`、`--ui-kbd-border`、`--ui-button-hover-bg` | 组件在自己的 CSS 里定义并给出回退值；宿主只赋值、不改组件的其它属性 |
+| `ui:` | **事件名**：见下文「事件契约」 | `ui:change`、`ui:select` | 只能经 `emit()` 派发 |
+| `--color-* / --space-* / --text-*` 等 | 语义令牌（T2），页面和组件都可读 | `--color-border-strong` | `tokens/semantic.css` |
+| `--fd-*`、`--fill-hover` 等旧名 | 过渡别名，只许减少，不许新增 | — | `tokens/legacy-aliases.css` / `focus/stats.css` |
+
+规则：
+- 新增组件令牌一律叫 `--ui-<组件>-<属性>`（宿主与组件之间的契约，必须写进该组件 README 的「令牌契约」并给出回退值）；不要新造 `--dl-*` 变量或 `ui-*` 类名。
+- 类名前缀是 `dl-`、变量前缀是 `ui-`，这是历史形成的，**不统一改名**（改名会碰所有页面与测试）；这里只把两者各自的范围写清楚，避免新代码混用。
+- 组件令牌取值只能来自语义令牌（T2）或 `currentColor` / 数值，不写原始色值；深色值只允许出现在主题文件（T1）。
+
 ## 样式层
 
 `ui.css` 第一行声明 `@layer legacy, tokens, ui, page;`，之后的优先级与 `<link>` 顺序无关：
