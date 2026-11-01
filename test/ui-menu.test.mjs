@@ -154,13 +154,15 @@ test('焦点还在触发按钮上时（菜单已开）：ArrowDown / Home 去第
   assert.equal(document.activeElement, m.item('a'));
 });
 
-test('选择一项：先 ui:close 再 ui:select（value = 该项 data-value，没有 previousValue，不可取消），菜单关闭、焦点回触发按钮，菜单不保存值', t => {
+test('选择一项：先 ui:select 再 ui:close（契约 E-10；value = 该项 data-value，没有 previousValue，不可取消），菜单关闭、焦点回触发按钮，菜单不保存值', t => {
   const rec = record(); t.after(rec.stop);
   const m = build();
   click(m.trigger);
   click(m.item('c'));
-  assert.deepEqual(rec.types(), ['ui:open', 'ui:close', 'ui:select']);
-  const select = rec.log[2];
+  assert.deepEqual(rec.types(), ['ui:open', 'ui:select', 'ui:close']);
+  const select = rec.log[1];
+  assert.deepEqual(rec.log[2].detail, { value: null, source: 'user' });
+  assert.equal(rec.log[2].target, m.root);
   assert.equal(select.target, m.root);
   assert.deepEqual(select.detail, { value: 'c', source: 'user' });
   assert.equal(select.cancelable, false);
@@ -177,8 +179,9 @@ test('选择时 source 随触发动作：键盘激活（detail 0）→ keyboard�
   assert.deepEqual(rec.log.slice(1).map(item => item.detail.source), ['keyboard', 'keyboard']);
   click(m.trigger);
   click(m.item('c').querySelector('.dl-menu__label'));
-  assert.deepEqual(rec.log.at(-1).detail, { value: 'c', source: 'user' });
-  assert.equal(rec.log.at(-1).type, 'ui:select');
+  assert.deepEqual(rec.log.at(-2).detail, { value: 'c', source: 'user' });
+  assert.equal(rec.log.at(-2).type, 'ui:select');
+  assert.equal(rec.log.at(-1).type, 'ui:close');
 });
 
 test('disabled 的菜单项点击无效：不派发、菜单仍然打开；点分隔线同样什么都不发生', t => {

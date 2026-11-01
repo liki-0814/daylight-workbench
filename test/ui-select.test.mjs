@@ -119,7 +119,7 @@ test('方向键在选项间移动焦点并循环（Home / End 到两端）；焦
   assert.equal(document.activeElement, s.trigger);
 });
 
-test('选择新值：先 ui:close 再 ui:change（value / previousValue / source，可取消）；DOM 已更新：data-value、显示文字、aria-selected 只剩新项、is-empty 去掉、焦点回触发按钮', t => {
+test('选择新值：先 ui:change 再 ui:close（契约 E-10；value / previousValue / source，可取消）；DOM 已更新：data-value、显示文字、aria-selected 只剩新项、is-empty 去掉、焦点回触发按钮', t => {
   const rec = record(); t.after(rec.stop);
   const s = build({ value: 'a' });
   click(s.trigger);
@@ -127,8 +127,9 @@ test('选择新值：先 ui:close 再 ui:change（value / previousValue / source
   const listen = () => { during = { value: s.trigger.dataset.value, text: s.text(), selected: selected(s) }; };
   document.addEventListener('ui:change', listen); t.after(() => document.removeEventListener('ui:change', listen));
   click(s.item('g'));
-  assert.deepEqual(rec.types(), ['ui:open', 'ui:close', 'ui:change']);
-  const change = rec.log[2];
+  assert.deepEqual(rec.types(), ['ui:open', 'ui:change', 'ui:close']);
+  const change = rec.log[1];
+  assert.deepEqual(rec.log[2].detail, { value: null, source: 'user' });
   assert.equal(change.target, s.root);
   assert.deepEqual(change.detail, { value: 'g', previousValue: 'a', source: 'user' });
   assert.equal(change.cancelable, true);
@@ -140,12 +141,12 @@ test('选择新值：先 ui:close 再 ui:change（value / previousValue / source
   assert.equal(document.activeElement, s.trigger);
 });
 
-test('键盘选择（Enter / Space 激活选项，click.detail 0）：ui:close 与 ui:change 的 source 都是 keyboard', t => {
+test('键盘选择（Enter / Space 激活选项，click.detail 0）：ui:change 与 ui:close 的 source 都是 keyboard', t => {
   const rec = record(); t.after(rec.stop);
   const s = build({ value: 'a' });
   click(s.trigger);
   keyboardClick(s.item('b'));
-  assert.deepEqual(rec.log.slice(1).map(item => [item.type, item.detail.source]), [['ui:close', 'keyboard'], ['ui:change', 'keyboard']]);
+  assert.deepEqual(rec.log.slice(1).map(item => [item.type, item.detail.source]), [['ui:change', 'keyboard'], ['ui:close', 'keyboard']]);
 });
 
 test('原来没有值：选择后 is-empty 去掉，previousValue 是空串', t => {
@@ -157,7 +158,7 @@ test('原来没有值：选择后 is-empty 去掉，previousValue 是空串', t 
   click(s.item('b'));
   assert.equal(s.trigger.classList.contains('is-empty'), false);
   assert.equal(s.text(), 'Beta');
-  assert.deepEqual(rec.log.at(-1).detail, { value: 'b', previousValue: '', source: 'user' });
+  assert.deepEqual(rec.log.at(-2).detail, { value: 'b', previousValue: '', source: 'user' });
 });
 
 test('选择被取消：data-value、文字、aria-selected 全部回到之前的值', t => {
@@ -195,22 +196,22 @@ test('选中当前值只关闭菜单：不派发 ui:change，DOM 不变，焦点
   assert.equal(document.activeElement, s.trigger);
 });
 
-test('action 项（如「新建…」）：先 ui:close 再 ui:select（只有 value 和 source，不可取消），不改变值、文字和 aria-selected', t => {
+test('action 项（如「新建…」）：先 ui:select 再 ui:close（契约 E-10；只有 value 和 source，不可取消），不改变值、文字和 aria-selected', t => {
   const rec = record(); t.after(rec.stop);
   const s = build({ value: 'a' });
   click(s.trigger);
   click(s.item('__new'));
-  assert.deepEqual(rec.types(), ['ui:open', 'ui:close', 'ui:select']);
-  assert.deepEqual(rec.log[2].detail, { value: '__new', source: 'user' });
-  assert.equal(rec.log[2].cancelable, false);
-  assert.equal(rec.log[2].target, s.root);
+  assert.deepEqual(rec.types(), ['ui:open', 'ui:select', 'ui:close']);
+  assert.deepEqual(rec.log[1].detail, { value: '__new', source: 'user' });
+  assert.equal(rec.log[1].cancelable, false);
+  assert.equal(rec.log[1].target, s.root);
   assert.equal(s.trigger.dataset.value, 'a');
   assert.equal(s.text(), 'Alpha');
   assert.deepEqual(selected(s), ['a']);
   assert.equal(document.activeElement, s.trigger);
   click(s.trigger);
   keyboardClick(s.item('__new'));
-  assert.deepEqual(rec.log.at(-1).detail, { value: '__new', source: 'keyboard' });
+  assert.deepEqual(rec.log.at(-2).detail, { value: '__new', source: 'keyboard' });
 });
 
 test('分隔线上的点击什么都不做（菜单保持打开）；点击选项里的子元素等同点选项', t => {
@@ -221,8 +222,8 @@ test('分隔线上的点击什么都不做（菜单保持打开）；点击选�
   assert.equal(isOpen(s), true);
   assert.equal(rec.log.length, 1);
   click(s.item('g').querySelector('.dl-menu__label'));
-  assert.equal(rec.log.at(-1).type, 'ui:change');
-  assert.equal(rec.log.at(-1).detail.value, 'g');
+  assert.equal(rec.log.at(-2).type, 'ui:change');
+  assert.equal(rec.log.at(-2).detail.value, 'g');
 });
 
 test('chip 变体：触发按钮是 .dl-chip，同样能打开、选择、回滚', t => {
@@ -234,7 +235,7 @@ test('chip 变体：触发按钮是 .dl-chip，同样能打开、选择、回滚
   click(s.item('b'));
   assert.equal(s.trigger.dataset.value, 'b');
   assert.equal(s.text(), 'Beta');
-  assert.deepEqual(rec.log.at(-1).detail, { value: 'b', previousValue: 'a', source: 'user' });
+  assert.deepEqual(rec.log.at(-2).detail, { value: 'b', previousValue: 'a', source: 'user' });
 });
 
 test('disabled：点击与键盘都打不开', t => {
@@ -354,12 +355,17 @@ test('标记：角色、aria 关联、选中态、data-value、is-empty / 占位
   assert.throws(() => select({ options }), TypeError);
 });
 
-// 契约 E-10 写的是「先 select / change 再 close」；现状是 close 在前（先收起菜单再通知值）。
-test('契约 E-10：选择时 ui:change 先于 ui:close', { todo: '现状 ui:close 先于 ui:change（候选偏差 D4）' }, t => {
+// 契约 E-10：先 select / change 再 close。
+test('契约 E-10：选择时 ui:change 先于 ui:close（change 被取消时 close 仍在其后）', t => {
   const rec = record(); t.after(rec.stop);
   const s = build({ value: 'a' });
   click(s.trigger);
   rec.log.length = 0;
   click(s.item('g'));
   assert.deepEqual(rec.types(), ['ui:change', 'ui:close']);
+  const off = preventAll('ui:change'); t.after(off);
+  click(s.trigger);
+  rec.log.length = 0;
+  click(s.item('b'));
+  assert.deepEqual(rec.types(), ['ui:change', 'ui:close'], '被取消的 change 之后仍补发 close');
 });

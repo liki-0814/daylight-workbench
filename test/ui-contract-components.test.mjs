@@ -140,7 +140,7 @@ test('E-10：toast 的动作先派发 ui:select 再移除节点（事件期间�
   assert.equal(el.isConnected, false);
 });
 
-test('E-10：menu 选中一项时 ui:select 先于 ui:close（close 在 select 之后）', { todo: '已知偏差 D4：menu.js 先 close 再 select，顺序与契约 E-10 相反；改组件顺序后移除 todo' }, () => {
+test('E-10：menu 选中一项时 ui:select 先于 ui:close（close 在 select 之后）', () => {
   resetBody();
   const { host } = mount(menu({ name: 'm', label: 'm', options: menuOptions }));
   click(host.querySelector('.dl-menubtn__trigger'));

@@ -63,8 +63,12 @@ install('menu', doc => {
     if (item) {
       if (item.disabled) return;
       const { trigger } = parts(root), value = item.dataset.value ?? '';
-      setOpen(root, false, event); trigger.focus();
-      emit(root, 'select', { value, source: sourceOf(event) });
+      // 契约 E-10：ui:select 先于 ui:close。先静默收起菜单并把焦点还给触发按钮（监听器看到的是已关闭的 DOM），
+      // 再派发 select，最后补发 close（只有菜单原来是打开的才派发）。
+      const wasOpen = !parts(root).list.hidden, source = sourceOf(event);
+      setOpen(root, false); trigger.focus();
+      emit(root, 'select', { value, source });
+      if (wasOpen) emit(root, 'close', { value: null, source });
       return;
     }
     if (event.target.closest('.dl-menubtn__trigger')) setOpen(root, parts(root).list.hidden, event);

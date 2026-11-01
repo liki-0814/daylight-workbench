@@ -45,14 +45,18 @@ function pick(root, item, event) {
   const { trigger } = parts(root);
   const value = item.dataset.value ?? '';
   const source = sourceOf(event);
+  // 契约 E-10：ui:select / ui:change 先于 ui:close。先静默收起菜单并把焦点还给触发按钮（监听器看到的是已关闭的 DOM），
+  // 通知值之后再补发 close（只有菜单原来是打开的才派发）。
+  const wasOpen = !parts(root).menu.hidden;
+  const emitClose = () => { if (wasOpen) emit(root, 'close', { value: null, source }); };
+  setOpen(root, false); trigger.focus();
   if (item.classList.contains('is-action')) {
-    setOpen(root, false, event); trigger.focus();
     emit(root, 'select', { value, source });
+    emitClose();
     return;
   }
   const previousValue = trigger.dataset.value ?? '';
-  setOpen(root, false, event); trigger.focus();
-  if (previousValue === value) return;
+  if (previousValue === value) return emitClose();
   // 乐观更新：先改 DOM，ui:change 被取消就回滚。
   const previousLabel = trigger.querySelector('.dl-select__value, .dl-chip__label')?.textContent ?? '';
   const label = trigger.querySelector('.dl-select__value');
@@ -68,6 +72,7 @@ function pick(root, item, event) {
     item.setAttribute('aria-selected', 'false');
     previousItem?.setAttribute('aria-selected', 'true');
   }
+  emitClose();
 }
 
 export function closeSelects(scope = document) {
