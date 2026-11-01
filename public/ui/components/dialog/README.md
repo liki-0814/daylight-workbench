@@ -6,9 +6,9 @@
 | 事件 | 时机 | detail |
 |---|---|---|
 | `ui:dismiss`（可取消） | Esc（`source: 'keyboard'`）或点击遮罩（`'user'`）；没被取消才关闭 | `{ value: null, source }` |
-| `ui:close` | 弹窗已关闭 | `{ value: returnValue \| null, source }` |
+| `ui:close` | 用户关闭了弹窗：`ui:dismiss` 没被取消而关闭之后，或点击了 `[data-dialog-close]` 按钮之后 | `{ value: null, source }` |
 
-`update()` / `open()` / `close()`（程序调用）不派发 `ui:dismiss`。
+`update()` / `open()` / `close()` / `destroy()`（程序调用）与原生 `close` 事件都不派发 `ui:dismiss` / `ui:close`（事件契约 E-7）；页面在程序化关闭后自己清理（如 `destroy()`）。
 
 ## 转义
 `label` / `id` 经 `esc()`；`children` 只接受 `trusted()` / 组件返回值。

@@ -59,14 +59,14 @@ export function openNewTask({ projects, projectId = null, today, onCreate, onNew
     try {
       await onCreate({ title: form.title.trim(), notes, projectId: form.project || null, status: form.status, ...(form.priority ? { priority: form.priority } : {}), ...(form.due ? { due: form.due } : {}), ...(form.estimate ? { estimate: Number(form.estimate) } : {}) });
       if (form.keepOpen) { Object.assign(form, { title: '', notes: '', attachments: [] }); paint(); field('title')?.focus(); showToast({ message: '任务已创建，可以继续新建', tone: 'success' }); }
-      else el.close();
+      else dialog.destroy();
     } catch (error) { setError(error.message); showToast({ message: error.message, tone: 'error' }); }
     finally { busy = false; }
   }
 
   dialog.open();
   field('title')?.focus();
-  return { el, close: () => dialog.close() };
+  return { el, close: () => dialog.destroy() };
 }
 
 function pickFiles() {
