@@ -24,11 +24,10 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
       <div class="fd-pop-wrap"><button type="button" class="fd-btn" data-fd-filter-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="fd-filter-panel">${ICONS.filter}筛选<span class="fd-filter-count" data-fd-filter-count></span></button>
         <div class="fd-pop fd-filter-panel" id="fd-filter-panel" role="dialog" aria-label="筛选" hidden><div class="fd-fields"><h2>时间范围</h2><div class="fd-dates">${dateField({ name: 'fd-from', label: '开始日期', value: range.from, required: true, compact: true })}${dateField({ name: 'fd-to', label: '结束日期', value: range.to, required: true, compact: true })}</div><h2>项目与任务</h2><div data-fd-selects></div></div>
           <p class="fd-filter-status" role="status" data-fd-filter-status></p><div class="fd-filter-foot"><button type="button" class="fd-btn" data-focus-statistics="reset-filters">重置</button><button type="button" class="ui-button ui-button-primary" data-focus-statistics="close-filter">完成</button></div></div></div>
-      <div class="fd-pop-wrap"><button type="button" class="fd-btn fd-icon-only" data-fd-menu-toggle aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="fd-more-menu">${ICONS.more}</button>
-        <div class="fd-pop fd-menu" id="fd-more-menu" role="menu" aria-label="更多操作" hidden><button type="button" role="menuitem" data-focus-statistics="export">${ICONS.download}导出专注 JSON</button></div></div></div></header>
+      <button type="button" class="fd-btn" data-focus-statistics="export" title="导出专注记录为 JSON 文件">${ICONS.download}<span data-fd-export-label>导出</span></button></div></header>
     <div class="fd-body" data-fd-body><p class="fd-note" data-statistics-timezone></p><div data-fd-dash></div>
       <details class="fd-records" data-fd-records><summary>会话记录与项目快照</summary><div data-statistics-phase></div><div data-statistics-sessions></div><div data-statistics-pagination></div></details></div>`;
-  const $ = selector => element.querySelector(selector), filterToggle = $('[data-fd-filter-toggle]'), filterPanel = $('#fd-filter-panel'), menuToggle = $('[data-fd-menu-toggle]'), menu = $('#fd-more-menu');
+  const $ = selector => element.querySelector(selector), filterToggle = $('[data-fd-filter-toggle]'), filterPanel = $('#fd-filter-panel');
 
   const dayNow = () => statisticsToday(controller.getSnapshot());
   function query(extra = {}) { return { from: range.from, to: range.to, ...(filters.projectId ? { projectId: filters.projectId } : filters.unassigned ? { unassigned: '1' } : {}), ...(filters.taskId ? { taskId: filters.taskId } : {}), ...extra }; }
@@ -59,10 +58,10 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
   }
   function setPopover(button, panel, open, { focus = true } = {}) {
     panel.hidden = !open; button.setAttribute('aria-expanded', String(open));
-    if (open) { for (const [b, p] of [[filterToggle, filterPanel], [menuToggle, menu]]) if (p !== panel && !p.hidden) { p.hidden = true; b.setAttribute('aria-expanded', 'false'); } if (focus) (panel.querySelector('input,button,[role=menuitem]') || panel).focus({ preventScroll: true }); }
+    if (open) { if (focus) (panel.querySelector('input,button') || panel).focus({ preventScroll: true }); }
     else if (focus) button.focus({ preventScroll: true });
   }
-  const closePopovers = (options) => { if (!filterPanel.hidden) setPopover(filterToggle, filterPanel, false, options); if (!menu.hidden) setPopover(menuToggle, menu, false, options); };
+  const closePopovers = (options) => { if (!filterPanel.hidden) setPopover(filterToggle, filterPanel, false, options); };
 
   // —— 数据 ——
   async function sessionPages(params, signal) {
@@ -178,7 +177,6 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
   element.addEventListener('click', async event => {
     const task = event.target.closest('[data-focus-statistics-task]'); if (task) openTask(task.dataset.focusStatisticsTask);
     if (event.target.closest('[data-fd-filter-toggle]')) { setPopover(filterToggle, filterPanel, filterPanel.hidden); return; }
-    if (event.target.closest('[data-fd-menu-toggle]')) { setPopover(menuToggle, menu, menu.hidden); return; }
     const button = event.target.closest('[data-focus-statistics]'); if (!button || !element.contains(button)) return;
     const action = button.dataset.focusStatistics;
     if (action === 'retry') void refresh();
@@ -186,16 +184,19 @@ export function createStatisticsPage({ client, controller, getTaskSnapshot, onRo
     if (action === 'reset-filters') { filters = { ...EMPTY_FILTERS }; range = { preset: 'today', today: dayNow(), from: dayNow(), to: dayNow() }; changed(); }
     if (action === 'start') onStartFocus?.();
     if (action === 'export') {
-      closePopovers({ focus: true }); button.disabled = true;
-      try { const exported = await client.export(); const url = URL.createObjectURL(new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' })), anchor = document.createElement('a'); anchor.href = url; anchor.download = `Daylight-focus-${statisticsToday(controller.getSnapshot())}.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('专注 JSON 已导出'); }
-      catch (error) { notify(error.message); } finally { button.disabled = false; }
+      // 繁忙态：不用 disabled（会让键盘焦点掉到 body），用 aria-disabled + aria-busy 并拦截重复点击；文案换成「正在导出…」
+      if (button.getAttribute('aria-busy') === 'true') return;
+      const label = button.querySelector('[data-fd-export-label]'); button.setAttribute('aria-busy', 'true'); button.setAttribute('aria-disabled', 'true'); label.textContent = '正在导出…';
+      try {
+        const exported = await client.export(), url = URL.createObjectURL(new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' })), anchor = document.createElement('a');
+        anchor.href = url; anchor.download = `Daylight-focus-${statisticsToday(controller.getSnapshot())}.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('专注 JSON 已导出');
+      } catch (error) { notify(error.message || '导出失败，请重试'); }
+      finally { button.removeAttribute('aria-busy'); button.removeAttribute('aria-disabled'); label.textContent = '导出'; }
     }
   }, { signal: abort.signal });
   document.addEventListener('pointerdown', event => { if (!element.contains(event.target) || !event.target.closest('.fd-pop-wrap')) closePopovers({ focus: false }); }, { signal: abort.signal });
   element.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { const open = !filterPanel.hidden ? [filterToggle, filterPanel] : !menu.hidden ? [menuToggle, menu] : null; if (open) { event.preventDefault(); event.stopPropagation(); setPopover(open[0], open[1], false); } return; }
-    if (event.target.closest('[role=menu]') && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); const items = [...menu.querySelectorAll('[role=menuitem]:not(:disabled)')], i = items.indexOf(event.target); items[(i + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus(); return; }
-    if (event.target === menuToggle && event.key === 'ArrowDown') { event.preventDefault(); setPopover(menuToggle, menu, true); return; }
+    if (event.key === 'Escape' && !filterPanel.hidden) { event.preventDefault(); event.stopPropagation(); setPopover(filterToggle, filterPanel, false); }
   }, { signal: abort.signal });
   element.addEventListener('focusout', event => { if (!filterPanel.hidden && event.relatedTarget && !event.relatedTarget.closest?.('.fd-pop-wrap') && element.contains(event.relatedTarget)) setPopover(filterToggle, filterPanel, false, { focus: false }); }, { signal: abort.signal });
 
