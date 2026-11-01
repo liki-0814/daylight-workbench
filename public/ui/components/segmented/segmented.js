@@ -10,12 +10,15 @@ export function segmented({ name, value = '', label, options = [], attrs: extra 
 
 // 由「选中项」整体渲染分组状态：只有 active 带 is-active / aria-checked=true / tabindex=0，其余全部复位；active 为 null 表示没有选中项。
 // 乐观更新与回滚都走这一个函数——回滚就是用原来的选中项（可能没有）再渲染一次，不逐个补丁 class / 属性。
+// roving tabindex 要求恰好一个可 Tab 的项：没有选中项时由第一个未禁用项承担，否则整组 Tab 进不去。
 function render(group, active) {
-  for (const el of group.querySelectorAll('.dl-seg__item')) {
+  const items = [...group.querySelectorAll('.dl-seg__item')];
+  const tabbable = active ?? items.find(el => !el.disabled);
+  for (const el of items) {
     const on = el === active;
     el.classList.toggle('is-active', on);
     el.setAttribute('aria-checked', String(on));
-    el.setAttribute('tabindex', on ? '0' : '-1');
+    el.setAttribute('tabindex', el === tabbable ? '0' : '-1');
   }
 }
 

@@ -81,8 +81,20 @@ test('原来没有选中项、选择被取消：回到没有任何选中项（is
   click(s.item('open'));
   assert.deepEqual(s.active(), []);
   assert.deepEqual(s.checkedItems(), []);
-  assert.deepEqual(s.tabbable(), []);
   assert.equal(s.item('open').getAttribute('tabindex'), '-1');
+});
+
+test('roving tabindex：原来没有选中项、选择被取消 → 恰好一个 tabindex="0"（第一个未禁用项），整组仍能 Tab 进入', t => {
+  const off = preventAll('ui:change'); t.after(off);
+  const s = build({ value: '' });
+  click(s.item('open'));
+  assert.deepEqual(s.active(), []);
+  assert.deepEqual(s.tabbable(), ['all']);
+  assert.equal(s.group.querySelectorAll('.dl-seg__item[tabindex="0"]').length, 1);
+  const skip = build({ value: '', options: [{ value: 'x', label: 'X', attrs: { disabled: true } }, ...options] });
+  click(skip.item('open'));
+  assert.deepEqual(skip.active(), []);
+  assert.deepEqual(skip.tabbable(), ['all'], '第一项被禁用时落到下一个未禁用项');
 });
 
 test('原来没有选中项：选择后 previousValue 是空串', t => {
