@@ -246,4 +246,34 @@ export default [
     check.deepEqual((await seen(page)).map(e => e.type), ['ui:close'], '用户关闭派发一次 ui:close');
     check.equal(await page.evaluate(async () => 'setOpen' in await import('/ui/components/menu/menu.js')), false, 'setOpen 不导出');
   } },
+  // 契约 E-8：键盘激活（Enter / 空格）= source 'keyboard'，不依赖 pointerType——WebKit 下按钮的键盘 click 也必须是 keyboard。
+  //   普通按钮不派发 ui:*，所以直接对它的 click 事件用 sourceOf() 判；菜单项则看真实的 ui:select detail。只用 page.keyboard / locator，chromium 与 webkit 通用。
+  { id: 'ui-kbd-01', priority: 'P0', widths: [1240, 1440], title: '键盘 Enter / 空格激活按钮与菜单项：click.detail 为 0，sourceOf() 与 ui:select 的 detail.source 都是 keyboard；鼠标点击是 user（chromium 与 webkit）', async run({ page, url, assert: check }) {
+    await prepare(page, url);
+    await mount(page, '/ui/components/button/button.js', 'button', { label: '探针' });
+    await page.evaluate(() => {
+      window.__clicks = [];
+      document.querySelector('#ui-host button').addEventListener('click', e => window.__clicks.push({ detail: e.detail, source: window.__ui.sourceOf(e) }));
+    });
+    const probe = page.locator('#ui-host button');
+    await probe.focus(); await page.keyboard.press('Enter');
+    await probe.focus(); await page.keyboard.press('Space');
+    await probe.click();
+    const clicks = await page.evaluate(() => window.__clicks);
+    check.deepEqual(clicks.map(c => c.source), ['keyboard', 'keyboard', 'user'], `按钮：Enter / 空格是 keyboard，鼠标是 user；实际 ${JSON.stringify(clicks)}`);
+    check.deepEqual(clicks.slice(0, 2).map(c => c.detail), [0, 0], '键盘激活的 click.detail 为 0');
+    check.ok(clicks[2].detail >= 1, '鼠标点击的 click.detail >= 1');
+    await page.evaluate(() => document.getElementById('ui-host').remove());
+    await mount(page, '/ui/components/menu/menu.js', 'menu', { label: '更多操作', trigger: { text: '更多' }, options: [{ value: 'a', label: '加入今天' }, { value: 'b', label: '编辑' }] });
+    const trigger = page.locator('#ui-host .dl-menubtn__trigger');
+    const selects = async () => (await seen(page)).filter(e => e.type === 'ui:select');
+    await clear(page); await trigger.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+    check.deepEqual((await selects()).map(e => e.detail), [{ value: 'a', source: 'keyboard' }], '菜单项 Enter');
+    check.equal(await trigger.getAttribute('aria-expanded'), 'false', 'Enter 选择后菜单关闭');
+    await clear(page); await trigger.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Space');
+    check.deepEqual((await selects()).map(e => e.detail), [{ value: 'b', source: 'keyboard' }], '菜单项空格');
+    check.equal(await trigger.getAttribute('aria-expanded'), 'false', '空格选择后菜单关闭');
+    await clear(page); await trigger.click(); await page.locator('#ui-host [role=menuitem]').first().click();
+    check.deepEqual((await selects()).map(e => e.detail), [{ value: 'a', source: 'user' }], '鼠标点菜单项是 user');
+  } },
 ];
