@@ -1,4 +1,4 @@
-.dl-insp { min-height: 0; display: flex; flex-direction: column; gap: var(--space-16); box-sizing: border-box; width: var(--inspector-w); padding: var(--space-24); border-left: var(--border-hairline); background: var(--color-bg-app); }
+.dl-insp { line-height: var(--leading-base); min-height: 0; display: flex; flex-direction: column; gap: var(--space-16); box-sizing: border-box; width: var(--inspector-w); padding: var(--space-24); border-left: var(--border-hairline); background: var(--color-bg-app); }
 .dl-insp__kicker { color: var(--color-text-tertiary); font: var(--weight-regular) var(--text-xs)/var(--leading-xs) var(--font-mono); }
 .dl-insp__title { margin: 0; font: var(--weight-semibold) var(--text-lg)/var(--leading-lg) var(--font-sans); overflow-wrap: anywhere; }
 .dl-insp__props { margin: 0; }
