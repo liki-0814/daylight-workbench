@@ -97,10 +97,25 @@ test('roving tabindex：原来没有选中项、选择被取消 → 恰好一个
   assert.deepEqual(skip.tabbable(), ['all'], '第一项被禁用时落到下一个未禁用项');
 });
 
+test('roving tabindex（初始 markup）：刚渲染、没有 value → 恰好一个 tabindex="0"（第一个未禁用项）；与 render() 同一规则', () => {
+  const none = build({ value: '' });
+  assert.deepEqual(none.active(), []);
+  assert.deepEqual(none.tabbable(), ['all']);
+  assert.equal(none.group.querySelectorAll('.dl-seg__item[tabindex="0"]').length, 1);
+  const skip = build({ value: '', options: [{ value: 'x', label: 'X', attrs: { disabled: true } }, ...options] });
+  assert.deepEqual(skip.tabbable(), ['all'], '第一项被禁用时落到下一个未禁用项');
+  const unknown = build({ value: 'nope' });
+  assert.deepEqual([unknown.active(), unknown.tabbable()], [[], ['all']], 'value 不匹配任何项同样视为没有选中项');
+  const selected = build({ value: 'open' });
+  assert.deepEqual(selected.tabbable(), ['open'], '有选中项时只有选中项可 Tab');
+  const allDisabled = build({ value: '', options: options.map(o => ({ ...o, attrs: { disabled: true } })) });
+  assert.deepEqual(allDisabled.tabbable(), [], '全部禁用时没有可 Tab 项');
+});
+
 test('原来没有选中项：选择后 previousValue 是空串', t => {
   const rec = record(); t.after(rec.stop);
   const s = build({ value: '' });
-  assert.deepEqual(s.tabbable(), []);
+  assert.deepEqual(s.tabbable(), ['all'], '没有选中项时第一项承担 tabindex=0');
   click(s.item('open'));
   assert.deepEqual(rec.log[0].detail, { value: 'open', previousValue: '', source: 'user' });
   assert.deepEqual([s.active(), s.tabbable()], [['open'], ['open']]);
