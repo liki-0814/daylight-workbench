@@ -34,7 +34,7 @@ function setOpen(root, open, event) {
   trigger.setAttribute('aria-expanded', String(open));
   root.toggleAttribute('data-open', open);
   if (open) root.dataset.open = '1';
-  if (event) emit(root, open ? 'open' : 'close', { value: trigger.dataset.value ?? '', source: sourceOf(event) });
+  if (event) emit(root, open ? 'open' : 'close', { value: null, source: sourceOf(event) });
   if (open) {
     const search = menu.querySelector('.dl-menu__search');
     (search || menu.querySelector('.dl-menu__item[aria-selected="true"]') || itemsOf(menu)[0])?.focus();

@@ -45,7 +45,7 @@ function setOpen(root, open, event) {
   list.hidden = !open;
   trigger.setAttribute('aria-expanded', String(open));
   if (open) { root.dataset.open = '1'; place(root, list); } else { root.removeAttribute('data-open'); root.removeAttribute('data-flip'); }
-  if (event) emit(root, open ? 'open' : 'close', { value: '', source: sourceOf(event) });
+  if (event) emit(root, open ? 'open' : 'close', { value: null, source: sourceOf(event) });
   if (open) (itemsOf(list).find(el => !el.disabled))?.focus();
 }
 

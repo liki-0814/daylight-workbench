@@ -7,8 +7,8 @@
 ## 派发的事件（目标是 `.dl-select` 根元素，冒泡）
 | 事件 | 时机 | detail |
 |---|---|---|
-| `ui:open` | 菜单打开 | `{ value, source }` |
-| `ui:close` | 菜单关闭 | `{ value, source }` |
+| `ui:open` | 菜单打开 | `{ value: null, source }` |
+| `ui:close` | 菜单关闭 | `{ value: null, source }` |
 | `ui:change`（可取消） | 选中了一个与当前不同的值（乐观更新，被取消则回滚） | `{ value, previousValue, source }` |
 | `ui:select` | 选中了 `action: true` 的项 | `{ value, source }` |
 

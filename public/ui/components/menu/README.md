@@ -9,8 +9,8 @@
 ## 派发的事件（目标是 `.dl-menubtn` 根元素，冒泡）
 | 事件 | 时机 | detail |
 |---|---|---|
-| `ui:open` | 菜单打开 | `{ value: '', source }` |
-| `ui:close` | 菜单关闭 | `{ value: '', source }` |
+| `ui:open` | 菜单打开 | `{ value: null, source }` |
+| `ui:close` | 菜单关闭 | `{ value: null, source }` |
 | `ui:select` | 选中某一项 | `{ value: <项的 value>, source }` |
 
 `update()` / 重绘 / 程序化关闭（`closeMenus(scope)`）从不派发 `ui:open` / `ui:close`，只有用户操作才派发；`setOpen` 不导出。`data-ui-keep` 让 morph 重绘时保留打开状态。
