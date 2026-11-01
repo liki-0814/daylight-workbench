@@ -12,4 +12,4 @@
 ## 转义
 所有标题 / 描述 / 附件名 / 选项文字经 `esc()`（子组件负责）。
 
-快捷键 `kbd`（Esc）：`.dl-kbd` 的契约归 [kbd](../../components/kbd/README.md)。composer 只赋值 `--ui-kbd-fg: var(--color-text-tertiary)`（`.dl-comp__head`，与头部文字同色）。
+快捷键 `kbd`（Esc）：`.dl-kbd` 的契约归 [kbd](../../components/kbd/README.md)。composer 只赋值 `--ui-kbd-fg: var(--color-text-tertiary)`（`.dl-comp__head`，与头部文字同色），描边用 kbd 默认的 `--ui-kbd-border`。

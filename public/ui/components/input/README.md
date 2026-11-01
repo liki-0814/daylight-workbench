@@ -14,4 +14,4 @@
 
 `kbd` 用 `.dl-kbd` 的令牌 `--ui-kbd-fg`：`.dl-input` 里取 `--color-text-secondary`（契约见 button/README.md）。
 
-快捷键 `kbd`：`.dl-kbd` 的契约归 [kbd](../kbd/README.md)。input 只赋值 `--ui-kbd-fg: var(--color-text-secondary)`（`.dl-input`）。
+快捷键 `kbd`：`.dl-kbd` 的契约归 [kbd](../kbd/README.md)。input 只赋值 `--ui-kbd-fg: var(--color-text-secondary)`（`.dl-input`），描边用 kbd 默认的 `--ui-kbd-border`。

@@ -5,7 +5,7 @@
   --ui-button-border: var(--color-border-default);
   --ui-button-hover-bg: var(--color-bg-hover);
   --ui-button-active-bg: var(--color-bg-selected);
-  --ui-kbd-fg: var(--color-text-secondary);   /* 快捷键文字色（.dl-kbd 的唯一契约令牌）：按变体 / 状态各自赋值，对自己的底色 ≥4.5:1 */
+  --ui-kbd-fg: var(--color-text-secondary);   /* 快捷键文字色（.dl-kbd 的契约令牌之一）：按变体 / 状态各自赋值，对自己的底色 ≥4.5:1；描边 --ui-kbd-border 默认 --color-border-strong，仅 primary / disabled 覆盖 */
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-6);
   min-height: var(--control-h); min-width: var(--min-target); padding: 0 var(--control-px);
   border: 1px solid var(--ui-button-border); border-radius: var(--radius-control);
@@ -17,9 +17,9 @@
 .dl-btn:hover:not(:disabled) { background-image: linear-gradient(var(--ui-button-hover-bg), var(--ui-button-hover-bg)); }
 .dl-btn:active:not(:disabled) { background-image: linear-gradient(var(--ui-button-active-bg), var(--ui-button-active-bg)); }
 .dl-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.dl-btn:disabled { --ui-kbd-fg: var(--color-text-disabled); color: var(--color-text-disabled); cursor: default; }
+.dl-btn:disabled { --ui-kbd-fg: var(--color-text-disabled); --ui-kbd-border: var(--color-border-default); color: var(--color-text-disabled); cursor: default; }
 .dl-btn[aria-busy="true"] { cursor: progress; }
-.dl-btn--primary { --ui-button-bg: var(--color-accent); --ui-button-fg: var(--color-text-on-accent); --ui-button-border: transparent; --ui-button-hover-bg: var(--color-accent-hover); --ui-button-active-bg: var(--color-accent-active); --ui-kbd-fg: var(--color-text-on-accent); }
+.dl-btn--primary { --ui-button-bg: var(--color-accent); --ui-button-fg: var(--color-text-on-accent); --ui-button-border: transparent; --ui-button-hover-bg: var(--color-accent-hover); --ui-button-active-bg: var(--color-accent-active); --ui-kbd-fg: var(--color-text-on-accent); --ui-kbd-border: currentColor; }
 .dl-btn--primary:hover:not(:disabled) { background-color: var(--color-accent-hover); background-image: none; }
 .dl-btn--primary:active:not(:disabled) { background-color: var(--color-accent-active); background-image: none; }
 .dl-btn--primary:disabled { background: var(--color-bg-sunken); color: var(--color-text-disabled); }

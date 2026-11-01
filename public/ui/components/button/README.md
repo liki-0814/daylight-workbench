@@ -18,4 +18,4 @@
 | `--button-border` | `--ui-button-border` | `--color-border-default`（primary：透明） |
 | `--button-radius` | `--radius-control` | semantic.css 里原 `--button-radius` 已搬走，值 `var(--radius-md)` 留给旧页面 |
 
-快捷键（`kbd` 参数）：`.dl-kbd` 的样式与 `--ui-kbd-fg` 契约归 [kbd](../kbd/README.md)。button 只赋值：默认 / ghost / danger = `--color-text-secondary`，primary = `--color-text-on-accent`，disabled = `--color-text-disabled`（各自对该变体底色 ≥4.5:1，disabled 属 WCAG 豁免）。新增变体必须同时给出自己的 `--ui-kbd-fg`。
+快捷键（`kbd` 参数）：`.dl-kbd` 的样式与 `--ui-kbd-fg` 契约归 [kbd](../kbd/README.md)。button 只赋值：默认 / ghost / danger = `--color-text-secondary`，primary = `--color-text-on-accent`，disabled = `--color-text-disabled`（各自对该变体底色 ≥4.5:1，disabled 属 WCAG 豁免）。描边 `--ui-kbd-border` 默认 `--color-border-strong`（不赋值），primary 覆盖为 `currentColor`（accent 底上 border-strong 只有约 1.2–1.4），disabled 覆盖为 `--color-border-default`。新增变体必须同时给出自己的 `--ui-kbd-fg`，饱和底色的变体还要覆盖 `--ui-kbd-border`。
