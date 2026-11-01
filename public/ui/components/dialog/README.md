@@ -10,5 +10,8 @@
 
 `update()` / `open()` / `close()` / `destroy()`（程序调用）与原生 `close` 事件都不派发 `ui:dismiss` / `ui:close`（事件契约 E-7）；页面在程序化关闭后自己清理（如 `destroy()`）。
 
+## 怎么关闭弹窗
+组件库的弹窗只能通过两种方式由用户关闭：带 `[data-dialog-close]` 的按钮（派发 `ui:close`），或 `ui:dismiss`（Esc / 点击遮罩）。**不要**用 `<form method="dialog">` 的 submit 去关闭库弹窗：它由浏览器原生关闭 `<dialog>`，不会派发任何 `ui:*` 契约事件（页面收不到 `ui:close`，也没有机会取消）。需要「提交并关闭」时，让提交按钮自己处理提交，再在页面里程序化 `close()` / `destroy()`，或用 `[data-dialog-close]` 按钮。
+
 ## 转义
 `label` / `id` 经 `esc()`；`children` 只接受 `trusted()` / 组件返回值。
