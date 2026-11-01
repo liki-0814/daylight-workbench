@@ -21,7 +21,7 @@ ui/ 不得 import ui/ 之外；core → components → patterns 单向；页面�
 
 | 前缀 | 用在哪 | 例子 | 谁可以写 |
 | --- | --- | --- | --- |
-| `dl-` | **类名**：组件 / pattern 的 DOM 标记与样式钩子（BEM：`dl-btn`、`dl-btn--primary`、`dl-insp__title`、`dl-is-*` 状态类用 `is-*`） | `<button class="dl-btn dl-btn--primary">` | 只有 `public/ui/**` 里的组件 / pattern 定义；页面只能用，不能新造 `dl-*` 类、不能覆盖其内部选择器（lint 规则 7） |
+| `dl-` | **类名**：组件 / pattern 的 DOM 标记与样式钩子（BEM：`dl-btn`、`dl-btn--primary`、`dl-insp__title`；状态类不带前缀，如 `is-active`） | `<button class="dl-btn dl-btn--primary">` | 只有 `public/ui/**` 里的组件 / pattern 定义；页面只能用，不能新造 `dl-*` 类、不能覆盖其内部选择器（lint 规则 7） |
 | `ui-` | **自定义属性（CSS 变量）**：组件令牌（T3），即组件对外公开的「调节旋钮」 | `--ui-kbd-fg`、`--ui-kbd-border`、`--ui-button-hover-bg` | 组件在自己的 CSS 里定义并给出回退值；宿主只赋值、不改组件的其它属性 |
 | `ui:` | **事件名**：见下文「事件契约」 | `ui:change`、`ui:select` | 只能经 `emit()` 派发 |
 | `--color-* / --space-* / --text-*` 等 | 语义令牌（T2），页面和组件都可读 | `--color-border-strong` | `tokens/semantic.css` |
