@@ -235,14 +235,6 @@ main {
   color: var(--text-secondary);
 }
 
-.search kbd {
-  font-size: var(--font-meta-size);
-  border: 1px solid var(--separator-strong);
-  padding: 0 5px;
-  border-radius: 3px;
-  line-height: var(--font-meta-line);
-}
-
 .workspace {
   padding: 39px var(--page-inline) 23px;
   max-width: var(--page-max-width);
