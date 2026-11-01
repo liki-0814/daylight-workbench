@@ -73,14 +73,16 @@ test('页面取消 ui:change：active / aria-checked / tabindex 回到之前的�
   assert.equal(s.item('done').classList.contains('is-active'), false);
 });
 
-// 已知缺陷（候选偏差）：分组原来没有选中项时，被取消的选择回滚为 flip(item, item)，反而把该项留在选中态。
-test('原来没有选中项、选择被取消：回到没有任何选中项', { todo: 'segmented.choose 的回滚在没有 previous 时把 item 留在选中态' }, t => {
+// 原来没有选中项时，被取消的选择要回到「没有任何选中项」（回滚时 previous 为空，只取消 item 的选中态）。
+test('原来没有选中项、选择被取消：回到没有任何选中项（is-active / aria-checked / tabindex 都复位）', t => {
   const off = preventAll('ui:change'); t.after(off);
   const s = build({ value: '' });
   assert.deepEqual(s.active(), []);
   click(s.item('open'));
   assert.deepEqual(s.active(), []);
   assert.deepEqual(s.checkedItems(), []);
+  assert.deepEqual(s.tabbable(), []);
+  assert.equal(s.item('open').getAttribute('tabindex'), '-1');
 });
 
 test('原来没有选中项：选择后 previousValue 是空串', t => {
