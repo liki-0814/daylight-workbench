@@ -2,6 +2,7 @@
 """Build a native macOS app; only explicit runtime files enter the bundle."""
 import argparse
 import base64
+import hashlib
 import json
 import os
 import pathlib
@@ -42,10 +43,22 @@ shutil.copy2(root / 'agent-api.mjs', resources / 'agent-api.mjs')
 shutil.copy2(root / 'native/tray-model.mjs', resources / 'tray-model.mjs')
 shutil.copytree(root / 'proxy', resources / 'proxy', dirs_exist_ok=True)
 shutil.copytree(root / 'cli', resources / 'cli', dirs_exist_ok=True)
-subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(root / 'native/Credentials.swift'), '-o', str(resources / 'DaylightCredentials')], check=True)
+credential_key = hashlib.sha256((root / 'native/Credentials.swift').read_bytes() + subprocess.check_output(['swiftc', '--version']) + b'-O').hexdigest()[:16]
+credential_cache = final_app.parent / 'credential-cache' / credential_key
+credential_cache.mkdir(parents=True, exist_ok=True)
+def credential_helper(name, source):
+    cached = credential_cache / name
+    target = resources / name
+    if cached.exists():
+        shutil.copy2(cached, target)
+        return
+    subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(source), '-o', str(target)], check=True)
+    shutil.copy2(target, cached)
+credential_helper('DaylightCredentials', root / 'native/Credentials.swift')
 agy_credentials = pathlib.Path(build_directory.name) / 'AgyCredentials.swift'
 agy_credentials.write_text((root / 'native/Credentials.swift').read_text().replace('"local.daylight.proxy"', '"gemini"'))
-subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', str(agy_credentials), '-o', str(resources / 'DaylightAgyCredentials')], check=True)
+credential_helper('DaylightAgyCredentials', agy_credentials)
+print(f'Credential helpers: {credential_cache}')
 subprocess.run(['swiftc', '-module-cache-path', module_cache, '-O', '-target', 'arm64-apple-macos13.0', str(root / 'native/UpdaterHelper.swift'), '-o', str(resources / 'DaylightUpdater')], check=True)
 shutil.copytree(root / 'ai', resources / 'ai', dirs_exist_ok=True)
 shutil.copytree(root / 'extensions', resources / 'extensions', dirs_exist_ok=True)
@@ -74,9 +87,22 @@ if args.sign_identity and args.keychain and args.keychain_password_file:
     subprocess.run(['security', 'unlock-keychain', '-p', password, args.keychain], check=True)
 # Helper executables are signed on their own, before the app seals the bundle. Their bytes must stay identical
 # between releases: the Keychain partition list of stored credentials pins the helper cdhash.
+signature_identity = args.sign_identity or 'ad-hoc'
 if args.sign_identity:
-    for helper in ('DaylightCredentials', 'DaylightAgyCredentials', 'DaylightUpdater'):
-        sign(resources / helper)
+    signature_identity = subprocess.check_output(['security', 'find-certificate', '-c', args.sign_identity, '-Z', *([args.keychain] if args.keychain else [])], text=True)
+signed_cache = credential_cache / ('signed-' + hashlib.sha256(signature_identity.encode()).hexdigest()[:16])
+signed_cache.mkdir(parents=True, exist_ok=True)
+for helper in ('DaylightCredentials', 'DaylightAgyCredentials'):
+    cached = signed_cache / helper
+    if cached.exists():
+        shutil.copy2(cached, resources / helper)
+    else:
+        if args.sign_identity:
+            sign(resources / helper)
+        shutil.copy2(resources / helper, cached)
+if args.sign_identity:
+    sign(resources / 'DaylightUpdater')
+print(f'Credential signatures: {signed_cache}')
 sign(app)
 subprocess.run(['codesign', '--verify', '--strict', '--deep', str(app)], check=True)
 if final_app.exists():

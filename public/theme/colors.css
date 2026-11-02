@@ -1,0 +1,170 @@
+:root {
+  --workbench-background: #FFFFFF;
+  --accent: #2E86E6;
+  --green: #3F3F46;
+  --muted: #737373;
+  --line: #E4E4E7;
+  --control-border: #D4D4D8;
+  --control-background: #FFFFFF;
+  --control-text: #3F3F46;
+  --selection-background: #F0F0F0;
+  --soft: #F5F5F5;
+  --workbench-text: #27272A;
+  --ink: var(--workbench-text);
+  --secondary: var(--muted);
+}
+
+.sidebar {
+  background: var(--soft);
+  border-right-color: var(--line);
+}
+
+.capture,
+.ai-composer,
+.focus-bottom .small-button {
+  background: var(--paper);
+  border-color: var(--control-border);
+}
+
+.brand small,
+.capture>span,
+.nav-item,
+.nav-item small,
+.topbar,
+.search,
+.search input::placeholder,
+.page-heading p,
+.date-stamp span,
+.empty p,
+.quiet-note,
+.workspace-footer,
+.task-meta,
+.add-row,
+.focus-label,
+.focus-bottom,
+.project-path,
+.dialog-header p,
+.form-body>label>span,
+.form-body input::placeholder,
+.form-body textarea::placeholder,
+.field-note,
+.notes-editor:empty:before,
+.cli-source,
+.cli-source small,
+.cli-table-head {
+  color: var(--muted);
+}
+
+.search input,
+.date-stamp strong,
+.settings-facts dd,
+.keys kbd,
+.ai-suggestions button,
+.ai-references>span {
+  color: var(--workbench-text);
+}
+
+.slash {
+  color: var(--line);
+}
+
+.nav-item.active,
+.ai-history-item.selected,
+.cli-source.selected,
+.cli-model-row.is-selected {
+  background: var(--selection-background);
+}
+
+.ai-history-item.selected,
+.cli-source.selected {
+  color: var(--accent);
+}
+
+.nav-item:hover,
+.task-range-tabs,
+.tabs span,
+.task-group-heading,
+.task-row:hover,
+.is-active,
+.focus-card,
+.keys kbd,
+.notes-editor,
+.update-notes pre,
+.update-notice,
+.ai-new:hover,
+.ai-history-item:hover,
+.ai-history-action:hover,
+.ai-suggestions button,
+.ai-user,
+.ai-operation,
+.ai-stop,
+.ai-card,
+.ai-references>span,
+.ai-mention-menu button:hover,
+.ai-mention-menu button:focus-visible,
+.ai-markdown th,
+.ai-markdown pre,
+.ai-markdown code,
+.ai-process-content,
+.cli-source:hover,
+.cli-model-row:hover,
+.proxy-copy,
+.proxy-model[data-editing],
+.image-preview-viewport {
+  background: var(--soft);
+}
+
+.capture,
+.search kbd,
+.date-stamp,
+.project-path>small,
+dialog,
+.check-button,
+.keys kbd,
+.ai-suggestions button,
+.ai-composer,
+.proxy-copy {
+  border-color: var(--control-border);
+}
+
+.task-row,
+.add-row,
+.workspace-footer,
+.shortcut-list li,
+.settings-facts>div,
+.update-history li,
+.cli-model-row {
+  border-color: var(--line);
+}
+
+.done .check-button {
+  background: var(--muted);
+  border-color: var(--muted);
+}
+
+.is-active .check-button,
+.ai-composer:focus-within {
+  border-color: var(--accent);
+}
+
+.pulse {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--selection-background);
+}
+
+#toast {
+  background: var(--green);
+  color: var(--paper);
+}
+
+#toast button {
+  color: var(--paper);
+  border-left-color: var(--muted);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .quick-shell,
+  html:not(.embedded) .quick-shell {
+    background: var(--paper);
+  }
+}

@@ -561,7 +561,7 @@
   border-top: 1px solid #dce3d7;
   margin-top: var(--section-gap);
   padding: var(--space-5) 0 var(--space-4);
-  background: #f7f8f5;
+  background: var(--workbench-background);
 }
 
 .cli-selection {

@@ -413,7 +413,7 @@
     top: 0;
     z-index: 3;
     max-height: none;
-    background: #f7f8f5;
+    background: var(--workbench-background);
     display: flex;
     flex-direction: row;
     gap: var(--space-3);
@@ -855,7 +855,7 @@
 }
 
 .ai-history-filters .chosen {
-  color: var(--green);
+  color: var(--accent);
   font-weight: 600;
 }
 

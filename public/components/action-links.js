@@ -1,4 +1,4 @@
-import { calendarRoute, focusRoute, extensionsRoute } from '../routes.js';
+import { focusRoute, extensionsRoute } from '../routes.js';
 import { escapeButtonText as esc } from './button.js';
 export function actionLinks(action, day) {
   const links = new Map();
@@ -10,7 +10,7 @@ export function actionLinks(action, day) {
     else if (a.type.startsWith('focus.')) { links.set('focus', `<a class="text-button" href="${focusRoute({ taskId: a.taskId })}">查看专注统计</a>`); if (a.taskId) links.set('t:' + a.taskId, `<a class="text-button" href="#task=${encodeURIComponent(a.taskId)}">查看任务</a>`); }
     else if (a.type.endsWith('.delete')) links.set(a.id, '<span class="muted">对象已删除</span>');
     else if (a.type.startsWith('project.') && a.id) links.set('p:' + a.id, `<a class="text-button" href="#project=${encodeURIComponent(a.id)}">查看项目</a>`);
-    else if (/^(task|plan)\./.test(a.type)) { for (const id of a.ids || (a.id ? [a.id] : [])) links.set('t:' + id, `<a class="text-button" href="#task=${encodeURIComponent(id)}">查看任务</a>`); const selectedDay = a.type === 'plan.reschedule' ? a.toDay : a.planDay || a.day || (a.type.startsWith('plan.') || a.type === 'task.start' || a.type === 'task.create' && a.today ? day : null); if (selectedDay) links.set('calendar:' + selectedDay, `<a class="text-button" href="${calendarRoute({ selectedDay })}">查看 ${esc(selectedDay)} 的安排</a>`); }
+    else if (/^(task|plan)\./.test(a.type)) { for (const id of a.ids || (a.id ? [a.id] : [])) links.set('t:' + id, `<a class="text-button" href="#task=${encodeURIComponent(id)}">查看任务</a>`); }
   }
   return [...links.values()].join('');
 }

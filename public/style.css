@@ -140,12 +140,12 @@ a {
 
 .nav-item.active {
   background: #dfe7d8;
-  color: #304d37;
+  color: var(--accent);
 
 }
 
 .nav-item.active small {
-  color: #304d37;
+  color: var(--accent);
 }
 
 .nav-item:hover {
@@ -360,14 +360,14 @@ h1 {
 }
 
 .tabs>button.chosen {
-  color: #3b5437;
+  color: var(--accent);
 
 }
 
 .tabs>button.chosen:after {
   content: "";
   height: 2px;
-  background: #4d6e40;
+  background: var(--accent);
   position: absolute;
   bottom: -1px;
   left: 0;
@@ -1503,7 +1503,7 @@ dialog::backdrop {
 }
 
 .nav-item.parent-active {
-  color: #304d37;
+  color: var(--accent);
 
 }
 
@@ -1646,7 +1646,7 @@ dialog::backdrop {
 
 .task-range-tabs .chosen {
   background: white;
-  color: #355942;
+  color: var(--accent);
   box-shadow: 0 1px 3px #20382010;
 }
 

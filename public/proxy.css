@@ -1024,7 +1024,7 @@
 }
 
 .route-filters [aria-pressed=true] {
-  color: var(--green);
+  color: var(--accent);
   background: var(--paper);
   box-shadow: 0 1px 3px #16231d0d;
 }

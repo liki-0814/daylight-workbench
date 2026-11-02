@@ -48,7 +48,7 @@ workbench-select {
 }
 
 .select-trigger[aria-expanded="true"] {
-  border-color: var(--green);
+  border-color: var(--accent);
   background: var(--workbench-background);
 }
 
@@ -100,7 +100,7 @@ workbench-select {
 }
 
 .select-option[aria-selected="true"] {
-  color: var(--green);
+  color: var(--accent);
   font-weight: 550;
 }
 

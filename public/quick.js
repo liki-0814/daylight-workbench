@@ -18,7 +18,7 @@ document.addEventListener('paste', event => { if (mode === 'ai' && !used && !pre
 $('#quick-images').addEventListener('image-removed', () => input.focus());
 
 $('#quick-mode').innerHTML = segmentedControl({ id: 'quick-mode-control', label: '快捷面板模式', value: mode, options: [{ value: 'ai', label: 'AI 问答' }, { value: 'search', label: 'Google' }] });
-$('#quick-buttons').innerHTML = actionButton({ label: '复制回答', attrs: { id: 'quick-copy', disabled: true }, variant: 'text' });
+$('#quick-buttons').innerHTML = actionButton({ label: '新问题', attrs: { id: 'quick-new', hidden: true }, variant: 'text' }) + actionButton({ label: '复制回答', attrs: { id: 'quick-copy', disabled: true }, variant: 'text' });
 mountSegmentedControl($('#quick-mode-control'), { onChange(value) { clear(); mode = value; update(); input.focus(); } });
 
 async function service(route, data) {
@@ -47,7 +47,8 @@ function update() {
   imageInput.disabled = used;
   input.placeholder = ai ? '问一个问题，⌘V 粘贴图片' : '搜索 Google，或输入网址';
   input.setAttribute('aria-label', ai ? '临时问答' : '快速搜索');
-  action.textContent = ai ? used ? '单轮问答 · 关闭即清空' : '向 AI 提问 · 不保存记录' : resolveQuickInput(input.value).kind === 'url' ? '打开网址' : '用 Google 搜索';
+  $('#quick-new').hidden = !used;
+  action.textContent = ai ? used ? '单轮问答' : '向 AI 提问 · 不保存记录' : resolveQuickInput(input.value).kind === 'url' ? '打开网址' : '用 Google 搜索';
   resize();
 }
 function clear() {
@@ -60,7 +61,6 @@ function clear() {
   $('#quick-copy').disabled = true; $('#quick-copy').textContent = '复制回答';
 }
 function close() {
-  clear(); update();
   bridge?.postMessage({ type: 'close' });
 }
 async function poll(id, current) {
@@ -69,7 +69,7 @@ async function poll(id, current) {
     if (current !== generation) return;
     if (text !== value.text) { text = value.text; answer.innerHTML = markdown(text); }
     $('#quick-copy').disabled = !text;
-    status.textContent = value.status === 'running' ? text ? '正在回答…' : '正在思考…' : value.error || '回答完成 · 关闭即清空';
+    status.textContent = value.status === 'running' ? text ? '正在回答…' : '正在思考…' : value.error || '回答完成';
     resize();
     if (value.status === 'running') timer = setTimeout(() => poll(id, current), 300);
     else jobId = null;
@@ -109,6 +109,7 @@ input.addEventListener('keydown', event => {
   const index = buttons.findIndex(button => button.getAttribute('aria-checked') === 'true');
   buttons[(index + (event.key === 'ArrowLeft' ? -1 : 1) + buttons.length) % buttons.length]?.click();
 });
+$('#quick-new').addEventListener('click', () => { clear(); update(); input.focus(); });
 $('#quick-close').addEventListener('click', close);
 $('#quick-copy').addEventListener('click', async () => {
   const current = generation;
@@ -119,7 +120,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !event.isComposing && !document.querySelector('dialog[open]')) { event.preventDefault(); close(); }
 });
 window.addEventListener('pagehide', clear);
-// Native dismissal includes Esc, shortcut toggle, loss of focus, and App shutdown.
-window.quickDismiss = () => { clear(); update(); };
-window.quickReset = () => { clear(); update(); input.focus(); };
+// Hide keeps the last answer. A new question is an explicit action.
+window.quickDismiss = () => {};
+window.quickReset = () => { update(); input.focus(); };
 update(); input.focus();

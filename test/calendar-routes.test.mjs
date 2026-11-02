@@ -2,18 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calendarRoute, focusRoute, parseRoute } from '../public/routes.js';
 import { shiftCalendarMonth, shiftCalendarDay } from '../public/components/calendar-grid.js';
+import { taskRangeTabs } from '../public/components/task-range-tabs.js';
 const state = { projects: [{ id: 'calendar' }], tasks: [{ id: 't1' }] };
-test('calendar routes retain selected date, project and encoded search independently', () => {
-  const input = { month: '2026-10', selectedDay: '2026-10-06', status: 'all', projectId: 'calendar', query: '任务 & API' };
-  const route = parseRoute(calendarRoute(input), state);
-  for (const key of Object.keys(input)) assert.equal(route[key], input[key]);
-  assert.equal(route.view, 'calendar'); assert.equal(parseRoute('#project=calendar', state).view, 'project:calendar');
-});
-test('calendar invalid civil date is corrected and date wins over mismatched month', () => {
-  assert.equal(parseRoute('#calendar&month=2026-10&date=2026-11-03', state).month, '2026-11');
-  const invalid = parseRoute('#calendar&month=2026-02&date=2026-02-30', state);
-  assert.equal(invalid.selectedDay, '2026-02-01'); assert.match(invalid.missing, /无效/);
-  assert.equal(parseRoute('#calendar&project=missing&unassigned=1', state).projectId, null);
+test('calendar links open the task list instead of a calendar page', () => {
+  const route = parseRoute(calendarRoute({ month: '2026-10', selectedDay: '2026-10-06', status: 'all', projectId: 'calendar', query: '任务 & API' }), state);
+  assert.equal(route.page, 'task');
+  assert.equal(route.view, 'all');
+  assert.equal(route.query, '任务 & API');
+  assert.equal(parseRoute('#project=calendar', state).view, 'project:calendar');
+  assert.equal(parseRoute('#calendar&month=2026-02&date=2026-02-30', state).view, 'all');
+  const tabs = taskRangeTabs({ view: 'calendar' });
+  assert.equal((tabs.match(/data-view=/g) || []).length, 2);
+  assert.match(tabs, /data-view="all"[^>]*aria-current="page"/);
+  assert.match(tabs, /data-view="today"/);
+  assert.doesNotMatch(tabs, /data-view="calendar"|日历/);
 });
 test('calendar month navigation clamps month ends including leap year', () => {
   assert.equal(shiftCalendarMonth('2026-01-31', 1), '2026-02-28');
@@ -28,7 +30,7 @@ test('calendar month and keyboard navigation clamp valid civil boundaries withou
   assert.equal(shiftCalendarMonth('2026-10-07', -1000000), '0001-01-07');
   assert.equal(shiftCalendarDay('0001-01-01', -7), '0001-01-01');
   assert.equal(shiftCalendarDay('9999-12-31', 7), '9999-12-31');
-  assert.equal(parseRoute('#calendar&month=9999-12', state).selectedDay, '9999-12-01');
+  assert.equal(parseRoute('#calendar&month=9999-12', state).view, 'all');
   for (const delta of [NaN, Infinity, 1.5]) assert.throws(() => shiftCalendarMonth('2026-10-07', delta));
   assert.throws(() => shiftCalendarMonth('0000-01-01', 1));
 });

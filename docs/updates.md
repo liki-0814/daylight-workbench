@@ -44,6 +44,8 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 
 自签名证书不被 Gatekeeper 信任，这是预期的：用户首次从 DMG 安装仍需按系统提示放行；应用内更新不经过 Gatekeeper 流程。凭据辅助程序 `DaylightCredentials`、`DaylightAgyCredentials` 的二进制内容在构建间保持不变（`native/Credentials.swift` 不应随意修改），否则其签名摘要改变会触发 Keychain 重新授权。
 
+本地开发与手动打包也必须使用同一固定身份，不能继续默认 ad-hoc。设置 `DAYLIGHT_SIGN_IDENTITY=Daylight Release Code Signing`、`DAYLIGHT_SIGN_KEYCHAIN=$HOME/.daylight-signing/release.keychain-db` 和 `DAYLIGHT_SIGN_KEYCHAIN_PASSWORD_FILE=$HOME/.daylight-signing/keychain-password` 后运行 `npm run pack:mac`。构建在 `dist/native/credential-cache/` 按 Credentials 源码、Swift 工具链及签名证书缓存已签名的辅助程序，避免无意义重编译或重签改变 CDHash。更换证书、源码或工具链需要重新生成；从 ad-hoc 首次迁移仍需完成一次 Keychain 授权，之后连续打包的辅助程序 SHA-256 应保持一致。
+
 ## 发布流程（维护者）
 
 签名材料只在发布机器上，不进仓库，也不要提交到任何地方：
