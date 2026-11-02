@@ -38,7 +38,7 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
  function snapshot(id){
   const p=providers[id],defaults=builtins[id];if(!p)return undefined;
   const own=p.snapshot?.()||sourceSnapshot({id,...defaults,identityKey:p.identity??p.auth?.identity??p.cache?.identity??p.cache?.id??p.cache?.project,connected:!!p.cache&&!p.lastError,error:p.lastError,checkedAt:p.cache?.at,configured:id==='qoder'?!!provider||!!accounts.current:true,capabilities:{quota:!!(p.quota||p.credits),editableSource:false}});
-  return {...own,authentication:{...defaults?.authentication,...own.authentication},capabilities:{...defaults?.capabilities,...own.capabilities},...(id==='qoder'&&provider?{configured:true}:{})};
+  return {...own,credentialRecovery:p.auth?.recovery,authentication:{...defaults?.authentication,...own.authentication,...(p.auth?.repair?{operations:[...new Set([...(defaults?.authentication?.operations||[]),...(own.authentication?.operations||[]),'repair'])]}:{})},capabilities:{...defaults?.capabilities,...own.capabilities},...(id==='qoder'&&provider?{configured:true}:{})};
  }
  async function sync(){
   const next=custom?await custom.providers():{},removed=[];

@@ -165,6 +165,7 @@ final class ProxyRuntime {
     private func forward(path: String, method: String, body: Data, completion: @escaping (Int, Any) -> Void) {
         guard let port = controlPort, let url = URL(string: "http://127.0.0.1:\(port)" + path) else { completion(503, ["error": "代理服务尚未就绪"]); return }
         var request = URLRequest(url: url); request.httpMethod = method
+        if ["/auth/repair", "/auth/poll", "/auth/login"].contains(where: { path.hasSuffix($0) }) { request.timeoutInterval = 210 }
         request.setValue(token, forHTTPHeaderField: "x-workbench-token"); request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if method != "GET" { request.httpBody = body }
         session.dataTask(with: request) { data, response, _ in

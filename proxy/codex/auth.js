@@ -6,7 +6,7 @@ import {verifyIdentity} from '../shared/oidc.js';
 import {readJson,writeJson,serial} from '../shared/store.js';
 const ISSUER='https://auth.openai.com',TOKEN=ISSUER+'/api/accounts/oauth/token',RESOURCE='https://api.openai.com/v1';
 export class CodexAuth extends LoopbackOAuthAccount {
- constructor({dataDir,...options}={}){super({id:'codex',name:'ChatGPT',...options});this.hostFile=path.join(dataDir,'codex-proxy/host.json');this.host=serial();}
+ constructor({dataDir,...options}={}){super({id:'codex',name:'ChatGPT',dataDir,...options});this.hostFile=path.join(dataDir,'codex-proxy/host.json');this.host=serial();}
  refreshFields(){return{resource:RESOURCE};}
  async validateRefresh(next,saved){
   if(next.id_token&&next.id_token!==saved.id_token)await verifyIdentity(next.id_token,{issuer:ISSUER,clientId:saved.clientId,subject:saved.account.id,fetchImpl:this.fetchImpl,now:this.now()});
@@ -16,7 +16,7 @@ export class CodexAuth extends LoopbackOAuthAccount {
   const p=this.beginBrowserLogin();
   try{
    const host=await this.hostIdentity();let saved;
-   try{saved=await this.readSession();}catch(error){if(error.status!==401)throw error;}
+   try{saved=await this.readSession({signal:p.controller.signal});}catch(error){if(error.status!==401&&!error.code?.startsWith('EKEYCHAIN'))throw error;}
    if(p!==this.pending)return{status:'cancelled'};
    p.saved=saved;p.clientId=saved?.clientId||host.pendingClientId||'dynamic_agent_client';
    await this.openCallback(p);
@@ -32,7 +32,7 @@ export class CodexAuth extends LoopbackOAuthAccount {
   await this.host(async()=>{const host=await readJson(this.hostFile,{});if(p!==this.pending)throw oauthError('登录已取消');await writeJson(this.hostFile,{...host,pendingClientId:clientId});});
   const data=await this.request(TOKEN,{form:{grant_type:'authorization_code',client_id:clientId,code:q.get('code'),code_verifier:p.verifier,redirect_uri:p.redirectUri,resource:RESOURCE},signal:p.controller.signal});
   if(data.error)throw oauthError('ChatGPT 授权码交换失败，请重新网页登录');
-  const identity=await verifyIdentity(data.id_token,{issuer:ISSUER,clientId,nonce:p.nonce,subject:p.saved?.account.id,fetchImpl:this.fetchImpl,now:this.now()});
+  const identity=await verifyIdentity(data.id_token,{issuer:ISSUER,clientId,nonce:p.nonce,fetchImpl:this.fetchImpl,now:this.now()});
   const session=this.session(data,{clientId,tokenEndpoint:TOKEN,account:{id:identity.sub,login:identity.email||identity.name||identity.sub}});
   await this.validateRefresh(session,session);return session;
  }

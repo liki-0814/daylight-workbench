@@ -4,6 +4,8 @@
 
 所有 `/api/v1/*` 需要 `Authorization: Bearer <本机 agent-token 文件内容>`。token 不通过接口返回，不写进 skill，不放入 shell 参数或日志。客户端不发送 Origin，服务器拒绝第三方网页 Origin。服务只监听回环地址。
 
+当前 UI 默认完整任务列表，`tasks --scope all --status all`。today/calendar/focus 相关 API 仅作历史兼容，不对应现有页面。代理凭证修复、应用更新和快速回答尚无本 Skill 客户端命令。
+
 ## 读取与导出
 
 - `GET /api/v1/capabilities`：实时能力表、接口版本及去重窗口。
@@ -162,3 +164,6 @@ MCP 清单通过 scope(shared/client)、clientId、serverKey、sourcePath 区分
 client.save 的 client 字段为 id（client_ 前缀）、name、command（单个命令名或可执行文件绝对路径）、root（绝对路径或 ~/ 开头）、skillsDirectory（相对目录，默认 skills）、mcpFormat（none/toml/json，默认 none，仅导出格式）、adapter（auto/manual/codex/qoder/pi/grok/claude，默认按命令匹配）。登记在 ~/.agents/daylight/clients.json，最多 50 项；不会安装或执行 CLI。仅自定义登记支持 client.remove；自动识别项有 registrationId 时可用该旧 ID 删除登记并迁移管理记录，不改链接。其他登记移除和变更接入目录前须解除已管理链接，恢复登记也受该约束。已登记软件从 state.clients 读取，不把 capabilities.clients 的内置列表当成全量列表。
 
 CLI 自动发现只提供候选项，state.clients.selected 表示用户是否选择接入。client.select 通过审阅持久化选择到 clients.json 的 selectedClients；选择后才扫描该 CLI 的 Skills、用户级 MCP，取消选择不修改已有文件、链接和归属记录。未选择的 CLI 不能执行本地 Skill/MCP 写操作，返回 EXTENSIONS_CLIENT_NOT_SELECTED。已有明确登记及 Daylight 管理记录沿用原选择，单纯存在命令、目录或外部链接不自动接入。
+
+
+代理 Web 凭证恢复：`POST /api/proxy/sources/:id/auth/repair`（Web token，非 Agent 客户端命令）仅修复系统钥匙串访问。读取旧凭证、迁移新条目并静默读回成功后返回 `credentialRepaired:true, connectionChecked:false`；不包含上游连接或推理检测。失败保留当前凭证引用，可重新登录。用户交互的钥匙串授权不能由 Skill 代替。

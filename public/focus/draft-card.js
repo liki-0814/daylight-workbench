@@ -18,6 +18,6 @@ export function focusSubmissionCard(s, workspace) {
   const uncertain=['submitted','unknown'].includes(s.status),applied=s.status==='applied';
   const error=s.error?.error || s.error || s.result?.error;
   const latest=s.latestState, current=latest?.current;
-  const readback=latest?`<p class="muted">核对快照 · 专注版本 ${esc(latest.version)}：${current?esc((current.taskTitleSnapshot || phase(current.phase))+' · '+(current.status==='paused'?'已暂停':'进行中')):'当前没有计时会话'}。<a href="#focus">查看最新专注统计</a></p>`:'';
+  const readback=latest?`<p class="muted">核对快照 · 专注版本 ${esc(latest.version)}：${current?esc((current.taskTitleSnapshot || phase(current.phase))+' · '+(current.status==='paused'?'已暂停':'进行中')):'当前没有计时会话'}。</p>`:'';
   return `<div class="ai-card focus-submission-card"><h3>${uncertain?'上次专注提交待核对':applied?'专注变更已保存':'专注提交需要核对'}</h3><p>${esc(s.summary)}</p>${details(s.request?.action,workspace,s.impact)}${uncertain?'<p>响应未确认，操作可能已经执行。核对只重试已批准的原请求，不创建新操作。</p>':applied?'<p>已保存成功，核对结果已记录在对话中。</p>':'<p>请核对当前计时与拒绝原因；超过回执保留窗口时，无法据此证明原请求从未执行。</p>'}${error?`<p class="ai-impact">${esc(typeof error==='string'?error:error.message || JSON.stringify(error))}</p>`:''}${readback}<div class="ai-card-actions">${uncertain?`<button type="button" class="primary" data-focus-submission="retry" data-submission-id="${esc(s.id)}">核对原请求</button>`:`<button type="button" class="secondary" data-focus-submission="acknowledge" data-submission-id="${esc(s.id)}">${applied?'确认结果':'已人工核对，确认结果'}</button>`}</div></div>`;
 }

@@ -144,9 +144,7 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
         guard let line = output.split(separator: "\n").first(where: { $0.hasPrefix("designated => ") || $0.hasPrefix("# designated => ") }) else { return nil }
         return line.drop(while: { $0 == "#" || $0 == " " }).dropFirst("designated => ".count).split(whereSeparator: { $0 == " " || $0 == "\t" }).joined(separator: " ")
     }
-    private func cdhash(_ file: URL) -> String? {
-        run("/usr/bin/codesign", ["-d", "-vvv", file.path], timeout: 30).output.split(separator: "\n").first { $0.hasPrefix("CDHash=") }.map { String($0.dropFirst(7)) }
-    }
+
     private func plist(_ app: URL) -> [String: Any]? {
         (try? PropertyListSerialization.propertyList(from: Data(contentsOf: app.appendingPathComponent("Contents/Info.plist")), format: nil)) as? [String: Any]
     }
@@ -467,11 +465,11 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
             lock.lock(); reauth = ["version": version, "message": "新版本的签名身份与当前版本不同，需要从 GitHub 下载 DMG 手动安装，并重新授权系统权限。"]; lock.unlock()
             fail("needs-reauth", "新版本的签名身份与当前版本不同，需要手动安装并重新授权", cleanup: version); return
         }
-        // Stored credentials are pinned to the helper binaries' code hashes; warn when a release changes them.
+        // Changed access identity may require user authorization; binary changes alone do not.
         var credentialsReset = false
         for helper in ["DaylightCredentials", "DaylightAgyCredentials"] {
-            let before = cdhash(bundleURL.appendingPathComponent("Contents/Resources/\(helper)")), after = cdhash(app.appendingPathComponent("Contents/Resources/\(helper)"))
-            if let before, let after, before != after { credentialsReset = true }
+            let before = designatedRequirement(bundleURL.appendingPathComponent("Contents/Resources/\(helper)")), after = designatedRequirement(app.appendingPathComponent("Contents/Resources/\(helper)"))
+            if before == nil || after == nil || before != after { credentialsReset = true }
         }
         let record: [String: Any] = ["version": version, "size": plan.size, "sha256": digest, "credentialsReset": credentialsReset, "verifiedAt": now()]
         writeJSON(record, to: directory(version).appendingPathComponent("staged.json"))

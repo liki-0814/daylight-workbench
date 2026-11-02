@@ -16,7 +16,7 @@ import {hasMessageCachePolicy} from '../shared/prompt-cache.js';
 export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat','responses','messages']};
 const hasImages=parts=>Array.isArray(parts)&&parts.some(p=>['image_url','input_image','image'].includes(p.type)||p.type==='tool_result'&&hasImages(p.content));
 export class CopilotProvider {
- constructor({dataDir,fetchImpl=fetch,auth=new CopilotAuth({fetchImpl}),promptCache=new AdaptivePromptCache({file:path.join(dataDir,'copilot-proxy/prompt-cache.json')})}){Object.assign(this,{fetchImpl,auth,promptCache});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'copilot-proxy/settings.json'));bindAccountCatalog(this);}
+ constructor({dataDir,fetchImpl=fetch,auth=new CopilotAuth({dataDir,fetchImpl}),promptCache=new AdaptivePromptCache({file:path.join(dataDir,'copilot-proxy/prompt-cache.json')})}){Object.assign(this,{fetchImpl,auth,promptCache});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'copilot-proxy/settings.json'));bindAccountCatalog(this);}
  get cache(){return this.catalogCache.value;}
  snapshot(){return{...sourceSnapshot({...sourceDescription,configured:!!this.auth.account,identityKey:this.auth.token?.identity,connected:!!this.cache&&this.cache.identity===this.auth.token?.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
  async request(endpoint,options={},credential){

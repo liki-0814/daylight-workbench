@@ -144,7 +144,7 @@ export async function fetchModels(http, session) {
 
 export const DEFAULT_QUEUE_RETRY = {
     enabled: true,
-    maxRetries: 2,
+    maxRetries: 4,
     delayMs: 3_000
 };
 export const QUEUE_RETRY_BOUNDS = {
@@ -177,8 +177,9 @@ export function queueRetryRejection(policy) {
     }
     return undefined;
 }
-export function queueRetryDelay(failedAttempt, policy) {
-    return Math.min(policy.delayMs * 2 ** (failedAttempt - 1), QUEUE_RETRY_MAX_DELAY_MS);
+export function queueRetryDelay(failedAttempt, policy, random = Math.random) {
+    // Add bounded jitter so separate clients do not retry in lockstep.
+    return Math.min(policy.delayMs * 2 ** (failedAttempt - 1) * (1 + random() * 0.25), QUEUE_RETRY_MAX_DELAY_MS);
 }
 function empty() {
     return {

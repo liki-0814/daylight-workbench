@@ -2,11 +2,11 @@
 
 原生 AppKit + WKWebView 外壳，复用系统 JavaScriptCore 运行任务逻辑。安装包不包含 Electron、Chromium、Node.js、Pi SDK、Codex/Qoder CLI 或个人 skill；窗口标题栏固定为与页面一致的亮色。需要 macOS 13 或更高版本。
 
-构建需要 Node.js 22+、Xcode Command Line Tools（Swift）及 Python 3。Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动。任务管理不依赖 Node.js；AI 和反向代理模块需要本机 Node.js 22 或更新版本。发布版使用固定自签名证书「Daylight Release Code Signing」，本地与 CI 构建默认 ad-hoc 签名；均未配置 Apple Developer ID 签名及公证。首次从 ad-hoc 迁移到自签名版本需手动安装一次 DMG（一次性重新授权），见 [应用内更新](updates.md)。
+构建需要 Node.js 22+、Xcode Command Line Tools（Swift）及 Python 3。Apple Silicon 安装包由 `npm run dist:mac` 生成到 `dist/`。将 DMG 中的 Daylight 拖入 Applications 后启动。任务管理不依赖 Node.js；AI 和反向代理模块需要本机 Node.js 22 或更新版本。发布版使用固定自签名证书「Daylight Release Code Signing」，正式本地与 CI 构建必须显式配置签名身份；`--development` 使用隔离 Bundle ID 和凭证服务的 ad-hoc 签名；均未配置 Apple Developer ID 签名及公证。首次从 ad-hoc 迁移到自签名版本需手动安装一次 DMG（一次性重新授权），见 [应用内更新](updates.md)。
 
 菜单栏显示待办总数，展开可查看今日任务和其他待办，每组最多 8 项，更多任务可打开主窗口查看。任务子菜单支持完成、开始/暂停、加入/移出今天和查看任务。关闭主窗口后继续驻留，菜单栏“退出 Daylight”或 ⌘Q 才退出并停止本地接口。再次启动只激活已有实例。
 
-专注功能同样不依赖 Node：菜单栏显示本轮剩余时间并提供开始专注、暂停/继续/结束和统计入口；任务执行状态与计时状态分别处理。原生通过受限 WK 消息桥读取提醒权限，只有设置页显式点击才请求授权。会话成功归档、持久消费通知意图后才调用系统通知；完全退出或系统睡眠期间不保证准时提醒。产品行为见 [日历与专注](focus.md)。
+菜单栏展示待办数量和任务入口，可标记完成或打开任务。当前不再显示今天安排、专注计时或统计，也不注册专注通知桥；历史专注数据与接口保留兼容。任务界面规则见[任务与导航](tasks.md)。
 
 按 ⌥Space 可全局唤出快捷面板，默认是临时 AI 问答，也可切换 Google 搜索。AI 复用设置页的后端、模型、思考强度与 Token 参数，每次只回答一轮，不接入工作台数据或写入工具；回答支持 Markdown 和复制。问答不进入 Daylight 历史，Codex 使用 ephemeral、Qoder 关闭 session persistence；CLI 运行文件隔离在临时目录，等待进程退出后删除。回答交付后服务端清空内容；面板收起时保留界面上的上一轮问题和答案，点击「新问题」才清空并取消仍在生成的请求；失联超过 30 秒或运行超过 5 分钟也会清理。
 

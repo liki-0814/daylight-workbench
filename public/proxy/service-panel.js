@@ -1,4 +1,5 @@
 import {sectionHeading,refreshButton,setRefreshState,disclosureSection,mountDisclosures} from '../components/section.js';
+import {actionButton} from '../components/button.js';
 import {selectField} from '../components/select.js';
 import {createDialogShell} from '../components/dialog-shell.js';
 const template=`<div class="workspace proxy-common"><section class="proxy-panel" aria-label="代理服务">        <div class="proxy-service">
@@ -6,14 +7,14 @@ const template=`<div class="workspace proxy-common"><section class="proxy-panel"
           <button id="service-switch" class="proxy-switch" type="button" role="switch" aria-checked="false" aria-label="开启代理" disabled><span></span></button>
         </div>
         <div id="service-error" class="proxy-error" role="alert" hidden></div>
-</section>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',description:'地址、密钥与请求示例',content:`
+</section>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',appearance:'panel',content:`
         <div class="ui-form-row"><span class="proxy-caption">客户端协议</span><div id="protocol-control" class="proxy-protocol"></div></div>
         <div class="ui-form-row"><label class="proxy-caption" for="base-url">Base URL</label>
-        <div class="proxy-copy"><input id="base-url" readonly value="正在读取…" spellcheck="false"><button id="copy-url" class="small-button" disabled>复制</button></div></div>
+        <div class="proxy-copy"><input id="base-url" readonly value="正在读取…" spellcheck="false">${actionButton({label:'复制',className:'small-button',attrs:{id:'copy-url',disabled:true}})}</div></div>
         <div class="ui-form-row"><label class="proxy-caption" for="api-key">API Key</label>
-        <div class="proxy-copy"><input id="api-key" type="password" readonly value="" placeholder="正在读取…" autocomplete="off" spellcheck="false"><button id="show-key" class="small-button" disabled>显示</button><button id="copy-key" class="small-button" disabled>复制</button></div></div>
-        <div class="proxy-connect-actions ui-form-offset"><button id="copy-example" class="secondary" disabled>复制请求示例</button><button id="test-connection" class="text-button" disabled>测试连接</button></div>
-        <p id="connection-result" class="proxy-hint ui-form-offset" role="status">开启代理后，即可在客户端中填写以上地址与密钥。</p>
+        <div class="proxy-copy"><input id="api-key" type="password" readonly value="" placeholder="正在读取…" autocomplete="off" spellcheck="false">${actionButton({label:'显示',className:'small-button',attrs:{id:'show-key',disabled:true}})}${actionButton({label:'复制',className:'small-button',attrs:{id:'copy-key',disabled:true}})}</div></div>
+        <div class="proxy-connect-actions ui-form-offset">${actionButton({label:'复制请求示例',attrs:{id:'copy-example',disabled:true}})}${actionButton({label:'测试连接',attrs:{id:'test-connection',disabled:true}})}</div>
+        <p id="connection-result" class="proxy-hint ui-form-offset" role="status" hidden></p>
       `})}
 </div>`;
 const settingsTemplate=`${sectionHeading({title:'反向代理',description:'全局端口、自动启动与运行环境',actions:refreshButton({ariaLabel:'刷新代理设置',attrs:{id:'refresh-proxy-settings'}})})}<p id="proxy-settings-loading" class="proxy-hint" role="status">正在读取代理状态…</p><p id="proxy-settings-error" class="ui-feedback" role="alert" hidden></p><form id="settings-form" class="proxy-settings-form">
@@ -32,7 +33,7 @@ export function createServicePanel({store,getExampleModel}){
  const element=root.firstElementChild,settingsElement=document.createElement('section');settingsElement.className='settings-panel proxy-global-settings';settingsElement.setAttribute('aria-label','反向代理');settingsElement.innerHTML=settingsTemplate;
  mountDisclosures(element);
  const nodes=new Map([...root.querySelectorAll('[id]'),...settingsElement.querySelectorAll('[id]')].map(n=>[n.id,n]));const $=id=>nodes.get(id);
- $('protocol-control').innerHTML=selectField({id:'protocol',name:'protocol',label:'客户端协议',value:'chat',compact:true,hideLabel:true,options:[{value:'chat',label:'Chat Completions'},{value:'responses',label:'Responses'},{value:'messages',label:'Anthropic Messages'}]});nodes.set('protocol',$('protocol-control').querySelector('#protocol'));
+ $('protocol-control').innerHTML=selectField({id:'protocol',name:'protocol',label:'客户端协议',value:'chat',hideLabel:true,options:[{value:'chat',label:'Chat Completions'},{value:'responses',label:'Responses'},{value:'messages',label:'Anthropic Messages'}]});nodes.set('protocol',$('protocol-control').querySelector('#protocol'));
  let working=false,checking=false,savingSettings=false,savingNode=false,settingsDirty=false,key='',keyLoading,disposed=false;
  const names={stopped:'已停止',starting:'启动中…',running:'运行中',stopping:'停止中…'};
  function error(message=''){for(const id of ['service-error','proxy-settings-error']){$(id).textContent=message;$(id).hidden=!message;}}
@@ -41,6 +42,7 @@ export function createServicePanel({store,getExampleModel}){
   const running=status.state==='running',transition=working||['starting','stopping'].includes(status.state),unavailable=!!status.runtimeError,locked=running||transition;
   $('service-state').textContent=working?(running?'停止中…':'启动中…'):unavailable?'运行环境待设置':names[status.state]||'正在准备…';
   $('service-dot').classList.toggle('running',running);$('service-switch').setAttribute('aria-checked',String(running));$('service-switch').setAttribute('aria-label',running?'停止代理':'开启代理');$('service-switch').setAttribute('aria-busy',String(transition));$('service-switch').disabled=transition||unavailable||checking;
+  $('service-note').hidden=!unavailable;
   $('service-note').textContent=unavailable?'请在左侧“设置”的“反向代理”中选择 Node 22 或更新版本。':running?`${status.activeRequests} 个请求进行中 · 所有来源共用此开关`:'统一代理 · 至少一个来源可用即可开启';
   $('base-url').value=$('protocol').value==='messages'?status.baseUrl?.replace(/\/v1$/,'')||'':status.baseUrl||'';
   $('copy-url').disabled=!$('base-url').value;$('test-connection').disabled=!running||transition||checking;$('copy-example').disabled=!key||unavailable;
@@ -81,7 +83,7 @@ export function createServicePanel({store,getExampleModel}){
   const route={chat:'/chat/completions',responses:'/responses',messages:'/messages'}[protocol],quote=value=>`'${value.replaceAll("'","'\\''")}'`;
   void copy($('copy-example'),`curl -N ${quote(store.status.baseUrl+route)} \\\n  -H ${quote(`Authorization: Bearer ${key}`)} \\\n  -H 'Content-Type: application/json' \\\n  -d ${quote(JSON.stringify(body))}`);
  };
- $('test-connection').onclick=async()=>{checking=true;paint();$('test-connection').textContent='测试中…';$('connection-result').textContent='正在验证本机接口、鉴权与模型目录…';try{$('connection-result').textContent=(await store.api.request('check',{})).message;}catch(e){$('connection-result').textContent=e.message;}finally{checking=false;$('test-connection').textContent='测试连接';paint();}};
+ $('test-connection').onclick=async()=>{$('connection-result').hidden=false;checking=true;paint();$('test-connection').textContent='测试中…';$('connection-result').textContent='正在验证本机接口、鉴权与模型目录…';try{$('connection-result').textContent=(await store.api.request('check',{})).message;}catch(e){$('connection-result').textContent=e.message;}finally{checking=false;$('test-connection').textContent='测试连接';paint();}};
  $('settings-form').oninput=()=>{settingsDirty=true;};
  $('settings-form').onsubmit=async e=>{e.preventDefault();if(savingSettings)return;savingSettings=true;$('save-settings').textContent='保存中…';paint();try{await store.api.request('settings',{port:Number($('proxy-port').value),autoStart:$('auto-start').checked});settingsDirty=false;$('settings-result').textContent='设置已保存';error();await store.refresh();}catch(e){$('settings-result').textContent=e.message;}finally{savingSettings=false;$('save-settings').textContent='保存设置';paint();}};
  $('save-node').onclick=async()=>{if(savingNode)return;savingNode=true;paint();try{await store.api.request('runtime',{nodePath:$('node-path').value.trim()});await store.refresh();error();}catch(e){error(e.message);}finally{savingNode=false;paint();}};

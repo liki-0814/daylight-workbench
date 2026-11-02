@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import { projectSkillPath } from '../project-skill.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RPC, executable, childEnv } from './process.mjs';
@@ -18,11 +20,12 @@ export class PiRPC extends RPC {
   }
 }
 const isolated = ['--no-extensions', '--no-mcp', '--no-skills', '--no-prompt-templates', '--no-context-files'];
+const projectSkillArgs = cwd => fs.existsSync(path.join(projectSkillPath('pi', cwd), 'SKILL.md')) ? ['--skill', projectSkillPath('pi', cwd)] : [];
 const modelId = model => `${model.provider}/${model.id}`;
 
 export async function discover(settings, cwd) {
   const bin = executable('pi', settings.path);
-  const rpc = new PiRPC(bin, ['--mode', 'rpc', '--no-session', '--no-tools', ...isolated.filter(flag => flag !== '--no-skills')], cwd);
+  const rpc = new PiRPC(bin, ['--mode', 'rpc', '--no-session', '--no-tools', ...isolated.filter(flag => flag !== '--no-skills'), ...projectSkillArgs(cwd)], cwd);
   try {
     const [available, state, commands] = await Promise.all([rpc.call('get_available_models'), rpc.call('get_state'), rpc.call('get_commands')]);
     return { path: bin, defaultModel: state.model ? modelId(state.model) : '', skills: commands.commands.filter(command => command.source === 'skill' && command.sourceInfo?.path).map(command => ({ name: command.name.replace(/^skill:/, ''), path: command.sourceInfo.path, description: command.description || '', enabled: true })), models: available.models.map(model => ({
@@ -38,6 +41,7 @@ export async function run({ conversation: c, cwd, mcp, text, images = [], skills
   const args = ['--mode', 'rpc', '--no-extensions', '--no-mcp', '--no-prompt-templates', '--no-context-files'];
   if (ephemeral) args.push('--no-session', '--no-tools', '--no-skills', '--system-prompt', quickInstructions);
   else {
+    args.push(...projectSkillArgs(cwd));
     args.push('--session-dir', path.join(cwd, 'sessions'), '--session-id', c.id,
       '--extension', fileURLToPath(new URL('./pi-extension.mjs', import.meta.url)), '--append-system-prompt', instructions);
     Object.assign(env, mcp.env, { DAYLIGHT_PI_ACCESS_MODE: c.config.accessMode || 'standard' });
@@ -49,6 +53,9 @@ export async function run({ conversation: c, cwd, mcp, text, images = [], skills
   const abort = () => { rpc.send({ method: 'abort' }); void rpc.close(); done.reject(new Error('已取消')); };
   signal.addEventListener('abort', abort, { once: true });
   rpc.onMessage = async ({ method, params: event }) => {
+    if (method === 'auto_retry_start') emit({ type: 'activity', text: `模型请求失败，Pi 将重试（${event.attempt}/${event.maxAttempts}），等待 ${Math.ceil((event.delayMs || 0)/1000)} 秒` });
+    if (method === 'auto_retry_end') emit({ type: 'activity', text: event.success ? '正在接收模型响应…' : '模型重试已结束' });
+    if (method === 'agent_start') emit({ type: 'activity', text: '正在等待模型响应…' });
     if (method === 'message_start' && event.message?.role === 'assistant') { failure = null; thinking = false; thinkingId++; }
     if (method === 'extension_ui_request') {
       if (event.method === 'confirm') rpc.send({ type: 'extension_ui_response', id: event.id, confirmed: !ephemeral && await approve({ question: event.title, details: event.message || '' }) });

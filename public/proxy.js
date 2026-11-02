@@ -10,7 +10,7 @@ import {createSourceNavigation,proxyTabs} from './proxy/source-navigation.js';
 
 export function createProxyPage({getToken}){
  const root=document.createElement('main');root.id='proxy-page';root.className='proxy-page';root.hidden=true;
- root.innerHTML=`<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 反向代理</span></header><div class="workspace proxy-heading"><section class="page-heading"><div><h1>反向代理</h1><p>一个地址，连接你的模型</p></div></section></div>`;
+ root.innerHTML=`<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 反向代理</span></header><div class="workspace proxy-heading"><section class="page-heading"><div><h1>反向代理</h1></div></section></div>`;
  const api=createProxyApi(getToken),store=createProxyState(api);let selected='qoder',visible=false,settingsVisible=false,timer,disposed=false;
  const service=createServicePanel({store,getExampleModel:()=>pages[selected].getModel?.()});
  const pages=Object.fromEntries(proxyTabs.filter(tab=>tab.kind==='provider').map(({id:source,name})=>[source,createSourcePage({store,source,name,confirmAction:service.confirmAction})]));

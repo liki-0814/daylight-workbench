@@ -1,5 +1,6 @@
+import {actionButton} from './components/button.js';
+import {createDialogShell} from './components/dialog-shell.js';
 import { actionLinks } from './components/action-links.js';
-import { conversationRoute } from './routes.js';
 import { markdown, processMessage } from './components/ai-message.js';
 import { selectField } from './components/select.js';
 import { backendField } from './components/ai-backend.js';
@@ -13,21 +14,24 @@ export function createAIPage({ getToken, onChanged }) {
   const element = document.createElement('main'); element.className = 'ai-page';
   element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> AI 对话</span></header>
     <div class="workspace ai-workspace">
-    <div class="ai-layout"><aside class="ai-history"><div class="ai-history-heading"><div class="ai-history-title"><h1>AI 对话</h1><button class="ai-new" type="button" aria-label="新建对话" title="新建对话">＋</button></div><p>先把事情说清楚，再一起推进</p></div><div class="ai-history-filters"><button type="button" data-history-filter="all" class="chosen">全部</button><button type="button" data-history-filter="related">当前关联</button></div><nav aria-label="历史对话" class="ai-history-list"></nav></aside>
-    <section class="ai-chat" aria-label="AI 对话"><div class="ai-chat-toolbar"><div><span class="ai-chat-meta"></span><div class="ai-association"></div></div><div class="ai-toolbar-actions"><button type="button" class="text-button" data-bind-scope>关联对象</button><a class="text-button ai-return" href="#tasks">返回任务</a><a class="text-button" href="#settings">AI 设置</a></div></div><div class="ai-scope-editor" hidden></div><div class="ai-messages"></div><div class="ai-pending"></div><p class="ai-error" role="alert"></p><span class="ai-status" role="status"></span><form class="ai-composer"><label class="sr-only" for="ai-message">发送消息</label><div class="ai-references"></div><div class="ai-mention-menu" hidden></div><textarea id="ai-message" rows="2" placeholder="@ 引用项目、任务或对话 · / 引用技能" maxlength="30000"></textarea><div class="ai-composer-footer"><div class="ai-backend-holder"></div><div class="ai-model-holder">${selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'正在读取模型…'}],compact:true,hideLabel:true})}</div><div class="ai-send-actions"><button class="ai-stop" type="button" aria-label="停止生成" title="停止生成" hidden>■</button><button class="primary ai-send" type="submit" aria-label="发送消息" title="发送消息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button></div></div></form></section></div></div>`;
-  element.insertAdjacentHTML('beforeend', `<dialog class="ai-delete-dialog" aria-labelledby="ai-delete-title"><form><div class="dialog-header"><h2 id="ai-delete-title">删除这段对话？</h2></div><div class="form-body"><p class="delete-name"></p><p class="field-note">全部聊天记录将被删除，无法撤销。已创建的项目、任务和其他对话中的引用快照会保留。</p><p class="dialog-error" role="alert"></p></div><div class="dialog-footer"><button type="button" class="secondary" data-delete-cancel autofocus>取消</button><button type="submit" class="secondary danger-button">删除对话</button></div></form></dialog>`);
+    <div class="ai-layout"><aside class="ai-history"><div class="ai-history-heading"><div class="ai-history-title"><h1>AI 对话</h1>${actionButton({label:'新建对话',symbol:'plus',variant:'icon',iconOnly:true,className:'ai-new'})}</div></div><nav aria-label="历史对话" class="ai-history-list"></nav></aside>
+    <section class="ai-chat" aria-label="AI 对话"><div class="ai-messages"></div><div class="ai-pending"></div><p class="ai-error" role="alert"></p><span class="ai-status" role="status"></span><form class="ai-composer"><label class="sr-only" for="ai-message">发送消息</label><div class="ai-references"></div><div class="ai-mention-menu" hidden></div><textarea id="ai-message" rows="2" placeholder="@ 引用项目、任务或对话 · / 引用技能" maxlength="30000"></textarea><div class="ai-composer-footer"><div class="ai-backend-holder"></div><div class="ai-model-holder">${selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'正在读取模型…'}],compact:true,hideLabel:true})}</div><div class="ai-send-actions">${actionButton({label:'停止生成',variant:'icon',iconOnly:true,className:'ai-stop',content:'■',attrs:{hidden:true}})}${actionButton({label:'发送消息',variant:'primary',iconOnly:true,className:'ai-send',attrs:{type:'submit'},content:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg>'})}</div></div></form></section></div></div>`;
+  const deleteDialog=createDialogShell({title:'删除这段对话？'});
+  deleteDialog.element.classList.add('ai-delete-dialog');
+  deleteDialog.setContent(`<form><div class="form-body"><p class="delete-name"></p><p class="field-note">全部聊天记录将被删除，无法撤销。已创建的项目、任务和其他对话中的引用快照会保留。</p><p class="dialog-error" role="alert"></p></div><div class="dialog-footer">${actionButton({label:'取消',attrs:{'data-delete-cancel':true,autofocus:true}})}${actionButton({label:'删除对话',variant:'danger',attrs:{type:'submit'}})}</div></form>`);
+  element.append(deleteDialog.element);
   const $ = s => element.querySelector(s);
   let deleteTarget = null, deleting = false, historyMarkup = '', lastHistoryRead = 0;
   function resetConversation() {
-    current=null; viewContext=undefined; selectedScope={kind:'workspace'}; pendingId=null; lastMessages='';
+    current=null; pendingId=null; lastMessages='';
     history.replaceState(null,'','/#ai'); restoreComposer(); closeMentions(); renderPending(null); error(null); paint();
   }
-  $('[data-delete-cancel]').addEventListener('click',()=>$('.ai-delete-dialog').close());
+  $('[data-delete-cancel]').addEventListener('click',()=>deleteDialog.close());
   $('.ai-delete-dialog').addEventListener('cancel',e=>{if(deleting)e.preventDefault();});
   $('.ai-delete-dialog').addEventListener('close',()=>{deleteTarget=null;});
   $('.ai-delete-dialog form').addEventListener('submit',async e=>{
     e.preventDefault(); if(deleting||!deleteTarget)return;
-    const target=deleteTarget; deleting=true;
+    const target=deleteTarget; deleting=true;deleteDialog.setBusy(true);
     $('.ai-delete-dialog').querySelectorAll('button').forEach(b=>b.disabled=true);
     try {
       if(!target.request){const snapshot=await api('/state');target.request={requestId:crypto.randomUUID(),expectedVersion:snapshot.version,action:{type:'ai.conversation.delete',id:target.id,expectedUpdatedAt:target.updatedAt}};}
@@ -36,16 +40,16 @@ export function createAIPage({ getToken, onChanged }) {
       references=references.filter(r=>r.id!==target.id);
       for(const draft of composerDrafts.values())draft.references=draft.references.filter(r=>r.id!==target.id);
       if(current?.id===target.id)resetConversation(); else paintReferences();
-      $('.ai-delete-dialog').close(); await list(); onChanged?.();
-      if(!current)$('#ai-message').focus();
+      deleteDialog.setBusy(false);deleteDialog.close(); await list(); onChanged?.();
+      if(!current)$('#ai-message').focus();else $('.ai-history-open[aria-current="true"]')?.focus();
     } catch(e) { $('.ai-delete-dialog .dialog-error').textContent=e.message; }
-    finally {deleting=false;$('.ai-delete-dialog').querySelectorAll('button').forEach(b=>b.disabled=false);}
+    finally {deleting=false;deleteDialog.setBusy(false);$('.ai-delete-dialog').querySelectorAll('button').forEach(b=>b.disabled=false);}
   });
   let visible = false, current = null, timer, polling = false, busy = false, lastMessages = '', pendingId = null, defaults = null, catalog = [], loadingModels = false, conversations = [], references = [], mentionOpen = false, skillCatalog = [], skills = [], mentionType = '@';
-  let selectedScope = {kind:'workspace'}, extensionReferences = [], objectReferences = [], workspace = {projects:[],tasks:[]}, historyFilter = 'all', returnHash = '#tasks', viewContext, opening = 0, openingReference = false;
+  let extensionReferences = [], objectReferences = [], workspace = {projects:[],tasks:[]}, opening = 0, openingReference = false;
   let selectedBackend = null, detectedBackends = [], modelLoad = 0;
   const composerDrafts = new Map();
-  const draftKey = () => current?.id || 'new:' + selectedScope.kind + ':' + (selectedScope.id || '');
+  const draftKey = () => current?.id || 'new';
   function saveComposer() { composerDrafts.set(draftKey(), {backend:selectedBackend,model:$('#ai-model').value,text:$('#ai-message').value,references:[...references],skills:[...skills],objectReferences:[...objectReferences],extensionReferences:[...extensionReferences]}); }
   function restoreComposer() { const draft=composerDrafts.get(draftKey()); selectedBackend=current?.backend || draft?.backend || defaults?.backend || null; $('#ai-message').value=draft?.text || ''; references=draft?.references || []; skills=draft?.skills || []; objectReferences=draft?.objectReferences || []; extensionReferences=draft?.extensionReferences || []; paintReferences(); resizeInput(); }
   async function loadWorkspace() { const r=await fetch('/api/state'); const data=await r.json(); if (!r.ok) throw new Error(data.error); workspace=data.state; }
@@ -57,21 +61,15 @@ export function createAIPage({ getToken, onChanged }) {
   const error = e => { $('.ai-error').textContent = e?.message || ''; };
   function paint() {
     const c = current;
-    const scope = c?.scope || selectedScope;
-    const label = c?.scopeInfo?.label || (scope.kind === 'workspace' ? '工作台' : objectLabel(scope));
-    const exists = c?.scopeInfo?.exists ?? (scope.kind === 'workspace' || workspace[scope.kind === 'project' ? 'projects' : 'tasks'].some(o=>o.id===scope.id));
-    $('.ai-association').innerHTML = scope.kind === 'workspace' ? '<span class="muted">通用对话</span>' : `${exists ? `<a href="#${scope.kind}=${encodeURIComponent(scope.id)}">${esc(label)}</a>` : `<span class="muted">${esc(label)}</span>`}${c?.scopeInfo?.projectName ? `<small> · ${esc(c.scopeInfo.projectName)}</small>` : ''}`;
-    $('.ai-return').href=returnHash; $('.ai-return').textContent=returnHash.startsWith('#extensions')?'返回扩展管理':'返回任务';
-    $('[data-bind-scope]').disabled=busy || openingReference || running(c);
-    $('.ai-chat-meta').textContent = c ? `${backendName(c.backend)}${c.config.effort ? ' · ' + c.config.effort : ''}` : defaults ? `${backendName(selectedBackend || defaults.backend)} · 新对话` : '正在读取设置';
     const messages = JSON.stringify(c?.messages || []);
     if (messages !== lastMessages || !$('.ai-messages').childElementCount) {
-      const nearBottom = document.documentElement.scrollHeight - innerHeight - scrollY < 220;
+      const messagePane = $('.ai-messages');
+      const nearBottom = messagePane.scrollHeight - messagePane.clientHeight - messagePane.scrollTop < 160;
       const disclosures = new Map([...$('.ai-messages').querySelectorAll('[data-disclosure]')].map(el => [el.dataset.disclosure,el.open]));
       lastMessages = messages;
-      $('.ai-messages').innerHTML = c?.messages.length ? c.messages.map(m => m.role === 'process' ? processMessage(m) : `<article class="ai-message ai-${esc(m.role)}">${m.role === 'operation' ? '<div class="ai-message-label">工作台</div>' : ''}<div class="ai-message-text ${m.role === 'assistant' ? 'ai-markdown' : ''}">${m.role === 'assistant' ? markdown(m.text) : esc(m.text)}</div>${m.references?.length ? `<div class="ai-source-links">${m.references.map(r => `<button type="button" class="text-button" data-conversation="${esc(r.id)}">@ ${esc(r.title)}</button>`).join('')}</div>` : ''}${m.context?.objectReferences?.length ? `<div class="ai-source-links">${m.context.objectReferences.map(r=>`<a class="text-button" href="#${r.kind}=${encodeURIComponent(r.id)}">@ ${esc(r.label)}</a>`).join('')}</div>` : ''}${m.context?.extensionReferences?.length ? `<div class="ai-source-links">${m.context.extensionReferences.map(ref=>`<a class="text-button" href="${extensionsRoute({tab:ref.kind==='mcp'?'mcp':ref.kind==='client'?'clients':'skills',id:ref.id})}">扩展 · ${esc(ref.name || ref.id)}</a>`).join('')}</div>` : ''}${m.skills?.length ? `<div class="ai-source-links">${m.skills.map(s => `<span class="muted">/ ${esc(s.name)}</span>`).join('')}</div>` : ''}${m.action ? actionLinks(m.action,m.day) : ''}</article>`).join('') : `<div class="ai-welcome"><span class="ai-orbit">✳</span><h2>把想法变成下一步</h2><p>可以一起梳理项目、完善任务内容，或安排今天。<br>不清楚的地方先问你，变更审阅后再保存。</p><div class="ai-suggestions"><button type="button" data-prompt="先查看我的项目和任务，帮我梳理下一步。不要直接创建任务，有不清楚的先问我。">梳理项目</button><button type="button" data-prompt="帮我安排今天。先了解我的时间和优先级，再给出建议。">安排今天</button></div></div>`;
+      $('.ai-messages').innerHTML = c?.messages.length ? c.messages.map(m => m.role === 'process' ? processMessage(m) : `<article class="ai-message ai-${esc(m.role)}">${m.role === 'operation' ? '<div class="ai-message-label">工作台</div>' : ''}<div class="ai-message-text ${m.role === 'assistant' ? 'ai-markdown' : ''}">${m.role === 'assistant' ? markdown(m.text) : esc(m.text)}</div>${m.references?.length ? `<div class="ai-source-links">${m.references.map(r => `<button type="button" class="text-button" data-conversation="${esc(r.id)}">@ ${esc(r.title)}</button>`).join('')}</div>` : ''}${m.context?.objectReferences?.length ? `<div class="ai-source-links">${m.context.objectReferences.map(r=>`<a class="text-button" href="#${r.kind}=${encodeURIComponent(r.id)}">@ ${esc(r.label)}</a>`).join('')}</div>` : ''}${m.context?.extensionReferences?.length ? `<div class="ai-source-links">${m.context.extensionReferences.map(ref=>`<a class="text-button" href="${extensionsRoute({tab:ref.kind==='mcp'?'mcp':ref.kind==='client'?'clients':'skills',id:ref.id})}">扩展 · ${esc(ref.name || ref.id)}</a>`).join('')}</div>` : ''}${m.skills?.length ? `<div class="ai-source-links">${m.skills.map(s => `<span class="muted">/ ${esc(s.name)}</span>`).join('')}</div>` : ''}${m.action ? actionLinks(m.action) : ''}</article>`).join('') : `<div class="ai-welcome"><span class="ai-orbit">✳</span><h2>把想法变成下一步</h2><p>可以一起梳理项目、完善任务内容。<br>不清楚的地方先问你，变更审阅后再保存。</p><div class="ai-suggestions"><button type="button" data-prompt="先查看我的项目和任务，帮我梳理下一步。不要直接创建任务，有不清楚的先问我。">梳理项目</button></div></div>`;
       $('.ai-messages').querySelectorAll('[data-disclosure]').forEach(el => { if (disclosures.has(el.dataset.disclosure)) el.open=disclosures.get(el.dataset.disclosure); });
-      if (nearBottom && c?.messages.length && visible) requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+      if (nearBottom && c?.messages.length && visible) requestAnimationFrame(() => messagePane.scrollTo({ top: messagePane.scrollHeight, behavior: 'instant' }));
     }
     const pendingKey=JSON.stringify([c?.pending?.id || null, ...['focusSubmission','extensionSubmission'].map(key=>c?.[key]&&!c[key].acknowledged?[c[key].id,c[key].status,c[key].error,c[key].result]:null)]);
     if (pendingKey !== pendingId) { pendingId = pendingKey; renderPending(c?.pending); }
@@ -81,7 +79,7 @@ export function createAIPage({ getToken, onChanged }) {
     $('#ai-model').disabled = busy || openingReference || running(c) || loadingModels;
     if ($('#ai-backend')) $('#ai-backend').disabled = !!c || busy || openingReference || loadingModels;
     if (c && catalog.some(m => m.id === c.config.model)) $('#ai-model').value = c.config.model;
-    $('.ai-status').textContent = openingReference ? '正在关联扩展…' : c?.status === 'waiting' ? '等待你的回答或确认' : c?.status === 'running' ? c.activity || '正在思考…' : '';
+    $('.ai-status').textContent = openingReference ? '正在关联扩展…' : c?.status === 'waiting' ? '等待你的回答或确认' : c?.status === 'running' ? `${c.activity || '正在等待模型响应…'}${c.runStartedAt ? ' · ' + Math.max(0, Math.floor((Date.now()-Date.parse(c.runStartedAt))/1000)) + ' 秒' : ''}` : '';
     if (c?.error) $('.ai-error').textContent = c.error;
   }
   function renderPending(p) {
@@ -134,15 +132,12 @@ export function createAIPage({ getToken, onChanged }) {
     catch (e) { error(e); } finally { busy = false; paint(); }
   });
   async function list() {
-    const scope=current?.scope || selectedScope;
-    const params=historyFilter === 'related' ? '?' + new URLSearchParams({scope:scope.kind,...(scope.id ? {scopeId:scope.id} : {}),related:'1'}) : '';
-    const all = await api('/conversations'); conversations=all.conversations;
+    conversations = (await api('/conversations')).conversations;
     const ids=new Set(conversations.map(c=>c.id));
     const retained=references.filter(r=>ids.has(r.id));
     if(retained.length!==references.length){references=retained;paintReferences();}
     for(const draft of composerDrafts.values())draft.references=draft.references.filter(r=>ids.has(r.id));
-    const r = params ? await api('/conversations'+params) : all;
-    const markup = r.conversations.map(c => `<div class="ai-history-item ${current?.id === c.id ? 'selected' : ''}"><button type="button" class="ai-history-open" data-conversation="${esc(c.id)}" ${current?.id===c.id?'aria-current="true"':''} title="${esc(c.title)}"><span>${esc(c.title)}</span><small>${backendName(c.backend)}${running(c) ? (c.status === 'waiting' ? ' · 等待确认' : ' · 运行中') : ''}${c.scopeInfo?.kind !== 'workspace' ? ' · ' + esc(c.scopeInfo?.label || '') : ''}</small></button><button type="button" class="ai-history-action" data-delete-conversation="${esc(c.id)}" aria-label="删除对话：${esc(c.title)}" title="${running(c)?'请先结束生成或待确认内容':'删除对话'}" ${running(c)?'disabled':''}>⋯</button></div>`).join('') || `<p class="ai-history-empty">${historyFilter==='related'?'暂无相关对话':'还没有对话，点击 ＋ 开始'}</p>`;
+    const markup = conversations.map(c => `<div class="ai-history-item ${current?.id === c.id ? 'selected' : ''}"><button type="button" class="ai-history-open" data-conversation="${esc(c.id)}" ${current?.id===c.id?'aria-current="true"':''} title="${esc(c.title)}"><span>${esc(c.title)}</span><small>${backendName(c.backend)}${running(c) ? (c.status === 'waiting' ? ' · 等待确认' : ' · 运行中') : ''}</small></button><button type="button" class="ai-history-action" data-delete-conversation="${esc(c.id)}" aria-label="删除对话：${esc(c.title)}" title="${running(c)?'请先结束生成或待确认内容':'删除对话'}" ${running(c)?'disabled':''}>⋯</button></div>`).join('') || `<p class="ai-history-empty">还没有对话，点击 ＋ 开始</p>`;
     if(markup!==historyMarkup){historyMarkup=markup;$('.ai-history-list').innerHTML=markup;}
     lastHistoryRead=Date.now();
   }
@@ -156,9 +151,9 @@ export function createAIPage({ getToken, onChanged }) {
     const text = $('#ai-message').value.trim(); if (!text) return;
     busy = true; error(null); paint();
     try {
-      if (!current) { const key=draftKey(); current = (await api('/conversations', { backend:selectedBackend || defaults?.backend, model: $('#ai-model').value, scope:selectedScope })).conversation; const draft=composerDrafts.get(key); if (draft) composerDrafts.set(current.id,draft); }
-      current = (await api(`/conversations/${current.id}/message`, { text, references: references.map(r => r.id), skills: skills.map(s => s.path), objectReferences:objectReferences.map(({kind,id})=>({kind,id})), extensionReferences:extensionReferences.map(({kind,id,version})=>({kind,id,version})), ...(viewContext ? {viewContext} : {}) })).conversation;
-      composerDrafts.delete(draftKey()); $('#ai-message').value = ''; resizeInput(); references = []; skills = []; objectReferences=[]; extensionReferences=[]; viewContext=undefined; history.replaceState(null,'','/#ai&conversation='+encodeURIComponent(current.id)); paintReferences(); closeMentions(); await list();
+      if (!current) { const key=draftKey(); current = (await api('/conversations', { backend:selectedBackend || defaults?.backend, model: $('#ai-model').value })).conversation; const draft=composerDrafts.get(key); if (draft) composerDrafts.set(current.id,draft); }
+      current = (await api(`/conversations/${current.id}/message`, { text, references: references.map(r => r.id), skills: skills.map(s => s.path), objectReferences:objectReferences.map(({kind,id})=>({kind,id})), extensionReferences:extensionReferences.map(({kind,id,version})=>({kind,id,version})) })).conversation;
+      composerDrafts.delete(draftKey()); $('#ai-message').value = ''; resizeInput(); references = []; skills = []; objectReferences=[]; extensionReferences=[]; history.replaceState(null,'','/#ai&conversation='+encodeURIComponent(current.id)); paintReferences(); closeMentions(); await list();
     } catch (e) { error(e); } finally { busy = false; paint(); }
   }
   function paintReferences() { $('.ai-references').innerHTML = extensionReferences.map(ref=>`<span>扩展 · ${esc(ref.name || ref.id)}<button type="button" data-remove-extension="${esc(ref.id)}" aria-label="移除扩展引用">×</button></span>`).join('') + skills.map(s => `<span>/ ${esc(s.name)}<button type="button" data-remove-skill="${esc(s.path)}" aria-label="移除技能 ${esc(s.name)}">×</button></span>`).join('') + objectReferences.map(r=>`<span>@ ${esc(objectLabel(r))}<button type="button" data-remove-object="${esc(r.kind+':'+r.id)}" aria-label="移除对象引用">×</button></span>`).join('') + references.map(r => `<span>@ ${esc(r.title)}<button type="button" data-remove-reference="${esc(r.id)}" aria-label="移除引用 ${esc(r.title)}">×</button></span>`).join(''); }
@@ -189,13 +184,10 @@ export function createAIPage({ getToken, onChanged }) {
         if(running(target))throw new Error('请先结束生成或处理待确认内容');
         deleteTarget={id:target.id,title:target.title,updatedAt:target.updatedAt};
         $('.ai-delete-dialog .delete-name').textContent=target.title;
-        $('.ai-delete-dialog .dialog-error').textContent='';$('.ai-delete-dialog').showModal();
+        $('.ai-delete-dialog .dialog-error').textContent='';deleteDialog.open();
       }
       else if (b.classList.contains('ai-new')) { if (busy || openingReference) return; saveComposer(); resetConversation(); await list(); await loadModels(); $('#ai-message').focus(); }
-      else if (b.dataset.conversation) { if (busy || openingReference) return; saveComposer(); current = (await api('/conversations/' + b.dataset.conversation)).conversation; selectedScope=current.scope || {kind:'workspace'}; viewContext=undefined; restoreComposer(); history.replaceState(null,'','/#ai&conversation='+encodeURIComponent(current.id)); error(null); paint(); await list(); await loadModels(); }
-      else if (b.dataset.historyFilter) { historyFilter=b.dataset.historyFilter; element.querySelectorAll('[data-history-filter]').forEach(el=>el.classList.toggle('chosen',el===b)); await list(); }
-      else if (b.hasAttribute('data-bind-scope')) { await loadWorkspace(); const scope=current?.scope || selectedScope; $('.ai-scope-editor').hidden=false; $('.ai-scope-editor').innerHTML=selectField({name:'ai-scope-choice',label:'主关联（历史内容仍保留，跨项目建议新建对话）',value:scope.kind==='workspace'?'':scope.kind+':'+scope.id,options:[{value:'',label:'通用对话'},...workspace.projects.map(p=>({value:'project:'+p.id,label:'项目 · '+p.name})),...workspace.tasks.map(t=>({value:'task:'+t.id,label:'任务 · '+t.title+' / '+(workspace.projects.find(p=>p.id===t.projectId)?.name || '未归类')}))]})+'<button type="button" class="small-button" data-save-scope>保存关联</button>'; }
-      else if (b.hasAttribute('data-save-scope')) { const value=element.querySelector('[name="ai-scope-choice"]').value; const split=value.indexOf(':'); const scope=value?{kind:value.slice(0,split),id:value.slice(split+1)}:{kind:'workspace'}; if (current) current=(await api('/conversations/'+current.id+'/scope',{scope,expectedScopeVersion:current.scopeVersion || 0})).conversation; selectedScope=scope; $('.ai-scope-editor').hidden=true; await loadWorkspace(); paint(); await list(); }
+      else if (b.dataset.conversation) { if (busy || openingReference) return; saveComposer(); current = (await api('/conversations/' + b.dataset.conversation)).conversation; restoreComposer(); history.replaceState(null,'','/#ai&conversation='+encodeURIComponent(current.id)); error(null); paint(); await list(); await loadModels(); }
       else if (b.dataset.objectId) { if (objectReferences.length>=5) throw new Error('一次最多引用 5 个对象'); objectReferences.push({kind:b.dataset.objectKind,id:b.dataset.objectId}); $('#ai-message').value=$('#ai-message').value.replace(/(^|\s)@[^@\n]*$/,'$1'); closeMentions(); paintReferences(); resizeInput(); $('#ai-message').focus(); }
       else if (b.dataset.removeExtension) { extensionReferences=extensionReferences.filter(ref=>ref.id!==b.dataset.removeExtension); paintReferences(); }
       else if (b.dataset.removeObject) { objectReferences=objectReferences.filter(r=>r.kind+':'+r.id!==b.dataset.removeObject); paintReferences(); }
@@ -244,18 +236,17 @@ export function createAIPage({ getToken, onChanged }) {
   return { element, async open(options = {}) {
     const ticket=++opening; saveComposer(); openingReference=!!options.extensionReferences; paint();
     try {
-    if (options.returnHash) returnHash=options.returnHash;
     await loadWorkspace();
     const next=options.conversation ? (await api('/conversations/'+options.conversation)).conversation : null;
     if (ticket!==opening) return;
     if(options.extensionReferences && current?.id===next?.id)saveComposer();
-    current=next; selectedScope=next?.scope || options.scope || {kind:'workspace'}; viewContext=options.viewContext;
-    pendingId=null; lastMessages=''; $('.ai-scope-editor').hidden=true;
+    current=next;
+    pendingId=null; lastMessages='';
     restoreComposer();
     if(options.extensionReferences) { for(const ref of options.extensionReferences) if(!extensionReferences.some(value=>value.id===ref.id)) { if(extensionReferences.length>=5)throw new Error('一次最多引用 5 个扩展');extensionReferences.push(ref); } if(options.prompt&&!$('#ai-message').value.trim())$('#ai-message').value=options.prompt;paintReferences();resizeInput(); }
     error(null); paint(); await list(); await loadModels(); $('#ai-message').focus();
-    } catch (e) { if (ticket!==opening) return; current=null; selectedScope={kind:'workspace'}; pendingId=null; renderPending(null); paint(); error(e); await list().catch(error); }
+    } catch (e) { if (ticket!==opening) return; current=null; pendingId=null; renderPending(null); paint(); error(e); await list().catch(error); }
     finally { if(ticket===opening){openingReference=false;paint();} }
-  }, async openExtension({reference,returnHash,prompt}) { return this.open({conversation:current?.id,scope:current?.scope || selectedScope,returnHash,prompt,extensionReferences:[reference]}); }, setVisible(value) { if(!value&&visible)saveComposer(); visible = value; element.hidden = !value; clearInterval(timer); if (value) { void loadWorkspace().catch(error); void list().catch(error); void refresh(); void loadModels(); timer = setInterval(refresh, 700); } } };
+  }, async openExtension({reference,prompt}) { return this.open({conversation:current?.id,prompt,extensionReferences:[reference]}); }, setVisible(value) { if(!value&&visible)saveComposer(); visible = value; element.hidden = !value; clearInterval(timer); if (value) { void loadWorkspace().catch(error); void list().catch(error); void refresh(); void loadModels(); timer = setInterval(refresh, 700); } } };
 }
 function actionLabel(type) { return ({'project.create':'创建项目','project.update':'修改项目','project.delete':'删除项目','task.create':'新增任务','task.update':'修改任务','task.status':'更新任务状态','task.delete':'删除任务','plan.add':'加入日期安排','plan.remove':'移出日期安排','plan.reschedule':'跨日改期','plan.move':'调整顺序','plan.set':'更新日期安排',undo:'撤销最近操作'})[type] || type; }

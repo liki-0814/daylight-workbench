@@ -61,12 +61,20 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   const p=provider(id),description=registry.snapshot(id);
   if(!description.authentication.operations.includes(operation))fail('来源不支持此认证操作',404);
   if(description.authentication.requiresStoppedService&&['login','logout'].includes(operation))return service.accountChange(operation,async()=>{const account=await accountKey(p);const result=await p.auth[operation]();if(operation==='logout'){if(account)await jobs?.dropAccount(id,account);sourceState.invalidate(id);router.invalidateSource(id);}return result;});
+  if(operation==='repair'){
+   await p.auth.repair();sourceState.invalidate(id);router.invalidateSource(id);
+   const recovery=p.auth.recovery;
+   if(recovery?.code?.startsWith('EKEYCHAIN'))return{ok:false,credentialRepaired:false,connected:false,code:recovery.code,error:recovery.message};
+   // Repair verifies keychain access only. Provider discovery can refresh tokens
+   // and outlive this operation's authorization budget; run it separately.
+   return{ok:true,credentialRepaired:true,connectionChecked:false};
+  }
   if(operation==='refresh'){const result=await p.auth?.refresh?.();return result?.url?result:catalogStatus(id,true);}
   const account=await accountKey(p);
   const result=await p.auth[operation]();
   if(operation==='logout'&&account)await jobs?.dropAccount(id,account);
   if(result.authorized||operation==='logout'){sourceState.invalidate(id);router.invalidateSource(id);}
-  if(result.authorized&&p.status)return{...result,...await catalogStatus(id,true)};
+  if(result.authorized&&p.status){try{return{...result,...await catalogStatus(id,true)};}catch(error){return{...result,connected:false,error:operationError(error,'登录已保存，连接检测失败，请重试检测')};}}
   return result;
  }
  async function inferenceCheck(id,modelId){
@@ -163,7 +171,7 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   if(customMatch){const op=customMatch[1].replace(/^sources\//,'');requireMethod(op==='sources'?'GET':'POST');return customOperation(op,input);}
   const jobMatch=/^\/api\/proxy\/media\/jobs\/([^/]+)$/.exec(route);
   if(jobMatch){requireMethod('DELETE');const removed=await jobs?.remove(decodeURIComponent(jobMatch[1]));if(!removed)fail('任务不存在',404);return{ok:true};}
-  const match=/^\/api\/proxy\/sources\/([^/]+)\/(status|models(?:\/setting)?|media-models(?:\/setting)?|quota|auth\/(?:login|poll|cancel|refresh|logout)|check)$/.exec(route);
+  const match=/^\/api\/proxy\/sources\/([^/]+)\/(status|models(?:\/setting)?|media-models(?:\/setting)?|quota|auth\/(?:login|poll|cancel|refresh|logout|repair)|check)$/.exec(route);
   if(match){const op=match[2];requireMethod(['status','models','media-models','quota','auth/poll'].includes(op)?'GET':'POST');return sourceOperation(decodeURIComponent(match[1]),op,input,query);}
   const old=/^\/api\/([^/]+)\/(.+)$/.exec(route),id=old&&legacy[old[1]],op=old?.[2];
   if(!id)fail('接口不存在',404);provider(id);

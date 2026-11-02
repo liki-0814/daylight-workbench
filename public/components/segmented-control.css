@@ -39,7 +39,9 @@
   cursor: pointer;
 }
 
-.ui-segmented button[aria-checked=true] {
+.ui-segmented [role=tab] { flex:0 0 auto; white-space:nowrap; }
+
+.ui-segmented button:is([aria-checked=true],[aria-selected=true]) {
   background: var(--paper);
   color: var(--workbench-text);
   box-shadow: 0 1px 3px #0001;

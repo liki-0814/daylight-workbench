@@ -244,8 +244,12 @@ test('explicit task association, references, move/delete/undo and scope conflict
   await f.api(`conversations/${c.id}/answer`,{id:waiting.pending.id,answer:'继续'}); await f.wait(c.id,c=>c.status==='idle');
   await f.apply({type:'task.update',id:'t-linked',projectId:'p-other'});
   assert.equal((await f.api('conversations/'+c.id)).conversation.scopeInfo.projectId,'p-other');
-  const related=await f.api('conversations?scope=project&scopeId=p-other&related=1');
-  assert.equal(related.conversations[0].id,c.id);
+  const other=(await f.api('conversations',{})).conversation;
+  const history=await f.api('conversations');
+  assert(history.conversations.some(row=>row.id===c.id));assert(history.conversations.some(row=>row.id===other.id));
+  assert(history.conversations.every(row=>!Object.hasOwn(row,'relatedReasons')));
+  const legacyQuery=await f.api('conversations?scope=project&scopeId=p-other&related=1');
+  assert.equal(legacyQuery.conversations.length,history.conversations.length);
   await f.apply({type:'task.delete',id:'t-linked'});
   assert.equal((await f.api('conversations/'+c.id)).conversation.scopeInfo.exists,false);
   await f.apply({type:'undo'});
@@ -326,4 +330,14 @@ test('AI deletion is inert until reviewed, protects changed targets and cannot d
   assert.equal((await f.api(`conversations/${caller.id}/answer`,{id:fresh.pending.id,approve:true})).status,200);
   const done=await f.wait(caller.id,c=>c.status==='idle');assert.match(done.messages.at(-1).text,/对话已删除/);
   assert.equal((await f.api('conversations/'+target.id)).status,404);
+});
+
+test('a final conversation write failure cannot leave an unhandled run or block the next request',async t=>{
+ const f=await fixture(t),c=(await f.api('conversations',{})).conversation;
+ await f.api(`conversations/${c.id}/message`,{text:'ask'});const waiting=await f.wait(c.id,c=>c.status==='waiting');
+ const write=f.ai.store.write.bind(f.ai.store);let failed=false;
+ f.ai.store.write=(file,value)=>{if(!failed&&file.startsWith('conversations/')&&value.status==='idle'){failed=true;throw Object.assign(Error('fixture disk full'),{code:'ENOSPC'});}return write(file,value);};
+ await f.api(`conversations/${c.id}/answer`,{id:waiting.pending.id,answer:'完成'});
+ const failedConversation=await f.wait(c.id,c=>c.status==='error');assert.match(failedConversation.error,/保存失败/);assert.equal(failedConversation.pending,null);
+ const next=await f.api(`conversations/${c.id}/message`,{text:'ask'});assert.equal(next.status,200);await f.wait(c.id,c=>c.status==='waiting');
 });

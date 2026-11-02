@@ -25,8 +25,8 @@ const account = { id: 'acc_test', profile: 'qoder', credential: { uid: 'test', a
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const frame = value => `data: ${JSON.stringify({ body: JSON.stringify(value) })}\n\n`;
 function fakeUpstream() {
-  const calls = []; let queues = 0, never = false, truncated = false, pendingLogin = true, refreshes = 0;
-  return { calls, get refreshes() { return refreshes; }, queue: n => { queues = n; }, hang: () => { never = true; }, truncate: () => { truncated = true; }, authorize: () => { pendingLogin = false; },
+  const calls = []; let queues = 0, never = false, truncated = false, lateQueue = false, pendingLogin = true, refreshes = 0;
+  return { calls, get refreshes() { return refreshes; }, queue: n => { queues = n; }, queueAfterContent: () => { lateQueue = true; }, hang: () => { never = true; }, truncate: () => { truncated = true; }, authorize: () => { pendingLogin = false; },
     fetch: async (url, options = {}) => {
       const route = new URL(url).pathname;
       if (route.endsWith('/model/list')) return json(catalog);
@@ -40,6 +40,7 @@ function fakeUpstream() {
       if (queues-- > 0) return new Response(frame({ code: '10605', message: 'queued' }));
       if (never) return new Response(new ReadableStream({ start(controller) { options.signal.addEventListener('abort', () => controller.error(new Error('aborted')), { once: true }); } }));
       const text = frame({ choices: [{ delta: { content: '你好' }, finish_reason: null }] });
+      if (lateQueue) return new Response(text + frame({code:'10605', message:'queued'}));
       if (truncated) return new Response(text);
       const wire = text + frame({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_1', function: { name: 'lookup', arguments: '{"city":"杭州"}' } }] }, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 4, completion_tokens: 8, total_tokens: 12 } }) + 'event: finish\ndata: {}\n\n';
       // Deliberately split a multibyte UTF-8 character across network chunks.
@@ -204,6 +205,21 @@ test('queue retries reuse conversation, rotate request id, exhaust as 503, and r
   assert.equal(new Set(bodies.map(b => b.request_set_id)).size, 1);
   f.fake.queue(3); assert.equal((await f.client('responses', { model: 'test-model', input: 'hi', stream: true })).status, 503);
   f.fake.truncate(); const truncated = await f.client('responses', { model: 'test-model', input: 'hi' }); assert.equal(truncated.status, 502);
+});
+
+test('longer queue recovery survives three rejections but never replays content already produced', async t => {
+  const f = await fixture(t); await f.api('service', {enabled:true});
+  await writeFile(path.join(f.dataDir, 'qoder/settings.json'), JSON.stringify({queueRetry:{enabled:true,maxRetries:4,delayMs:100}}));
+  f.fake.queue(3);
+  const recovered = await f.client('responses', {model:'test-model',input:'hi'});
+  assert.equal(recovered.status, 200);
+  await recovered.json();
+  assert.equal(f.fake.calls.length, 4);
+  f.fake.queueAfterContent();
+  const failed = await f.client('responses', {model:'test-model',input:'hi'});
+  assert.equal(failed.status, 503);
+  assert.match(JSON.stringify(await failed.json()), /10605/);
+  assert.equal(f.fake.calls.length, 5);
 });
 
 test('port collision restores stopped state; force stop cancels active requests; refresh is serialized', async t => {

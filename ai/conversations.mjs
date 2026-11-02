@@ -1,6 +1,8 @@
+import fs from 'node:fs';
+import { projectSkillPath } from './project-skill.mjs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { normalizeScope, scopeInfo, relatedReasons } from './context.mjs';
+import { normalizeScope, scopeInfo } from './context.mjs';
 import { isActive } from './run-manager.mjs';
 import { httpError } from './http.mjs';
 import { hasUnresolvedFocusSubmission } from './focus-submissions.mjs';
@@ -10,14 +12,17 @@ import { aiBackends } from '../core/ai-backends.js';
 export function createConversations({ store, providers, api, isRunning, isFocusApplying = () => false, isExtensionApplying = () => false }) {
   const catalogs = store.read('catalogs.json', {}), discoveries = new Map();
   async function discover(backend, config, force = false) {
-    const key = JSON.stringify([backend, config.path || '']);
+    const cwd = store.workspace(backend);
+    const manifest = path.join(projectSkillPath(backend, cwd), '.daylight-managed.json');
+    const projectSkillRevision = fs.existsSync(manifest) ? createHash('sha256').update(fs.readFileSync(manifest)).digest('hex') : '';
+    const key = JSON.stringify([backend, config.path || '', projectSkillRevision]);
     if (!force && catalogs[key] && (backend !== 'qoder' || Array.isArray(catalogs[key].skills))) return catalogs[key];
     if (discoveries.has(key)) return discoveries.get(key);
-    const pending = providers[backend].discover(config, store.workspace(backend)).then(result => {
+    const pending = providers[backend].discover(config, cwd).then(result => {
       const cached = { ...result, discoveredAt: new Date().toISOString() };
       for (const alias of Object.keys(catalogs)) if (JSON.parse(alias)[0] === backend && result.path && catalogs[alias].path === result.path) catalogs[alias] = cached;
       catalogs[key] = cached;
-      if (result.path) catalogs[JSON.stringify([backend, result.path])] = cached;
+      if (result.path) catalogs[JSON.stringify([backend, result.path, projectSkillRevision])] = cached;
       store.write('catalogs.json', catalogs);
       return cached;
     }).finally(() => discoveries.delete(key));
@@ -91,15 +96,12 @@ export function createConversations({ store, providers, api, isRunning, isFocusA
     return result;
   }
 
-  async function list(url) {
+  async function list() {
     const workspace = await api('state');
-    const target = url.searchParams.has('scope') ? normalizeScope({ kind: url.searchParams.get('scope'), id: url.searchParams.get('scopeId') }, workspace.state, false) : null;
-    const related = url.searchParams.get('related') === '1';
     const conversations = [...store.conversations.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(c => {
-      const reasons = target ? relatedReasons(c, target, workspace.state) : [];
       const { messages, ...rest } = c;
-      return { ...rest, scope: c.scope || { kind: 'workspace' }, scopeVersion: c.scopeVersion || 0, scopeInfo: scopeInfo(c.scope, workspace.state), messageCount: messages.length, relatedReasons: reasons };
-    }).filter(c => !target || (related ? c.relatedReasons.length : c.scope.kind === target.kind && c.scope.id === target.id));
+      return { ...rest, scope: c.scope || { kind: 'workspace' }, scopeVersion: c.scopeVersion || 0, scopeInfo: scopeInfo(c.scope, workspace.state), messageCount: messages.length };
+    });
     return { conversations };
   }
   async function detail(c) {

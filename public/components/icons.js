@@ -1,4 +1,5 @@
 const paths = {
+  menu: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M7 14h3M14 14h3M7 18h3"/>',
   timer: '<circle cx="12" cy="14" r="8"/><path d="M9 2h6M12 2v4m6 1 2-2M12 10v5l3 2"/>',
   chart: '<path d="M3 3v18h18M7 17v-6M12 17V7M17 17v-9"/>',
@@ -7,7 +8,7 @@ const paths = {
   chat: '<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h6"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-  plug: '<path d="M9 7V3m6 4V3M7 7h10v4a5 5 0 0 1-5 5v5m-3 0h6"/>',
+  plug: '<path d="M9 3v4m6-4v4M7 7h10v4a5 5 0 0 1-10 0V7Z"/><path d="M12 16v5"/>',
   inbox: '<path d="M4 4h16l2 11v5H2v-5L4 4Z"/><path d="M2 15h6l2 3h4l2-3h6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',

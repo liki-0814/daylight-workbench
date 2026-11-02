@@ -228,6 +228,9 @@ input[type="checkbox"], input[type="radio"] {
   grid-column: 1;
   grid-row: 1;
   margin: 0;
+  font-size: var(--font-section-size);
+  line-height: var(--font-section-line);
+  font-weight: 600;
 }
 .ui-section-heading > div:first-child > p {
   grid-column: 1;
@@ -293,6 +296,12 @@ input[type="checkbox"], input[type="radio"] {
   .ui-section-actions { gap: var(--space-2); margin-left: var(--space-2); }
   .ui-section-actions > .ui-section-description { max-width: 7em; }
 }
+
+/* Panel disclosures reuse the same heading/body anchors without separator rules. */
+.ui-disclosure-panel { border:1px solid var(--line); border-radius:var(--button-radius); background:var(--paper); }
+.ui-disclosure-panel > .ui-disclosure-heading { min-height:calc(var(--button-height) + var(--space-4) * 2); padding:var(--space-4) var(--panel-inline-inset); }
+.ui-disclosure-panel > .ui-disclosure-body { padding:0 var(--panel-inline-inset) var(--space-4) calc(var(--panel-inline-inset) + var(--disclosure-marker-width)); }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 
 /* Label + control rows share one label column and a capped control width, so wide windows never push them apart. */
 .ui-form-row {

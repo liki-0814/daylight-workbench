@@ -28,8 +28,8 @@ export function settingToggleRow({ name, label, description }) {
 
 /** Collapsible sections always keep title, description and actions in the shared heading.
  * Pass trusted template HTML as content/actions; text values are escaped here. */
-export function disclosureSection({ id, title, description = '', actions = '', content = '', className = '' }) {
-  return `<details ${attributes({ id })} class="ui-disclosure ${escape(className)}"><summary class="ui-disclosure-heading">${icon('down')}<span class="ui-disclosure-title">${escape(title)}</span><span class="ui-section-actions">${description ? `<span class="ui-section-description">${escape(description)}</span>` : ''}${actions}</span></summary><div class="ui-disclosure-body">${content}</div></details>`;
+export function disclosureSection({ id, title, description = '', actions = '', content = '', className = '', appearance = 'line' }) {
+  return `<details ${attributes({ id })} class="ui-disclosure ${appearance === 'panel' ? 'ui-disclosure-panel' : ''} ${escape(className)}"><summary class="ui-disclosure-heading">${icon('down')}<span class="ui-disclosure-title">${escape(title)}</span><span class="ui-section-actions">${description ? `<span class="ui-section-description">${escape(description)}</span>` : ''}${actions}</span></summary><div class="ui-disclosure-body">${content}</div></details>`;
 }
 
 /** Header actions must not trigger the summary's native collapse/expand action. */

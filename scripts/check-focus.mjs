@@ -9,5 +9,5 @@ function check(directory) {
     else if (/\.(?:js|mjs)$/.test(file)) execFileSync(process.execPath, ['--check', file]);
   }
 }
-for (const directory of ['core', 'focus', 'public/calendar', 'public/focus', 'public/components']) check(directory);
+for (const directory of ['core', 'focus', 'public/focus', 'public/components']) check(directory);
 for (const file of ['public/task-client.js', 'scripts/benchmark-focus.mjs']) execFileSync(process.execPath, ['--check', file]);

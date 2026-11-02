@@ -65,6 +65,7 @@
 | 来源 | 文件 | 功能 |
 | --- | --- | --- |
 | Qoder | `provider.js` | 组合认证、目录、请求与流，处理 Qoder 排队和重试 |
+| Qoder | `queue-retry.js` | 按账号和模型为输出前的排队重试分配错峰时隙，支持取消 |
 | Qoder | `auth.js` | 账号存储、PKCE 授权、轮询、取消/退出、令牌刷新、组织信息 |
 | Qoder | `transport.js` | COSY 身份、签名、专属请求头与 HTTP；签名绑定实际发送路径与正文 |
 | Qoder | `body-codec.js` | 上游请求正文编码；测试用反向解码位于 `fixtures/qoder/wire.mjs` |
@@ -98,7 +99,7 @@
 | Custom | `provider.js` | 单来源执行实例、映射、逐 Key 权限、冷却/回退/亲和性、协议转换 |
 | Custom | `models.js` | 目录解析、模型校验、逐 Key 权限与容量的保守合并 |
 
-Qoder 8 文件、AGY 6、Grok 5、Kimi/Copilot 各 4、Codex/Custom 各 3。Qoder 多出的签名传输、正文编码和 SSE 拆包对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。Codex 已移除原 app-server RPC 额度解析器及专属测试，当前独立接口通过 `auth.quota()` 明确返回未知额度；推理和 401 重试直接使用同一 `auth.read()`。
+Qoder 9 文件、AGY 6、Grok 5、Kimi/Copilot 各 4、Codex/Custom 各 3。Qoder 多出的签名传输、正文编码、SSE 拆包和重试调度对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。Codex 已移除原 app-server RPC 额度解析器及专属测试，当前独立接口通过 `auth.quota()` 明确返回未知额度；推理和 401 重试直接使用同一 `auth.read()`。
 
 来源级回退由 router 负责，Custom 内部 Key 回退由 provider 负责。模型设置不能自动把某个 Key 的权限复制给其他 Key。
 

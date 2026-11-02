@@ -25,7 +25,7 @@ export function renderQuota(snapshot){
 
 export function createQuotaPage({store}){
  const root=document.createElement('section');root.id='proxy-panel-quota';root.className='proxy-provider-page';root.hidden=true;root.setAttribute('role','tabpanel');root.setAttribute('aria-labelledby','proxy-tab-quota');
- root.innerHTML=`<div class="workspace proxy-workspace"><section class="proxy-panel proxy-quota-panel">${sectionHeading({title:'账户额度',description:'各账号的剩余额度 · 每分钟刷新',actions:refreshButton({ariaLabel:'刷新账户额度',attrs:{'data-refresh-quota':true}})})}<div class="proxy-quota-columns" aria-hidden="true"><span>账号</span><span>剩余额度</span></div><div data-quota-accounts aria-busy="false"></div><p class="proxy-quota-empty" role="status" data-quota-empty></p></section></div>`;
+ root.innerHTML=`<div class="workspace proxy-workspace"><section class="proxy-panel proxy-quota-panel">${sectionHeading({title:'账户额度',actions:refreshButton({ariaLabel:'刷新账户额度',attrs:{'data-refresh-quota':true}})})}<div class="proxy-quota-columns" aria-hidden="true"><span>账号</span><span>剩余额度</span></div><div data-quota-accounts aria-busy="false"></div><p class="proxy-quota-empty" role="status" data-quota-empty></p></section></div>`;
  const list=root.querySelector('[data-quota-accounts]'),empty=root.querySelector('[data-quota-empty]'),refresh=root.querySelector('[data-refresh-quota]'),rows=new Map();
  let visible=false,disposed=false,timer,focusAfterRefresh=false;
  function paint(){

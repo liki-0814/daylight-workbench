@@ -1,23 +1,24 @@
+import {sectionHeading} from './section.js';
 export const settingsPage = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 设置</span></header>
     <div class="workspace settings-workspace">
-      <section class="page-heading"><div><h1>设置</h1><p>反向代理、AI 对话、专注计时与快捷键</p></div></section>
+      <section class="page-heading"><div><h1>设置</h1></div></section>
       <div class="ui-panel-grid settings-grid">
         <div class="ui-panel-stack">
-          <section class="settings-panel" aria-labelledby="extensions-settings-heading"><div class="settings-heading"><h2 id="extensions-settings-heading">本地扩展</h2><p>主来源位于 ~/.agents。管理 Skills、MCP 与本机软件接入。</p></div><a class="text-button" href="#extensions">打开扩展管理</a></section>
-          <section class="settings-panel" aria-labelledby="update-settings-heading"><div class="settings-heading"><h2 id="update-settings-heading">应用更新</h2><p>检查新版本、自动更新方式与回滚已移到独立的更新页面。</p></div><a class="text-button" href="#update">打开更新页面</a></section>
-          <section class="settings-panel" aria-labelledby="shortcuts-heading">
-            <div class="settings-heading"><h2 id="shortcuts-heading">快捷键</h2><p>在快捷面板和主窗口中使用</p></div>
+          <section class="settings-panel" aria-label="本地扩展">${sectionHeading({title:'本地扩展',className:'settings-heading'})}<a class="text-button" href="#extensions">打开扩展管理</a></section>
+          <section class="settings-panel" aria-label="应用更新">${sectionHeading({title:'应用更新',className:'settings-heading'})}<a class="text-button" href="#update">打开更新页面</a></section>
+          <section class="settings-panel" aria-label="快捷键">
+            ${sectionHeading({title:'快捷键',className:'settings-heading'})}
             <ul class="shortcut-list">
-              <li><div><strong>快捷问答与搜索</strong><span>全局唤出临时 AI 问答，也可切换 Google 搜索</span></div><span class="keys"><kbd>⌥</kbd><kbd>Space</kbd></span></li>
-              <li><div><strong>新建任务</strong><span>在当前页面打开新建任务表单</span></div><span class="keys"><kbd>⌘</kbd><kbd>K</kbd></span></li>
-              <li><div><strong>搜索任务</strong><span>聚焦顶部搜索框，查找任务</span></div><span class="keys"><kbd>/</kbd></span></li>
-              <li><div><strong>打开设置</strong><span>从任意页面回到这里</span></div><span class="keys"><kbd>⌘</kbd><kbd>,</kbd></span></li>
-              <li><div><strong>关闭</strong><span>关闭对话框或快捷面板</span></div><span class="keys"><kbd>Esc</kbd></span></li>
+              <li><div><strong>快捷问答与搜索</strong></div><span class="keys"><kbd>⌥</kbd><kbd>Space</kbd></span></li>
+              <li><div><strong>新建任务</strong></div><span class="keys"><kbd>⌘</kbd><kbd>K</kbd></span></li>
+              <li><div><strong>搜索任务</strong></div><span class="keys"><kbd>/</kbd></span></li>
+              <li><div><strong>打开设置</strong></div><span class="keys"><kbd>⌘</kbd><kbd>,</kbd></span></li>
+              <li><div><strong>关闭</strong></div><span class="keys"><kbd>Esc</kbd></span></li>
             </ul>
           </section>
-          <section class="settings-panel" aria-labelledby="quick-heading">
-            <div class="settings-heading"><h2 id="quick-heading">快捷问答与搜索</h2><p>按 ⌥ Space 唤出，输入后按 Enter</p></div>
+          <section class="settings-panel" aria-label="快捷问答与搜索">
+            ${sectionHeading({title:'快捷问答与搜索',className:'settings-heading'})}
             <dl class="settings-facts">
               <div><dt>临时问答</dt><dd>复用 AI 对话模型与推理设置，仅一轮，关闭即清空</dd></div>
               <div><dt>搜索引擎</dt><dd>切换 Google 模式搜索或打开网址</dd></div>
@@ -28,5 +29,4 @@ export const settingsPage = `
           </section>
         </div>
       </div>
-      <footer class="workspace-footer"><span>设置仅保留在本机</span><span>Daylight</span></footer>
     </div>`;
