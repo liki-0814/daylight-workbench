@@ -17,5 +17,5 @@ export const extensionsCapability = {
   reads: 'GET /api/v1/extensions/state', prepare: 'POST /api/v1/extensions/prepare',
   writes: 'POST /api/v1/extensions/actions {requestId, expectedVersion, planId, action}',
   recovery: 'GET /api/v1/extensions/operations/:requestId', operations: extensionActions,
-  clients: ['codex', 'qoder', 'pi', 'grok', 'claude'], discovery: 'Known CLI candidates; only user-selected clients are scanned and managed', clientMcp: 'User-level native configuration via verified adapters', clientRegistration: '~/.agents/daylight/clients.json', approval: 'AI proposals require user review; queries never start MCP',
+  clients: ['codex', 'qoder', 'pi', 'grok', 'claude', 'hermes'], discovery: 'Known CLI candidates; only user-selected clients are scanned and managed', clientMcp: 'User-level native configuration via verified adapters', clientRegistration: '~/.agents/daylight/clients.json', approval: 'AI proposals require user review; queries never start MCP',
 };

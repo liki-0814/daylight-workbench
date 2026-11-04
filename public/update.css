@@ -1,5 +1,6 @@
-/* The update page reuses the settings layout (.settings-panel, .settings-facts, .ui-panel-stack);
-   only its own content types are styled here. */
+/* The update page reuses the settings panels in one column: status, then the
+   update mode, then the notes and history. Two columns split the action from
+   the setting that changes it, and leave the notes in a narrow side column. */
 .update-inline-actions { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap:wrap; margin-left:var(--space-2); vertical-align: middle; }
 .settings-facts dd a:not(.text-button) { color:var(--accent-ink); overflow-wrap:anywhere; }
 .update-live { min-height: 0; display: grid; gap: var(--space-2); margin:0; font-size: var(--font-caption-size); line-height: var(--font-caption-line); color: var(--muted); }

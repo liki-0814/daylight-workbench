@@ -89,7 +89,7 @@ export function updateMarkup({ release = null, updater = null, checking = false,
     const reason = install && install.ok === false ? install.message : updater?.supported === false ? updater.message : '';
     if (reason) notices.push(`<div class="update-notice" data-tone="info"><span>${esc(reason)}</span></div>`);
   }
-  if (phase === 'ready' && staged?.credentialsReset) notices.push('<div class="update-notice" data-tone="info"><span>这个版本更新了钥匙串辅助程序，更新后需要在设置里重新登录一次已保存的服务账号。</span></div>');
+
   if (loadError && release) notices.push(`<div class="update-notice" data-tone="warn" role="alert"><span>${esc(loadError)}</span></div>`);
 
   const live = `<div class="update-live" role="status" aria-live="polite" data-update-live>${working ? `<span data-update-progress-text>${esc(progressText(updater))}</span><div data-update-progress></div>` : phase === 'ready' ? `<span>${esc(staged?.version || '')} 已下载并通过校验，重启后完成更新</span>` : ''}</div>`;
@@ -103,7 +103,7 @@ export function updateMarkup({ release = null, updater = null, checking = false,
   return `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 更新</span></header>
     <div class="workspace settings-workspace">
       <section class="page-heading"><div><h1>更新</h1></div></section>
-      <div class="ui-panel-grid settings-grid"><div class="ui-panel-stack">
+      <div class="ui-panel-stack settings-grid">
         <section class="settings-panel" aria-label="版本">
           ${sectionHeading({title:'版本',className:'settings-heading'})}
           <dl class="settings-facts">
@@ -119,22 +119,21 @@ export function updateMarkup({ release = null, updater = null, checking = false,
           ${live}
           <div class="app-update-actions">${actions.join('')}${links.join('')}</div>
         </section>
-        <section class="settings-panel" aria-label="更新说明">
-          ${sectionHeading({title:'更新说明',className:'settings-heading'})}
-          ${latest?.body ? `<div class="update-notes" data-update-notes>${notesHtml || `<p>${esc(latest.notes)}</p>`}</div>` : `<p class="update-empty" data-update-notes-empty>${latest ? '该发布没有填写说明。' : '有新的正式发布后，完整说明会显示在这里。'}</p>`}
-        </section>
-      </div><div class="ui-panel-stack">
         <section class="settings-panel" aria-label="自动更新">
           ${sectionHeading({title:'自动更新',className:'settings-heading'})}
           <div class="update-mode">${segmentedControl({ id: 'update-mode', label: '自动更新方式', value: mode, options: updateModes.map(item => ({ value: item.value, label: item.label, disabled: !supported && item.value !== 'notify' })) })}</div>
           <p class="update-mode-note" data-update-mode-note>${esc(supported ? note : (updater?.message || '网页版只能检查新版本。'))}</p>
+        </section>
+        <section class="settings-panel" aria-label="更新说明">
+          ${sectionHeading({title:'更新说明',className:'settings-heading'})}
+          ${latest?.body ? `<div class="update-notes" data-update-notes>${notesHtml || `<p>${esc(latest.notes)}</p>`}</div>` : `<p class="update-empty" data-update-notes-empty>${latest ? '该发布没有填写说明。' : '有新的正式发布后，完整说明会显示在这里。'}</p>`}
         </section>
         <section class="settings-panel" aria-label="更新历史">
           ${sectionHeading({title:'更新历史',className:'settings-heading'})}
           ${history.length ? `<ul class="update-history" data-update-history>${history.map(item => `<li data-status="${esc(item.status)}"><div><strong>${esc(item.from)} → ${esc(item.to)}</strong><span>${resultLine(item)}</span></div></li>`).join('')}</ul>` : '<p class="update-empty" data-update-history-empty>还没有更新记录。</p>'}
           ${backup ? `<div class="app-update-actions">${actionButton({ label: `回滚到 ${backup.version}`, symbol: 'undo', variant: 'secondary', attrs: { 'data-update-rollback': true, disabled: working || !supported } })}${backup.sameSigner === false ? '<span class="update-inline-note">上一版本的签名与当前不同，回滚后可能需要重新授权。</span>' : ''}</div>` : ''}
         </section>
-      </div></div>
+      </div>
     </div>`;
 }
 

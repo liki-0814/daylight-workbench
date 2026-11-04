@@ -18,7 +18,7 @@ export function createExtensionsController({ client, storage = globalThis.localS
     if (applying) throw new Error('正在提交，请等待结果');
     if (submission && ['submitted', 'unknown'].includes(submission.status)) throw new Error('上次提交结果未知，请先核对原请求');
     submission = { status: 'submitted', request: { requestId: crypto.randomUUID(), expectedVersion: plan.expectedVersion, planId: plan.planId, action: plan.normalizedAction }, plan };
-    persist(); emit(); return retry();
+    persist(); return retry();
   }
   async function retry() {
     if (applying) throw new Error('正在核对原请求，请等待结果');
@@ -26,7 +26,8 @@ export function createExtensionsController({ client, storage = globalThis.localS
     applying = true;
     const original = submission;
     try {
-      const result = await client.apply(original.request); original.status = 'applied'; original.result = result; original.error = null; persist();
+      const result = await client.apply(original.request); original.status = 'applied'; original.result = result; original.error = null;
+      submission = null; persist();
       await refresh(true); onChanged({ kind: 'extensions', revision: result.version, changedIds: result.changedIds, operationId: result.operationId }); return result;
     } catch (error) { original.status = error.status >= 400 && error.status < 500 ? 'needs_review' : 'unknown'; original.error = error.message; persist(); emit(); throw error; }
     finally { applying = false; emit(); }

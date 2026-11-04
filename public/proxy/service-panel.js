@@ -4,7 +4,7 @@ import {selectField} from '../components/select.js';
 import {createDialogShell} from '../components/dialog-shell.js';
 const template=`<div class="workspace proxy-common"><section class="proxy-panel" aria-label="代理服务">        <div class="proxy-service">
           <div><h2><span id="service-dot" class="proxy-dot"></span><span id="service-state">正在读取状态…</span></h2><p id="service-note">代理默认关闭，按需开启。</p></div>
-          <button id="service-switch" class="proxy-switch" type="button" role="switch" aria-checked="false" aria-label="开启代理" disabled><span></span></button>
+          <div class="proxy-service-actions"><label class="proxy-autostart"><input id="service-autostart" type="checkbox">随 Daylight 启动</label><button id="service-switch" class="proxy-switch" type="button" role="switch" aria-checked="false" aria-label="开启代理" disabled><span></span></button></div>
         </div>
         <div id="service-error" class="proxy-error" role="alert" hidden></div>
 </section>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',appearance:'panel',content:`
@@ -19,9 +19,9 @@ const template=`<div class="workspace proxy-common"><section class="proxy-panel"
 </div>`;
 const settingsTemplate=`${sectionHeading({title:'反向代理',description:'全局端口、自动启动与运行环境',actions:refreshButton({ariaLabel:'刷新代理设置',attrs:{id:'refresh-proxy-settings'}})})}<p id="proxy-settings-loading" class="proxy-hint" role="status">正在读取代理状态…</p><p id="proxy-settings-error" class="ui-feedback" role="alert" hidden></p><form id="settings-form" class="proxy-settings-form">
         <p id="settings-readonly" class="proxy-hint ui-feedback-row" hidden></p>
+        <label class="proxy-checkbox"><input id="auto-start" type="checkbox">随 Daylight 启动代理</label>
         <div id="settings-edit" hidden>
         <label class="proxy-field">本机端口<input id="proxy-port" type="number" min="1024" max="65535" required value="4319"></label>
-        <label class="proxy-checkbox"><input id="auto-start" type="checkbox">随 Daylight 启动代理</label>
         </div>
         <p class="proxy-hint">关闭窗口后继续运行，退出 Daylight 时停止。修改端口、运行环境或密钥前，请先在<a class="text-button" href="#proxy">反向代理</a>页停止服务。</p>
         <div class="proxy-node"><span class="proxy-caption">Node 运行环境</span><p id="node-info" class="proxy-hint">正在检测…</p><div id="node-setting" hidden><label class="proxy-field">Node 路径 <input id="node-path" placeholder="留空自动检测，或填写绝对路径" spellcheck="false"></label><button id="save-node" type="button" class="text-button">重新检测 / 应用路径</button></div></div>
@@ -46,10 +46,10 @@ export function createServicePanel({store,getExampleModel}){
   $('service-note').textContent=unavailable?'请在左侧“设置”的“反向代理”中选择 Node 22 或更新版本。':running?`${status.activeRequests} 个请求进行中 · 所有来源共用此开关`:'统一代理 · 至少一个来源可用即可开启';
   $('base-url').value=$('protocol').value==='messages'?status.baseUrl?.replace(/\/v1$/,'')||'':status.baseUrl||'';
   $('copy-url').disabled=!$('base-url').value;$('test-connection').disabled=!running||transition||checking;$('copy-example').disabled=!key||unavailable;
-  $('settings-edit').hidden=locked;$('settings-readonly').hidden=!locked;$('settings-readonly').textContent=`本机端口 ${status.port} · ${status.autoStart?'随 Daylight 自动启动':'手动启动'}`;
+  $('settings-edit').hidden=locked;$('settings-readonly').hidden=!locked;$('settings-readonly').textContent=`本机端口 ${status.port}`;
   $('settings-actions').hidden=locked;$('settings-result').hidden=locked;$('save-settings').disabled=locked||unavailable||savingSettings;
-  $('proxy-port').disabled=locked;$('auto-start').disabled=locked;$('rotate-key').disabled=locked||unavailable;
-  if(!settingsDirty){$('proxy-port').value=status.port||4319;$('auto-start').checked=!!status.autoStart;}
+  $('proxy-port').disabled=locked;$('auto-start').disabled=unavailable||savingSettings;$('service-autostart').disabled=unavailable||savingSettings;$('rotate-key').disabled=locked||unavailable;
+  if(!settingsDirty){$('proxy-port').value=status.port||4319;$('auto-start').checked=!!status.autoStart;$('service-autostart').checked=!!status.autoStart;}
   $('node-info').textContent=status.runtimeError||`${status.node?.version||''} · ${status.node?.path||''}`;$('node-setting').hidden=!status.native||locked;$('save-node').disabled=locked||savingNode;$('node-path').disabled=locked;
   error(store.error||status.runtimeError||status.lastError||'');
   if(!key&&!unavailable&&!keyLoading)void loadKey().catch(e=>error(e.message));
@@ -84,7 +84,16 @@ export function createServicePanel({store,getExampleModel}){
   void copy($('copy-example'),`curl -N ${quote(store.status.baseUrl+route)} \\\n  -H ${quote(`Authorization: Bearer ${key}`)} \\\n  -H 'Content-Type: application/json' \\\n  -d ${quote(JSON.stringify(body))}`);
  };
  $('test-connection').onclick=async()=>{$('connection-result').hidden=false;checking=true;paint();$('test-connection').textContent='测试中…';$('connection-result').textContent='正在验证本机接口、鉴权与模型目录…';try{$('connection-result').textContent=(await store.api.request('check',{})).message;}catch(e){$('connection-result').textContent=e.message;}finally{checking=false;$('test-connection').textContent='测试连接';paint();}};
- $('settings-form').oninput=()=>{settingsDirty=true;};
+ async function saveAutoStart(enabled){
+  if(!store.status||savingSettings)return;
+  savingSettings=true;paint();
+  try{await store.api.request('settings',{port:store.status.port,autoStart:enabled});settingsDirty=false;$('settings-result').textContent=enabled?'已设为随 Daylight 启动':'已改为手动启动';error();await store.refresh();}
+  catch(e){$('settings-result').textContent=e.message;error(e.message);}
+  finally{savingSettings=false;paint();}
+ }
+ $('service-autostart').onchange=()=>void saveAutoStart($('service-autostart').checked);
+ $('auto-start').onchange=()=>{settingsDirty=true;void saveAutoStart($('auto-start').checked);};
+ $('settings-form').oninput=event=>{if(event.target.id!=='auto-start')settingsDirty=true;};
  $('settings-form').onsubmit=async e=>{e.preventDefault();if(savingSettings)return;savingSettings=true;$('save-settings').textContent='保存中…';paint();try{await store.api.request('settings',{port:Number($('proxy-port').value),autoStart:$('auto-start').checked});settingsDirty=false;$('settings-result').textContent='设置已保存';error();await store.refresh();}catch(e){$('settings-result').textContent=e.message;}finally{savingSettings=false;$('save-settings').textContent='保存设置';paint();}};
  $('save-node').onclick=async()=>{if(savingNode)return;savingNode=true;paint();try{await store.api.request('runtime',{nodePath:$('node-path').value.trim()});await store.refresh();error();}catch(e){error(e.message);}finally{savingNode=false;paint();}};
  $('rotate-key').onclick=async()=>{if(!await confirmAction('更换 API Key？','现有客户端中的旧密钥将立即失效，需要重新复制配置。','更换密钥'))return;try{await store.api.request('key/rotate',{});await loadKey();$('settings-result').textContent='密钥已更换，请更新客户端配置';}catch(e){error(e.message);}};

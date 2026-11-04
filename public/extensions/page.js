@@ -14,7 +14,7 @@ const categories = [
   { value: 'mcp', label: 'MCP 服务', collection: 'servers', title: 'MCP 配置', action: '新建 MCP 服务' },
   { value: 'clients', label: '接入软件', collection: 'clients', title: '本地 CLI', action: '添加 CLI' },
 ];
-const bindingLabel = { managed: '链接由 Daylight 管理', existing: '已有正确链接', conflict: '同名位置冲突，未改动', not_connected: '勾选后预览接入' };
+const bindingLabel = { managed: '链接由 Daylight 管理', existing: '已有正确链接', conflict: '同名位置冲突，未改动', not_connected: '勾选后直接链接' };
 const textField = (name, label, value = '', attrs = '') => `<label>${label}<input name="${name}" value="${esc(value)}" ${attrs}></label>`;
 const chooseClientsPrompt = `<p>请先在<a href="${extensionsRoute({ tab: 'clients' })}">接入软件</a>中选择要管理的 CLI。</p>`;
 const refText = refs => Object.entries(refs || {}).map(([key, ref]) => key + '=' + ref).join('\n');
@@ -27,11 +27,17 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const $ = selector => element.querySelector(selector);
   let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, submitting = false, bindingPreviewing = false, mcpPreviewing = false, selectionPreviewing = false;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
+  const clientIcons = { codex: '/extensions/icons/codex.svg', qoder: '/extensions/icons/qoder.svg', pi: '/extensions/icons/pi.svg', grok: '/extensions/icons/grok.png', claude: '/extensions/icons/claude.svg', hermes: '/extensions/icons/hermes.png' };
+  function clientMark(client) {
+    const src = clientIcons[client.id];
+    if (!src) return `<span class="extension-client-fallback">${esc(client.name.slice(0, 1))}</span>`;
+    return `<img class="extension-client-icon" data-client="${esc(client.id)}" src="${src}" alt="" width="18" height="18">`;
+  }
   function bindingControl(skill, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);
-    if (binding.state === 'local') return `<span>${esc(software.name)} · 本地专有${skill.linked ? '链接' : ''}</span>`;
+    if (binding.state === 'local') return `<span class="extension-client-mark" title="${esc(software.name + ' · 本地专有')}">${clientMark(software)}</span>`;
     const conflict = binding.state === 'conflict', checked = ['managed', 'existing'].includes(binding.state), note = bindingLabel[binding.state];
-    return `<label class="extension-binding-control" title="${esc(note)}"><input type="checkbox" data-binding-toggle data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}" aria-label="${esc(skill.name + ' · ' + software.name)}" ${checked ? 'checked' : ''} ${conflict || bindingPreviewing || (skill.readOnly && !skill.valid) ? 'disabled' : ''}><span>${esc(software.name)}${!compact ? `<small>${esc(note)}</small>` : conflict ? '<small>冲突</small>' : ''}</span></label>`;
+    return `<label class="extension-binding-control" title="${esc(software.name + ' · ' + note)}"><input type="checkbox" data-binding-toggle data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}" aria-label="${esc(skill.name + ' · ' + software.name)}" ${checked ? 'checked' : ''} ${conflict || (skill.readOnly && !skill.valid) ? 'disabled' : ''}>${clientMark(software)}${!compact ? `<small>${esc(note)}</small>` : conflict ? '<small>冲突</small>' : ''}</label>`;
   }
   function bindingRow(skill, binding, showSkillName = false) {
     return `<div class="extension-binding"><div>${showSkillName ? `<a href="${extensionsRoute({ tab: 'skills', id: skill.id })}">${esc(skill.name)}</a>` : ''}${bindingControl(skill, binding)}</div>${binding.state === 'existing' ? `<details><summary>管理记录</summary><button type="button" class="text-button" data-binding="adopt" data-skill="${esc(skill.id)}" data-client="${esc(binding.clientId)}">记录链接归属（可选）</button></details>` : ''}</div>`;
@@ -41,14 +47,14 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   function mcpBindingControl(group, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);
     const connected = binding.state === 'connected', conflict = binding.state === 'conflict';
-    const note = connected ? binding.installation.enabled ? '配置启用' : '配置禁用' : conflict ? '同名配置不同，未改动' : '勾选后预览接入';
-    return `<label class="extension-binding-control" title="${esc(note)}"><input type="checkbox" data-mcp-binding-toggle data-server="${esc(group.shared.id)}" data-client="${esc(binding.clientId)}" aria-label="${esc(group.name + ' · ' + software.name)}" ${connected ? 'checked' : ''} ${conflict || mcpPreviewing ? 'disabled' : ''}><span>${esc(software.name)}${!compact ? `<small>${esc(note)}</small>` : conflict ? '<small>冲突</small>' : ''}</span></label>`;
+    const note = connected ? binding.installation.enabled ? '配置启用' : '配置禁用' : conflict ? '同名配置不同，未改动' : '勾选后直接接入';
+    return `<label class="extension-binding-control" title="${esc(software.name + ' · ' + note)}"><input type="checkbox" data-mcp-binding-toggle data-server="${esc(group.shared.id)}" data-client="${esc(binding.clientId)}" aria-label="${esc(group.name + ' · ' + software.name)}" ${connected ? 'checked' : ''} ${conflict ? 'disabled' : ''}>${clientMark(software)}${!compact ? `<small>${esc(note)}</small>` : conflict ? '<small>冲突</small>' : ''}</label>`;
   }
   function mcpRowStatus(group) {
     if (group.shared) return group.bindings.map(binding => mcpBindingControl(group, binding, true)).join('');
     return group.bindings.map(binding => {
       const server = binding.installation, software = state.clients.find(client => client.id === binding.clientId);
-      const toggle = server.toggleSupported ? `<button type="button" class="text-button" data-mcp-local-toggle="${esc(server.id)}" aria-label="${esc((server.enabled ? '禁用' : '启用') + ' ' + group.name + ' · ' + software.name)}" ${mcpPreviewing ? 'disabled' : ''}>${server.enabled ? '禁用' : '启用'}</button>` : '';
+      const toggle = server.toggleSupported ? `<button type="button" class="text-button" data-mcp-local-toggle="${esc(server.id)}" aria-label="${esc((server.enabled ? '禁用' : '启用') + ' ' + group.name + ' · ' + software.name)}" >${server.enabled ? '禁用' : '启用'}</button>` : '';
       return `<span>${esc(software.name)} · ${server.enabled ? '启用' : '禁用'}${toggle}</span>`;
     }).join('');
   }
@@ -61,7 +67,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       const control = group.shared ? mcpBindingControl(group, binding) : `<span>${esc(software.name)}<small>${binding.installation.enabled ? '配置启用' : '配置禁用'}</small></span>`;
       return `<div class="extension-binding"><div>${control}</div>${server && server.id !== item.id ? `<a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">查看配置</a>` : ''}</div>`;
     }).join('');
-    return `<h3>软件接入</h3>${sharedLink}${rows || chooseClientsPrompt}`;
+    const pending = group.shared && group.bindings.some(binding => binding.state === 'not_connected');
+    return `<h3>软件接入${pending ? actionButton({ label: '全部接入', variant: 'text', attrs: { 'data-connect-all': 'mcp', 'data-connect-id': group.shared.id } }) : ''}</h3>${sharedLink}${rows || chooseClientsPrompt}`;
   }
   function findMcpControl(data, area) {
     return [...$(area === 'list' ? '.extension-list' : '.extension-detail').querySelectorAll('[data-mcp-binding-toggle]')].find(input => input.dataset.server === data.server && input.dataset.client === data.client);
@@ -78,9 +85,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       if (visible) findMcpControl(data, area)?.focus({ preventScroll: true });
     };
     mcpPreviewing = true; input.disabled = true; setError(null);
-    try {
-      await preview(connected ? { type: 'mcp.archive', id: binding.installation.id } : { type: 'mcp.install', id: group.shared.id, clientId: binding.clientId }, { title: connected ? '确认移除软件 MCP 配置' : '确认接入软件', onClose: restore });
-    } catch (error) { restore(); setError(error); }
+    try { await applyDirect(connected ? { type: 'mcp.archive', id: binding.installation.id } : { type: 'mcp.install', id: group.shared.id, clientId: binding.clientId }); }
+    catch (error) { setError(error); }
+    finally { restore(); }
   }
   async function toggleLocalMcp(button) {
     if (mcpPreviewing) return;
@@ -92,8 +99,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       if (visible) [...$('.extension-list').querySelectorAll('[data-mcp-local-toggle]')].find(control => control.dataset.mcpLocalToggle === id)?.focus({ preventScroll: true });
     };
     mcpPreviewing = true; button.disabled = true; setError(null);
-    try { await preview({ type: 'mcp.toggle', id, enabled }, { title: enabled ? '确认启用软件 MCP 配置' : '确认禁用软件 MCP 配置', onClose: restore }); }
-    catch (error) { restore(); setError(error); }
+    try { await applyDirect({ type: 'mcp.toggle', id, enabled }); }
+    catch (error) { setError(error); }
+    finally { restore(); }
   }
   function findBindingControl(data, area) {
     return [...$(area === 'list' ? '.extension-list' : '.extension-detail').querySelectorAll('[data-binding-toggle]')].find(input => input.dataset.skill === data.skill && input.dataset.client === data.client);
@@ -110,9 +118,52 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       if (visible) findBindingControl(data, area)?.focus();
     };
     bindingPreviewing = true; input.disabled = true; setError(null);
-    try {
-      await preview({ type: connected ? 'binding.disconnect' : 'binding.connect', id: skill.id, clientId: binding.clientId, ...(binding.state === 'existing' ? { includeExisting: true } : {}) }, { title: connected ? '确认移除软件链接' : '确认接入软件', onClose: restore });
-    } catch (error) { restore(); setError(error); }
+    try { await applyDirect({ type: connected ? 'binding.disconnect' : 'binding.connect', id: skill.id, clientId: binding.clientId, ...(binding.state === 'existing' ? { includeExisting: true } : {}) }); }
+    catch (error) { setError(error); }
+    finally { restore(); }
+  }
+  async function applyDirect(action) {
+    const plan = await client.prepare(action);
+    if (plan.conflicts.length) throw new Error(plan.conflicts.join('；'));
+    return controller.submit(plan);
+  }
+  async function connectAll(kind, id) {
+    if (bindingPreviewing || mcpPreviewing || selectionPreviewing) return;
+    const actions = [];
+    if (kind === 'page') {
+      if (route.tab === 'mcp') {
+        for (const group of currentMcpGroups()) {
+          if (!group.shared) continue;
+          for (const binding of group.bindings) if (binding.state === 'not_connected') actions.push({ type: 'mcp.install', id: group.shared.id, clientId: binding.clientId });
+        }
+      } else {
+        for (const skill of state.skills) {
+          if (skill.scope === 'client') continue;
+          for (const binding of skill.bindings || []) if (binding.state === 'not_connected') actions.push({ type: 'binding.connect', id: skill.id, clientId: binding.clientId });
+        }
+      }
+    } else if (kind === 'skill') {
+      const skill = state.skills.find(item => item.id === id);
+      for (const binding of skill?.bindings || []) if (binding.state === 'not_connected') actions.push({ type: 'binding.connect', id, clientId: binding.clientId });
+    } else if (kind === 'mcp') {
+      const group = currentMcpGroups().find(item => item.shared?.id === id);
+      for (const binding of group?.bindings || []) if (binding.state === 'not_connected') actions.push({ type: 'mcp.install', id, clientId: binding.clientId });
+    } else {
+      for (const client of state.clients) if (!client.selected) actions.push({ type: 'client.select', clientId: client.id, selected: true });
+    }
+    if (!actions.length) {
+      if (kind !== 'clients' && !state.clients.some(client => client.selected)) setError(new Error('请先在接入软件中选择 CLI'));
+      return;
+    }
+    const busy = kind === 'mcp' || (kind === 'page' && route.tab === 'mcp') ? 'mcp' : kind === 'clients' ? 'clients' : 'skill';
+    if (busy === 'mcp') mcpPreviewing = true; else if (busy === 'clients') selectionPreviewing = true; else bindingPreviewing = true;
+    setError(null); renderList();
+    const problems = [];
+    try { for (const action of actions) { try { await applyDirect(action); } catch (error) { problems.push(error.message); } } }
+    finally {
+      bindingPreviewing = mcpPreviewing = selectionPreviewing = false; renderList(); if (selected) renderDetail();
+      if (problems.length) setError(new Error(problems.join('；')));
+    }
   }
   async function toggleClientSelection(control) {
     if (selectionPreviewing) return;
@@ -124,9 +175,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       selectionPreviewing = false; renderList(); if (selected) renderDetail();
       if (visible) [...$(area).querySelectorAll('[data-cli-selection]')].find(input => input.dataset.client === item.id)?.focus();
     };
-    selectionPreviewing = true; control.disabled = true;
-    try { await preview({ type: 'client.select', clientId: item.id, selected: !item.selected }, { title: item.selected ? '确认取消 CLI 接入' : '确认选择 CLI 接入', onClose: restore }); }
-    catch (error) { restore(); setError(error); }
+    selectionPreviewing = true; control.disabled = true; setError(null);
+    try { await applyDirect({ type: 'client.select', clientId: item.id, selected: !item.selected }); }
+    catch (error) { setError(error); }
+    finally { restore(); }
   }
   function setError(error) { $('[data-error]').textContent = error?.message || ''; }
   function changeRoute(next, replace = false) {
@@ -160,12 +212,13 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
       const matchesProblems = !route.problems || item.valid === false || route.tab === 'clients' && item.selected && !item.installed || item.bindings?.some(binding => binding.state === 'conflict') || route.tab === 'mcp' && item.members.some(member => member.valid === false || state.diagnostics.some(problem => problem.id === member.id)) || route.tab !== 'mcp' && state.diagnostics.some(problem => problem.id === item.id);
       return matchesText && matchesSoftware && matchesProblems;
     });
-    const markup = `<div class="extension-list-heading"><h2>${category().title}</h2><span>${filtered.length} 项</span></div>${filtered.map(item => {
+    const connectAllButton = route.tab === 'clients' ? '' : actionButton({ label: '全部接入', variant: 'secondary', attrs: { 'data-connect-all': 'page' } });
+    const markup = `<div class="extension-list-heading"><h2>${category().title}</h2><div class="extension-list-heading-actions">${connectAllButton}<span>${filtered.length} 项</span></div></div>${filtered.map(item => {
       const active = route.tab === 'mcp' ? item.members.some(server => server.id === route.id) : item.id === route.id;
       const probe = item.shared?.lastProbe, probeText = probe ? ' · ' + (probe.stale ? '上次' : '') + (({succeeded:'握手成功',failed:'检测失败',running:'正在检测',cancelled:'已取消',timed_out:'检测超时'})[probe.status] || '尚未检测') : '';
       const summary = route.tab === 'skills' ? item.valid ? item.description : item.problem : route.tab === 'mcp' ? (item.shared ? (item.shared.enabled ? '配置启用' : '配置禁用') + ' · ' + item.transport + probeText : item.installations.length + ' 个软件 · ' + item.transport) : item.command + ' · ' + ({native:'MCP 直接管理',manual:'MCP 仅生成片段',unsupported:'MCP 未接入'}[item.mcpMode] || 'MCP 未接入');
       const origin = route.tab === 'mcp' ? (item.shared ? '共享来源' : '软件本地配置') + ' · ' + item.installations.length + ' 个软件' : item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' · 本地配置' : '共享来源';
-      return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(origin)}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? mcpRowStatus(item) : `<label class="extension-binding-control"><input type="checkbox" data-cli-selection data-client="${esc(item.id)}" aria-label="${esc(item.name + ' · 接入扩展管理')}" ${item.selected ? 'checked' : ''} ${selectionPreviewing ? 'disabled' : ''}><span>${item.selected ? '已接入' : '选择接入'}<small>${item.installed ? '已发现命令' : '未找到命令'}</small></span></label>`}</div></div>`;
+      return `<div class="extension-row ${active ? 'selected' : ''}"><button type="button" class="extension-row-open" data-extension-id="${esc(item.id)}" ${active ? 'aria-current="true"' : ''}><span class="extension-row-copy"><strong>${esc(item.name)}</strong><span>${esc(summary)}</span>${route.tab !== 'clients' ? `<small>${esc(origin)}${item.relativePath ? ' · ' + esc(item.relativePath) : ''}</small>` : ''}</span></button><div class="extension-row-status">${route.tab === 'skills' ? item.bindings.map(binding => bindingControl(item, binding, true)).join('') : route.tab === 'mcp' ? mcpRowStatus(item) : `<label class="extension-binding-control"><input type="checkbox" data-cli-selection data-client="${esc(item.id)}" aria-label="${esc(item.name + ' · 接入扩展管理')}" ${item.selected ? 'checked' : ''} ><span>${item.selected ? '已接入' : '选择接入'}<small>${item.installed ? '已发现命令' : '未找到命令'}</small></span></label>`}</div></div>`;
     }).join('')}${!filtered.length ? '<p class="extension-empty">没有匹配项。可调整搜索或筛选。</p>' : ''}${state.diagnostics.length ? `<details class="extension-static-diagnostics"><summary>静态问题 ${state.diagnostics.length} 项</summary>${state.diagnostics.map(problem => `<p>${esc(problem.message)}${problem.path ? ' · ' + esc(problem.path) : ''}${problem.skippedBranches > 1 ? ' · 共 ' + problem.skippedBranches + ' 处分支' : ''}</p>`).join('')}</details>` : ''}`;
     if (markup === listMarkup) return;
     const disclosures = [...$('.extension-list').querySelectorAll('details')].map(details=>details.open);
@@ -179,7 +232,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const id = route.operation || route.id;
     if (!id) { detailTicket++; selected = null; $('.extension-detail').hidden = true; detailKey = ''; return; }
     const key = [route.tab, id, state?.version, route.file].join(':'); if (key === detailKey) return;
-    const ticket = ++detailTicket; $('.extension-detail').hidden = false; $('.extension-detail').innerHTML = '<p>正在读取详情…</p>';
+    const ticket = ++detailTicket; $('.extension-detail').hidden = false;
     try {
       const value = route.operation ? await client.operation(id) : await client.detail(id, route.file);
       if (ticket !== detailTicket || !visible) return; selected = value; detailKey = key; renderDetail();
@@ -190,9 +243,9 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
     const heading = sectionHeading({ title: item.name || '操作回执', actions: actionButton({ label: '返回清单', variant: 'secondary', attrs: { 'data-close-detail': true } }) });
     let content;
     if (route.operation) content = `<p>状态：${esc(item.status)}</p><p>${esc(item.error || '')}</p><code>${esc(item.requestId)}</code><div class="extension-actions"><button type="button" class="secondary" data-restore-operation="${esc(item.requestId)}" ${item.status === 'applied' && item.steps.length ? '' : 'disabled'}>预览恢复修改前内容</button></div><details><summary>操作与步骤</summary><pre>${esc(JSON.stringify(item, null, 2))}</pre></details>`;
-    else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre><button type="button" class="text-button danger-button" data-archive>${item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件'}</button>`;
+    else if (item.kind === 'skill') content = `<p>${esc(item.description || item.problem)}</p><p class="extension-source">${item.scope === 'client' ? '软件本地来源' : '共享来源'}：${esc(item.sourcePath)}</p><div class="extension-actions"><button type="button" class="secondary" data-edit ${item.readOnly ? "disabled" : ""}>编辑文件</button><button type="button" class="text-button" data-discuss>让 AI 解释或修改</button></div><section><h3>软件接入${item.bindings.some(binding => binding.state === 'not_connected') ? actionButton({ label: '全部接入', variant: 'text', attrs: { 'data-connect-all': 'skill', 'data-connect-id': item.id } }) : ''}</h3>${item.bindings.map(binding => bindingRow(item, binding)).join('') || chooseClientsPrompt}</section><p>MCP 依赖：${item.dependencies === null ? '未声明' : item.dependencies.length ? item.dependencies.map(id => esc(state.servers.find(server => server.id === id)?.name || id + '（不存在）')).join('、') : '明确声明为空'}</p>${!item.readOnly ? selectField({ id: 'extension-file-select', name: 'file', label: '查看 Skill 文件', value: item.file, compact: true, options: item.files.filter(file => !file.linked).map(file => ({ value: file.path, label: file.path })) }) : ''}<pre class="extension-source-content">${esc(item.content || '（空文件）')}</pre><button type="button" class="text-button danger-button" data-archive>${item.linked ? '移除软件链接，保留源文件' : item.scope === 'client' ? '归档本地 Skill' : '归档主 Skill，影响使用它的软件'}</button>`;
     else if (item.kind === 'mcp') content = `<p>${item.transport === 'stdio' ? '本地命令（stdio）' : 'HTTP 服务'} · ${item.enabled ? '配置启用' : '配置禁用'} · ${esc(item.scope === 'client' ? state.clients.find(client => client.id === item.clientId)?.name + ' 用户级' : '共享来源')}</p><p>保存配置不会启动服务。${item.scope === 'client' ? '在对应 CLI 中刷新并核对实际发现结果。' : '共享来源可接入支持的软件。'}</p>${item.secretKeys?.length ? '<p>已有环境变量或请求头值已隐藏，编辑时会保留。</p>' : ''}<div class="extension-actions"><button type="button" class="secondary" data-edit ${item.editable === false ? "disabled" : ""}>编辑配置</button><button type="button" class="secondary" data-probe ${item.enabled && item.scope !== 'client' ? '' : 'disabled'}>测试连接</button><button type="button" class="text-button" data-discuss>让 AI 诊断或修改</button></div><div data-probe-result role="status">${item.lastProbe?`<p>${item.lastProbe.stale ? "配置已变化，以下为上次配置的检测结果：" : ""}${esc(item.lastProbe.message)}${item.lastProbe.toolCount!==null?' 工具数：'+item.lastProbe.toolCount:''}</p>`:''}</div><dl>${Object.entries(item).filter(([key]) => ['id', 'command', 'args', 'cwd', 'url', 'envRefs', 'headerRefs'].includes(key)).map(([key, value]) => `<dt>${esc(({ envRefs: '环境变量引用', headerRefs: '请求头引用', command: '命令', args: '参数', cwd: '工作目录', url: '端点', id: 'ID' })[key])}</dt><dd>${esc(typeof value === 'object' ? JSON.stringify(value, null, 2) : value)}</dd>`).join('')}</dl><p>声明依赖的 Skills：${item.dependencies.length ? item.dependencies.map(skill => esc(skill.name)).join('、') : '未发现明确声明；其他依赖未知'}</p>${item.scope === 'client' ? (item.toggleSupported ? `<button type="button" class="secondary" data-mcp-toggle>${item.enabled ? '禁用' : '启用'}此服务</button>` : '<p>该 CLI 的用户配置未提供已接入的启停方式，可编辑或移除服务。</p>') : ''}${mcpAccess(item)}<button type="button" class="text-button danger-button" data-archive>${item.scope === 'client' ? '移除软件 MCP 配置' : '归档共享配置，保留各软件配置'}</button>`;
-    else content = `<p>${esc(item.note)}</p><dl><dt>软件主目录</dt><dd>${esc(item.root)}</dd><dt>软件 Skills 目录</dt><dd>${esc(item.skillsRoot)}</dd><dt>Daylight 管理的共享来源</dt><dd>${esc(state.root)}/skills</dd><dt>CLI 命令</dt><dd>${esc(item.command)}</dd></dl><p>${esc(item.refresh)}</p><p>${item.installed ? '可执行文件：' + esc(item.executable) : '未找到命令，可填写可执行文件的绝对路径。'}</p><div class="extension-actions"><button type="button" class="secondary" data-cli-selection data-client="${esc(item.id)}" ${selectionPreviewing ? 'disabled' : ''}>${item.selected ? '取消接入' : '选择接入'}</button>${item.registrationId ? '<button type="button" class="secondary" data-remove-client>删除旧登记，使用自动识别</button>' : ''}${item.custom ? '<button type="button" class="secondary" data-edit>编辑 CLI</button><button type="button" class="text-button danger-button" data-remove-client>移除登记</button>' : ''}${item.selected && item.mcpMode !== 'unsupported' ? `<button type="button" class="secondary" data-generate>预览生成 MCP 配置</button>` : ''}<button type="button" class="text-button" data-discuss>让 AI 解释接入情况</button>${item.id === 'pi' ? '<a class="text-button" href="#cli">Pi 模型配置</a>' : ''}</div><p>${item.discovered ? '自动识别' : item.custom ? '手动登记' : '内置适配器'} · MCP ${item.mcpMode === 'native' ? '直接管理' : item.mcpMode === 'manual' ? '仅生成片段' : '未接入'}</p>${item.mcpPath ? `<p>用户级 MCP 文件：<code>${esc(item.mcpPath)}</code></p>` : ''}${item.selected ? `<h3>Skills</h3>${item.skills.map(skill => bindingRow(skill, skill.binding, true)).join('') || '<p>主目录暂无 Skill。</p>'}<h3>用户级 MCP</h3>${item.servers?.map(server => `<p><a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">${esc(server.name)}</a> · ${server.enabled ? '启用' : '禁用'}</p>`).join('') || `<p>${item.mcpValid === false ? '配置读取失败，请修复后重新扫描。' : item.mcpMode === 'native' ? '暂无用户级 MCP。可在 MCP 分类新增，选择此软件。' : '尚无已核实的原生 MCP 适配器。'}</p>`}${item.generated ? `<h3>MCP 导出片段</h3><p>${item.generated.current ? '与主配置一致' : '主配置已变化或格式不能生成，请重新核对'}</p><code>${esc(item.generated.path)}</code><p>${esc(item.integration)}</p><pre>${esc(item.generated.content)}</pre>` : `<p>${item.mcpMode === 'unsupported' ? '该软件暂未设置支持的 MCP 配置格式。' : '尚未生成 MCP 适配文件；生成后仍需在客户端接入。'}</p>`}` : '<p>尚未选择接入。选择后才读取和管理此软件的 Skills、MCP；取消接入会保留原有文件和链接。</p>'}`;
+    else content = `<p>${esc(item.note)}</p><dl><dt>软件主目录</dt><dd>${esc(item.root)}</dd><dt>软件 Skills 目录</dt><dd>${esc(item.skillsRoot)}</dd><dt>Daylight 管理的共享来源</dt><dd>${esc(state.root)}/skills</dd><dt>CLI 命令</dt><dd>${esc(item.command)}</dd></dl><p>${esc(item.refresh)}</p><p>${item.installed ? '可执行文件：' + esc(item.executable) : '未找到命令，可填写可执行文件的绝对路径。'}</p><div class="extension-actions"><button type="button" class="secondary" data-cli-selection data-client="${esc(item.id)}" >${item.selected ? '取消接入' : '选择接入'}</button>${state.clients.some(client => !client.selected) ? actionButton({ label: '全部选择', variant: 'text', attrs: { 'data-connect-all': 'clients' } }) : ''}${item.registrationId ? '<button type="button" class="secondary" data-remove-client>删除旧登记，使用自动识别</button>' : ''}${item.custom ? '<button type="button" class="secondary" data-edit>编辑 CLI</button><button type="button" class="text-button danger-button" data-remove-client>移除登记</button>' : ''}${item.selected && item.mcpMode !== 'unsupported' ? `<button type="button" class="secondary" data-generate>预览生成 MCP 配置</button>` : ''}<button type="button" class="text-button" data-discuss>让 AI 解释接入情况</button>${item.id === 'pi' ? '<a class="text-button" href="#cli">Pi 模型配置</a>' : ''}</div><p>${item.discovered ? '自动识别' : item.custom ? '手动登记' : '内置适配器'} · MCP ${item.mcpMode === 'native' ? '直接管理' : item.mcpMode === 'manual' ? '仅生成片段' : '未接入'}</p>${item.mcpPath ? `<p>用户级 MCP 文件：<code>${esc(item.mcpPath)}</code></p>` : ''}${item.selected ? `<h3>Skills</h3>${item.skills.map(skill => bindingRow(skill, skill.binding, true)).join('') || '<p>主目录暂无 Skill。</p>'}<h3>用户级 MCP</h3>${item.servers?.map(server => `<p><a href="${extensionsRoute({ tab: 'mcp', id: server.id })}">${esc(server.name)}</a> · ${server.enabled ? '启用' : '禁用'}</p>`).join('') || `<p>${item.mcpValid === false ? '配置读取失败，请修复后重新扫描。' : item.mcpMode === 'native' ? '暂无用户级 MCP。可在 MCP 分类新增，选择此软件。' : '尚无已核实的原生 MCP 适配器。'}</p>`}${item.generated ? `<h3>MCP 导出片段</h3><p>${item.generated.current ? '与主配置一致' : '主配置已变化或格式不能生成，请重新核对'}</p><code>${esc(item.generated.path)}</code><p>${esc(item.integration)}</p><pre>${esc(item.generated.content)}</pre>` : `<p>${item.mcpMode === 'unsupported' ? '该软件暂未设置支持的 MCP 配置格式。' : '尚未生成 MCP 适配文件；生成后仍需在客户端接入。'}</p>`}` : '<p>尚未选择接入。选择后才读取和管理此软件的 Skills、MCP；取消接入会保留原有文件和链接。</p>'}`;
     $('.extension-detail').innerHTML = heading + content;
     if (item.kind === 'mcp' && item.lastProbe?.status === 'running') watchProbe(item.lastProbe.id);
   }
@@ -275,7 +328,10 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const unsubscribe = controller.subscribe(value => {
     state = value.snapshot; readFailure = value.failure; setError(value.failure); setRefreshState($('[data-extension-refresh]'), { loading: value.loading }); renderClientFilter(); renderList();
     const record = value.submission;
-    $('[data-submission]').innerHTML = record ? `<div class="extension-receipt"><span>${record.status === 'applied' ? '变更已保存。' : record.status === 'needs_review' ? '需要重新预览：' + esc(record.error) : '提交结果待核对：请使用原请求，避免重复写入。'}</span><div>${record.status === 'submitted' || record.status === 'unknown' ? '<button type="button" class="secondary" data-retry-submission>核对原请求</button>' : '<button type="button" class="text-button" data-clear-submission>关闭提示</button>'}<a class="text-button" href="${extensionsRoute({ tab: route.tab, operation: record.request.requestId })}">查看回执</a></div></div>` : '';
+    if (record?.status === 'applied' || record?.status === 'submitted') { if (record.status === 'applied') controller.clearSubmission(); return; }
+    const host = $('[data-submission]');
+    const next = record && ['needs_review', 'unknown'].includes(record.status) ? `<div class="extension-receipt"><span>${record.status === 'needs_review' ? '需要重新预览：' + esc(record.error) : '提交结果待核对：请使用原请求，避免重复写入。'}</span><div>${record.status === 'unknown' ? '<button type="button" class="secondary" data-retry-submission>核对原请求</button>' : ''}<a class="text-button" href="${extensionsRoute({ tab: route.tab, operation: record.request.requestId })}">查看回执</a></div></div>` : '';
+    if (host.innerHTML !== next) host.innerHTML = next;
     if (visible) void loadDetail();
   });
   $('.extension-search input').addEventListener('input', event => changeRoute({ query: event.target.value }, true));
@@ -293,6 +349,7 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   element.addEventListener('click', async event => {
     const button = event.target.closest('button'); if (!button) return;
     try {
+      if (button.hasAttribute('data-connect-all')) { await connectAll(button.dataset.connectAll, button.dataset.connectId); return; }
       if (button.dataset.extensionId) changeRoute({ id: button.dataset.extensionId, operation: null, file: null });
       else if (button.hasAttribute('data-close-detail')) changeRoute({ id: null, operation: null, file: null });
       else if (button.hasAttribute('data-extension-refresh')) await controller.refresh(true);

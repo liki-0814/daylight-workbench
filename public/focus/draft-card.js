@@ -15,7 +15,8 @@ export function focusDraftCard(p, workspace) {
   return `<div class="ai-card focus-draft-card"><h3>审阅专注变更</h3><p>${esc(p.summary)}</p>${details(p.action,workspace,p.impact)}${p.impact?.endsCurrent?`<p class="ai-impact">将提前结束${esc(oldTitle ? '「'+oldTitle+'」' : '当前')}${current?.phase?' '+phase(current.phase):''}计时，已计时约 ${Math.floor((current?.elapsedMs || 0)/60000)} 分钟。</p>`:''}${p.expiresAt?`<p class="muted">草稿有效至 ${esc(new Date(p.expiresAt).toLocaleTimeString())}；状态变化后须重新核对。</p>`:''}<p class="muted">计时不会自动完成任务；专注历史不能用任务撤销恢复。设置变更不会弹出系统通知授权。</p><div class="ai-card-actions"><button type="button" class="secondary" data-reject>取消草稿</button><button type="button" class="primary" data-apply>应用专注变更</button></div></div>`;
 }
 export function focusSubmissionCard(s, workspace) {
-  const uncertain=['submitted','unknown'].includes(s.status),applied=s.status==='applied';
+  if (s.status === 'applied') return '';
+  const uncertain=['submitted','unknown'].includes(s.status),applied=false;
   const error=s.error?.error || s.error || s.result?.error;
   const latest=s.latestState, current=latest?.current;
   const readback=latest?`<p class="muted">核对快照 · 专注版本 ${esc(latest.version)}：${current?esc((current.taskTitleSnapshot || phase(current.phase))+' · '+(current.status==='paused'?'已暂停':'进行中')):'当前没有计时会话'}。</p>`:'';

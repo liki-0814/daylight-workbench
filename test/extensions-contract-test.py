@@ -62,7 +62,7 @@ def run(command):
             code, state = request('/api/v1/extensions/state'); assert code == 200, state
             assert state['skills'] == [] and not agents.exists() and not (data / 'ai').exists()
             assert next(client for client in state['clients'] if client['id'] == 'codex')['root'] == clients['codex']
-            assert request('/api/v1/capabilities')[1]['extensions']['clients'] == ['codex', 'qoder', 'pi', 'grok', 'claude']
+            assert request('/api/v1/capabilities')[1]['extensions']['clients'] == ['codex', 'qoder', 'pi', 'grok', 'claude', 'hermes']
             assert not any(client.get('selected') for client in state['clients'])
             for client_id in ['codex', 'qoder', 'pi']:
                 apply({'type': 'client.select', 'clientId': client_id, 'selected': True})

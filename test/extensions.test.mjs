@@ -139,12 +139,7 @@ test('one real skill directory stays one source when shared and client links poi
   await fs.symlink(elsewhere, codexOnly);
   await fs.mkdir(path.dirname(qoderOnly), { recursive: true });
   await fs.symlink(elsewhere, qoderOnly);
-  const copies = (await f.service.state(true)).skills.filter(item => item.relativePath === 'copied');
-  assert.equal(copies.length, 1);
-  assert.equal(copies[0].scope, 'client');
-  assert.equal(copies[0].clientId, 'codex');
-  assert.equal(copies[0].bindings.find(binding => binding.clientId === 'codex').state, 'local');
-  assert.equal(copies[0].bindings.find(binding => binding.clientId === 'qoder').state, 'existing');
+  assert.equal((await f.service.state(true)).skills.some(item => item.relativePath === 'copied'), false);
 });
 
 test('Skill archive removes owned links, preserves unowned links and restores from the operation with drift checks', async t => {

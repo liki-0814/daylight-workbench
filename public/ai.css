@@ -1,11 +1,14 @@
+.ai-page { background: var(--paper); }
 .ai-workspace {
   flex: 1;
   width: 100%;
   min-height: 0;
-  max-width: var(--page-max-width);
+  max-width: none;
+  margin: 0;
   padding: var(--page-block-start) var(--page-inline) var(--page-block-end);
   display: flex;
   flex-direction: column;
+  background: var(--paper);
 }
 
 .ai-history-heading {
@@ -20,7 +23,7 @@
 
 .ai-layout {
   display: grid;
-  grid-template-columns: 200px minmax(0,1fr);
+  grid-template-columns: minmax(200px, 240px) minmax(0,1fr);
   gap: var(--space-5);
   align-items: stretch;
   flex: 1;
@@ -65,8 +68,8 @@
   min-height:0; overflow-y:auto; overscroll-behavior:contain;
 }
 .ai-history-item { display:flex; align-items:center; min-width:0; border-radius:var(--radius-control); color:var(--muted); }
-.ai-history-item:hover { background:var(--hover-tint); }
-.ai-history-item.selected { background:var(--selection-background); color:var(--accent-ink); }
+.ai-history-item:hover { background:var(--soft); }
+.ai-history-item.selected { background:var(--soft); color:var(--workbench-text); }
 .ai-history-open { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; text-align:left; padding:9px 10px; border:0; background:transparent; color:inherit; }
 .ai-history-open span { font-size:var(--font-body-size); line-height:var(--font-body-line); width:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .ai-history-open small { font-size:var(--font-meta-size); line-height:var(--font-meta-line); opacity:.8; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:100%; }
@@ -83,6 +86,7 @@
   min-height: 0;
   overflow: hidden;
   min-width: 0;
+  background: var(--paper);
 }
 
 .ai-messages {
@@ -138,7 +142,7 @@
 .ai-suggestions button {
   border: 1px solid var(--control-border);
   border-radius: var(--radius-control);
-  background: var(--soft);
+  background: var(--paper);
   padding: 9px 15px;
   color: var(--accent-ink);
 }
@@ -174,14 +178,17 @@
   max-width: min(85%,var(--ai-reading-width));
   margin-left: 0;
   padding: var(--space-3) var(--space-4);
-  background: var(--soft);
-  border-radius: var(--radius-panel);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
 }
 
 .ai-operation {
   padding: var(--space-3) var(--space-4);
   border-left: 1px solid var(--line);
-  background: var(--soft);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
 }
 
 .ai-operation .ai-message-text {
@@ -196,18 +203,18 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 960px;
-  align-self: center;
-  background: var(--composer-background);
+  max-width: none;
+  align-self: stretch;
+  background: var(--paper);
   padding: 0;
-  margin-top: var(--space-4);
+  margin: var(--space-3) 0 var(--space-2);
   border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  box-shadow: var(--shadow-panel);
+  border-radius: 18px;
+  box-shadow: none;
 }
 
 .ai-composer:focus-within {
-  border-color: var(--accent-border);
+  border-color: var(--control-border);
   background: var(--paper);
 }
 
@@ -417,7 +424,7 @@
     position: relative;
     z-index: 3;
     max-height: 150px;
-    background: var(--workbench-background);
+    background: var(--paper);
     display: flex;
     flex-direction: row;
     gap: var(--space-3);
@@ -889,10 +896,10 @@
 .ai-delete-dialog .dialog-error:empty { display:none; }
 
 .ai-page { height:100dvh; overflow:hidden; display:flex; flex-direction:column; }
-.ai-page .topbar { flex:none; height:var(--topbar-height); padding-inline:max(var(--page-inline),calc((100% - var(--page-max-width)) / 2 + var(--page-inline))); }
-.ai-pending { flex:0 1 auto; min-height:0; width:100%; max-width:960px; max-height:40%; align-self:center; overflow:auto; }
+.ai-page .topbar { flex:none; height:var(--topbar-height); padding-inline:var(--page-inline); }
+.ai-pending { flex:0 1 auto; min-height:0; width:100%; max-width:none; max-height:40%; align-self:stretch; overflow:auto; }
 .ai-pending:empty { display:none; }
-.ai-status,.ai-error { flex:0 1 auto; min-height:0; width:100%; max-width:960px; max-height:20%; align-self:center; overflow:auto; }
+.ai-status,.ai-error { flex:0 1 auto; min-height:0; width:100%; max-width:none; max-height:20%; align-self:stretch; overflow:auto; }
 @media(max-height:700px) {
   .ai-pending { min-height:80px; }
   .ai-error { min-height:40px; }

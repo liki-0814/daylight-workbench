@@ -72,8 +72,11 @@ try {
     assert.equal(await page.locator('#settings-page').isHidden(), true);
     assert.equal(await page.title(), 'Daylight · 更新');
     const updateLayout = await anchors(page, ['.topbar', '#update-page .page-heading h1', '#update-page .settings-panel', '#update-page .workspace-footer']);
-    const pairs = [['.topbar', '.topbar'], ['#settings-page .page-heading h1', '#update-page .page-heading h1'], ['#settings-page .settings-panel', '#update-page .settings-panel']];
+    const pairs = [['.topbar', '.topbar'], ['#settings-page .page-heading h1', '#update-page .page-heading h1']];
     for (const [a, b] of pairs) { assert.deepEqual({ x: settingsLayout[a].x, y: settingsLayout[a].y, width: settingsLayout[a].width }, { x: updateLayout[b].x, y: updateLayout[b].y, width: updateLayout[b].width }, `${width}px ${b} moved versus settings`); }
+    const updateColumns = await page.evaluate(() => [...document.querySelectorAll('#update-page .settings-panel')].map(element => { const { x, y } = element.getBoundingClientRect(); return { x: Math.round(x), y: Math.round(y) }; }));
+    assert.equal(new Set(updateColumns.map(panel => panel.x)).size, 1, `${width}px update panels stay in one column`);
+    assert.deepEqual(updateColumns.map(panel => panel.y), [...updateColumns.map(panel => panel.y)].sort((a, b) => a - b));
     assert.deepEqual(await navigation(page), settingsNav, `${width}px sidebar navigation jumped`);
     note(`${width}px switching 设置 → 更新 keeps topbar, heading, first panel and sidebar in place`);
     await page.locator('[data-view="settings"]').click();

@@ -1,12 +1,12 @@
 # 本地扩展管理
 
-入口为主导航「扩展管理」，含 Skills、MCP 服务、接入软件三个分类。共享来源位于 `~/.agents`，同时读取各 CLI 的本地 Skills 和用户级 MCP。接入定义统一位于 `extensions/client-adapters.mjs`，支持 Codex、Qoder、Pi、Grok、Claude Code；Grok 和 Claude Code 在发现可执行文件或配置目录时自动显示。发现只提供候选项，不默认接入。在「接入软件」选择后才读取和管理该 CLI 的 Skills、MCP；取消接入保留原有文件、链接和记录。选择保存在 clients.json 的 selectedClients 中，未选择的软件不出现在 Skill 接入矩阵、保存位置或 MCP 接入操作中。其他 CLI 可以手动登记并审阅接入。旧版已明确登记或有 Daylight 管理记录的软件保留原选择，单纯存在程序、目录或外部链接不作为接入授权。软件筛选按真实来源或链接筛选，不代表客户端已加载。
+入口为主导航「扩展管理」，含 Skills、MCP 服务、接入软件三个分类。共享来源位于 `~/.agents`，同时读取各 CLI 的本地 Skills 和用户级 MCP。接入定义统一位于 `extensions/client-adapters.mjs`，支持 Codex、Qoder、Pi、Grok、Claude Code、Hermes。Grok、Claude Code 和 Hermes 在发现可执行文件或配置目录时自动显示。发现只提供候选项，不默认接入。在「接入软件」选择后才读取和管理该 CLI 的 Skills、MCP；取消接入保留原有文件、链接和记录。选择保存在 clients.json 的 selectedClients 中，未选择的软件不出现在 Skill 接入矩阵、保存位置或 MCP 接入操作中。其他 CLI 可以手动登记并审阅接入。旧版已明确登记或有 Daylight 管理记录的软件保留原选择，单纯存在程序、目录或外部链接不作为接入授权。软件筛选按真实来源或链接筛选，不代表客户端已加载。
 
-Skills 从共享来源及各 CLI 的 Skills 目录读取一级子目录；已知来源的链接归入同一 Skill，不受扫描顺序影响；外部未知链接只列出链接位置，不读取其内容。内部 `modules`、`vendor`、`references` 等内容不会作为独立 Skill 列出，支持新建、受限文本编辑、归档和按操作恢复。元数据由标准 YAML 解析，保留未知 frontmatter；依赖只读取明确的 `metadata.mcp-dependencies` 数组，未声明不会解释成没有依赖。手动改名后不会按名称关联旧对象。
+Skills 只管理共享来源 `~/.agents/skills`。各 CLI 目录里的专有 Skill 或失效链接不列入清单，也不算静态问题。共享来源中的链接仍按接入软件显示勾选；列表标题旁的「全部接入」一次把尚未接入的共享 Skill 或共享 MCP 接到已选软件。共享来源里的外部或失效链接仍会报告，但不作为可编辑 Skill。内部 `modules`、`vendor`、`references` 等内容不会作为独立 Skill 列出，支持新建、受限文本编辑、归档和按操作恢复。元数据由标准 YAML 解析，保留未知 frontmatter；依赖只读取明确的 `metadata.mcp-dependencies` 数组，未声明不会解释成没有依赖。手动改名后不会按名称关联旧对象。
 
 软件主目录和共享来源分别显示：Codex 主目录默认 `~/.codex`，支持 `CODEX_HOME`；客户端原有 Skills 位置为主目录下的 `skills`，Daylight 管理来源仍为 `~/.agents/skills`。Codex 链接位置是 `~/.codex/skills`；Pi 软件主目录默认 `~/.pi`，链接位置是 `~/.pi/agent/skills`。显式设置 `PI_CODING_AGENT_DIR` 时，该变量代表 agent 目录，Skills 位于其 `skills` 下。
 
-列表与详情共用勾选控件。各软件勾选后预览建立单个 Skill 链接，取消勾选后预览移除该链接，主来源保持原样。已有正确链接默认不归 Daylight 管理；可明确确认仅移除该链接，也可先预览接管。同名实体目录、其他目标链接及已被外部改动的管理链接均不覆盖。修改前的链接可按操作恢复。
+列表与详情共用勾选控件。勾选后直接建立单个 Skill 链接，取消勾选后直接移除该链接；CLI 选择和 MCP 接入同样直接生效，不再弹出确认。详情里的「全部接入」会把当前 Skill 或共享 MCP 接到所有尚未接入的已选软件；接入软件页的「全部选择」一次选中其余 CLI。保存成功不显示提示条。失败和结果未知仍保留核对入口。主来源保持原样。已有正确链接默认不归 Daylight 管理，取消勾选只移除该链接。接管归属仍需预览。同名实体目录、其他目标链接及已被外部改动的管理链接均不覆盖，页面直接提示原因。修改前的链接可按操作恢复。Hermes 的用户 Skills 位于 `~/.hermes/skills`（可用 `HERMES_HOME`）；它的 MCP 写在 `config.yaml`，Daylight 不改这份文件。Claude Code 的用户 Skills 位于 `~/.claude/skills`。
 
 三个分类共用分类配置、筛选栏、操作区与列表布局，软件、文件和连接方式选择均使用 `workbench-select`。只扫描来源根目录及一级子目录，保留 5000 个目录上限；达到上限时显示首个跳过路径，不递归扫描 Skill 内部内容。
 

@@ -48,6 +48,10 @@
 
 .proxy-dot.running { background:var(--success); }
 
+.proxy-service-actions { display: flex; align-items: center; gap: var(--space-5); flex-shrink: 0; }
+.proxy-autostart { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-caption-size); line-height: var(--font-caption-line); color: var(--workbench-text); }
+.proxy-autostart input { width: 16px; height: 16px; margin: 0; }
+
 .proxy-switch {
   width: 46px;
   height: 27px;

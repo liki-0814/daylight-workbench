@@ -322,10 +322,9 @@ h1 {
   line-height: var(--font-caption-line);
 }
 
-/* The heading uses the shared page frame; only task content uses a reading column. */
+/* The task list shares the heading's width. A fixed reading column stays the same size in a fullscreen window. */
 .task-workspace > :not(.page-heading) {
   width: 100%;
-  max-width: var(--task-reading-width);
 }
 
 .task-list-section {
@@ -907,8 +906,9 @@ dialog::backdrop {
 
 .settings-facts>div {
   display:grid;
-  grid-template-columns:minmax(80px,.5fr) minmax(0,1fr);
+  grid-template-columns:max-content minmax(0,1fr);
   gap:var(--space-4);
+  align-items:start;
 }
 
 .settings-facts dt {
@@ -1070,15 +1070,37 @@ dialog::backdrop {
   margin: 0;
 }
 
-.task-workspace {
+#task-page {
   display: flex;
   flex-direction: column;
-  gap: var(--section-gap);
+  min-width: 0;
+  min-height: 100vh;
 }
+
+#task-page .topbar { padding-inline: var(--page-inline); }
+
+.task-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--section-gap);
+  width: auto;
+  max-width: none;
+  margin: 0;
+}
+
+.task-list-section:has(> .empty) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.task-list-section:has(> .empty) > .empty { flex: 1; }
 
 .task-workspace .page-heading { margin:0 0 var(--space-2); }
 
 @media(max-width:650px) {
+  #task-page { min-height: calc(100vh - var(--mobile-navigation-height)); }
   .task-view-controls {
     gap: var(--space-2);
     grid-template-columns: minmax(0,1fr) auto;

@@ -19,6 +19,26 @@ async function fixture(t, extra = {}) {
 }
 async function write(file, text) { await fs.mkdir(path.dirname(file), { recursive: true }); await fs.writeFile(file, text); }
 
+test('hermes receives a skill symlink and its config file stays untouched', async t => {
+  const f = await fixture(t, { selectClients: false });
+  await write(path.join(f.agentsRoot, 'skills/shared-skill/SKILL.md'), skill('shared-skill'));
+  const config = path.join(f.home, '.hermes/config.yaml');
+  await write(config, 'mcp_servers: {}\n');
+  let state = await f.service.state(true);
+  const hermes = state.clients.find(client => client.id === 'hermes');
+  assert.equal(hermes.skillsRoot, path.join(f.home, '.hermes/skills'));
+  assert.equal(hermes.mcpMode, 'unsupported');
+  assert.equal(hermes.selected, false);
+  await f.apply({ type: 'client.select', clientId: 'hermes', selected: true });
+  state = await f.service.state(true);
+  const shared = state.skills.find(item => item.scope === 'shared');
+  const plan = await f.service.prepare({ type: 'binding.connect', id: shared.id, clientId: 'hermes' });
+  assert.equal(plan.conflicts.length, 0);
+  await f.apply({ type: 'binding.connect', id: shared.id, clientId: 'hermes' });
+  assert.equal(await fs.realpath(path.join(f.home, '.hermes/skills/shared-skill')), shared.sourcePath);
+  assert.equal(await fs.readFile(config, 'utf8'), 'mcp_servers: {}\n');
+});
+
 test('discovery never opts clients in; selection gates reads and mutations and survives cancel, restore and restart', async t => {
   const f = await fixture(t, { selectClients: false }), file = path.join(f.home, '.grok/config.toml');
   await write(path.join(f.agentsRoot, 'skills/common/SKILL.md'), skill('common'));
@@ -38,7 +58,7 @@ test('discovery never opts clients in; selection gates reads and mutations and s
   await write(path.join(f.home, '.claude.json'), 'another invalid config'); assert.equal((await f.service.state(true)).version, initial.version);
   await f.apply(action); let state = await f.service.state(true);
   assert.deepEqual(state.clients.filter(client => client.selected).map(client => client.id), ['grok']);
-  assert.equal(state.skills.length, 2); assert.equal(state.servers[0].clientId, 'grok'); assert.deepEqual(state.skills[0].bindings.map(binding => binding.clientId), ['grok']);
+  assert.deepEqual(state.skills.map(item => item.name), ['common']); assert.equal(state.servers[0].clientId, 'grok'); assert.deepEqual(state.skills[0].bindings.map(binding => binding.clientId), ['grok']);
   const shared = state.skills.find(item => item.scope === 'shared'); await f.apply({ type: 'binding.connect', id: shared.id, clientId: 'grok' });
   const original = await fs.readFile(file, 'utf8'), target = path.join(f.home, '.grok/skills/common');
   const deselected = await f.apply({ type: 'client.select', clientId: 'grok', selected: false }); state = await f.service.state(true);
@@ -93,15 +113,14 @@ test('one catalog and mutation flow handles native Skills, shared links and opaq
   await fs.mkdir(path.join(f.home, '.codex/skills'), { recursive: true });
   await fs.symlink(path.join(base, 'personal'), path.join(f.home, '.codex/skills/personal'));
   const outside = path.join(f.home, 'outside'); await write(path.join(outside, 'SKILL.md'), skill('secret')); await fs.symlink(outside, path.join(base, 'external'));
-  const state = await f.service.state(true); assert.equal(state.skills.length, 3);
-  const personal = state.skills.find(item => item.name === 'personal'), external = state.skills.find(item => item.name === 'external');
-  assert.equal(personal.bindings.find(binding => binding.clientId === 'codex').state, 'existing'); assert.equal(personal.scope, 'client'); assert.equal(personal.clientId, 'grok');
-  assert.equal((await f.service.detail(personal.id)).content, skill('personal'));
-  await f.apply({ type: 'skill.update', id: personal.id, content: skill('personal') + 'edit\n' });
-  const archived = await f.apply({ type: 'skill.archive', id: personal.id }); await assert.rejects(fs.stat(personal.sourcePath), { code: 'ENOENT' });
-  await f.apply({ type: 'operation.restore', operationId: archived.operationId }); assert.match(await fs.readFile(path.join(personal.sourcePath, 'SKILL.md'), 'utf8'), /edit/);
-  assert.equal((await f.service.detail(external.id)).content, null);
-  await f.apply({ type: 'skill.archive', id: external.id }); assert.equal(await fs.readFile(path.join(outside, 'SKILL.md'), 'utf8'), skill('secret'));
+  await fs.symlink(path.join(f.agentsRoot, 'skills', 'missing'), path.join(base, 'dangling'));
+  const state = await f.service.state(true);
+  assert.deepEqual(state.skills.map(item => item.name), ['common']);
+  assert.equal(state.skills[0].scope, 'shared');
+  assert.equal(state.skills[0].bindings.find(binding => binding.clientId === 'grok').state, 'existing');
+  assert.equal(state.diagnostics.some(item => item.code === 'EXTERNAL_SOURCE'), false);
+  assert.equal(await fs.readFile(path.join(base, 'personal/SKILL.md'), 'utf8'), skill('personal'));
+  assert.equal(await fs.readFile(path.join(outside, 'SKILL.md'), 'utf8'), skill('secret'));
   await f.apply({ type: 'skill.create', clientId: 'grok', directory: 'new-local', content: skill('new-local') });
   assert.equal(await fs.readFile(path.join(base, 'new-local/SKILL.md'), 'utf8'), skill('new-local'));
 });

@@ -118,13 +118,13 @@ npm run test:native-focus-notifications
 | `--font-page-*`、`--font-section-*`、`--font-body-*`、`--font-caption-*` | 页面标题、分区标题、正文与辅助文字的字号和行高 |
 | `--space-*`、`--paragraph-gap`、`--section-gap`、`--form-field-gap` | 通用留白、段间距、分区间距与字段间距 |
 | `--page-inline`、`--page-block-start`、`--page-max-width`、`--topbar-height` | topbar、工作区、页面标题与主要操作的共同锚点；页面框架默认最大宽度为 `1320px` |
-| `--task-reading-width`、`--ai-reading-width`、`--form-reading-width` | 公共页面框架内部的任务、对话与表单阅读列，不改变页面标题锚点 |
+| `--ai-reading-width`、`--form-reading-width` | 对话正文与表单的阅读列。任务列表和对话工作区使用主栏的全部宽度 |
 | `--radius-control`、`--radius-panel`、`--radius-overlay` | 控件、面板与弹层的分层圆角 |
 | `--shadow-panel`、`--shadow-overlay` | 轻量面板阴影与弹层阴影 |
 | `--success`、`--warning`、`--danger` 及对应 `*-background`、`*-border` | 运行状态与反馈语义色 |
 | `--form-control-height`、`--button-height`、`--compact-button-height`、`--icon-button-size` | 输入框与下拉框、普通按钮、紧凑按钮及图标按钮的统一尺寸 |
 
-任务、AI、反向代理、CLI、扩展、设置和更新页面共用上述页面边距与标题锚点；任务列表只收窄内部阅读列。AI 保留全高度工作区，但 topbar 和水平边距使用同一变量。紧凑下拉触发器单行省略，完整选项仍在菜单中换行显示。页面、历史、消息、下拉和快捷面板不全局隐藏滚动条；根滚动条使用 `scrollbar-gutter: stable` 避免异步内容改变页面宽度。代理来源 Tab 使用明确的内部横向滚动区，键盘焦点仍由 `segmentedControl` 管理；移动导航与分段 Tab 在焦点进入时以即时、无平滑动画的方式滚入可视区。AI 的待确认区、错误区和输入区在矮窗口内可收缩，文本区内部滚动，发送与停止操作保持可达；键盘停止后焦点回到消息输入框。
+任务、AI、反向代理、CLI、扩展、设置和更新页面共用上述页面边距与标题锚点。任务列表和 AI 工作区随窗口变宽，对话正文仍限制在阅读列内。AI 保留全高度工作区，topbar 和水平边距使用同一变量。更新页是单列：版本、自动更新、更新说明、更新历史。紧凑下拉触发器单行省略，完整选项仍在菜单中换行显示。页面、历史、消息、下拉和快捷面板不全局隐藏滚动条；根滚动条使用 `scrollbar-gutter: stable` 避免异步内容改变页面宽度。代理来源 Tab 使用明确的内部横向滚动区，键盘焦点仍由 `segmentedControl` 管理；移动导航与分段 Tab 在焦点进入时以即时、无平滑动画的方式滚入可视区。AI 的待确认区、错误区和输入区在矮窗口内可收缩，文本区内部滚动，发送与停止操作保持可达；键盘停止后焦点回到消息输入框。
 
 `public/components/button.js` 的 `actionButton` 生成原生按钮，支持 primary、secondary、text、icon、danger 变体；`button.css` 统一按钮、可操作链接、导航与选择控件的外观和交互状态，并兼容现有类名。该样式在各页面样式之后加载。新增操作优先复用这些组件，事件仍使用原来的点击代理、表单提交和键盘行为。
 
@@ -144,6 +144,6 @@ npm run test:native-focus-notifications
 
 代理来源 Tab 复用 `segmentedControl({mode:'tabs'})`，保持 tablist、aria-controls、方向键及隐藏/禁用选项的焦点顺序。接入配置、模型设置和媒体设置复用 `disclosureSection({appearance:'panel'})`；默认 line 样式保留其他页面调用兼容性。复制、显示、账号操作使用 actionButton，刷新使用 refreshButton，协议/模型使用 selectField；系统代理 switch 保持原有开关实现。
 
-代理页容器统一 section-gap，子卡片不另叠加外边距；接入行共用 ui-form-row，操作区共用 ui-form-offset。来源设置保存与普通登录保存只保留无障碍播报，错误和凭证恢复等需采取行动的状态可见。
+代理页容器统一 section-gap，子卡片不另叠加外边距；接入行共用 ui-form-row，操作区共用 ui-form-offset。来源设置保存、普通登录保存和凭证修复成功都不显示提示。连接失败和仍需修复的错误保持可见。
 
 侧栏内容固定展开宽度后裁切收入图标轨，图标中心不随展开变化；加号无边框。鼠标展开收起使用可反向的 200ms CSS 过渡，键盘与减少动态效果直接切换，切换不重建焦点节点。

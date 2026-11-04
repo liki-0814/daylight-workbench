@@ -40,7 +40,7 @@ export function createCatalog({ root, clients, loadClients, environment = proces
       try { return (await fs.stat(path.join(real, 'SKILL.md'))).isFile(); } catch { return false; }
     }
     for (const entry of discovered) {
-      if (entry.link) continue;
+      if (entry.link || entry.client) continue;
       if (!entry.real || !within(entry.base, entry.real)) { signatures.push([entry.sourcePath, entry.real, (await stat(entry.sourcePath))?.mtimeMs]); noteUnresolved(entry); continue; }
       if (claimed.has(entry.real) || !(await stat(path.join(entry.sourcePath, 'SKILL.md')))) continue;
       claimed.add(entry.real);
@@ -60,6 +60,8 @@ export function createCatalog({ root, clients, loadClients, environment = proces
     for (const entry of discovered) {
       if (!entry.link || entry.real && claimed.has(entry.real)) continue;
       const recognized = !!entry.real && await hasSkillDocument(entry.real);
+      // Skill management only lists ~/.agents/skills. A CLI-only directory or link stays on disk and is not a problem.
+      if (entry.client) continue;
       signatures.push([entry.sourcePath, entry.real, (await stat(entry.sourcePath))?.mtimeMs]);
       if (!entry.client && !recognized) { noteUnresolved(entry); continue; }
       const key = entry.real || entry.sourcePath;

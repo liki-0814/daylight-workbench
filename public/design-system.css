@@ -122,12 +122,11 @@
   --compact-button-height: 36px;
   --icon-button-size: 28px;
 
-  /* Shared page anchors; internal reading columns may be narrower. */
+  /* Shared page anchors. Task and AI surfaces fill the main column; message text keeps a reading width. */
   --page-max-width: 1320px;
   --topbar-height: 76px;
   --page-block-start: 40px;
   --page-block-end: var(--space-6);
-  --task-reading-width: 980px;
   --ai-reading-width: 840px;
   --form-reading-width: 760px;
   --form-panel-min-width: 520px;

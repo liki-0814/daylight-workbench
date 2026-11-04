@@ -27,7 +27,7 @@ export function createSourcePage({store,source,name,confirmAction}){
   relogin.textContent='重新登录';relogin.hidden=!ops.includes('login')||!account;relogin.disabled=locked||busy||!!status?.runtimeError;
   const notice=activeOperation==='repair'?'请完成系统钥匙串授权，正在验证后台访问…':store.authNotice?.(source),message=localError||(!busy&&recovery?.message)||'';
   $('[data-error]').textContent=message;$('[data-error]').hidden=!message;
-  $('[data-notice]').textContent=notice||'';$('[data-notice]').hidden=!notice;$('[data-notice]').classList.toggle('sr-only',notice==='登录已保存');
+  $('[data-notice]').textContent=notice||'';$('[data-notice]').hidden=!notice;
   const refresh=$('[data-refresh-account]');refresh.hidden=!ops.includes('refresh');setRefreshState(refresh,{loading:busy,disabled:busy||!!status?.runtimeError});
   const login=store.login(source);$('[data-login]').hidden=!login;
   if(login){const expires=login.expiresAt>1e12?login.expiresAt:login.expiresAt*1000,expired=Number.isFinite(expires)&&Date.now()>=expires;

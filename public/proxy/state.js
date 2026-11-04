@@ -50,14 +50,14 @@ export function createProxyState(api){
   const task=(async()=>{
    const result=await api.source(id,'auth/'+operation,operation==='poll'?undefined:{});
    if(epoch!==(authEpochs.get(id)||0))return{status:'cancelled'};
-   if(result?.authorized||result?.status==='authenticated')authNotices.set(id,{message:result.connected===false?'登录已保存，连接检测失败：'+(result.error||'请重试检测'):'登录已保存'});
+   if((result?.authorized||result?.status==='authenticated')&&result.connected===false)authNotices.set(id,{message:'连接检测失败：'+(result.error||'请重试检测')});
    if(result?.warning)authNotices.set(id,{message:result.warning});
    if(['login','refresh'].includes(operation)&&result?.url)logins.set(id,result);
    if(['cancel','logout'].includes(operation)||result?.authorized||result?.status==='authenticated')logins.delete(id);
    if(operation==='poll'&&result?.status&&result.status!=='pending'&&result.status!=='authenticated')logins.set(id,{...logins.get(id),terminal:true,error:result.error||({denied:'授权已取消，请重新登录',expired:'授权已过期，请重新登录',failed:'登录未完成，请重试'})[result.status]||'登录未完成，请重试'});
    if(operation!=='poll'||result?.authorized||result?.status==='authenticated'){invalidate(id);if(operation==='repair'&&refreshing)await refreshing;await refresh();}
    if(epoch!==(authEpochs.get(id)||0))return{status:'cancelled'};
-   if(operation==='repair'&&result?.credentialRepaired===true&&!source(id)?.credentialRecovery)authNotices.set(id,{repair:true,message:result.connectionChecked===false?'凭证访问已恢复，后台读取验证通过；可刷新登录检查来源连接':result.connected===false?'后台凭证访问已验证，来源连接检测失败：'+(result.error||'请重试检测'):'凭证访问已恢复，后台读取验证通过'});
+   if(operation==='repair'&&result?.credentialRepaired===true&&result.connected===false)authNotices.set(id,{message:'来源连接检测失败：'+(result.error||'请重试检测')});
    notify();return result;
   })();authTasks.set(id,task);try{return await task;}catch(error){if(epoch===(authEpochs.get(id)||0)&&operation==='repair'){authNotices.delete(id);invalidate(id);if(refreshing)await refreshing;await refresh();}throw error;}finally{if(authTasks.get(id)===task)authTasks.delete(id);}
  }

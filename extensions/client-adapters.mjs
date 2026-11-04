@@ -5,6 +5,7 @@ export const clientAdapters = [
   { id: 'pi', name: 'Pi', commands: ['pi'], directory: '.pi', rootEnv: 'PI_CODING_AGENT_DIR', skillsDirectory: 'agent/skills', evidence: 'https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent' },
   { id: 'grok', name: 'Grok', commands: ['grok'], directory: '.grok', skillsDirectory: 'skills', mcp: { file: 'config.toml', format: 'toml', section: 'mcp_servers', toggle: 'enabled', disabledList: 'disabled_mcp_servers', env: 'env', headers: 'headers', interpolation: true }, evidence: 'https://docs.x.ai/build/features/mcp-servers' },
   { id: 'claude', name: 'Claude Code', commands: ['claude'], directory: '.claude', rootEnv: 'CLAUDE_CONFIG_DIR', skillsDirectory: 'skills', mcp: { file: '../.claude.json', format: 'json', section: 'mcpServers', env: 'env', headers: 'headers', interpolation: true }, evidence: 'https://code.claude.com/docs/en/mcp' },
+  { id: 'hermes', name: 'Hermes', commands: ['hermes'], directory: '.hermes', rootEnv: 'HERMES_HOME', skillsDirectory: 'skills', evidence: 'https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/skills.md' },
 ];
 export function adapterFor(command, explicit) {
   return clientAdapters.find(adapter => explicit ? adapter.id === explicit : adapter.commands.includes(command.split('/').at(-1)));

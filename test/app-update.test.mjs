@@ -92,13 +92,22 @@ test('update page markup shows the repository, versions and one primary action p
   const ready = updateMarkup({ release: available(), updater: native({ phase: 'ready', staged: { version: '0.9.0', size: 5242880, credentialsReset: true } }) });
   assert.match(ready, /data-update-install[^>]*>[\s\S]*重启并安装 0\.9\.0/);
   assert.match(ready, /data-update-discard/);
-  assert.match(ready, /钥匙串辅助程序/);
+  assert.doesNotMatch(ready, /钥匙串辅助程序/);
   const installing = updateMarkup({ release: available(), updater: native({ phase: 'installing' }) });
   assert.match(installing, /正在重启…/);
   assert.match(installing, /data-update-check[^>]*disabled/);
   assert.equal(progressFraction(native({ progress: { received: 5, total: 0 } })), 0);
   assert.equal(progressFraction(native({ progress: { received: 9, total: 4 } })), 1);
   assert.equal(progressText(native({ phase: 'verifying', target: '0.9.0' })), '正在校验 0.9.0');
+});
+
+test('update page keeps status, mode, notes and history in one column', () => {
+  const html = updateMarkup({ release: available(), updater: native() });
+  assert.equal(html.match(/ui-panel-stack/g).length, 1);
+  assert.equal(html.includes('ui-panel-grid'), false);
+  const order = ['aria-label="版本"', 'aria-label="自动更新"', 'aria-label="更新说明"', 'aria-label="更新历史"'].map(label => html.indexOf(label));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b));
+  assert.ok(order.every(index => index > 0));
 });
 
 test('update page markup falls back to the DMG when in-app install is unavailable', () => {

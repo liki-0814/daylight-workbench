@@ -8,7 +8,7 @@ export function extensionDraftCard(pending) {
   return `<div class="ai-card extension-review"><h3>审阅扩展变更</h3><p>${esc(pending.summary)}</p>${extensionPlanContent(pending.plan)}<div class="ai-card-actions"><button type="button" class="secondary" data-reject>取消草稿</button><button type="button" class="primary" data-apply ${pending.plan.conflicts?.length ? 'disabled' : ''}>${pending.action.type === 'mcp.probe' ? '确认并检测' : '应用变更'}</button></div><small>来源或接入文件变化后需要重新预览；不会自动将公共 MCP 加载到 Daylight 对话。</small></div>`;
 }
 export function extensionSubmissionCard(submission) {
-  if (!submission || submission.acknowledged) return '';
+  if (!submission || submission.acknowledged || submission.status === 'applied') return '';
   const isProbe = submission.request.action.type === 'mcp.probe';
   const unknown = ['submitted', 'unknown'].includes(submission.status), status = unknown ? '正在核对扩展提交结果' : submission.status === 'applied' ? isProbe ? 'MCP 检测已确认' : '扩展变更已保存' : '扩展变更需要重新审阅';
   const message = submission.error?.error || (unknown ? '服务可能已保存。请核对原请求，不能直接换请求重复执行。' : submission.status === 'applied' ? '操作已记录，可查看回执。' : '请重新预览后提交。');

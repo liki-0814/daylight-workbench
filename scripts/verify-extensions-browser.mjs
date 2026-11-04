@@ -19,6 +19,14 @@ const choose = async (name, label) => { await page.getByRole('combobox', { name,
 const binding = (name, software, area = '.extension-detail') => page.locator(area).getByRole('checkbox', { name: name + ' · ' + software, exact: true });
 const waitBinding = (name, software, checked, area = '.extension-detail') => page.waitForFunction(({ label, checked, area }) => [...document.querySelectorAll(area + ' [data-binding-toggle]')].some(input => input.getAttribute('aria-label') === label && input.checked === checked && !input.disabled), { label: name + ' · ' + software, checked, area });
 const closed = async () => page.waitForFunction(() => !document.querySelector('dialog[open]'));
+const openLatestReceipt = async () => {
+  const dir = path.join(fixture, 'agents/daylight/operations');
+  const names = (await fs.readdir(dir)).filter(name => name.endsWith('.json'));
+  const ranked = await Promise.all(names.map(async name => ({ name, time: (await fs.stat(path.join(dir, name))).mtimeMs })));
+  const id = ranked.sort((left, right) => right.time - left.time)[0].name.replace(/\.json$/, '');
+  await page.evaluate(operation => { location.hash = `extensions&tab=skills&operation=${operation}`; }, id);
+  await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).waitFor();
+};
 try {
   let release, started;
   const gate = new Promise(resolve => release = resolve), requested = new Promise(resolve => started = resolve);
@@ -59,31 +67,31 @@ try {
   await page.getByRole('searchbox', { name: '搜索扩展' }).fill('no-matching-fixture');
   for (const tab of ['MCP 服务', '接入软件', 'Skills']) { await page.getByRole('radio', { name: tab, exact: true }).click(); assert.equal(await page.locator('.extension-row').count(), 0); assert.equal(await page.locator('.extension-empty').count(), 1); }
   await page.getByRole('searchbox', { name: '搜索扩展' }).fill(''); checks.push('empty search has one recoverable empty state');
-  await binding('review-code', 'Qoder', '.extension-list').focus(); await page.keyboard.press('Space'); await assertText(dialog(), 'qoder/skills/review-code'); await page.keyboard.press('Escape'); await closed();
-  assert.equal(await binding('review-code', 'Qoder', '.extension-list').isChecked(), false);
+  await binding('review-code', 'Qoder', '.extension-list').focus(); await page.keyboard.press('Space');
+  await waitBinding('review-code', 'Qoder', true, '.extension-list');
+  assert.equal(await page.locator('dialog[open]').count(), 0);
+  assert.equal(await fs.realpath(path.join(fixture, 'qoder/skills/review-code')), path.join(fixture, 'agents/skills/review-code'));
   await page.waitForFunction(() => document.activeElement.matches('.extension-list [data-binding-toggle][data-client=qoder]'));
   assert.equal(await binding('review-code', 'Qoder', '.extension-list').evaluate(el => document.activeElement === el), true);
-  await assert.rejects(fs.lstat(path.join(fixture, 'qoder/skills/review-code')), { code: 'ENOENT' });
   await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
-  await binding('review-code', 'Qoder').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
-  assert.equal(await fs.realpath(path.join(fixture, 'qoder/skills/review-code')), path.join(fixture, 'agents/skills/review-code'));
-  assert.equal(await binding('review-code', 'Qoder', '.extension-list').isChecked(), true); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
-  await assert.rejects(fs.stat(path.join(fixture, 'codex')), { code: 'ENOENT' }); await assert.rejects(fs.stat(path.join(fixture, 'pi')), { code: 'ENOENT' }); checks.push('Qoder preview/cancel/apply leaves other clients untouched');
-  await binding('review-code', 'Qoder').click(); await dialog().getByRole('button', { name: '取消', exact: true }).click(); await closed(); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
-  await binding('review-code', 'Qoder').click(); await assertText(dialog(), '主 Skill 和其他软件保持原样'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
+  await assert.rejects(fs.stat(path.join(fixture, 'codex')), { code: 'ENOENT' }); await assert.rejects(fs.stat(path.join(fixture, 'pi')), { code: 'ENOENT' }); checks.push('Qoder skill link applies immediately and leaves other clients untouched');
+  await binding('review-code', 'Qoder').click(); await waitBinding('review-code', 'Qoder', false);
+  assert.equal(await page.locator('dialog[open]').count(), 0);
   const qoderLink = path.join(fixture, 'qoder/skills/review-code'), relativeTarget = path.relative(path.dirname(qoderLink), path.dirname(source));
   await assert.rejects(fs.lstat(qoderLink), { code: 'ENOENT' }); assert.equal(await fs.readFile(source, 'utf8'), before);
   await fs.symlink(relativeTarget, qoderLink); await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click();
   await waitBinding('review-code', 'Qoder', true); assert.equal(await binding('review-code', 'Qoder').isChecked(), true);
-  await binding('review-code', 'Qoder').click(); await assertText(dialog(), '明确确认处理已有正确链接'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await binding('review-code', 'Qoder').click(); await waitBinding('review-code', 'Qoder', false);
+  assert.equal(await page.locator('dialog[open]').count(), 0);
   await assert.rejects(fs.lstat(qoderLink), { code: 'ENOENT' }); assert.equal(await fs.readFile(source, 'utf8'), before);
-  await page.getByRole('link', { name: '查看回执', exact: true }).click(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await openLatestReceipt(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
   assert.equal(await fs.readlink(qoderLink), relativeTarget); checks.push('checkbox removal cancels safely, preserves source and restores an existing relative link');
   await page.getByRole('button', { name: '返回清单', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
   const codexLink = path.join(fixture, 'codex/skills/review-code'); await fs.mkdir(path.dirname(codexLink), { recursive: true }); await fs.symlink(path.dirname(source), codexLink);
-  await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await waitBinding('review-code', 'Codex', true); await binding('review-code', 'Codex').click(); await assertText(dialog(), '明确确认处理已有正确链接');
-  await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); await assert.rejects(fs.lstat(codexLink), { code: 'ENOENT' }); assert.equal(await binding('review-code', 'Codex').isChecked(), false); assert.equal(await fs.readFile(source, 'utf8'), before);
-  for (const [software, directory] of [['Codex', 'codex/skills'], ['Pi', 'pi/agent/skills']]) { await binding('review-code', software).click(); await assertText(dialog(), directory + '/review-code'); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(await fs.realpath(path.join(fixture, directory, 'review-code')), path.dirname(source)); }
+  await page.getByRole('button', { name: '重新扫描扩展', exact: true }).click(); await waitBinding('review-code', 'Codex', true); await binding('review-code', 'Codex').click(); await waitBinding('review-code', 'Codex', false);
+  assert.equal(await page.locator('dialog[open]').count(), 0); await assert.rejects(fs.lstat(codexLink), { code: 'ENOENT' }); assert.equal(await fs.readFile(source, 'utf8'), before);
+  for (const [software, directory] of [['Codex', 'codex/skills'], ['Pi', 'pi/agent/skills']]) { await binding('review-code', software).click(); await waitBinding('review-code', software, true); assert.equal(await page.locator('dialog[open]').count(), 0); assert.equal(await fs.realpath(path.join(fixture, directory, 'review-code')), path.dirname(source)); }
   checks.push('Codex/Pi connect in their own directories and existing Codex links can be removed');
   await page.getByRole('radio', { name: '接入软件', exact: true }).click();
   assert.equal((await page.locator('.extensions-page').textContent()).includes('加载结果未核对'), false);
@@ -99,12 +107,12 @@ try {
   await page.getByRole('button', { name: '返回清单', exact: true }).click(); await choose('按软件筛选', '本地调试 CLI'); assert.equal(await page.locator('.extension-row').count(), 1); await choose('按软件筛选', '全部软件');
   checks.push('Add CLI preview/cancel retains draft; approval persists and adds the shared software filter');
   await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
-  await binding('review-code', '本地调试 CLI').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(await fs.realpath(path.join(custom.root, 'skills/review-code')), path.dirname(source));
+  await binding('review-code', '本地调试 CLI').click(); await waitBinding('review-code', '本地调试 CLI', true); assert.equal(await page.locator('dialog[open]').count(), 0); assert.equal(await fs.realpath(path.join(custom.root, 'skills/review-code')), path.dirname(source));
   await page.getByRole('radio', { name: '接入软件', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: custom.name }).click(); await page.getByRole('button', { name: '移除登记', exact: true }).click();
   await assertText(dialog(), '请先解除已管理'); assert.equal(await dialog().getByRole('button', { name: '应用变更', exact: true }).isDisabled(), true); await page.keyboard.press('Escape'); await closed();
-  await binding('review-code', '本地调试 CLI').click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await binding('review-code', '本地调试 CLI').click(); await waitBinding('review-code', '本地调试 CLI', false); assert.equal(await page.locator('dialog[open]').count(), 0);
   await page.getByRole('button', { name: '移除登记', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(JSON.parse(await fs.readFile(registrationFile, 'utf8')).clients.length, 0);
-  await page.getByRole('link', { name: '查看回执', exact: true }).click(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(JSON.parse(await fs.readFile(registrationFile, 'utf8')).clients[0].id, custom.id);
+  await openLatestReceipt(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed(); assert.equal(JSON.parse(await fs.readFile(registrationFile, 'utf8')).clients[0].id, custom.id);
   checks.push('custom CLI Skill links, guarded unregister, source preservation and registration restore');
   await page.getByRole('button', { name: '返回清单', exact: true }).click(); await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click();
   await choose('查看 Skill 文件', 'README.md'); await assertText(page.locator('.extension-source-content'), '浏览器验收用说明文件');
@@ -123,10 +131,10 @@ try {
   await page.getByRole('button', { name: '让 AI 解释或修改', exact: true }).click(); await page.locator('#ai-message').waitFor(); await page.waitForFunction(() => document.querySelector('#ai-message')?.value.includes('这个 Skill'));
   await page.locator('#ai-message').fill('请修改这个 Skill，先给我审阅草稿。'); await page.getByRole('button', { name: '发送消息', exact: true }).click(); await page.getByRole('heading', { name: '审阅扩展变更', exact: true }).waitFor();
   assert.equal(await fs.readFile(source, 'utf8'), edited); await screenshot('ai-review'); await page.getByRole('button', { name: '取消草稿', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('.ai-pending [data-reject]')); assert.equal(await fs.readFile(source, 'utf8'), edited);
-  await page.locator('#ai-message').fill('请再提出刚才的修改。'); await page.getByRole('button', { name: '发送消息', exact: true }).click(); await page.getByRole('heading', { name: '审阅扩展变更', exact: true }).waitFor(); await page.getByRole('button', { name: '应用变更', exact: true }).click(); await page.getByRole('heading', { name: '扩展变更已保存', exact: true }).waitFor();
-  assert.match(await fs.readFile(source, 'utf8'), /已通过 AI 审阅/); await page.getByRole('button', { name: '确认结果', exact: true }).click(); checks.push('AI reference review/reject/apply and real source readback');
+  await page.locator('#ai-message').fill('请再提出刚才的修改。'); await page.getByRole('button', { name: '发送消息', exact: true }).click(); await page.getByRole('heading', { name: '审阅扩展变更', exact: true }).waitFor(); await page.getByRole('button', { name: '应用变更', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('.ai-pending h3'));
+  assert.match(await fs.readFile(source, 'utf8'), /已通过 AI 审阅/); checks.push('AI reference review/reject/apply and real source readback');
   await page.locator('#ai-message').fill('请进行响应丢失演练。'); await page.getByRole('button', { name: '发送消息', exact: true }).click(); await page.getByRole('heading', { name: '审阅扩展变更', exact: true }).waitFor(); await page.getByRole('button', { name: '应用变更', exact: true }).click();
-  await page.getByRole('heading', { name: '正在核对扩展提交结果', exact: true }).waitFor(); await screenshot('ai-unknown'); await page.getByRole('button', { name: '核对原请求', exact: true }).click(); await page.getByRole('heading', { name: '扩展变更已保存', exact: true }).waitFor();
+  await page.getByRole('heading', { name: '正在核对扩展提交结果', exact: true }).waitFor(); await screenshot('ai-unknown'); await page.getByRole('button', { name: '核对原请求', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('.ai-pending h3'));
   assert.equal((await fs.readFile(source, 'utf8')).split('响应丢失演练').length - 1, 1); checks.push('AI unknown response recovers original ID once');
   await page.getByRole('link', { name: '返回扩展管理', exact: true }).click(); await page.getByRole('button', { name: '编辑文件', exact: true }).waitFor();
   await page.getByRole('radio', { name: 'MCP 服务', exact: true }).click();
@@ -136,18 +144,20 @@ try {
   assert.equal(await mcpGroup.getByRole('checkbox', { name: '本地 MCP 测试服务 · Grok', exact: true }).isDisabled(), true);
   const codexMcpBefore = await fs.readFile(path.join(fixture, 'codex/config.toml'), 'utf8'), grokMcpBefore = await fs.readFile(path.join(fixture, 'grok/config.toml'), 'utf8');
   const qoderMcpBinding = mcpGroup.getByRole('checkbox', { name: '本地 MCP 测试服务 · Qoder', exact: true });
-  await qoderMcpBinding.click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await qoderMcpBinding.click(); await page.waitForFunction(() => [...document.querySelectorAll('[data-mcp-binding-toggle]')].some(input => input.getAttribute('aria-label') === '本地 MCP 测试服务 · Qoder' && !input.checked && !input.disabled));
+  assert.equal(await page.locator('dialog[open]').count(), 0);
   assert.equal(JSON.parse(await fs.readFile(path.join(fixture, 'qoder/settings.json'), 'utf8')).mcpServers['fixture-mcp'], undefined);
   assert.equal(await fs.readFile(path.join(fixture, 'codex/config.toml'), 'utf8'), codexMcpBefore); assert.equal(await fs.readFile(path.join(fixture, 'grok/config.toml'), 'utf8'), grokMcpBefore);
-  await qoderMcpBinding.click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await qoderMcpBinding.click(); await page.waitForFunction(() => [...document.querySelectorAll('[data-mcp-binding-toggle]')].some(input => input.getAttribute('aria-label') === '本地 MCP 测试服务 · Qoder' && input.checked && !input.disabled));
+  assert.equal(await page.locator('dialog[open]').count(), 0);
   assert.deepEqual(JSON.parse(await fs.readFile(path.join(fixture, 'qoder/settings.json'), 'utf8')).mcpServers['fixture-mcp'].args, [path.resolve('fixtures/extensions/mcp-server.mjs'), path.join(fixture, 'mcp-requests'), 'delayed']);
   assert.equal(await fs.readFile(path.join(fixture, 'codex/config.toml'), 'utf8'), codexMcpBefore); assert.equal(await fs.readFile(path.join(fixture, 'grok/config.toml'), 'utf8'), grokMcpBefore);
   checks.push('equivalent MCP entries group by client, conflicts stay separate and single-client removal or install preserves all other files');
   const localMcpGroup = page.locator('.extension-row').filter({ hasText: 'fixture-mcp' }), sharedMcpBefore = await fs.readFile(path.join(fixture, 'agents/mcp/servers.json'), 'utf8');
-  await localMcpGroup.getByRole('button', { name: '启用 fixture-mcp · Grok', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await localMcpGroup.getByRole('button', { name: '启用 fixture-mcp · Grok', exact: true }).click(); await page.getByRole('button', { name: '禁用 fixture-mcp · Grok', exact: true }).waitFor(); assert.equal(await page.locator('dialog[open]').count(), 0);
   assert.match(await fs.readFile(path.join(fixture, 'grok/config.toml'), 'utf8'), /enabled = true/);
   assert.equal(await fs.readFile(path.join(fixture, 'codex/config.toml'), 'utf8'), codexMcpBefore); assert.equal(await fs.readFile(path.join(fixture, 'agents/mcp/servers.json'), 'utf8'), sharedMcpBefore);
-  await localMcpGroup.getByRole('button', { name: '禁用 fixture-mcp · Grok', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await closed();
+  await localMcpGroup.getByRole('button', { name: '禁用 fixture-mcp · Grok', exact: true }).click(); await page.getByRole('button', { name: '启用 fixture-mcp · Grok', exact: true }).waitFor(); assert.equal(await page.locator('dialog[open]').count(), 0);
   assert.match(await fs.readFile(path.join(fixture, 'grok/config.toml'), 'utf8'), /enabled = false/);
   assert.equal(await fs.readFile(path.join(fixture, 'codex/config.toml'), 'utf8'), codexMcpBefore); assert.equal(await fs.readFile(path.join(fixture, 'agents/mcp/servers.json'), 'utf8'), sharedMcpBefore);
   checks.push('local MCP enable and disable use reviewed per-client toggles without changing shared or other client files');
@@ -176,7 +186,7 @@ try {
   await page.getByRole('radio', { name: 'Skills', exact: true }).click(); await page.locator('[data-extension-id]').filter({ hasText: 'long-path-example' }).click();
   const archivedSource = path.join(fixture, 'agents/skills/long-path-example/SKILL.md'), retained = await fs.readFile(archivedSource, 'utf8');
   await page.getByRole('button', { name: '归档主 Skill，影响使用它的软件', exact: true }).click(); await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('dialog[open]'));
-  await assert.rejects(fs.stat(archivedSource), { code: 'ENOENT' }); await page.getByRole('link', { name: '查看回执', exact: true }).click(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click();
+  await assert.rejects(fs.stat(archivedSource), { code: 'ENOENT' }); await openLatestReceipt(); await page.getByRole('button', { name: '预览恢复修改前内容', exact: true }).click();
   await dialog().getByRole('button', { name: '应用变更', exact: true }).click(); await page.waitForFunction(() => !document.querySelector('dialog[open]')); assert.equal(await fs.readFile(archivedSource, 'utf8'), retained); checks.push('source archive and reviewed operation restore');
   for (const [width, height] of [[1360, 900], [1024, 768], [800, 600], [390, 844]]) {
     await page.setViewportSize({ width, height }); await page.goto(url + '/#extensions&tab=skills'); await ready(); await screenshot('skills-' + width); await page.locator('[data-extension-id]').filter({ hasText: 'review-code' }).click(); await page.getByRole('button', { name: '编辑文件', exact: true }).waitFor(); await screenshot('detail-' + width);
