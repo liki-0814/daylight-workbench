@@ -24,8 +24,27 @@ test('status, project and search filters remain available and task deep links op
 test('task rows expose completion and editing without scheduling or execution controls',()=>{
  const state=fixtureState();
  for(const status of ['todo','active','done']){
-  const html=taskRow({...state.tasks[0],status},{project:state.projects[0]});
+  const html=taskRow({...state.tasks[0],status,notes:'先确认接口契约\n再补回归'},{busy:false});
   assert.match(html,/data-action="toggle"/);assert.match(html,/data-action="edit"/);assert.match(html,/测试任务 1/);
-  assert.doesNotMatch(html,/今天|专注|进行中|data-action="(?:start|plan|unplan|up|down)"/);
+  // 排期与执行入口保持退役：没有今日、专注，也没有开始/暂停或今日排序动作。
+  assert.doesNotMatch(html,/今天|专注|data-action="(?:start|plan|unplan|up|down)"/);
+  assert.deepEqual([...html.matchAll(/data-action="([^"]+)"/g)].map(match=>match[1]),['toggle','edit']);
  }
+});
+
+test('task rows summarise notes, mark legacy active status and date completed tasks',()=>{
+ const state=fixtureState();
+ const notes='先确认接口契约\n再补回归';
+ const active=taskRow({...state.tasks[0],status:'active',notes});
+ assert.match(active,/<span class="task-meta-chip">进行中<\/span>/);
+ // 备注压成单行摘要，换行不进入行内文本。
+ assert.match(active,/<span class="task-meta-notes">先确认接口契约 再补回归<\/span>/);
+ assert.doesNotMatch(taskRow({...state.tasks[0],status:'todo'}),/task-row-meta/);
+ // 待办行不显示进行中标记，但有备注时仍带摘要。
+ const todo=taskRow({...state.tasks[0],status:'todo',notes});
+ assert.match(todo,/task-meta-notes/);assert.doesNotMatch(todo,/task-meta-chip/);
+ // 完成行只追加完成日期，格式为 MM-DD 或 YYYY-MM-DD。
+ const done=taskRow({...state.tasks[0],status:'done',completedAt:'2026-11-03T01:00:00Z'});
+ assert.match(done,/<span class="task-date">(?:\d{4}-)?\d{2}-\d{2}<\/span>/);
+ assert.doesNotMatch(taskRow({...state.tasks[0],status:'done',completedAt:'not-a-date'}),/task-date/);
 });

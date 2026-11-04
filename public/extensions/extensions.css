@@ -17,7 +17,8 @@
 .extension-list-heading > span, .extension-row small { color: var(--muted); font-size: var(--font-caption-size); }
 .extension-row { align-items:center; display: flex; gap: var(--space-4); justify-content: space-between; width: 100%; border-bottom: 1px solid var(--line); padding: var(--space-4) var(--space-2); }
 .extension-row-open { display: flex; flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; padding: 0; color: var(--ink); font: inherit; cursor: pointer; }
-.extension-row:hover, .extension-row.selected { background: var(--soft); }
+.extension-row:hover { background: var(--hover-tint); }
+.extension-row.selected { background: var(--selection-background); }
 .extension-row.selected { box-shadow: inset 3px 0 var(--accent); }
 .extension-row-copy { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-width: 0; }
 .extension-row-copy strong { font-size: var(--font-reading-size); overflow-wrap: anywhere; }
@@ -27,7 +28,7 @@
 .extension-row-status:has(> .extension-binding-control:nth-child(2)) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); flex-basis:200px; gap:var(--space-1) var(--space-3); }
 .extension-binding-control { display: flex; align-items: center; gap: var(--space-2); min-height: var(--compact-control-height); cursor: pointer; }
 .extension-binding-control:has(input:disabled) { cursor: default; }
-.extension-binding-control input, .extension-problem-filter input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--green); }
+.extension-binding-control input, .extension-problem-filter input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
 .extension-binding-control > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); }
 .extension-binding-control small { color: var(--muted); font-size: var(--font-caption-size); }
 .extension-detail { display:flex; flex-direction:column; gap:var(--space-4); background: var(--paper, #fff); border: 1px solid var(--line); border-radius: var(--radius-panel, 12px); padding: var(--space-5); }

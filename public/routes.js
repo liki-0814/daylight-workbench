@@ -22,7 +22,7 @@ export function taskRoute(view, status = 'all', query = '') {
   p.set('tasks', '');
   if (view === 'inbox') p.set('unassigned', '1');
   else if (!['today', 'calendar', 'focus', 'all'].includes(view)) p.set('project', viewProjectId(view) ?? view);
-  p.set('status', status);
+  if (status === 'done') p.set('status', status);
   if (query) p.set('q', query);
   return '#' + p.toString().replace(/^(today|tasks)=&/, '$1&');
 }

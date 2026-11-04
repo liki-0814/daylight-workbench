@@ -352,7 +352,7 @@
 }
 
 .cli-model-row:hover {
-  background: #f0f4ed;
+  background: var(--hover-tint);
 }
 
 .cli-model-row.is-selected {

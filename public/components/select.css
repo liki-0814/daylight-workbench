@@ -105,7 +105,7 @@ workbench-select {
 }
 
 .select-option.is-highlighted, .select-option:hover {
-  background: var(--selection-background);
+  background: var(--hover-tint);
 }
 
 .select-compact {

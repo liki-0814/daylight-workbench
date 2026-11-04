@@ -1,29 +1,32 @@
+/* Workbench theme: sky-blue accent family; tinted page ground with white card surfaces.
+   Loaded last; overrides the neutral tokens defined by design-system.css. */
 :root {
-  --workbench-background: #FFFFFF;
-  --accent: #2E86E6;
-  --green: #3F3F46;
-  --muted: #737373;
-  --line: #E4E4E7;
-  --control-border: #D4D4D8;
-  --control-background: #FFFFFF;
-  --control-text: #3F3F46;
-  --selection-background: #F0F0F0;
-  --soft: #F5F5F5;
-  --workbench-text: #27272A;
+  --workbench-background: #F2F5F8;
+  --paper: #FFFFFF;
+  --workbench-text: #17181A;
   --ink: var(--workbench-text);
+  --muted: #6B7075;
   --secondary: var(--muted);
+  --line: #E7E9EC;
+  --control-border: #D8DCDF;
+  --control-background: #FFFFFF;
+  --control-text: #17181A;
+  --selection-background: #DDEEFA;
+  --soft: #F3F6F9;
+  --accent: #1773BE;
+  --accent-ink: #0F62A6;
+  --accent-border: #BBD9F2;
+  --accent-soft: #F0F7FD;
+  --hover-tint: rgba(23, 115, 190, .10);
+  --focus-ring: #4FA3E8;
+  --composer-background: #F4F8FB;
+  --done-ink: #8A9097;
+  --done-fill: #B7BDC4;
 }
 
 .sidebar {
-  background: var(--soft);
+  background: linear-gradient(180deg, #F5FAFE 0%, #EFF4FA 52%, #EAF0F8 100%);
   border-right-color: var(--line);
-}
-
-.capture,
-.ai-composer,
-.focus-bottom .small-button {
-  background: var(--paper);
-  border-color: var(--control-border);
 }
 
 .brand small,
@@ -37,8 +40,6 @@
 .date-stamp span,
 .empty p,
 .quiet-note,
-.task-meta,
-.add-row,
 .focus-label,
 .focus-bottom,
 .project-path,
@@ -76,37 +77,40 @@
 
 .ai-history-item.selected,
 .cli-source.selected {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .nav-item:hover,
+.ai-new:hover,
+.ai-history-item:hover,
+.ai-history-action:hover,
+.ai-mention-menu button:hover,
+.ai-mention-menu button:focus-visible,
+.cli-source:hover,
+.cli-model-row:hover {
+  background: var(--hover-tint);
+}
+
+.is-active {
+  background: var(--selection-background);
+}
+
 .task-range-tabs,
-.tabs span,
-.task-group-heading,
-.task-row:hover,
-.is-active,
 .focus-card,
 .keys kbd,
 .notes-editor,
 .update-notes pre,
 .update-notice,
-.ai-new:hover,
-.ai-history-item:hover,
-.ai-history-action:hover,
 .ai-suggestions button,
 .ai-user,
 .ai-operation,
 .ai-stop,
 .ai-card,
 .ai-references>span,
-.ai-mention-menu button:hover,
-.ai-mention-menu button:focus-visible,
 .ai-markdown th,
 .ai-markdown pre,
 .ai-markdown code,
 .ai-process-content,
-.cli-source:hover,
-.cli-model-row:hover,
 .proxy-copy,
 .proxy-model[data-editing],
 .image-preview-viewport {
@@ -127,7 +131,6 @@ dialog,
 }
 
 .task-row,
-.add-row,
 .shortcut-list li,
 .settings-facts>div,
 .update-history li,
@@ -136,22 +139,17 @@ dialog,
 }
 
 .done .check-button {
-  background: var(--muted);
-  border-color: var(--muted);
+  background: var(--done-fill);
+  border-color: var(--done-fill);
 }
 
 .is-active .check-button,
 .ai-composer:focus-within {
-  border-color: var(--accent);
-}
-
-.pulse {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--selection-background);
+  border-color: var(--focus-ring);
 }
 
 #toast {
-  background: var(--green);
+  background: var(--workbench-text);
   color: var(--paper);
 }
 

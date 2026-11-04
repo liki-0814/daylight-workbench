@@ -65,13 +65,13 @@
   width: 21px;
   height: 21px;
   border-radius: 50%;
-  box-shadow: 0 1px 3px #132d1720;
+  box-shadow: 0 1px 3px rgba(16, 18, 20, .12);
   transform: translateX(0);
   transition: transform 150ms;
 }
 
 .proxy-switch[aria-checked=true] {
-  background: var(--green);
+  background: var(--accent);
 }
 
 .proxy-switch[aria-checked=true]>span {
@@ -200,7 +200,7 @@
   display: block;
   margin-top: var(--space-2);
   padding: var(--form-control-padding);
-  border: 1px solid #dce4d3;
+  border: 1px solid var(--control-border);
   background: #fff;
   border-radius: 6px;
   color: inherit;
@@ -251,7 +251,7 @@
 }
 
 .proxy-login a {
-  color: var(--green);
+  color: var(--accent-ink);
   margin-right: 18px;
 }
 
@@ -430,7 +430,7 @@
 .proxy-quota-account[data-quota-source="qoder"] { --progress-accent: #96712e; }
 .proxy-quota-account[data-quota-source="agy"] { --progress-accent: #488582; }
 .proxy-quota-account[data-quota-source="grok"] { --progress-accent: #657181; }
-.proxy-quota-account[data-quota-source="codex"] { --progress-accent: var(--green); }
+.proxy-quota-account[data-quota-source="codex"] { --progress-accent: var(--accent); }
 .proxy-quota-account[data-quota-source="kimi"] { --progress-accent: #527bb4; }
 .proxy-quota-account[data-quota-source="copilot"] { --progress-accent: #8370ab; }
 
@@ -768,7 +768,7 @@
 
 .custom-key-field [data-key-state] {
   font-size: var(--font-label-size);
-  color: var(--green);
+  color: var(--accent-ink);
   line-height: var(--font-label-line);
 }
 
@@ -866,8 +866,8 @@
   border-left: 1px solid var(--line);
   border-radius: 0;
   background: var(--soft);
-  color: var(--green);
-  box-shadow: -12px 0 40px #16231d2b;
+  color: var(--workbench-text);
+  box-shadow: -12px 0 40px rgba(16, 18, 20, .16);
 }
 
 .proxy-drawer-form {
@@ -914,7 +914,7 @@
 }
 
 .proxy-drawer .select-trigger {
-  border-color: #dce4d3;
+  border-color: var(--control-border);
 
   background: var(--paper);
   color: #374c2e;
@@ -998,7 +998,7 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--paper);
-  color: var(--green);
+  color: var(--control-text);
   font: inherit;
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
@@ -1130,7 +1130,7 @@
 
 .route-badge {
   margin-left: 12px;
-  color: var(--green);
+  color: var(--accent-ink);
   font-size: var(--font-body-size);
   line-height: var(--font-body-line);
 }
@@ -1309,7 +1309,7 @@
 
 .proxy-undo {
   padding: 0 2px;
-  color: var(--green);
+  color: var(--accent-ink);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;

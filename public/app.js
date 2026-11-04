@@ -5,8 +5,8 @@ import { selectField } from './components/select.js';
 import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
 import { sidebarContent } from './components/sidebar.js';
-import { segmentedControl, mountSegmentedControl } from './components/segmented-control.js';
-import { settingsPage } from './components/settings-page.js';
+import { disclosureSection } from './components/section.js';
+import { settingsPage, mountSettingsPreferences } from './components/settings-page.js';
 import { mountAISettings } from './ai-settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
 import { createTaskClient } from './task-client.js';
@@ -18,14 +18,16 @@ const dialog = document.querySelector('#dialog');
 const toast = document.querySelector('#toast');
 let heldTaskFocus = null;
 let state, version, token, busy = false;
-let view = 'all', query = '', tab = 'all', modal = null, toastTimer;
+let view = 'all', query = '', doneExpanded = false, doneCollapseForQuery = null, modal = null, toastTimer;
 let refreshing = false, taskReturn = null, aiActivity = '';
 const formDrafts = new Map();
-let aiPage, statusTabsDispose;
+let aiPage;
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
 let sidebarCollapsed = true;
 try { sidebarCollapsed = localStorage.getItem('daylight-sidebar-expanded') !== 'true'; } catch {}
+let showDoneEntry = true;
+try { showDoneEntry = localStorage.getItem('daylight-task-done-entry') !== 'false'; } catch {}
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, updatePage, updaterReady = false, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
 const scrollPositions = { task: 0, proxy: 0, settings: 0, update: 0, ai: 0, cli: 0, extensions: 0 };
 const pageLoads = new Map();
@@ -81,7 +83,7 @@ function loadFailed(message, retry) {
 }
 
 function writeTaskURL(replace = false) {
-  if (!isPage(view)) history[replace ? 'replaceState' : 'pushState'](null, '', '/' + taskRoute(view, tab, query));
+  if (!isPage(view)) history[replace ? 'replaceState' : 'pushState'](null, '', '/' + taskRoute(view, doneExpanded ? 'done' : 'all', query));
 }
 function navigate(next, updateURL = true) {
   if (['today','calendar','focus'].includes(next)) next = 'all';
@@ -89,10 +91,10 @@ function navigate(next, updateURL = true) {
   const previousSection = sectionFor(view), nextSection = sectionFor(next);
   if (previousSection !== nextSection) scrollPositions[previousSection] = window.scrollY;
   const keepNavFocus = sidebarRoot?.contains(document.activeElement);
-  if (isPage(next) && !isPage(view)) taskReturn = { view, tab, query };
+  if (isPage(next) && !isPage(view)) taskReturn = { view, doneExpanded, query };
   if (!isPage(next)) {
-    if (isPage(view) && taskReturn && next === lastTaskView) ({ view: next, tab, query } = taskReturn);
-    else if (isPage(view)) { query = ''; tab = 'all'; }
+    if (isPage(view) && taskReturn && next === lastTaskView) ({ view: next, doneExpanded, query } = taskReturn);
+    else if (isPage(view)) { query = ''; doneExpanded = false; }
     lastTaskView = next;
   }
   view = next;
@@ -104,7 +106,7 @@ function navigate(next, updateURL = true) {
   if (previousSection !== nextSection) window.scrollTo(0, scrollPositions[nextSection]);
   if (keepNavFocus) [...sidebarRoot.querySelectorAll('[data-view]')].find(b => b.dataset.view === view)?.focus({ preventScroll: true });
 }
-function selection(status = tab) {
+function selection(status = 'open') {
   return { scope: 'all', status, query, ...(view === 'inbox' ? { unassigned: true } : state.projects.some(p => p.id === viewProjectId(view)) ? { projectId: viewProjectId(view) } : {}) };
 }
 function captureTaskDraft() { if (modal?.type === 'task' && modal.id && !modal.saved) { const form=dialog.querySelector('#task-form'); if (form) formDrafts.set(modal.id,{fields:[...new FormData(form)],version:formDrafts.get(modal.id)?.version ?? version}); } }
@@ -146,10 +148,6 @@ async function mutate(action, message) {
   if (busy) return;
   try { return await save(change(state, action, localDate()), message); }
   catch (error) { notify(error.message); return false; }
-}
-
-function taskRow(task) {
-  return renderTaskRow(task, { project: project(task), busy, showProject: !viewProjectId(view) });
 }
 
 function sidebarOptions() { return { collapsed: sidebarCollapsed, state, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady }; }
@@ -223,6 +221,14 @@ function render() {
       settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
       mountAISettings(settingsRoot, () => token);
+      mountSettingsPreferences(settingsRoot, {
+        isDoneEntryVisible: () => showDoneEntry,
+        onDoneEntryChange(value) {
+          showDoneEntry = value;
+          try { localStorage.setItem('daylight-task-done-entry', String(value)); } catch {}
+          render();
+        },
+      });
       settingsRoot.querySelector('.ui-panel-stack').prepend(proxyPage.settingsElement);
     }
     settingsRoot.hidden = false;
@@ -234,27 +240,50 @@ function render() {
   if (settingsRoot) settingsRoot.hidden = true;
   document.title = 'Daylight · 任务管理';
   const currentProject = state.projects.find(p => p.id === viewProjectId(view));
-  const result = selectTasks(state, selection());
-  const tasks = result.tasks, { open: openCount, done: doneCount } = result.counts;
+  const openResult = selectTasks(state, selection('open'));
+  const doneResult = selectTasks(state, selection('done'));
+  const tasks = openResult.tasks, doneTasks = doneResult.tasks;
+  const { open: openCount, done: doneCount } = openResult.counts;
   const heading = currentProject?.name || '任务';
   const rangeLabel = currentProject?.name || (view === 'inbox' ? '未归类' : '全部项目');
-  const taskList = tasks.map(taskRow).join('');
+  const singleScope = Boolean(currentProject) || view === 'inbox';
+  const groups = [];
+  if (singleScope) {
+    if (tasks.length) groups.push({ project: currentProject, items: tasks, showHeading: false });
+  } else {
+    for (const p of state.projects) {
+      const items = tasks.filter(task => task.projectId === p.id);
+      if (items.length) groups.push({ project: p, items, showHeading: true });
+    }
+    const unassigned = tasks.filter(task => task.projectId === null);
+    if (unassigned.length) groups.push({ project: null, items: unassigned, showHeading: true });
+  }
+  const taskList = groups.map(group => `${group.showHeading ? `<h2 class="task-group-heading"><i class="dot ${esc(group.project?.color || 'neutral')}"></i><span>${esc(group.project?.name || '未归类')}</span><span data-count>${group.items.length} 项待办</span></h2>` : ''}${group.items.map(task => renderTaskRow(task, { busy })).join('')}`).join('');
+  const doneOpen = doneExpanded || (Boolean(query) && doneCount > 0 && doneCollapseForQuery !== query);
+  const doneDisclosure = showDoneEntry && doneCount ? disclosureSection({ id: 'task-done', title: `已完成 (${doneCount})`, className: 'task-done-disclosure', content: doneTasks.map(task => renderTaskRow(task, { busy })).join('') }) : '';
   const focusTarget = taskFocusTarget() || heldTaskFocus;
-  statusTabsDispose?.();
   taskRoot.innerHTML = `
     <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 任务${currentProject ? ' / ' + esc(currentProject.name) : ''}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索${esc(rangeLabel)}…" aria-label="搜索${esc(rangeLabel)}中的任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
     <div class="workspace task-workspace">
-      <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${openCount + doneCount} 项任务 · ${openCount} 项待办 · ${doneCount} 项已完成${query ? ' · 当前范围搜索结果' : ''}</p></div>${actionButton({variant:'primary',symbol:'plus',label:'新建任务',attrs:{'data-action':'new'}})}</section>
+      <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${openCount} 项待办${!singleScope && groups.length > 1 ? ` · ${groups.length} 个分组` : ''}${query ? ' · 搜索结果' : ''}</p></div>${actionButton({variant:'primary',symbol:'plus',label:'新建任务',attrs:{'data-action':'new'}})}</section>
 
       <div class="task-view-controls">
-        ${segmentedControl({id:'task-status',label:'任务状态',value:tab,options:[{value:'all',label:'全部'},{value:'open',label:'待办'},{value:'done',label:'已完成'}].map(option=>({...option,disabled:busy}))})}
         ${selectField({ id: 'task-project-filter', name: 'task-filter', label: '项目筛选', hideLabel:true, value: view === 'all' ? '' : view === 'inbox' ? 'unassigned' : view, options: [{value:'',label:'全部项目'},{value:'unassigned',label:'未归类'},...state.projects.map(p=>({value:'project:'+p.id,label:p.name}))], compact:true })}
         ${actionButton({variant:'text',symbol:'plus',label:'新建项目',attrs:{'data-action':'new-project'}})}
       </div>
-      ${query ? actionButton({variant:'text',label:'搜索全部任务（保留状态）',attrs:{'data-action':'search-all'}}) : ''}
-      <section class="task-panel" aria-label="任务列表"><div class="task-list">${tasks.length ? taskList : empty(query ? 'search' : tab === 'done' ? 'done' : view === 'inbox' ? 'inbox' : 'project')}</div></section>
+      ${query ? actionButton({variant:'text',label:'搜索全部任务',attrs:{'data-action':'search-all'}}) : ''}
+      <section class="task-list-section" aria-label="任务列表">${tasks.length ? taskList : empty(query ? 'search' : view === 'inbox' ? 'inbox' : 'project')}</section>${doneDisclosure}
     </div>`;
-  statusTabsDispose = mountSegmentedControl(taskRoot.querySelector('#task-status'), {onChange(value) { if(busy)return;tab=value;writeTaskURL();render();taskRoot.querySelector(`[data-segment-value="${value}"]`)?.focus({preventScroll:true}); }});
+  const doneDetails = taskRoot.querySelector('#task-done');
+  if (doneDetails) {
+    doneDetails.open = doneOpen;
+    doneDetails.querySelector('summary').setAttribute('data-done-toggle', 'true');
+    doneDetails.addEventListener('toggle', () => {
+      doneExpanded = doneDetails.open;
+      doneCollapseForQuery = doneDetails.open ? null : query;
+      writeTaskURL(true);
+    });
+  }
   restoreTaskFocus(focusTarget);
 }
 
@@ -264,7 +293,7 @@ function taskFocusTarget() {
   if (!element || element === document.body || !taskRoot.contains(element) || element.id === 'search') return null;
   const select = element.closest('workbench-select');
   if(select) return {selector:`#${CSS.escape(select.id)} .select-trigger`};
-  const attributes = ['data-action', 'data-id', 'data-tab', 'data-view', 'data-project', 'data-range', 'data-segment-value'].filter(name => element.hasAttribute(name));
+  const attributes = ['data-action', 'data-id', 'data-tab', 'data-view', 'data-project', 'data-range', 'data-segment-value', 'data-done-toggle'].filter(name => element.hasAttribute(name));
   const selector = element.tagName.toLowerCase() + attributes.map(name => `[${name}="${CSS.escape(element.getAttribute(name))}"]`).join('');
   const row = element.closest('[data-task]')?.dataset.task;
   return { selector: attributes.length ? selector : '', row, label: element.getAttribute('aria-label') || '' };
@@ -473,7 +502,7 @@ async function openDesktopRoute() {
     if (route.page === 'update' && route.check) { history.replaceState(null, '', '/#update'); void updatePage?.check(); }
     if (route.page === 'ai' && route.conversation) await aiPage.open({ conversation: route.conversation });
   } else {
-    if (route.explicit || !sidebarRoot) { navigate(route.explicit ? route.view : 'all', false); tab=route.status; query=route.query; lastTaskView=view; render(); }
+    if (route.explicit || !sidebarRoot) { navigate(route.explicit ? route.view : 'all', false); doneExpanded = route.status === 'done'; query = route.query; lastTaskView = view; render(); }
     if (route.missing) notify(route.missing);
     if (route.taskId) openModal({ type:'task',id:route.taskId });
     else if (route.newTask || route.newProject) openModal({type:route.newProject ? 'project' : 'task'});
@@ -489,7 +518,7 @@ try {
   const openingRoute = parseRoute(location.hash, state);
   if (openingRoute.page === 'task') {
     view = openingRoute.explicit ? openingRoute.view : 'all';
-    tab = openingRoute.status || 'all';
+    doneExpanded = openingRoute.status === 'done';
     query = openingRoute.query || '';
     lastTaskView = view;
   }

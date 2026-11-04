@@ -47,7 +47,7 @@
   --font-timer-size: 40px;
   --font-timer-line: 48px;
   --metric-grid-gap: var(--space-3);
-  --chart-accent: var(--green);
+  --chart-accent: var(--accent);
   --progress-track: var(--soft);
   --font-date-size: 43px;
   --font-date-line: 50px;
@@ -115,7 +115,6 @@
   --compact-control-padding: var(--compact-control-padding-block) 10px;
   --button-height: 42px;
   --compact-button-height: 36px;
-  --composer-action-size: 38px;
   --icon-button-size: 28px;
 
   /* Page containers stop growing at a comfortable measure and centre on wide windows; forms keep a readable measure. */
@@ -138,8 +137,7 @@
   --task-column-gap: 13px;
   --task-title-size: var(--font-body-size);
 
-  --green: #365944;
-  --accent: var(--green);
+  --accent: #365944;
   --muted: #768078;
   --line: #e5e8e0;
   --paper: #fff;
@@ -166,7 +164,7 @@ input[type="checkbox"], input[type="radio"] {
   width: var(--selection-control-size);
   height: var(--selection-control-size);
   flex-shrink: 0;
-  accent-color: var(--green);
+  accent-color: var(--accent);
 }
 
 .ui-setting-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding: var(--space-4) 0; cursor: pointer; }
@@ -175,7 +173,7 @@ input[type="checkbox"], input[type="radio"] {
 .ui-setting-title { display: block; font-size: var(--font-body-size); line-height: var(--font-body-line); font-weight: 500; }
 .ui-setting-description { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
 .ui-input { width: 100%; box-sizing: border-box; min-height: var(--form-control-height); border: 1px solid var(--control-border); border-radius: var(--button-radius); padding: var(--form-control-padding); color: var(--control-text); background: var(--control-background); font: inherit; font-size: var(--font-control-size); line-height: var(--font-control-line); }
-.ui-input:focus-visible,.ui-setting-row input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.ui-input:focus-visible,.ui-setting-row input:focus-visible{outline:2px solid var(--focus-ring);outline-offset:3px}
 
 .ui-feedback {
   margin: 0;

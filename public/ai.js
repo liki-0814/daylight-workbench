@@ -15,7 +15,7 @@ export function createAIPage({ getToken, onChanged }) {
   element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> AI 对话</span></header>
     <div class="workspace ai-workspace">
     <div class="ai-layout"><aside class="ai-history"><div class="ai-history-heading"><div class="ai-history-title"><h1>AI 对话</h1>${actionButton({label:'新建对话',symbol:'plus',variant:'icon',iconOnly:true,className:'ai-new'})}</div></div><nav aria-label="历史对话" class="ai-history-list"></nav></aside>
-    <section class="ai-chat" aria-label="AI 对话"><div class="ai-messages"></div><div class="ai-pending"></div><p class="ai-error" role="alert"></p><span class="ai-status" role="status"></span><form class="ai-composer"><label class="sr-only" for="ai-message">发送消息</label><div class="ai-references"></div><div class="ai-mention-menu" hidden></div><textarea id="ai-message" rows="2" placeholder="@ 引用项目、任务或对话 · / 引用技能" maxlength="30000"></textarea><div class="ai-composer-footer"><div class="ai-backend-holder"></div><div class="ai-model-holder">${selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'正在读取模型…'}],compact:true,hideLabel:true})}</div><div class="ai-send-actions">${actionButton({label:'停止生成',variant:'icon',iconOnly:true,className:'ai-stop',content:'■',attrs:{hidden:true}})}${actionButton({label:'发送消息',variant:'primary',iconOnly:true,className:'ai-send',attrs:{type:'submit'},content:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg>'})}</div></div></form></section></div></div>`;
+    <section class="ai-chat" aria-label="AI 对话"><div class="ai-messages"></div><div class="ai-pending"></div><p class="ai-error" role="alert"></p><span class="ai-status" role="status"></span><form class="ai-composer"><label class="sr-only" for="ai-message">发送消息</label><div class="ai-references"></div><div class="ai-mention-menu" hidden></div><textarea id="ai-message" rows="2" placeholder="@ 引用项目、任务或对话 · / 引用技能" maxlength="30000"></textarea><div class="ai-composer-footer"><div class="ai-composer-tools">${actionButton({variant:'icon',iconOnly:true,symbol:'plus',label:'添加引用',attrs:{type:'button','data-mention-add':true}})}<div class="ai-backend-holder"></div><div class="ai-model-holder">${selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'正在读取模型…'}],compact:true,hideLabel:true})}</div><div class="ai-effort-holder"></div><div class="ai-context-holder"></div></div><div class="ai-send-actions">${actionButton({label:'停止生成',variant:'icon',iconOnly:true,className:'ai-stop',content:'■',attrs:{hidden:true}})}${actionButton({label:'发送消息',variant:'primary',iconOnly:true,className:'ai-send',attrs:{type:'submit'},content:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg>'})}</div></div></form></section></div></div>`;
   const deleteDialog=createDialogShell({title:'删除这段对话？'});
   deleteDialog.element.classList.add('ai-delete-dialog');
   deleteDialog.setContent(`<form><div class="form-body"><p class="delete-name"></p><p class="field-note">全部聊天记录将被删除，无法撤销。已创建的项目、任务和其他对话中的引用快照会保留。</p><p class="dialog-error" role="alert"></p></div><div class="dialog-footer">${actionButton({label:'取消',attrs:{'data-delete-cancel':true,autofocus:true}})}${actionButton({label:'删除对话',variant:'danger',attrs:{type:'submit'}})}</div></form>`);
@@ -119,13 +119,31 @@ export function createAIPage({ getToken, onChanged }) {
       catalog = result.models; skillCatalog = result.skills || [];
       const model = current?.config.model || composerDrafts.get(draftKey())?.model || config.model || result.defaultModel || '';
       $('.ai-model-holder').innerHTML = selectField({name:'model',label:'模型',id:'ai-model',value:model,options:[{value:'',label:'选择模型'},...catalog.map(m => ({value:m.id,label:m.name || m.id}))],compact:true,hideLabel:true});
-    } catch (e) { if (ticket === modelLoad) { catalog=[]; skillCatalog=[]; $('.ai-model-holder').innerHTML=selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'检测失败，请切换后端或重试'}],compact:true,hideLabel:true}); error(e); } }
+      paintEffortContext();
+    } catch (e) { if (ticket === modelLoad) { catalog=[]; skillCatalog=[]; $('.ai-model-holder').innerHTML=selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'检测失败，请切换后端或重试'}],compact:true,hideLabel:true}); $('.ai-effort-holder').innerHTML=''; $('.ai-context-holder').innerHTML=''; error(e); } }
     finally { if (ticket === modelLoad) { loadingModels = false; paint(); } }
+  }
+  function paintEffortContext() {
+    const config = current?.config || defaults?.[selectedBackend];
+    const selected = catalog.find(m => m.id === $('#ai-model')?.value);
+    const disabled = !!current;
+    const efforts = selected?.efforts?.length ? selected.efforts : config?.effort ? [config.effort] : [];
+    $('.ai-effort-holder').innerHTML = selectField({name:'effort',label:'思考强度',id:'ai-effort',value:config?.effort || '',options:[{value:'',label:'默认强度'},...efforts.map(e => ({value:e,label:e}))],compact:true,hideLabel:true,disabled});
+    const windows = selected?.contextWindows || [];
+    $('.ai-context-holder').innerHTML = windows.length ? selectField({name:'contextWindow',label:'上下文窗口',id:'ai-context',value:config?.contextWindow ? String(config.contextWindow) : '',options:[{value:'',label:'默认上下文'},...windows.map(n => ({value:String(n),label:n.toLocaleString()}))],compact:true,hideLabel:true,disabled}) : '';
   }
   element.addEventListener('change', async e => {
     const control=e.target.matches('workbench-select') ? e.target.querySelector('input') : e.target;
     if (control.name?.startsWith('draft-project-')) { control.dataset.edited='1'; return; }
     if (e.target.id === 'ai-backend' && !current) { selectedBackend = $('#ai-backend').value; const draft=composerDrafts.get(draftKey()); if(draft)delete draft.model; skills=[]; paintReferences(); error(null); void loadModels(); return; }
+    if (control.name === 'effort' || control.name === 'contextWindow') {
+      if (current) return;
+      const backend = selectedBackend;
+      defaults = { ...defaults, [backend]: { ...defaults[backend], [control.name]: control.name === 'contextWindow' ? (control.value ? Number(control.value) : null) : control.value } };
+      try { await api('/settings', defaults); } catch (err) { error(err); }
+      return;
+    }
+    if (e.target.id === 'ai-model' && !current) { paintEffortContext(); return; }
     if (e.target.id !== 'ai-model' || !current) return;
     const id = current.id, model = $('#ai-model').value; busy = true; paint();
     try { const result = await api(`/conversations/${id}/model`, { model }); if (current?.id === id) current = result.conversation; error(null); }
@@ -178,6 +196,7 @@ export function createAIPage({ getToken, onChanged }) {
   element.addEventListener('click', async e => {
     try {
       const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.mentionAdd !== undefined) { mentionOpen = true; mentionType = '@'; renderMentions(''); $('#ai-message').focus(); return; }
       if(b.dataset.deleteConversation) {
         if(busy||deleting)return;
         const target=(await api('/conversations/'+b.dataset.deleteConversation)).conversation;

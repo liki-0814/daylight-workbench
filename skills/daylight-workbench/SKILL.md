@@ -55,7 +55,7 @@ python3 "$SKILL/scripts/workbench.py" apply --expected-version VERSION --request
 
 ## 导航与任务查询
 
-侧栏默认收缩为图标。任务页统一显示全部任务（含已完成），用状态、项目和搜索筛选；没有专注、放入今天或日历入口。先读取 capabilities；统一只读查询使用 `tasks --scope all --status all`、`tasks --project ID --status done` 或 `tasks --unassigned`。旧 state 的 view 参数仍兼容。
+侧栏默认收缩为图标。任务页默认只显示待办任务并按项目分组；已完成任务收在列表底部「已完成」折叠区（深链 `status=done` 自动展开），也可在「设置 → 任务显示」中完全隐藏；页面不再提供状态切换，项目筛选与搜索保留。Agent 侧状态筛选不受影响：统一只读查询使用 `tasks --scope all --status all`、`tasks --project ID --status done` 或 `tasks --unassigned`。没有专注、放入今天或日历入口。先读取 capabilities；旧 state 的 view 参数仍兼容。
 
 AI 对话独立于任务导航；不提供关联对象、返回任务或对话顶部设置入口。需要上下文时由用户手动 `@` 引用。旧会话 scope 数据与接口仅兼容，不作为默认管理流程或文件操作授权。
 
