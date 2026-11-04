@@ -34,3 +34,4 @@ service.json
 pi-backups/
 pi-sync.json
 pi-latest.json
+e2e/.out/
