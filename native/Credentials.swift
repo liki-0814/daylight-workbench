@@ -5,8 +5,8 @@ do {
  let input = FileHandle.standardInput.readDataToEndOfFile()
  guard let body = try JSONSerialization.jsonObject(with: input) as? [String: String], let id = body["id"], !id.isEmpty else { exit(2) }
  // The file-based login keychain ignores SecItem authentication-UI flags.
- // This one-operation helper must never create system UI that outlives it.
- let interactionStatus = SecKeychainSetUserInteractionAllowed(false)
+ // Only an explicit user action may request system authorization.
+ let interactionStatus = SecKeychainSetUserInteractionAllowed(body["interactive"] == "allow")
  guard interactionStatus == errSecSuccess else {
   FileHandle.standardError.write(Data("钥匙串操作失败：\(interactionStatus)".utf8)); exit(1)
  }

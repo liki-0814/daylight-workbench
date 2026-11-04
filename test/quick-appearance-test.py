@@ -18,6 +18,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
+    def translate_path(self, path):
+        if path.split('?')[0] in ('/core/ai-backends.js', '/core/ai-images.js'):
+            return str(root / path.lstrip('/'))
+        return super().translate_path(path)
+
 server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Handler, directory=str(root / 'public')))
 threading.Thread(target=server.serve_forever, daemon=True).start()
 try:
@@ -61,7 +66,7 @@ DispatchQueue.main.async {
     let panel = NSApp.windows.first { $0 is LauncherPanel }!
     let rect = panel.frame.insetBy(dx: -60, dy: -60)
     backdrop = NSWindow(contentRect: rect, styleMask: .borderless, backing: .buffered, defer: false)
-    backdrop.backgroundColor = NSColor(calibratedRed: 0.78, green: 0.84, blue: 0.94, alpha: 1)
+    backdrop.backgroundColor = NSColor(calibratedWhite: 0.9, alpha: 1)
     backdrop.orderFront(nil)
     let web = webView(in: panel.contentView!)!
     timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { _ in
@@ -70,7 +75,7 @@ DispatchQueue.main.async {
         web.evaluateJavaScript("typeof window.quickReset === 'function'") { value, _ in
             guard value as? Bool == true else { checked = false; return }
             timer.invalidate()
-            expect(panel.frame.size == NSSize(width: 600, height: 104), "compact panel size")
+            expect(panel.frame.size == NSSize(width: 600, height: 110), "compact panel size")
             expect(!panel.isOpaque && panel.backgroundColor.alphaComponent == 0, "clear window")
             expect(panel.appearance?.name == .aqua, "light material on dark desktop")
             expect(web.value(forKey: "drawsBackground") as? Bool == false, "transparent WebKit backing")
@@ -99,7 +104,7 @@ DispatchQueue.main.async {
                 expect(state["focused"] as? Bool == true, "input focused")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     capture(panel, "empty")
-                    web.evaluateJavaScript("document.querySelector('#quick-input').value = 'github.com'; document.querySelector('#quick-input').dispatchEvent(new Event('input')); document.querySelector('#quick-action').textContent") { value, error in
+                    web.evaluateJavaScript("document.querySelector('[data-segment-value=search]').click(); document.querySelector('#quick-input').value = 'github.com'; document.querySelector('#quick-input').dispatchEvent(new Event('input')); document.querySelector('#quick-action').textContent") { value, error in
                         expect(error == nil && value as? String == "打开网址", "URL action preserved")
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                             capture(panel, "url")

@@ -13,7 +13,7 @@ const AUTH='https://accounts.google.com/o/oauth2/v2/auth',TOKEN='https://oauth2.
 const SCOPES=['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/userinfo.email','https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/cclog','https://www.googleapis.com/auth/experimentsandconfigs'];
 export class AgyAuth extends LoopbackOAuthAccount {
  constructor({dataDir,callbackPort=51121,getOAuthClientImpl=loadOAuthClient,tokenFile=path.join(os.homedir(),'.gemini/antigravity-cli/antigravity-oauth-token'),readFileImpl=readFile,credentials=new Secrets({helperName:'DaylightAgyCredentials',timeoutMs:15000}),...options}={}){
-  super({id:'agy',name:'AGY',...options});Object.assign(this,{callbackPort,getOAuthClientImpl,tokenFile,readFileImpl,credentials});this.migrationFile=path.join(dataDir,'agy/auth.json');
+  super({id:'agy',name:'AGY',dataDir,...options});Object.assign(this,{callbackPort,getOAuthClientImpl,tokenFile,readFileImpl,credentials});this.migrationFile=path.join(dataDir,'agy/auth.json');
  }
  async models(catalog){return discoverModels(catalog);}
  async client(method='consumer',clientId,options){const client=await this.getOAuthClientImpl(method,options);if(!client||clientId&&client.client_id!==clientId)throw oauthError('AGY OAuth 客户端已变化，请重新网页登录');return client;}
@@ -35,7 +35,7 @@ export class AgyAuth extends LoopbackOAuthAccount {
  }
  // One-time compatibility import. Never rotate, modify or delete the CLI's original record.
  async importLegacy(){
-  if(this.pending||await this.secrets.get(this.key)||((await readJson(this.migrationFile,{})).disabled))return;
+  if(this.pending||await this.sessions.get()||((await readJson(this.migrationFile,{})).disabled))return;
   const epoch=this.epoch;let text;
   if(this.tokenFile)try{text=await this.readFileImpl(this.tokenFile,'utf8');}catch(error){if(error.code!=='ENOENT')throw error;}
   text=(text??await this.credentials.get('antigravity')??'').trim();if(!text)return;

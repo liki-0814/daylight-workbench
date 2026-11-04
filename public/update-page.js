@@ -2,6 +2,7 @@ import { actionButton } from './components/button.js';
 import { segmentedControl, mountSegmentedControl } from './components/segmented-control.js';
 import { createProgressMeter } from './components/progress-meter.js';
 import { createDialogShell } from './components/dialog-shell.js';
+import { sectionHeading } from './components/section.js';
 import { icon } from './components/icons.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -101,12 +102,12 @@ export function updateMarkup({ release = null, updater = null, checking = false,
   const signing = ({ 'self-signed': '自签名发布证书', 'ad-hoc': '临时签名', developer: '开发者签名', unsigned: '未签名' })[updater?.current?.signing];
   return `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 更新</span></header>
     <div class="workspace settings-workspace">
-      <section class="page-heading"><div><h1>更新</h1><p>对照 GitHub 的正式发布；签名与校验通过后才会安装</p></div></section>
+      <section class="page-heading"><div><h1>更新</h1></div></section>
       <div class="ui-panel-grid settings-grid"><div class="ui-panel-stack">
-        <section class="settings-panel" aria-labelledby="update-version-heading">
-          <div class="settings-heading"><h2 id="update-version-heading">版本</h2><p>${esc(status)}</p></div>
+        <section class="settings-panel" aria-label="版本">
+          ${sectionHeading({title:'版本',className:'settings-heading'})}
           <dl class="settings-facts">
-            ${fact('GitHub 仓库', `${sourceLink} <span class="update-inline-actions"><a class="text-button" href="${repositoryURL}" target="_blank" rel="noreferrer">打开</a>${actionButton({ label: '复制地址', symbol: 'copy', variant: 'text', attrs: { 'data-update-copy': true } })}</span>`)}
+            ${fact('GitHub 仓库', `${sourceLink} <span class="update-inline-actions">${actionButton({ label: '复制地址', symbol: 'copy', variant: 'text', attrs: { 'data-update-copy': true } })}</span>`)}
             ${fact('当前版本', esc(release?.current || updater?.current?.version || (loadError ? '未知' : '正在读取…')))}
             ${signing ? fact('当前签名', esc(signing)) : ''}
             ${fact('最新发布', esc(latest?.version || (release ? '无' : '正在检查…')), state)}
@@ -118,23 +119,22 @@ export function updateMarkup({ release = null, updater = null, checking = false,
           ${live}
           <div class="app-update-actions">${actions.join('')}${links.join('')}</div>
         </section>
-        <section class="settings-panel" aria-labelledby="update-notes-heading">
-          <div class="settings-heading"><h2 id="update-notes-heading">更新说明</h2><p>${latest ? esc(latest.name || latest.version) : '发布说明'}</p></div>
+        <section class="settings-panel" aria-label="更新说明">
+          ${sectionHeading({title:'更新说明',className:'settings-heading'})}
           ${latest?.body ? `<div class="update-notes" data-update-notes>${notesHtml || `<p>${esc(latest.notes)}</p>`}</div>` : `<p class="update-empty" data-update-notes-empty>${latest ? '该发布没有填写说明。' : '有新的正式发布后，完整说明会显示在这里。'}</p>`}
         </section>
       </div><div class="ui-panel-stack">
-        <section class="settings-panel" aria-labelledby="update-mode-heading">
-          <div class="settings-heading"><h2 id="update-mode-heading">自动更新</h2><p>${supported ? '选择新版本出现后的处理方式' : '当前环境不支持应用内安装'}</p></div>
+        <section class="settings-panel" aria-label="自动更新">
+          ${sectionHeading({title:'自动更新',className:'settings-heading'})}
           <div class="update-mode">${segmentedControl({ id: 'update-mode', label: '自动更新方式', value: mode, options: updateModes.map(item => ({ value: item.value, label: item.label, disabled: !supported && item.value !== 'notify' })) })}</div>
           <p class="update-mode-note" data-update-mode-note>${esc(supported ? note : (updater?.message || '网页版只能检查新版本。'))}</p>
         </section>
-        <section class="settings-panel" aria-labelledby="update-history-heading">
-          <div class="settings-heading"><h2 id="update-history-heading">更新历史</h2><p>${backup ? `保留着上一版本 ${esc(backup.version)} 以便回滚` : '最近的更新与回滚记录'}</p></div>
+        <section class="settings-panel" aria-label="更新历史">
+          ${sectionHeading({title:'更新历史',className:'settings-heading'})}
           ${history.length ? `<ul class="update-history" data-update-history>${history.map(item => `<li data-status="${esc(item.status)}"><div><strong>${esc(item.from)} → ${esc(item.to)}</strong><span>${resultLine(item)}</span></div></li>`).join('')}</ul>` : '<p class="update-empty" data-update-history-empty>还没有更新记录。</p>'}
           ${backup ? `<div class="app-update-actions">${actionButton({ label: `回滚到 ${backup.version}`, symbol: 'undo', variant: 'secondary', attrs: { 'data-update-rollback': true, disabled: working || !supported } })}${backup.sameSigner === false ? '<span class="update-inline-note">上一版本的签名与当前不同，回滚后可能需要重新授权。</span>' : ''}</div>` : ''}
         </section>
       </div></div>
-      <footer class="workspace-footer"><span>更新包来自 GitHub，安装前在本机校验</span><span>Daylight</span></footer>
     </div>`;
 }
 

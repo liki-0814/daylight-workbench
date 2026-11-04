@@ -1,10 +1,20 @@
 import { icon } from './icons.js';
-import { actionButton, escapeButtonText as esc } from './button.js';
+import { escapeButtonText as esc } from './button.js';
+
+const pad = value => String(value).padStart(2, '0');
+function doneDate(completedAt) {
+  const date = new Date(completedAt);
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const monthDay = `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return date.getFullYear() === now.getFullYear() ? monthDay : `${date.getFullYear()}-${monthDay}`;
+}
 
 /** Context and actions come from the owner; this template owns no task state. */
-export function taskRow(task, { project, context = {}, busy = false, actions } = {}) {
-  const done = task.status === 'done', { choose = false, grouped = false, showProject = true, planned = false, reorder = false, first = false, last = false } = context;
-  const button = (action, label, symbol, disabled = false) => actionButton({ label, symbol, iconOnly: true, variant: 'icon', attrs: { 'data-action': action, 'data-id': task.id, disabled: busy || disabled } });
-  const controls = actions ?? (choose ? actionButton({ label: planned ? '已加入' : '加入今天', symbol: planned ? 'check' : 'plus', className: planned ? 'selected' : '', attrs: { 'data-action': 'plan', 'data-id': task.id, disabled: planned || busy } }) : `${!done ? button('start', task.status === 'active' ? '暂停任务' : '开始任务', task.status === 'active' ? 'pause' : 'play') : ''}${reorder && !done ? `<div class="order-buttons">${button('up', '上移', 'up', first)}${button('down', '下移', 'down', last)}</div>` : ''}${!done ? planned ? button('unplan', '移出今天', 'close') : actionButton({ label: '今天', symbol: 'plus', attrs: { 'data-action': 'plan', 'data-id': task.id, disabled: busy } }) : ''}`);
-  return `<div class="task-row ${done ? 'done' : ''} ${task.status === 'active' ? 'is-active' : ''}" data-task="${esc(task.id)}"><div class="ui-first-line-slot">${choose ? `<span class="project-square ${esc(project?.color || 'neutral')}">${icon('folder')}</span>` : `<button class="check-button" data-action="toggle" data-id="${esc(task.id)}" aria-label="${done ? '恢复' : '完成'}：${esc(task.title)}" ${busy ? 'disabled' : ''}>${done ? icon('check') : ''}</button>`}</div><button class="task-text" data-action="edit" data-id="${esc(task.id)}" title="编辑任务"><span class="task-title">${esc(task.title)}</span>${choose || !grouped && showProject ? `<span class="task-meta"><i class="dot ${esc(project?.color || 'neutral')}"></i>${esc(project?.name || '未归类')}${task.status === 'active' ? '<b>进行中</b>' : ''}</span>` : task.status === 'active' ? '<span class="task-meta"><b>进行中</b></span>' : ''}</button><div class="task-actions ui-first-line-slot">${controls}</div></div>`;
+export function taskRow(task, { busy = false } = {}) {
+  const done = task.status === 'done';
+  const date = done ? doneDate(task.completedAt) : '';
+  const notes = String(task.notes || '').replace(/\s+/g, ' ').trim();
+  const meta = `${task.status === 'active' ? '<span class="task-meta-chip">进行中</span>' : ''}${notes ? `<span class="task-meta-notes">${esc(notes.slice(0, 80))}</span>` : ''}`;
+  return `<div class="task-row ${done ? 'done' : ''}" data-task="${esc(task.id)}"><button class="check-button" data-action="toggle" data-id="${esc(task.id)}" aria-label="${done ? '恢复' : '完成'}：${esc(task.title)}" ${busy ? 'disabled' : ''}>${done ? icon('check') : ''}</button><button class="task-text" data-action="edit" data-id="${esc(task.id)}" title="编辑任务"><span class="task-title">${esc(task.title)}</span>${meta ? `<span class="task-row-meta">${meta}</span>` : ''}</button>${date ? `<span class="task-date">${date}</span>` : ''}</div>`;
 }

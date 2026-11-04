@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 const clip = value => typeof value === 'string' ? value.slice(0, 100000) : value === undefined ? undefined : JSON.stringify(value).slice(0, 100000);
 export function recordEvent(c, e) {
-  if (e.type === 'delta') {
+  if (e.type === 'activity') c.activity = clip(e.text);
+  else if (e.type === 'delta') {
+    c.activity = '正在生成回复…';
     let m = e.itemId && c.messages.find(m => m.role === 'assistant' && m.itemId === e.itemId);
     if (!m) { m = !e.itemId && c.messages.at(-1)?.role === 'assistant' ? c.messages.at(-1) : { id: randomUUID(), role: 'assistant', text: '', itemId: e.itemId }; if (!c.messages.includes(m)) c.messages.push(m); }
     m.text = (m.text + e.text).slice(0, 500000);

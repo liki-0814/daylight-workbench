@@ -62,19 +62,6 @@ export function buildContext(conversation, input, workspace) {
   return { scope, stateVersion: version, localDate: day, capturedAt: new Date().toISOString(), primary: snapshot(scope, state, day), objectReferences, ...(viewContext ? { viewContext } : {}) };
 }
 
-export function relatedReasons(c, target, state) {
-  const exact = ref => ref?.kind === target.kind && ref?.id === target.id;
-  const belongs = ref => target.kind === 'project' && ref?.kind === 'task' && state.tasks.some(t => t.id === ref.id && t.projectId === target.id);
-  const reasons = [];
-  if (exact(c.scope) || belongs(c.scope) || (target.kind === 'workspace' && (!c.scope || c.scope.kind === 'workspace'))) reasons.push('直接关联');
-  if (c.messages.some(m => m.context?.objectReferences?.some(ref => exact(ref) || belongs(ref)))) reasons.push('曾引用');
-  if (c.messages.some(m => m.role === 'operation' && m.action && (m.action.type === 'batch' ? m.action.actions : [m.action]).some(a => {
-    const ref = { kind: a.type.startsWith('project.') ? 'project' : 'task', id: a.id };
-    return exact(ref) || belongs(ref) || (target.kind === 'project' && a.projectId === target.id);
-  }))) reasons.push('曾更新');
-  return reasons;
-}
-
 export function referenceSnapshots(ids, currentId, conversations) {
   if (ids === undefined) return [];
   if (!Array.isArray(ids) || ids.length > 3 || ids.some(id => typeof id !== 'string')) throw httpError('一次最多引用 3 段对话');

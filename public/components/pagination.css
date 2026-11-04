@@ -1,1 +1,2 @@
-.ui-pagination{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding-top:18px}.ui-pagination span{font-size:12px;color:var(--muted)}
+.ui-pagination { display:flex; align-items:center; justify-content:flex-end; gap:var(--space-3); padding-top:var(--space-4); }
+.ui-pagination span { font-size:var(--font-caption-size); line-height:var(--font-caption-line); color:var(--muted); }

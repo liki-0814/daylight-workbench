@@ -13,13 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var status: NSStatusItem!
     var launcher: Launcher!
     var timer: Timer?
-    var focusTray: FocusTray!
-    var focusNotifications: FocusNotifications!
     var wakeObserver: NSObjectProtocol?
     var traySnapshot: [String: Any]?
     var pendingTraySnapshot: [String: Any]?
     var menuTracking = false
-    var trayTicks = 0
     init(_ server: WorkbenchServer) { self.server = server }
     func applicationDidFinishLaunching(_ notification: Notification) {
         do { try server.start { error in
@@ -52,27 +49,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.mainMenu = menu
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1240, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua); window.backgroundColor = NSColor(calibratedRed: 0.97, green: 0.98, blue: 0.96, alpha: 1); window.title = "Daylight · 任务管理"; window.minSize = NSSize(width: 760, height: 560); window.isReleasedWhenClosed = false; window.center()
-        focusTray = FocusTray(server: server, show: { [weak self] in self?.show($0) }, fail: { [weak self] in self?.fail($0) })
-        focusNotifications = FocusNotifications(server: server, show: { [weak self] in self?.show($0) })
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
-        config.userContentController.add(focusNotifications, name: "focusNotifications")
         web = WKWebView(frame: .zero, configuration: config); web.navigationDelegate = self; web.uiDelegate = self; window.contentView = web
-        focusNotifications.attach(web)
         web.load(URLRequest(url: URL(string: server.endpoint + "/")!))
         launcher = Launcher(server: server); launcher.install()
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         status.button?.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "Daylight")
         server.onChange = { [weak self] in self?.updateTray() }
-        server.onFocusChange = { [weak self] in self?.updateTray() }
         updateTray()
-        timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.focusTray.updateText()
-            if let tray = self.traySnapshot?["tray"] as? [String: Any], let pending = tray["pending"] as? [[String: Any]] { self.status.button?.title = self.focusTray.title(pendingCount: pending.count) }
-            self.trayTicks += 1; if self.trayTicks % 30 == 0 { self.updateTray() }
-        }
+        timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in self?.updateTray() }
         RunLoop.main.add(timer!, forMode: .common)
-        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.focusNotifications.refreshPermission(); self?.updateTray() }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.updateTray() }
         server.updater.onPrompt = { [weak self] version in self?.promptRestart(version) }
         server.updater.start()
         show()
@@ -93,13 +80,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { server.updater.markHealthy() }
     func applicationWillTerminate(_ notification: Notification) {
-        timer?.invalidate(); focusNotifications?.stop(); launcher?.stop()
+        timer?.invalidate(); launcher?.stop()
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         server.queue.async { self.server.focus.close() }
         server.updater.installOnQuit()
         server.proxy.shutdown(); server.ai.shutdown()
     }
-    func applicationDidBecomeActive(_ notification: Notification) { focusNotifications?.refreshPermission(); if status != nil { updateTray(); server.updater.foreground() } }
+    func applicationDidBecomeActive(_ notification: Notification) { if status != nil { updateTray(); server.updater.foreground() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { show(); return true }
     func show(_ route: String? = nil) {
@@ -110,7 +97,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func updateTray() {
         server.traySnapshot { [weak self] snapshot in
             guard let self else { return }
-            if let focus = snapshot["focus"] as? [String: Any] { self.focusTray.update(focus); self.focusNotifications.process(focus) }
             if self.menuTracking { self.pendingTraySnapshot = snapshot; return }
             self.rebuildTray(snapshot)
         }
@@ -127,32 +113,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard let tray = snapshot["tray"] as? [String: Any] else { return }
         let tasks = tray["pending"] as! [[String: Any]]
         let projects = state["projects"] as! [[String: Any]]
-        let today = tray["today"] as! [[String: Any]], other = tray["other"] as! [[String: Any]]
-        let ids = today.map { $0["id"] as! String }
-        status.button?.title = focusTray.title(pendingCount: tasks.count)
+        status.button?.title = tasks.isEmpty ? "" : " \(tasks.count)"
         let menu = NSMenu(); menu.delegate = self
-        for item in focusTray.items(make: { title, action in self.item(title, action: action) }) { menu.addItem(item) }
         func label(_ title: String) { let item = NSMenuItem(title: title, action: nil, keyEquivalent: ""); item.isEnabled = false; menu.addItem(item) }
-        for (title, group) in [("今日任务", today), ("其他待办", other)] {
-            label("\(title) · \(group.count)")
-            if group.isEmpty { label(title == "今日任务" ? "今天暂无安排" : "暂无其他待办") }
-            for task in group.prefix(8) {
-                let id = task["id"] as! String, active = task["status"] as? String == "active"
-                let parent = NSMenuItem(title: (active ? "▶ " : "") + (task["title"] as! String), action: nil, keyEquivalent: "")
-                let sub = NSMenu(); parent.submenu = sub; menu.addItem(parent)
-                let project = projects.first { $0["id"] as? String == task["projectId"] as? String }?["name"] as? String ?? "未归类"
-                let info = NSMenuItem(title: project, action: nil, keyEquivalent: ""); info.isEnabled = false; sub.addItem(info)
-                sub.addItem(item("标记完成") { self.apply(["type": "task.status", "id": id, "status": "done"], version) })
-                sub.addItem(item(active ? "暂停任务" : "开始任务") { self.apply(["type": "task.status", "id": id, "status": active ? "todo" : "active"], version) })
-                sub.addItem(item("开始专注") { self.focusTray.start(taskId: id) })
-                sub.addItem(item(ids.contains(id) ? "移出今天" : "加入今天") { self.apply(["type": ids.contains(id) ? "plan.remove" : "plan.add", "id": id], version) })
-                sub.addItem(item("查看任务") { self.show("task=" + (id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)) })
-            }
-            if group.count > 8 { menu.addItem(item("查看全部…") { self.show(title == "今日任务" ? "today" : "all") }) }
-            menu.addItem(.separator())
+        label("待办任务 · \(tasks.count)")
+        if tasks.isEmpty { label("暂无待办任务") }
+        for task in tasks.prefix(12) {
+            let id = task["id"] as! String
+            let parent = NSMenuItem(title: task["title"] as! String, action: nil, keyEquivalent: "")
+            let sub = NSMenu(); parent.submenu = sub; menu.addItem(parent)
+            let project = projects.first { $0["id"] as? String == task["projectId"] as? String }?["name"] as? String ?? "未归类"
+            let info = NSMenuItem(title: project, action: nil, keyEquivalent: ""); info.isEnabled = false; sub.addItem(info)
+            sub.addItem(item("标记完成") { self.apply(["type": "task.status", "id": id, "status": "done"], version) })
+            sub.addItem(item("查看任务") { self.show("task=" + (id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)) })
         }
-        menu.addItem(item("新建任务…") { self.show("new") }); menu.addItem(item("快捷问答与搜索…") { self.launcher.toggle() }); menu.addItem(item("打开工作台") { self.show("today") })
-        menu.addItem(item("打开日历") { self.show("calendar") }); menu.addItem(item("查看专注统计") { self.show("focus") })
+        if tasks.count > 12 { menu.addItem(item("查看全部任务…") { self.show("tasks") }) }
+        menu.addItem(.separator())
+        menu.addItem(item("新建任务…") { self.show("new") }); menu.addItem(item("快捷问答与搜索…") { self.launcher.toggle() }); menu.addItem(item("打开工作台") { self.show("tasks") })
         menu.addItem(item("打开数据目录") { NSWorkspace.shared.open(self.server.directory) })
         menu.addItem(.separator()); menu.addItem(withTitle: "退出 Daylight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         status.menu = menu
@@ -199,9 +176,12 @@ let headless = CommandLine.arguments.contains("--headless")
 let isolatedGUI = CommandLine.arguments.contains("--isolated-gui") && env["WORKBENCH_DATA_DIR"] != nil && env["PORT"] != nil && env["PORT"] != "4318"
 if !headless && !isolatedGUI, let existing = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == Bundle.main.bundleIdentifier && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) { existing.activate(options: [.activateAllWindows]); exit(0) }
 let resources = Bundle.main.resourceURL!
-let directory = env["WORKBENCH_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Daylight")
+let developmentBuild = Bundle.main.object(forInfoDictionaryKey: "DaylightDevelopment") as? Bool == true
+let defaultDirectory = developmentBuild ? "Library/Application Support/Daylight Development" : "Library/Application Support/Daylight"
+let defaultPort = developmentBuild ? "4328" : "4318"
+let directory = env["WORKBENCH_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(defaultDirectory)
 do {
-    let server = try WorkbenchServer(resources: resources, directory: directory, port: UInt16(env["PORT"] ?? "4318") ?? 4318)
+    let server = try WorkbenchServer(resources: resources, directory: directory, port: UInt16(env["PORT"] ?? defaultPort) ?? (developmentBuild ? 4328 : 4318))
     if headless {
         try server.start { error in if let error { fputs(error.localizedDescription + "\n", stderr); exit(1) }; print("READY"); fflush(stdout) }
         RunLoop.main.run()

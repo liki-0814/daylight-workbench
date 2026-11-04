@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { installProjectSkill } from './project-skill.mjs';
 import { AIStore } from './store.mjs';
 import { body, send, httpError } from './http.mjs';
 import { createConversations } from './conversations.mjs';
@@ -16,7 +17,7 @@ export { validateAction } from './drafts.mjs';
 export { referenceSnapshots } from './context.mjs';
 
 export async function createAIService({ dataDir, endpoint, adapters } = {}) {
-  const store = new AIStore(dataDir);
+  const store = new AIStore(dataDir, (backend, cwd) => installProjectSkill({ backend, cwd, dataDir, endpoint: typeof endpoint === 'function' ? endpoint() : endpoint }));
   const providers = adapters || { codex: await import('./adapters/codex.mjs'), qoder: await import('./adapters/qoder.mjs'), pi: await import('./adapters/pi.mjs') };
   const quick = createQuickAnswers({ store, providers });
   let closed = false, runtime, tool, focusSubmissions, extensionSubmissions;
@@ -60,7 +61,7 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
       }
       if (route === '/conversations') {
         if (req.method === 'POST') { const c = await conversations.newConversation(input); conversations.save(c); return send(res, 200, { conversation: c }); }
-        return send(res, 200, await conversations.list(url));
+        return send(res, 200, await conversations.list());
       }
       const match = route.match(/^\/conversations\/([a-f0-9-]+)(?:\/(message|cancel|answer|model|scope|focus-submission|extension-submission))?$/);
       if (!match) throw httpError('接口不存在', 404);

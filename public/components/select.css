@@ -20,9 +20,10 @@ workbench-select {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
+  min-width: 0;
   text-align: left;
   border: 1px solid var(--control-border);
-  border-radius: var(--button-radius);
+  border-radius: var(--radius-control);
   min-height: var(--form-control-height);
   padding: var(--form-control-padding);
   background: var(--control-background);
@@ -33,6 +34,7 @@ workbench-select {
 
 .select-value {
   flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
@@ -48,7 +50,7 @@ workbench-select {
 }
 
 .select-trigger[aria-expanded="true"] {
-  border-color: var(--green);
+  border-color: var(--accent);
   background: var(--workbench-background);
 }
 
@@ -67,9 +69,9 @@ workbench-select {
   overscroll-behavior: contain;
   list-style: none;
   border: 1px solid var(--control-border);
-  border-radius: var(--button-radius);
+  border-radius: var(--radius-overlay);
   background: var(--paper);
-  box-shadow: 0 3px 10px #20382008;
+  box-shadow: var(--shadow-overlay);
 }
 
 .select-options[hidden] {
@@ -83,10 +85,10 @@ workbench-select {
   gap: var(--space-3);
   padding: 10px 11px;
   min-height: 40px;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   font-size: var(--font-control-size);
   line-height: var(--font-control-line);
-  color: #57694c;
+  color: var(--workbench-text);
   cursor: pointer;
   overflow-wrap: anywhere;
 }
@@ -100,12 +102,12 @@ workbench-select {
 }
 
 .select-option[aria-selected="true"] {
-  color: var(--green);
+  color: var(--accent);
   font-weight: 550;
 }
 
 .select-option.is-highlighted, .select-option:hover {
-  background: var(--selection-background);
+  background: var(--hover-tint);
 }
 
 .select-compact {
@@ -117,7 +119,14 @@ workbench-select {
   padding: var(--compact-control-padding);
   font-size: var(--font-compact-size);
   line-height: var(--font-compact-line);
-  gap: 10px;
+  gap: var(--space-2);
+}
+
+.select-compact .select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .select-compact .select-option {

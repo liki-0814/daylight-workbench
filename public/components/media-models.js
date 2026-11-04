@@ -9,10 +9,10 @@ export function mediaRowsHtml(models, options) {
   return modelGroups(models, (model, i, state = {}) => `<div class="proxy-model ui-media-model">${modelHeading(model, `<input type="checkbox" data-media-model="${esc(model.id)}" ${model.enabled !== false ? 'checked' : ''} aria-label="启用 ${esc(model.id)}">`, { pending: state.pending, selected: model.enabled !== false })}<p class="proxy-hint">${esc(kindLabel[model.output] || model.output)} · ${esc(statusLabel[model.status] || model.status)}${model.note ? ` · ${esc(model.note)}` : ''}</p></div>`, options);
 }
 
-export function createMediaModels({ source, load, save }) {
+export function createMediaModels({ source, load, save, appearance = 'line' }) {
   const root = document.createElement('div');
   root.hidden = true;
-  root.innerHTML = disclosureSection({ id: `${source}-media-models`, className: 'proxy-disclosure', title: '图像与视频', description: '启用设置 · 与聊天模型共用登录', actions: refreshButton({ ariaLabel: '刷新图像与视频', attrs: { 'data-refresh-media': true } }), content: '<div data-media-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-media-message></p>' });
+  root.innerHTML = disclosureSection({ id: `${source}-media-models`, className: 'proxy-disclosure', appearance, title: '图像与视频', actions: refreshButton({ ariaLabel: '刷新图像与视频', attrs: { 'data-refresh-media': true } }), content: '<div data-media-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-media-message></p>' });
   mountDisclosures(root);
   const button = root.querySelector('[data-refresh-media]'), list = root.querySelector('[data-media-list]'), message = root.querySelector('[data-media-message]');
   const pins = new Map();

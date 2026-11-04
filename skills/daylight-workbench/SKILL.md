@@ -1,27 +1,29 @@
 ---
 name: daylight-workbench
-description: 通过本机 API 管理 Daylight 个人工作台的项目、任务、日历安排、专注计时与统计、导出和撤销、AI 历史对话，以及共享和本机 CLI 的 Skill/MCP。用户要求查看或修改工作台、管理本地扩展，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
+description: 通过本机 API 管理 Daylight 个人工作台的项目、完整任务列表、导出和撤销、AI 历史对话，以及共享和本机 CLI 的 Skill/MCP。用户要求查看或修改工作台、管理本地扩展，或把讨论结果记录到工作台时使用；不用于执行项目目录里的开发或部署任务。
 ---
 
 # Daylight 工作台连接
 
-工作台保存项目、任务与日期计划。外部 AI 使用本 Skill；内置 AI 对话有独立会话存档。通过本 skill 的 Python 标准库客户端调用本机 API，不直接修改数据库文件，也不要把 API 凭证抄到对话或命令参数中。
+工作台以项目和完整任务列表为主。外部 AI 使用本 Skill；内置 AI 对话有独立会话存档。通过本 skill 的 Python 标准库客户端调用本机 API，不直接修改数据库文件，也不要把 API 凭证抄到对话或命令参数中。
 
 ## 连接
 
-从本 SKILL.md 所在目录定位 `scripts/workbench.py`，以下以 `$SKILL` 表示这个目录。默认安装位置为 `~/agents/skills/daylight-workbench`（用户指定，没有前导点）。不要假定某个宿主会自动扫描该目录；宿主未发现时可明确要求其读取本文件。
+从本 SKILL.md 所在目录定位 `scripts/workbench.py`，以下以 `$SKILL` 表示该绝对目录，不猜用户级安装位置。
+
+应用会在 AI 对话实际工作目录 `dataDir/ai/workspaces/<backend>/` 下同步项目级 Skill：Codex/Pi 使用 `.agents/skills/daylight-workbench/`，Qoder 使用 `.qoder/skills/daylight-workbench/`。Pi 同时通过显式 `--skill` 加载该受管理副本。工作目录属于应用，不随任务或项目路径改变。更新检测到自定义修改会停止覆盖并报错；不写入全局 CLI 的 skills 目录。源码更新、运行目录副本同步和 CLI 发现是不同状态，以本次实际检测为准。
 
 `config.json` 保存地址、软件目录和数据目录，允许按实际安装修改，无密钥。脚本自动读取数据目录下的 `agent-token`，只允许 HTTP 127.0.0.1，拒绝重定向。提供 `--url`、`--data-dir` 用于独立测试实例。
 
 ```sh
-SKILL="$HOME/agents/skills/daylight-workbench"
+SKILL="/absolute/path/to/daylight-workbench"
 python3 "$SKILL/scripts/workbench.py" capabilities
 python3 "$SKILL/scripts/workbench.py" state
 ```
 
 连接失败时先启动已安装的 Daylight.app，桌面应用不需要 Node.js。仅使用网页开发版时，在 config 中的 app_dir 运行 `npm start`（需要 Node.js 22+）。两种模式共用本机 4318 端口，不同时启动。客户端需要 Python 3，无第三方依赖。不要通过浏览器模拟点击来绕过 API 失败。
 
-首次使用为空工作台，没有预设项目或任务 ID；所有 ID 均从 state 读取。skill 独立安装，不包含在 App 或 DMG 中。
+首次使用为空工作台，没有预设项目或任务 ID；所有 ID 均从 state 读取。Skill 源文件随 App 打包，首次发现或运行相应后端时同步到该后端的项目目录。
 
 ## 管理流程
 
@@ -32,9 +34,9 @@ python3 "$SKILL/scripts/workbench.py" state
 5. 以接口成功回执及返回状态验证实际完成，报告具体改变。网页闲置时约 3 秒内同步；正在编辑的表单保留输入，提交时检查版本冲突。
 
 ```sh
-python3 "$SKILL/scripts/workbench.py" state --view today
+python3 "$SKILL/scripts/workbench.py" tasks --scope all --status all
 python3 "$SKILL/scripts/workbench.py" state --query '推理流'
-# action.json 示例：{"type":"plan.add","id":"task-1"}
+# action.json 示例：{"type":"task.create","title":"整理项目说明","projectId":null}
 # VERSION 使用刚读取的 version；REQUEST_ID 为本次操作独有的 UUID。
 python3 "$SKILL/scripts/workbench.py" apply --expected-version VERSION --request-id REQUEST_ID --file /absolute/path/action.json
 ```
@@ -53,13 +55,13 @@ python3 "$SKILL/scripts/workbench.py" apply --expected-version VERSION --request
 
 ## 导航与任务查询
 
-侧栏保留任务入口，全部任务、今天与日历在任务页内切换；项目是任务页的归属筛选，未归类不再有独立入口。API 数据仍允许 projectId:null。先用 capabilities 检查 taskQuery；可用时 `tasks --scope today --status open`、`tasks --project ID --status done`、`tasks --unassigned` 调用统一只读接口。旧 state 命令及其 view 名称、导出行为继续兼容。
+侧栏默认收缩为图标。任务页默认只显示待办任务并按项目分组；已完成任务收在列表底部「已完成」折叠区（深链 `status=done` 自动展开），也可在「设置 → 任务显示」中完全隐藏；页面不再提供状态切换，项目筛选与搜索保留。Agent 侧状态筛选不受影响：统一只读查询使用 `tasks --scope all --status all`、`tasks --project ID --status done` 或 `tasks --unassigned`。没有专注、放入今天或日历入口。先读取 capabilities；旧 state 的 view 参数仍兼容。
 
-项目/任务与内置 AI 会话的关联保存在 AI 存档中，不改变业务版本、写入授权或目录操作权限。外部 Skill 写入后按最新状态核对，不将内置会话关联当成执行指令。
+AI 对话独立于任务导航；不提供关联对象、返回任务或对话顶部设置入口。需要上下文时由用户手动 `@` 引用。旧会话 scope 数据与接口仅兼容，不作为默认管理流程或文件操作授权。
 
-## 日历与专注
+## 历史日历与专注接口（兼容）
 
-先读取 capabilities 的 calendarQuery、taskPlanning 与 focus。日历查询最多 62 天，统计最多 366 天；时间指标是计时经过时间，不能表述为实际工时、效率或计划完成率。任务累计查询不受日期范围限制。ID 与版本必须来自当前服务，不能根据历史名称猜测。
+仅用户明确要求访问历史数据或使用兼容 API 时才进入本节，不推荐已下线界面。先读取 capabilities 的 calendarQuery、taskPlanning 与 focus。日历查询最多 62 天，统计最多 366 天；时间指标是计时经过时间，不能表述为实际工时、效率或计划完成率。任务累计查询不受日期范围限制。ID 与版本必须来自当前服务，不能根据历史名称猜测。
 
 ```sh
 python3 "$SKILL/scripts/workbench.py" calendar --from 2026-10-01 --to 2026-10-31 --status open
@@ -104,4 +106,8 @@ python3 "$SKILL/scripts/workbench.py" extensions-apply --expected-version VERSIO
 python3 "$SKILL/scripts/workbench.py" extension-operation --id REQUEST_ID
 ```
 
-扩展恢复使用 operation.restore，不使用任务 undo；具体动作与接入限制见接口说明。仓库 Skill 变更不会自动更新独立安装。
+扩展恢复使用 operation.restore，不使用任务 undo；具体动作与接入限制见接口说明。仓库外自行安装的全局副本不会自动更新；应用只同步自己管理的 AI 工作目录项目副本。
+
+## 覆盖边界
+
+当前客户端覆盖任务/项目、导出/撤销、AI 历史删除、扩展事务以及历史日历/专注兼容接口。代理凭证修复、应用更新和快速回答没有本客户端命令；不能声称全部功能均已提供外部 Skill 接口。具体 HTTP 和人工授权边界参见 [API 参考](references/api.md)。

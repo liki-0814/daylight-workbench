@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Syntax-check every tracked and untracked (non-ignored) JS/MJS source file, then run the domain contract checks.
 // Files are discovered from git, so new modules are covered automatically.
+import { existsSync } from 'node:fs';
 import { execFileSync, spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,7 @@ const excludedDirs = ['node_modules/', 'dist/', 'build/', '.local/', 'coverage/'
 const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', '*.js', '*.mjs'], { cwd: root, encoding: 'utf8' })
   .split('\0').filter(Boolean)
   .filter((file, index, all) => all.indexOf(file) === index)
+  .filter(file => existsSync(path.join(root,file)))
   .filter(file => !vendored.has(file) && !excludedDirs.some(dir => file.startsWith(dir)));
 
 const run = (args, label) => new Promise(resolve => {
@@ -35,7 +37,7 @@ async function pool(items, limit, worker) {
 
 const syntax = await pool(files, availableParallelism(), file => run(['--check', file], file));
 const contracts = [];
-for (const script of ['scripts/check-proxy.mjs', 'scripts/check-ai.mjs', 'scripts/check-focus.mjs', 'scripts/check-extensions.mjs']) contracts.push(await run([script], script));
+for (const script of ['scripts/check-runtime.mjs', 'scripts/check-proxy.mjs', 'scripts/check-ai.mjs', 'scripts/check-focus.mjs', 'scripts/check-extensions.mjs']) contracts.push(await run([script], script));
 
 const failed = [...syntax, ...contracts].filter(result => result.code !== 0);
 for (const { label, stderr } of failed) process.stderr.write(`✗ ${label}\n${stderr}\n`);

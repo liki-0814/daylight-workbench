@@ -36,18 +36,9 @@ Web 调试直接使用 `PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/web-dev" npm r
 
 ## 外部 AI skill
 
-Skill 源文件随本仓库提交，位于 `skills/daylight-workbench/`，独立安装，不进入 App 或 DMG。本机按用户指定安装到 `~/agents/skills/daylight-workbench/`（没有前导点）。不假定所有 AI 宿主自动扫描这个目录，未发现 skill 时请让 AI 读取该目录的 SKILL.md。
+Skill 源文件位于 `skills/daylight-workbench/`，随 App 和 DMG 打包。应用会在 AI 实际工作目录 `dataDir/ai/workspaces/<backend>` 中同步项目副本：Codex/Pi 为 `.agents/skills/daylight-workbench`，Qoder 为 `.qoder/skills/daylight-workbench`。Pi 显式传入该受管理 Skill 路径；副本修改检测和当前实例配置详见 [AI 文档](ai.md)。用户自行维护的全局副本不自动同步。
 
-安装或同步仓库中的 skill：
-
-```sh
-mkdir -p ~/agents/skills
-cp -R skills/daylight-workbench ~/agents/skills/
-python3 ~/agents/skills/daylight-workbench/scripts/workbench.py capabilities
-python3 ~/agents/skills/daylight-workbench/scripts/workbench.py state --view today
-```
-
-示例对话：“读取 `~/agents/skills/daylight-workbench/SKILL.md`，把代码审查加入今天。”
+外部宿主可使用单独安装的副本，按实际目录定位 `scripts/workbench.py`，不假定全局发现位置。默认任务查询使用 `tasks --scope all --status all`；历史 today/calendar/focus API 仅作兼容，不对应现有页面。
 
 Skill 的 config.json 只保存本机地址和路径。服务自动生成权限为 0600 的 数据目录中的 `agent-token`，客户端直接读取，凭证不在 skill、Git 或模型服务中保存。使用其他数据目录或端口时同步修改 config，或传 `--url`、`--data-dir`。本机凭证给予整个工作台的管理权，仅供用户信任的本机 AI 使用。
 
@@ -120,14 +111,20 @@ npm run test:native-focus-notifications
 
 ## 全局界面配置与组件
 
-`public/design-system.css` 是主窗口与快速搜索共用的视觉配置入口。修改 `:root` 中的变量即可调整各模块的字体、行高、留白、页面宽度和控件尺寸；模块通过 `var(...)` 与公共 `ui-*` 布局类复用。字号与对应行高成对调整，段落、字段、折叠区之间的距离使用语义间距变量。
+`public/design-system.css` 是主窗口与快速搜索共用的视觉配置入口。修改 `:root` 中的变量即可调整各模块的字体、行高、留白、页面宽度和控件尺寸；模块通过 `var(...)` 与公共 `ui-*` 布局类复用。字号与对应行高成对调整，段落、字段、折叠区之间的距离使用语义间距变量。主题色覆盖集中在 `public/theme/colors.css`，页面底色与组件强调色分别通过 `--workbench-background`、`--accent` 覆盖；普通文字、辅助文字、边框、选中、悬停与焦点使用公共语义变量，成功、警告和危险状态保留各自语义色。
 
 | 配置 | 用途 |
 | --- | --- |
 | `--font-page-*`、`--font-section-*`、`--font-body-*`、`--font-caption-*` | 页面标题、分区标题、正文与辅助文字的字号和行高 |
 | `--space-*`、`--paragraph-gap`、`--section-gap`、`--form-field-gap` | 通用留白、段间距、分区间距与字段间距 |
-| `--page-inline`、`--page-max-width`、`--form-reading-width` | 页面共同起点、全屏扩展与表单阅读宽度；页面最大宽度默认 `none` |
+| `--page-inline`、`--page-block-start`、`--page-max-width`、`--topbar-height` | topbar、工作区、页面标题与主要操作的共同锚点；页面框架默认最大宽度为 `1320px` |
+| `--task-reading-width`、`--ai-reading-width`、`--form-reading-width` | 公共页面框架内部的任务、对话与表单阅读列，不改变页面标题锚点 |
+| `--radius-control`、`--radius-panel`、`--radius-overlay` | 控件、面板与弹层的分层圆角 |
+| `--shadow-panel`、`--shadow-overlay` | 轻量面板阴影与弹层阴影 |
+| `--success`、`--warning`、`--danger` 及对应 `*-background`、`*-border` | 运行状态与反馈语义色 |
 | `--form-control-height`、`--button-height`、`--compact-button-height`、`--icon-button-size` | 输入框与下拉框、普通按钮、紧凑按钮及图标按钮的统一尺寸 |
+
+任务、AI、反向代理、CLI、扩展、设置和更新页面共用上述页面边距与标题锚点；任务列表只收窄内部阅读列。AI 保留全高度工作区，但 topbar 和水平边距使用同一变量。紧凑下拉触发器单行省略，完整选项仍在菜单中换行显示。页面、历史、消息、下拉和快捷面板不全局隐藏滚动条；根滚动条使用 `scrollbar-gutter: stable` 避免异步内容改变页面宽度。代理来源 Tab 使用明确的内部横向滚动区，键盘焦点仍由 `segmentedControl` 管理；移动导航与分段 Tab 在焦点进入时以即时、无平滑动画的方式滚入可视区。AI 的待确认区、错误区和输入区在矮窗口内可收缩，文本区内部滚动，发送与停止操作保持可达；键盘停止后焦点回到消息输入框。
 
 `public/components/button.js` 的 `actionButton` 生成原生按钮，支持 primary、secondary、text、icon、danger 变体；`button.css` 统一按钮、可操作链接、导航与选择控件的外观和交互状态，并兼容现有类名。该样式在各页面样式之后加载。新增操作优先复用这些组件，事件仍使用原来的点击代理、表单提交和键盘行为。
 
@@ -141,3 +138,12 @@ npm run test:native-focus-notifications
 新增入口与领域代码见[本地扩展管理](extensions.md)。core/extensions-contracts.js 是纯契约；extensions/ 负责来源、适配和回执；public/extensions/ 负责页面、客户端、控制器及共用审阅；ai/extensions-submissions.mjs 只管理审批与提交恢复。Swift 复用通用 helper 转发。不要把源内容放入任务 state、Pi 模型配置或 AI provider。
 
 新增文件系统测试必须同时注入 agentsRoot、clientRoots，原生测试用 WORKBENCH_AGENTS_ROOT、WORKBENCH_EXTENSION_CLIENT_ROOTS。只隔离 WORKBENCH_DATA_DIR 不足以隔离扩展写入。运行 npm run test:extensions-contracts 前先 pack:mac。浏览器与规模验收脚本仅运行在独立 fixture，见验收报告。
+
+
+### 代理页公共布局
+
+代理来源 Tab 复用 `segmentedControl({mode:'tabs'})`，保持 tablist、aria-controls、方向键及隐藏/禁用选项的焦点顺序。接入配置、模型设置和媒体设置复用 `disclosureSection({appearance:'panel'})`；默认 line 样式保留其他页面调用兼容性。复制、显示、账号操作使用 actionButton，刷新使用 refreshButton，协议/模型使用 selectField；系统代理 switch 保持原有开关实现。
+
+代理页容器统一 section-gap，子卡片不另叠加外边距；接入行共用 ui-form-row，操作区共用 ui-form-offset。来源设置保存与普通登录保存只保留无障碍播报，错误和凭证恢复等需采取行动的状态可见。
+
+侧栏内容固定展开宽度后裁切收入图标轨，图标中心不随展开变化；加号无边框。鼠标展开收起使用可反向的 200ms CSS 过渡，键盘与减少动态效果直接切换，切换不重建焦点节点。

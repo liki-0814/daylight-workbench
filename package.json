@@ -1,6 +1,6 @@
 {
   "name": "daylight-workbench",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,14 +13,13 @@
     "dev:debug": "node --watch --inspect=127.0.0.1:9229 server.mjs",
     "check": "node scripts/check.mjs",
     "test": "node --test --test-timeout=30000",
-    "desktop": "npm run pack:mac && open dist/native/Daylight.app",
+    "desktop": "npm run pack:mac -- --development && open dist/native/Daylight.app",
     "pack:mac": "python3 scripts/build-native.py",
     "dist:mac": "python3 scripts/build-native.py --dmg",
     "test:native": "python3 test/native-test.py",
     "test:web-cli": "python3 test/web-cli-test.py",
     "test:contracts": "python3 test/task-contract-test.py",
     "test:focus-contracts": "python3 test/focus-contract-test.py",
-    "test:native-focus-notifications": "python3 test/native-focus-notification-test.py",
     "benchmark:focus": "node scripts/benchmark-focus.mjs --records 10000,50000 --runtimes node,native",
     "test:native-focus-time-zone": "python3 test/native-focus-time-zone-test.py",
     "test:extensions-contracts": "python3 test/extensions-contract-test.py"

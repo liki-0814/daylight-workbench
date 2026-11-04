@@ -18,6 +18,8 @@ Qoder、AGY、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，�
 
 ## 公共服务与 Qoder / AGY
 
+Qoder 在输出前收到排队业务码 `10605` 或临时错误 `10500` 时，默认最多重试 4 次，退避基数依次为 3、6、12、24 秒，并加入最多 25% 的随机延迟（单次基数加随机延迟不超过 30 秒）。同账号、同模型的并发重试依次错峰，因此实际等待可能更长，仍受网关总时限约束；不同模型和账号互不占用重试时隙。已有 `queueRetry` 配置继续优先，取消请求会终止等待。开始输出后不自动重放；持续拥堵仍会报错，增加重试不能保证上游恢复。
+
 - 默认监听 `127.0.0.1:4319`，端口可配置。OpenAI Base URL 为 `http://127.0.0.1:4319/v1`，Anthropic Base URL 为 `http://127.0.0.1:4319`。
 - 提供 `/v1/models`、`/v1/chat/completions`、`/v1/responses`、`/v1/messages`，以及图像和视频的 `/v1/images/generations`、`/v1/images/edits`、`/v1/videos/generations`、`/v1/videos/{id}`。文本支持流式响应。客户端必须发送页面中的 API Key（Bearer 或 `x-api-key`）。图像和视频模型不出现在 `/v1/models`。 来源页的“图像与视频”支持逐个启用或停用，设置自动保存；停用后拒绝新的生成请求，已提交的视频任务仍可查询。公共“接入配置”默认折叠，展开后可复制地址、密钥与请求示例。
 - Qoder 使用 PKCE 浏览器授权，登录成功后自动保存并刷新令牌。AGY 通过 Google 官方 OAuth 网页独立登录，使用本机 `localhost:51121/oauth-callback` 回调、state 和 PKCE；回调服务只监听 `127.0.0.1`，取消、过期和关闭会释放端口。令牌存入 Daylight 自有的 `agy-oauth` Keychain 项，续期复用公共账号机制，不启动 CLI。

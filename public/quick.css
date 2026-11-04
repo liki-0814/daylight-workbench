@@ -2,9 +2,8 @@
   color-scheme: light;
   font-family: var(--font-ui);
   font-synthesis: none;
-  --ink: #252b34;
-  --secondary: #596575;
-  --accent: #246ce0;
+  --ink:var(--workbench-text);
+  --secondary:var(--muted);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: transparent; }
@@ -12,14 +11,14 @@ body { display: grid; place-items: center; color: var(--ink); }
 
 /* Only the standalone preview supplies a backdrop. The AppKit panel supplies
    the real behind-window material; never paint an opaque WebKit rectangle. */
-html:not(.embedded) body { padding: 20px; background: #e7ebf1; }
+html:not(.embedded) body { padding: 20px; background: var(--workbench-background); }
 .quick-shell {
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius:var(--radius-overlay);
   background: rgba(255, 255, 255, .26);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
   -webkit-user-select: none;
@@ -28,8 +27,8 @@ html:not(.embedded) body { padding: 20px; background: #e7ebf1; }
 html:not(.embedded) .quick-shell {
   max-width: var(--quick-panel-width);
   height: var(--quick-height, 110px);
-  background: rgba(250, 252, 255, .82);
-  box-shadow: 0 18px 48px -12px rgba(25, 39, 62, .25), inset 0 0 0 1px rgba(255, 255, 255, .7);
+  background: var(--paper);
+  box-shadow:var(--shadow-overlay);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
@@ -53,23 +52,22 @@ html:not(.embedded) .quick-shell {
 /* The palette uses its caret for input focus; the shared form ring is redundant here. */
 .quick-shell .quick-input:focus-visible { outline: none; }
 .quick-input::placeholder { color: var(--secondary); opacity: 1; }
-.quick-input::selection { background: #cbdffe; color: #192332; }
+.quick-input::selection { background: var(--selection-background); color: var(--ink); }
 .quick-close {
   display: grid;
   place-items: center;
   flex: 0 0 32px;
   height: 28px;
   padding: 0;
-  border: 1px solid rgba(72, 86, 106, .18);
-
+  border:1px solid var(--control-border);
   background: rgba(255, 255, 255, .35);
   color: var(--secondary);
   font: 400 var(--font-meta-size)/var(--font-meta-line) var(--font-ui);
   cursor: pointer;
 }
-.quick-close:hover { background: rgba(255, 255, 255, .8); color: var(--ink); }
-.quick-close:active { background: #dce6f5; }
-.quick-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.quick-close:hover { background:var(--paper); color:var(--ink); }
+.quick-close:active { background: var(--selection-background); }
+.quick-close:focus-visible { outline:2px solid var(--focus-ring); outline-offset:3px; }
 .quick-footer {
   display: flex;
   align-items: center;
@@ -78,7 +76,7 @@ html:not(.embedded) .quick-shell {
   gap: 16px;
   margin: 0 22px;
   padding-bottom: 3px;
-  border-top: 1px solid rgba(63, 81, 105, .09);
+  border-top:1px solid var(--line);
   font-size: var(--font-caption-size);
   line-height: var(--font-caption-line);
   color: var(--secondary);
@@ -95,10 +93,6 @@ html:not(.embedded) .quick-shell {
 @media (prefers-reduced-transparency: reduce) {
   .quick-shell, html:not(.embedded) .quick-shell { background: #f5f7fa; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
-
-/* Preserve scrolling while hiding platform scrollbars across the workbench. */
-* { scrollbar-width: none; }
-*::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 .quick-shell [hidden] { display: none !important; }
 html:not(.embedded) .quick-shell:has(.quick-result:not([hidden])) { height: min(var(--quick-height, 480px), calc(100dvh - 40px)); }

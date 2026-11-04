@@ -5,7 +5,7 @@ import {sourceSnapshot,modelCapabilities} from '../shared/contracts.js';
 import path from 'node:path';
 import {serial} from '../shared/store.js';
 import {CreditsHistory} from './quota.js';
-import {setTimeout as sleep} from 'node:timers/promises';
+import {QueueRetry} from './queue-retry.js';
 import {sessionFromAccount} from './transport.js';
 import {refreshCredential,QoderAuth} from './auth.js';
 import {fetchModels} from './models.js';
@@ -23,6 +23,7 @@ import {QoderDeframer, RETRYABLE_UPSTREAM_CODES} from './stream.js';
 export const sourceDescription = {id:'qoder',name:'Qoder',authentication:{mode:'browser',operations:['login', 'poll', 'cancel', 'logout','refresh'],requiresStoppedService:true},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat']};
 
 export class QoderProvider {
+  queueRetry = new QueueRetry();
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'context', 'effort', 'fast']);}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',events:this.stream(request,context)};}
   snapshot(){const c=this.accounts.current?.credential;return{...sourceSnapshot({...sourceDescription,identityKey:this.accounts.current?.id,configured:!!c,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,catalogIdentityKey:this.cache?.identity}),account:c?{login:[c.organizationName,c.uid].filter(Boolean).join(' · ')}:undefined};}
@@ -113,7 +114,8 @@ export class QoderProvider {
             produced = true;
             if (event.type === 'finish' || event.type === 'error') finished = true;
             // Do not relay raw upstream error strings: they can echo request bodies.
-            yield event.type === 'error' ? { ...event, message: `Qoder 返回错误（${event.code || 'unknown'}）`, retries: attempt } : { ...event, retries: attempt };
+            const message = event.code === '10605' ? 'Qoder 模型暂时繁忙，请稍后重试（10605）' : `Qoder 返回错误（${event.code || 'unknown'}）`;
+            yield event.type === 'error' ? { ...event, message, retries: attempt } : { ...event, retries: attempt };
             if (event.type === 'error') return;
           }
           if (queued || chunk.done) break;
@@ -124,7 +126,8 @@ export class QoderProvider {
         return;
       }
       observe({stage:'retry'});
-      await sleep(queueRetryDelay(attempt + 1, retry), undefined, { signal });
+      observe({retries:attempt + 1});
+      await this.queueRetry.delay(`${account.id}\0${model.id}`, queueRetryDelay(attempt + 1, retry), signal);
     }
   }
 }

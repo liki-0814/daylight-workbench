@@ -47,15 +47,19 @@ export async function assertPublicImageUrl(url, { lookup = dnsLookup, signal } =
     if (!isPublicAddress(host)) fail(MESSAGE);
     return;
   }
-  let addresses;
+  let addresses, onAbort;
   try {
     signal?.throwIfAborted();
     const pending = Promise.resolve(lookup(host, { all: true, verbatim: true }));
-    addresses = signal ? await Promise.race([pending, new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }))]) : await pending;
+    addresses = signal ? await Promise.race([pending, new Promise((_, reject) => {
+      onAbort = () => reject(signal.reason);
+      signal.addEventListener('abort', onAbort, { once: true });
+      if (signal.aborted) onAbort();
+    })]) : await pending;
   } catch (error) {
     if (signal?.aborted) throw error;
     fail('参考图地址无法解析');
-  }
+  } finally { if (onAbort) signal.removeEventListener('abort', onAbort); }
   const list = (Array.isArray(addresses) ? addresses : [addresses]).map(item => item?.address ?? item);
   // One private answer is enough to reject: the fetch may connect to any of them.
   if (!list.length || !list.every(isPublicAddress)) fail(MESSAGE);

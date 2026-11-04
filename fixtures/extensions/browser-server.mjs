@@ -10,7 +10,7 @@ if (!path.basename(directory).startsWith('daylight-extensions-browser-')) throw 
 await fs.mkdir(directory, { recursive: true });
 const agentsRoot = path.join(directory, 'agents'), clientRoots = Object.fromEntries(['codex', 'qoder', 'pi', 'grok'].map(id => [id, path.join(directory, id)]));
 await fs.mkdir(path.join(agentsRoot, 'daylight'), { recursive: true });
-await fs.writeFile(path.join(agentsRoot, 'daylight/clients.json'), JSON.stringify({ schemaVersion: 1, clients: [], selectedClients: ['codex', 'qoder', 'pi'] }));
+await fs.writeFile(path.join(agentsRoot, 'daylight/clients.json'), JSON.stringify({ schemaVersion: 1, clients: [], selectedClients: ['codex', 'qoder', 'pi', 'grok'] }));
 for (const [name, description] of [['review-code', '审查代码改动，检查架构边界、真实测试和回归影响。'], ['long-path-example', '用于验证较长的中文用途说明、软件接入状态与窄窗口显示。']]) {
   const skill = path.join(agentsRoot, 'skills', name); await fs.mkdir(skill, { recursive: true });
   await fs.writeFile(path.join(skill, 'SKILL.md'), '---\nname: ' + name + '\ndescription: ' + description + '\n---\n\n检查来源，理解用途，再预览变更。\n');
@@ -19,7 +19,13 @@ for (const [name, description] of [['review-code', '审查代码改动，检查�
 await fs.mkdir(path.join(agentsRoot, 'mcp'), { recursive: true });
 const nestedSkill = path.join(agentsRoot, 'skills/review-code/modules/huichuan-code/vendor/ad-online-dev');
 await fs.mkdir(nestedSkill, { recursive: true }); await fs.writeFile(path.join(nestedSkill, 'SKILL.md'), '---\nname: ad-online-dev\ndescription: 内部模块，不应单独识别\n---\n');
-await fs.writeFile(path.join(agentsRoot, 'mcp', 'servers.json'), JSON.stringify({ schemaVersion: 1, servers: [{ id: 'fixture-mcp', name: '本地 MCP 测试服务', transport: 'stdio', command: process.execPath, args: [path.resolve('fixtures/extensions/mcp-server.mjs'), path.join(directory, 'mcp-requests'), 'delayed'], envRefs: {} }] }));
+const fixtureServer = { id: 'fixture-mcp', name: '本地 MCP 测试服务', transport: 'stdio', command: process.execPath, args: [path.resolve('fixtures/extensions/mcp-server.mjs'), path.join(directory, 'mcp-requests'), 'delayed'], envRefs: {} };
+await fs.writeFile(path.join(agentsRoot, 'mcp', 'servers.json'), JSON.stringify({ schemaVersion: 1, servers: [fixtureServer] }));
+for (const id of ['codex', 'qoder', 'grok']) await fs.mkdir(clientRoots[id], { recursive: true });
+const toml = (args, enabled = true) => `command = ${JSON.stringify(fixtureServer.command)}\nargs = ${JSON.stringify(args)}\nenabled = ${enabled}\n`;
+await fs.writeFile(path.join(clientRoots.codex, 'config.toml'), '[mcp_servers."fixture-mcp"]\n' + toml(fixtureServer.args));
+await fs.writeFile(path.join(clientRoots.grok, 'config.toml'), '[mcp_servers."fixture-mcp"]\n' + toml(['different-server.mjs'], false));
+await fs.writeFile(path.join(clientRoots.qoder, 'settings.json'), JSON.stringify({ mcpServers: { 'fixture-mcp': { command: fixtureServer.command, args: fixtureServer.args } } }));
 await fs.writeFile(path.join(directory, 'state.json'), JSON.stringify({ version: 0, state: fixtureState() }));
 await fs.mkdir(path.join(directory, 'ai'), { recursive: true });
 await fs.writeFile(path.join(directory, 'ai', 'settings.json'), JSON.stringify({ backend: 'codex', codex: { model: 'acceptance', effort: '', accessMode: 'standard' }, qoder: { model: 'acceptance', effort: '', accessMode: 'standard' } }));

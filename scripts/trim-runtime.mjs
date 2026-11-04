@@ -1,14 +1,14 @@
 // Keep source module locations intact (import.meta.url is part of the runtime
 // contract), while using esbuild's dependency graph to remove unreachable files.
-import { build, transform } from 'esbuild';
+import { transform } from 'esbuild';
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {browserRuntime,dependencyFiles,htmlEntries} from './runtime-graph.mjs';
 
 // Browser windows, native JavaScriptCore and spawned helper processes have
 // independent entry points. Dynamic MCP startup must be retained explicitly.
 const nativeAssets = ['native-core.js'];
-const htmlEntries = ['index.html', 'quick.html'];
 const nodeEntries = ['proxy/sidecar.mjs', 'ai/sidecar.mjs', 'ai/mcp-server.mjs', 'ai/adapters/pi-extension.mjs', 'agent-api.mjs', 'tray-model.mjs'];
 
 async function minimizeWeb(publicDir, files) {
@@ -34,24 +34,11 @@ async function minimizeWeb(publicDir, files) {
   return report;
 }
 
-async function graph(root, entries, platform) {
-  const result = await build({ absWorkingDir:root,entryPoints:entries,bundle:true,packages:'external',platform,format:'esm',write:false,metafile:true,outdir:'.graph',loader:{'.svg':'file'},logLevel:'silent' });
-  if (result.warnings.length) throw Error(result.warnings.map(w=>w.text).join('\n'));
-  return new Set(Object.keys(result.metafile.inputs).map(file=>path.resolve(root,file)));
-}
-
 export async function trimRuntime(resources) {
   const publicDir=path.join(resources,'public');
-  const assets=new Set([...htmlEntries.map(file=>path.join(publicDir,file)), ...nativeAssets.map(file=>path.join(resources,file))]),entries=[];
-  for(const file of htmlEntries) {
-    const html=await readFile(path.join(publicDir,file),'utf8');
-    for(const match of html.matchAll(/(?:src|href)="\/([^"#?]+)"/g)) {
-      const asset=path.join(publicDir,match[1]);assets.add(asset);
-      if (/\.(?:js|mjs|css)$/.test(asset)) entries.push(match[1]);
-    }
-  }
-  const web=await graph(publicDir,entries,'browser');
-  const helpers=await graph(resources,nodeEntries,'node');
+  const {assets,files:web}=await browserRuntime(publicDir);
+  for(const file of nativeAssets)assets.add(path.join(resources,file));
+  const helpers=await dependencyFiles(resources,nodeEntries,'node');
   const keep=new Set([...assets,...web,...helpers]);
   // The compiled SDK emits a legal-comment companion next to its module.
   for (const file of helpers) {

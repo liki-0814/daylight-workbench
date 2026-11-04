@@ -6,8 +6,7 @@
 
 ## 功能
 
-- **项目与任务**：项目分组与筛选、未归类任务、待办/已完成、每日安排、关键词搜索和最近一次操作撤销。
-- **日历与专注**：按日期安排与改期、工作/短休息计时、暂停恢复、任务累计和按日/项目专注统计。
+- **项目与任务**：待办列表按项目分组、已完成折叠区、项目与未归类筛选、关键词搜索和最近一次操作撤销。
 - **macOS 桌面**：菜单栏任务入口、窗口关闭后驻留，以及 `⌥Space` 快速搜索。
 - **扩展管理**：维护 ~/.agents 下的 Skills、MCP 与 Codex/Qoder/Pi 接入，支持 AI 管理草稿、归档与回执恢复。
 - **AI 对话**：自动识别并连接本机 Codex、Qoder 或 Pi CLI，支持流式回答、历史会话、项目/任务关联与引用、可编辑变更草稿。
@@ -33,7 +32,7 @@ npm run web
 
 进入「设置 → AI 对话」，选择 Codex、Qoder 或 Pi，点击「刷新模型与技能」并保存模型，即可在浏览器中与本机 CLI 对话。「扩展管理」维护 `~/.agents`；「CLI 配置」继续提供 Pi 与模型中转的联动。AI 对话认证复用本机 CLI 登录。反向代理中各内置来源支持 Daylight 独立网页登录，统一提供刷新登录与退出账号；详见 [反向代理说明](docs/reverse-proxy.md)。
 
-只启动服务、稍后手动打开页面可用 `npm start`，或 `npm run web -- --no-open`。网页与桌面版共用默认数据目录和端口，切换模式先退出正在运行的实例；端口冲突时不会自动换端口启动第二份服务。菜单栏、全局快捷键和 macOS 系统提醒由原生 App 提供。
+只启动服务、稍后手动打开页面可用 `npm start`，或 `npm run web -- --no-open`。网页与桌面版共用默认数据目录和端口，切换模式先退出正在运行的实例；端口冲突时不会自动换端口启动第二份服务。菜单栏和全局快捷键由原生 App 提供。
 
 调试时使用独立端口和业务数据目录，后端文件改动会自动重启：
 
@@ -57,9 +56,11 @@ PORT=4328 WORKBENCH_DATA_DIR="$PWD/.local/dev" npm run web
 
 ```sh
 npm ci --ignore-scripts
-npm run pack:mac
+npm run pack:mac -- --development
 open dist/native/Daylight.app
 ```
+
+上面命令生成隔离开发版。正式版需要配置固定签名身份，见[应用内更新](docs/updates.md)。
 
 生成 DMG：
 
@@ -117,7 +118,7 @@ The Update page (sidebar, before Settings; the “检查更新…” menu item o
 
 服务只监听 `127.0.0.1`。工作台管理接口和模型中转分别使用鉴权凭据；自定义上游密钥由 macOS Keychain 保存。模型请求会发往你配置的上游，AI 对话会调用本机 CLI。
 
-仓库和安装包不包含个人任务、账号凭据、对话历史或运行日志。外部工具可使用随仓库提供的 [Daylight skill](skills/daylight-workbench/SKILL.md) 管理工作台数据。
+仓库和安装包不包含个人任务、账号凭据、对话历史或运行日志。AI 工作目录会自动同步应用内置的项目级 Skill（详见 AI 文档），外部工具也可使用随仓库提供的 [Daylight skill](skills/daylight-workbench/SKILL.md) 管理工作台数据。
 
 ## 开发
 

@@ -72,3 +72,9 @@ test('Pi tool extension exposes Daylight tools and requires standard-mode approv
   process.env.DAYLIGHT_PI_ACCESS_MODE='full';
   assert.equal(await handlers.tool_call({toolName:'bash',input:{}},context),undefined);
 });
+test('Pi reports bounded CLI retry stages instead of leaving the UI thinking', async t => {
+  const f=await fixture(t,[{type:'auto_retry_start',attempt:1,maxAttempts:2,delayMs:2000,errorMessage:'sensitive upstream detail'},...success,{type:'auto_retry_end',success:true,attempt:1}]);
+  const events=[];await run({...args(f),emit:e=>events.push(e)});
+  assert(events.some(e=>e.type==='activity' && e.text.includes('1/2') && e.text.includes('2 秒')));
+  assert(!JSON.stringify(events).includes('sensitive upstream detail'));
+});

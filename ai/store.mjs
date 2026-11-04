@@ -1,8 +1,10 @@
 import { finishEvents } from './events.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
+import {randomUUID} from 'node:crypto';
 export class AIStore {
-  constructor(dataDir) {
+  constructor(dataDir, prepareWorkspace = () => {}) {
+    this.prepareWorkspace = prepareWorkspace;
     this.root = path.join(dataDir, 'ai');
     fs.mkdirSync(path.join(this.root, 'conversations'), { recursive: true, mode: 0o700 });
     this.settings = this.read('settings.json', { backend: 'codex', codex: { path: '', model: '', effort: '', contextWindow: null }, qoder: { path: '', model: '', effort: '', contextWindow: null, maxOutputTokens: null } });
@@ -31,10 +33,31 @@ export class AIStore {
     catch (e) { if (e.code === 'ENOENT' && fallback !== undefined) return fallback; throw e; }
   }
   write(file, value) {
-    const target = path.join(this.root, file), tmp = target + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(value), { mode: 0o600 }); fs.renameSync(tmp, target);
+    const target = path.join(this.root, file), tmp = target + '.' + randomUUID() + '.tmp';
+    try {
+      fs.writeFileSync(tmp, JSON.stringify(value), { mode: 0o600, flag: 'wx' });
+      fs.renameSync(tmp, target);
+    } finally { fs.rmSync(tmp, { force: true }); }
   }
-  save(c) { c.updatedAt = new Date(Math.max(Date.now(), (Date.parse(c.updatedAt) || 0) + 1)).toISOString(); this.conversations.set(c.id, c); this.write(`conversations/${c.id}.json`, c); }
+  save(c) {
+    const file = `conversations/${c.id}.json`, previousTime = c.updatedAt;
+    c.updatedAt = new Date(Math.max(Date.now(), (Date.parse(previousTime) || 0) + 1)).toISOString();
+    try { this.write(file, c); }
+    catch (cause) {
+      // Existing callers hold the same mutable object as the map. Restore it in
+      // place on failure so a rejected write cannot remain a successful edit.
+      try {
+        const saved = this.read(file);
+        for (const key of Object.keys(c)) delete c[key];
+        Object.assign(c, saved);
+      } catch (readError) {
+        c.updatedAt = previousTime;
+        if (readError.code === 'ENOENT') this.conversations.delete(c.id);
+      }
+      throw Object.assign(new Error('对话保存失败，原文件已保留，请检查磁盘空间和目录权限', {cause}), {code:'EAI_STORAGE',status:503});
+    }
+    this.conversations.set(c.id, c);
+  }
   remove(id) { fs.unlinkSync(path.join(this.root, 'conversations', `${id}.json`)); this.conversations.delete(id); }
-  workspace(backend) { const dir = path.join(this.root, 'workspaces', backend); fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); return dir; }
+  workspace(backend) { const dir = path.join(this.root, 'workspaces', backend); fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); this.prepareWorkspace(backend, dir); return dir; }
 }

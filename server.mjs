@@ -47,9 +47,9 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
   let proxyError;
   try { proxy = await createProxyService({ dataDir, includeAgy: true, includeGrok: true, includeGateway: true, ...proxyOptions }); } catch (error) { proxyError = error.message; }
   let aiPromise;
-  const getAI = () => aiPromise ||= createAIService({ dataDir, adapters: aiAdapters, endpoint: () => `http://127.0.0.1:${server.address().port}` });
+  const getAI = () => aiPromise ||= createAIService({ dataDir, adapters: aiAdapters, endpoint: () => `http://127.0.0.1:${server.address().port}` }).catch(error => { aiPromise = undefined; throw error; });
   let extensionsPromise;
-  const getExtensions = () => extensionsPromise ||= import('./extensions/service.mjs').then(({ createExtensionsService }) => createExtensionsService({ ...extensionsOptions, onChanged: event => server.emit('extensions-changed', event) }));
+  const getExtensions = () => extensionsPromise ||= import('./extensions/service.mjs').then(({ createExtensionsService }) => createExtensionsService({ ...extensionsOptions, onChanged: event => server.emit('extensions-changed', event) })).catch(error => { extensionsPromise = undefined; throw error; });
   let writing = false;
   const focus = await createFocusService({ dataDir, getTaskSnapshot: () => ({ version: record.version, state: record.state }), isTaskWriting: () => writing, ...focusOptions });
   const persist = async (state, receipt) => {
@@ -190,8 +190,18 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
     }
   });
   server.once('listening', () => { void proxy?.initialize(); });
-  server.once('close', () => { void focus.close(); void proxy?.close(); void aiPromise?.then(ai => ai.close()); void extensionsPromise?.then(service => service.close()); });
-  server.closeProxy = async () => { await focus.close(); await proxy?.close(); await aiPromise?.then(ai => ai.close()); await extensionsPromise?.then(service => service.close()); };
+  let closing;
+  server.closeProxy = () => closing ||= (async () => {
+    const results = await Promise.allSettled([
+      Promise.resolve().then(() => focus.close()),
+      Promise.resolve().then(() => proxy?.close()),
+      aiPromise?.then(ai => ai.close()),
+      extensionsPromise?.then(service => service.close()),
+    ]);
+    const failures = results.filter(result => result.status === 'rejected');
+    if (failures.length) throw new AggregateError(failures.map(result => result.reason), '部分服务未能正常关闭');
+  })();
+  server.once('close', () => { void server.closeProxy().catch(error => console.error(error.message)); });
   server.getSnapshot = snapshot;
   server.getFocusService = () => focus;
   server.getExtensionsService = getExtensions;

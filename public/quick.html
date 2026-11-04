@@ -12,12 +12,13 @@
     <link rel="stylesheet" href="/components/dialog-shell.css">
     <link rel="stylesheet" href="/ai.css">
     <link rel="stylesheet" href="/quick.css">
+    <link rel="stylesheet" href="/theme/colors.css">
   </head>
   <body>
     <main id="quick" class="quick-shell">
       <form id="quick-form" class="quick-form">
         <span class="quick-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></span>
-        <input id="quick-input" class="quick-input" type="text" placeholder="问一个问题，关闭即清空" aria-label="临时问答" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30000">
+        <input id="quick-input" class="quick-input" type="text" placeholder="问一个问题，不保存记录" aria-label="临时问答" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="30000">
         <button id="quick-close" class="quick-close" type="button" aria-label="关闭快捷面板">esc</button>
       </form>
       <div id="quick-images" class="image-input quick-images" aria-label="已粘贴的图片" hidden></div>

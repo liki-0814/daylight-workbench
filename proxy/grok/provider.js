@@ -22,7 +22,7 @@ export class GrokProvider {
   close(){this.catalogCache.invalidate();this.quotaCatalogCache.invalidate();this.auth.close?.();}
   async execute({raw,protocol},context){const request=decodeRequest(raw,protocol);return{kind:'events',renderers:{responses:[renderNativeStream,renderNativeResponse]},headerTimeoutOnly:true,events:this.stream(request,context)};}
   snapshot(){return{...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity??this.cache?.identity,configured:!!this.auth.account,connected:!!this.cache&&!!this.auth.account&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
-  constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth({fetchImpl}) }) {
+  constructor({ dataDir, fetchImpl = fetch, auth = new GrokAuth({dataDir,fetchImpl}) }) {
     Object.assign(this, { fetchImpl, auth });
     this.directory = path.join(dataDir, 'grok'); this.active = 0;this.catalogCache=new CatalogCache();this.quotaCatalogCache=new CatalogCache(60000); this.settings=modelSettings(path.join(this.directory,'settings.json'));bindAccountCatalog(this,{caches:[this.catalogCache,this.quotaCatalogCache]});
     attachGrokMedia(this);

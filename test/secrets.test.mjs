@@ -65,3 +65,13 @@ test('missing helper fails without waiting for the timeout',async()=>{
  const secrets=new Secrets({spawnImpl:(_helper,args,options)=>spawn('/nonexistent/daylight-test-helper',args,options),timeoutMs:500});
  await assert.rejects(secrets.get('fixture-id'),/钥匙串组件不可用/);
 });
+
+test('only explicit interactive operations permit authorization UI',async()=>{
+ const f=fixture(`let raw='';process.stdin.on('data',b=>raw+=b);process.stdin.on('end',()=>{const body=JSON.parse(raw);process.stdout.write(JSON.stringify({value:body.interactive}));});`);
+ assert.equal(await f.secrets.get('fixture-id'),'fail');assert.equal(await f.secrets.get('fixture-id',{interactive:true}),'allow');
+});
+test('user cancellation aborts an interactive helper and reaps its process',async t=>{
+ const f=await runningFixture(t,"process.on('SIGTERM',()=>{});process.stdout.write('ready');setInterval(()=>{},1000)",{killGraceMs:20});
+ const controller=new AbortController(),task=f.secrets.get('fixture-id',{interactive:true,signal:controller.signal});controller.abort();
+ await assert.rejects(task,{code:'EKEYCHAIN_CANCELLED'});assert.equal(f.child.signalCode,'SIGKILL');
+});

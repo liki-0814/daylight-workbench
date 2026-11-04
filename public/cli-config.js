@@ -1,5 +1,7 @@
 import {piSourceTypes} from '../core/proxy-sources.js';
 import {modelPriceLabel} from '../core/model-metadata.js';
+import { actionButton } from './components/button.js';
+import { segmentedControl, mountSegmentedControl } from './components/segmented-control.js';
 import { icon } from './components/icons.js';
 import { refreshButton, setRefreshState } from './components/section.js';
 import { selectField, updateSelectField } from './components/select.js';
@@ -21,25 +23,26 @@ export function createCLIPage({ getToken }) {
   const levels = ['off','minimal','low','medium','high','xhigh','max'];
   let snapshot, busy = false, refreshing = false, pendingAutomatic, loadedAt = 0, poll;
   root.innerHTML = `
-    <header class="topbar"><span>我的工作空间 <span class="slash">/</span> CLI 配置</span><span class="cli-preview-tag">Pi</span></header>
+    <header class="topbar"><span>我的工作空间 <span class="slash">/</span> CLI 配置</span></header>
     <div class="workspace cli-workspace">
-      <section class="page-heading cli-heading"><div><h1>CLI 配置</h1><p>把 Daylight 的模型接入 Pi · <a href="#extensions&tab=clients&client=pi">查看扩展接入</a></p></div>${refreshButton({ariaLabel:'重新读取代理目录与 Pi 配置',attrs:{'data-refresh':true,title:'重新读取代理目录与 Pi 配置'}})}</section>
+      <section class="page-heading cli-heading"><div><h1>CLI 配置</h1></div><div class="cli-header-actions"><a class="text-button" href="#extensions&tab=clients&client=pi">扩展接入</a>${refreshButton({ariaLabel:'重新读取代理目录与 Pi 配置',attrs:{'data-refresh':true,title:'重新读取代理目录与 Pi 配置'}})}</div></section>
       <section class="cli-client" aria-label="Pi 接入信息">
         <div class="cli-client-identity"><span class="cli-pi-mark" aria-hidden="true">π</span><div><h2>Pi <span class="cli-version" data-pi-version>正在检测</span></h2><span class="cli-subtext" data-pi-path>~/.pi/agent/models.json</span></div></div>
         <div class="cli-client-default"><span class="cli-caption">默认模型</span><strong data-current-default>正在读取</strong></div>
         <div class="cli-client-count"><span class="cli-caption">已接入</span><strong data-imported-count>—</strong><span class="cli-subtext" data-obsolete-count></span></div>
-        <button type="button" class="cli-history icon-button" data-restore title="恢复上次接入" aria-label="恢复上次接入" disabled>${icon('undo')}</button>
+        ${actionButton({variant:'icon',className:'cli-history',iconOnly:true,symbol:'undo',label:'恢复上次接入',attrs:{'data-restore':true,disabled:true}})}
       </section>
-      <div class="cli-connection"><span class="cli-connection-label"><span class="cli-online-dot" data-service-dot></span><span data-service-state>Daylight 代理</span></span><code data-base-url>正在读取</code><button type="button" class="cli-auto-setting" role="switch" aria-label="自动同步" aria-checked="false" data-automatic><span class="cli-auto-track" aria-hidden="true"><span></span></span><span>自动同步</span></button><div class="cli-api-picker">${selectField({ id: 'cli-api', label: 'Pi 接口', options: apis, value: api, compact: true })}</div><button type="button" class="text-button" data-view="proxy">查看反向代理 ${icon('arrow')}</button></div>
+      <div class="cli-connection"><span class="cli-connection-label"><span class="cli-online-dot" data-service-dot></span><span data-service-state>Daylight 代理</span></span><code data-base-url>正在读取</code><button type="button" class="cli-auto-setting" role="switch" aria-label="自动同步" aria-checked="false" data-automatic><span class="cli-auto-track" aria-hidden="true"><span></span></span><span>自动同步</span></button><div class="cli-api-picker">${selectField({ id: 'cli-api', label: 'Pi 接口', options: apis, value: api, compact: true })}</div>${actionButton({variant:'text',label:'查看反向代理',symbol:'arrow',attrs:{'data-view':'proxy'}})}</div>
       <section class="cli-catalog" aria-label="接入模型">
-        <div class="cli-catalog-heading"><div><h2>接入模型</h2><span data-catalog-count></span></div><div class="cli-tools"><label class="cli-search">${icon('search')}<input type="search" placeholder="搜索模型或 ID" aria-label="搜索模型或 ID"><button type="button" data-clear-search title="清空搜索" aria-label="清空搜索" hidden>${icon('close')}</button></label><label class="cli-pending-filter"><input type="checkbox" data-pending>待接入</label></div></div>
+        <div class="cli-catalog-heading"><div><h2>接入模型</h2><span data-catalog-count></span></div><div class="cli-tools"><label class="cli-search">${icon('search')}<input type="search" placeholder="搜索模型或 ID" aria-label="搜索模型或 ID">${actionButton({variant:'icon',iconOnly:true,symbol:'close',label:'清空搜索',attrs:{'data-clear-search':true,hidden:true}})}</label><label class="cli-pending-filter"><input type="checkbox" data-pending>待接入</label></div></div>
         <div class="cli-model-browser"><nav class="cli-source-nav" aria-label="模型来源"></nav><div class="cli-model-list"><div class="cli-table-head"><span>模型</span><span>状态</span><span></span></div><div data-models></div></div></div>
       </section>
-      <div class="cli-apply-bar"><div class="cli-apply-left"><div class="cli-selection"><strong data-selection-count>同步全部中转模型</strong><span data-selection-note>正在读取目录</span></div><div class="cli-default-setting"><label><input type="checkbox" data-default>同时设为 Pi 默认模型</label><div data-default-picker hidden></div></div></div><div class="cli-apply-actions"><button type="button" class="secondary" data-preview disabled>${icon('copy')}查看变更</button><button type="button" class="primary" data-apply disabled>${icon('refresh')}一键同步 Pi</button></div></div>
+      <div class="cli-apply-bar"><div class="cli-apply-left"><div class="cli-selection"><strong data-selection-count>同步全部中转模型</strong><span data-selection-note>正在读取目录</span></div><div class="cli-default-setting"><label><input type="checkbox" data-default>同时设为 Pi 默认模型</label><div data-default-picker hidden></div></div></div><div class="cli-apply-actions">${actionButton({label:'查看变更',symbol:'copy',attrs:{'data-preview':true,disabled:true}})}${actionButton({variant:'primary',label:'一键同步 Pi',symbol:'refresh',attrs:{'data-apply':true,disabled:true}})}</div></div>
       <p class="cli-feedback" data-feedback role="status" aria-live="polite">正在读取 Pi 配置与代理模型…</p>
     </div>`;
   const drawer = createProxyDrawer(root), rows = root.querySelector('[data-models]'), sourceNav = root.querySelector('.cli-source-nav');
   const picker = root.querySelector('[data-default-picker]');
+  const unmountSources=mountSegmentedControl(sourceNav,{onChange:value=>{source=value;render();}});
   const speeds=createModelSpeedFeed({api:createProxyApi(getToken),onChange:paintSpeeds});
   function paintSpeeds(){for(const row of rows.querySelectorAll('[data-speed-source]'))updateModelSpeeds(row,speeds.get(row.dataset.speedSource),{loading:speeds.loading,stale:speeds.stale});}
   const catalog = () => snapshot?.models || [];
@@ -76,12 +79,12 @@ export function createCLIPage({ getToken }) {
     }
   }
   function render() {
-    const focused = document.activeElement, focusSource = focused?.dataset?.source;
+    const focused = document.activeElement, focusSource = sourceNav.contains(focused) ? focused?.dataset?.segmentValue : null;
     const sources = sourceTypes.filter(s => s.id === 'all' || catalog().some(m => sourceType(m) === s.id));
     if (!sources.some(s => s.id === source)) source = 'all';
-    sourceNav.innerHTML = sources.map(s => `<button type="button" class="cli-source ${source === s.id ? 'selected' : ''}" data-source="${s.id}" aria-pressed="${source === s.id}">${s.mark ? `<span class="cli-source-mark ${s.tone}">${s.mark}</span>` : icon('grid')}<span>${s.name}</span><small>${catalog().filter(m => s.id === 'all' || sourceType(m) === s.id).length}</small></button>`).join('');
+    sourceNav.innerHTML = segmentedControl({id:'cli-source-filter',label:'模型来源',value:source,options:sources.map(item=>({value:item.id,label:item.name+' · '+catalog().filter(model=>item.id==='all'||sourceType(model)===item.id).length}))});
     const visible = sortModelsByFrequency(filtered(),speeds.getUsage);
-    root.querySelector('[data-catalog-count]').textContent = `${visible.length} / ${catalog().length} 个模型 · 按调用频次排序`;
+    root.querySelector('[data-catalog-count]').textContent = `${visible.length} / ${catalog().length} 个模型`;
     root.querySelector('[data-catalog-count]').title = '按近期代理请求中的调用次数降序；成功和失败均计入，手动测试不计入。';
     root.querySelector('[data-imported-count]').textContent = snapshot ? `${snapshot.pi.importedCount} 个模型` : '—';
     root.querySelector('[data-obsolete-count]').textContent = snapshot?.obsolete.length ? `待移除 ${snapshot.obsolete.length} 个` : '';
@@ -100,7 +103,7 @@ export function createCLIPage({ getToken }) {
       return `<div class="cli-model-row" data-speed-source="${esc(m.source)}"><div class="cli-model-choice"><div class="cli-model-text"><strong>${esc(m.name)}</strong><span>${esc(m.id)}</span><small><span class="cli-source-dot ${tone}"></span>${esc(m.sourceName)}<span class="cli-meta-separator">·</span>${context({...m,contextWindow:m.configuration.contextWindow})}<span class="cli-meta-separator">·</span>${m.configuration.maxTokens ? Number(m.configuration.maxTokens).toLocaleString()+' 最大输出' : '最大输出未提供'}${Object.keys(modelOverrides[m.id] || {}).length ? '<span class="cli-meta-separator">·</span>个性化配置' : ''}</small><small>${esc(modelPriceLabel(modelOverrides[m.id]?.cost?{...m,cost:modelOverrides[m.id].cost,priceInfo:{...m.priceInfo,basis:'manual'}}:m))}</small>${m.unavailableReason ? `<small class="cli-incompatible">${esc(m.unavailableReason)}</small>` : ''}${renderModelSpeed(m)}</div></div><span class="cli-model-state ui-first-line-slot ${m.state}">${!m.unavailableReason && m.state === 'connected' ? icon('check') : ''}${m.unavailableReason ? '不兼容' : { connected: '已接入', update: '需要更新', new: '未接入',retained:'暂不可用 · 已保留' }[m.state]}</span><div class="ui-first-line-slot"><button type="button" class="icon-button" data-model-config="${esc(m.id)}" ${m.retained?'disabled':''} title="配置 ${esc(m.name)}" aria-label="配置 ${esc(m.name)}">${icon('gear')}</button></div></div>`;
     }).join('') : `<div class="cli-empty">${icon('search')}<strong>${!snapshot ? '模型目录尚未加载' : catalog().length ? '没有匹配的模型' : '暂无已启用的代理模型'}</strong><button type="button" class="text-button" ${catalog().length ? 'data-reset' : 'data-view="proxy"'}>${catalog().length ? '清除筛选' : '查看反向代理'}</button></div>`;
     renderActions();paintSpeeds();
-    if (focusSource) sourceNav.querySelector(`[data-source="${focusSource}"]`)?.focus({ preventScroll: true });
+    if (focusSource) (sourceNav.querySelector(`[data-segment-value="${focusSource}"]`) || sourceNav.querySelector('[aria-checked="true"]'))?.focus({ preventScroll: true });
   }
   function adoptOverrides() { if (!overridesDirty) modelOverrides = Object.fromEntries(catalog().map(m=>[m.id,m.overrides || {}])); }
   async function load() {
@@ -117,7 +120,7 @@ export function createCLIPage({ getToken }) {
       if (busy || root.hidden || loadedAt !== previousLoad || JSON.stringify(next) === JSON.stringify(snapshot)) return;
       snapshot = next; adoptOverrides(); loadedAt = Date.now(); api = next.api;
       root.querySelector('#cli-api').value = api;
-      render(); showStatus(snapshot.automatic.enabled ? '自动同步已开启。' : '配置已读取。');
+      render(); showStatus();
     } catch (error) { if (!busy && !root.hidden) feedback(error.message, true); }
     finally { refreshing = false; }
   }
@@ -166,7 +169,6 @@ export function createCLIPage({ getToken }) {
     const target = event.target.closest('button');
     if (!target || busy) return;
     if (target.dataset.modelConfig) configureModel(target.dataset.modelConfig);
-    if (target.dataset.source) { source = target.dataset.source; render(); }
     if (target.hasAttribute('data-automatic')) {
       const enabled = !snapshot.automatic.enabled, operation = { ...input(), enabled, expectedVersion: snapshot.version, requestId: crypto.randomUUID() };
       pendingAutomatic = enabled;
@@ -183,7 +185,7 @@ export function createCLIPage({ getToken }) {
     if (target.hasAttribute('data-refresh')) void operate(async () => {
       void speeds.refresh();
       setRefreshState(target, {loading:true});
-      try { await load(); showStatus('已重新读取 Pi 配置与反向代理目录；未强制刷新上游。'); }
+      try { await load(); showStatus(); }
       finally { setRefreshState(target); }
     });
     if (target.hasAttribute('data-view')) location.hash = target.dataset.view;
@@ -201,7 +203,7 @@ export function createCLIPage({ getToken }) {
     if (target.id === 'cli-api') { api = target.value; snapshot = undefined; void operate(async () => { await load(); feedback('Pi 接口已选择：' + apis.find(a => a.value === api).label + '。配置未写入。'); }); }
   });
   root.querySelector('input[type=search]').oninput = event => { query = event.target.value; render(); };
-  function showStatus(message = '配置已读取。') {
+  function showStatus(message = '') {
     const error = snapshot.catalogError || snapshot.automatic.error || (snapshot.pending ? '上次写入中断，请恢复上次接入。' : '') || catalog().find(m => m.unavailableReason)?.unavailableReason;
     feedback(error || snapshot.catalogWarning || message, !!error);
   }
@@ -211,11 +213,11 @@ export function createCLIPage({ getToken }) {
     clearInterval(poll);speeds.setVisible(value);
     if (!value) { drawer.close(); root.querySelectorAll('workbench-select').forEach(select => select.setOpen(false)); }
     else {
-      if (opening && Date.now() - loadedAt > 5000) void operate(async () => { await load(); showStatus(snapshot.service.state === 'running' ? '配置已读取。' : '代理已停止；同步后需启动代理才能调用。'); });
+      if (opening && Date.now() - loadedAt > 5000) void operate(async () => { await load(); showStatus(snapshot.service.state === 'running' ? '' : '代理已停止；同步后需启动代理才能调用。'); });
       else if(opening)render();
       poll = setInterval(() => {
         if (!busy && !drawer.element.open && !defaultEnabled && !root.contains(document.activeElement)) void refreshBackground();
       }, 15000);
     }
-  },dispose(){clearInterval(poll);speeds.dispose();drawer.close();root.remove();} };
+  },dispose(){clearInterval(poll);unmountSources();speeds.dispose();drawer.close();root.remove();} };
 }

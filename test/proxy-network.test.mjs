@@ -35,6 +35,15 @@ test('proxy configuration honors explicit environment overrides and tolerates ab
  assert.equal(proxyOptions({DAYLIGHT_SYSTEM_PROXY:system,HTTP_PROXY:'',HTTPS_PROXY:''}).httpsProxy,'');
 });
 
+test('system proxy changes replace the dispatcher for subsequent requests without replaying requests',async()=>{
+ let current={httpProxy:'http://first.test:8000'},now=0,queries=0;const dispatchers=[],requests=[];
+ const network=createNetworkFetch({env:{DAYLIGHT_SYSTEM_PROXY:'{}'},now:()=>now,pollMs:5000,systemProxy:async()=>{queries++;return current;},dispatcherFactory:options=>{const dispatcher={options,closed:false,async close(){this.closed=true;}};dispatchers.push(dispatcher);return dispatcher;},fetchImpl:async(url,options)=>{requests.push({url,dispatcher:options.dispatcher});return Response.json({ok:true});}});
+ await Promise.all([network.fetch('https://fixture.test/a'),network.fetch('https://fixture.test/b')]);assert.equal(queries,1);assert.equal(dispatchers.length,1);
+ current={httpProxy:'http://second.test:8001'};now=5001;await network.fetch('https://fixture.test/c');
+ assert.equal(dispatchers.length,2);assert.equal(dispatchers[0].closed,true);assert.equal(requests[2].dispatcher.options.httpProxy,current.httpProxy);assert.equal(requests.length,3);
+ current={};now=10002;await network.fetch('https://fixture.test/d');assert.equal(requests[3].dispatcher.options.httpProxy,'');await network.close();assert(dispatchers.every(d=>d.closed));
+});
+
 test('authorization errors identify TLS, connectivity and keychain failures without exposing transport secrets',()=>{
  const privateMessage='https://example.test/token?code=private-code&access_token=private-token';
  for(const [code,pattern] of [['UNABLE_TO_GET_ISSUER_CERT_LOCALLY',/TLS 证书/],['ECONNREFUSED',/代理是否运行/],['UND_ERR_CONNECT_TIMEOUT',/超时/]]){

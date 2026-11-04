@@ -42,7 +42,9 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 2. 首次打开后，因为签名身份变了，系统会让你**重新授权一次**通知、日历等 TCC 权限，凭据（Keychain 里 Daylight 保存的登录）也会被询问或需要重新登录一次。
 3. 此后所有更新保持同一身份，权限和 Keychain 访问不再重置。
 
-自签名证书不被 Gatekeeper 信任，这是预期的：用户首次从 DMG 安装仍需按系统提示放行；应用内更新不经过 Gatekeeper 流程。凭据辅助程序 `DaylightCredentials`、`DaylightAgyCredentials` 的二进制内容在构建间保持不变（`native/Credentials.swift` 不应随意修改），否则其签名摘要改变会触发 Keychain 重新授权。
+自签名证书不被 Gatekeeper 信任，这是预期的：用户首次从 DMG 安装仍需按系统提示放行；应用内更新不经过 Gatekeeper 流程。凭据辅助程序 `DaylightCredentials`、`DaylightAgyCredentials` 使用固定签名标识和身份。兼容性检查比较 designated requirement，而不是将二进制摘要变化直接视为凭证失效。旧的 ad-hoc 凭证仍可能需要主动重新授权或重新登录。
+
+本地开发与手动打包也必须使用同一固定身份，不能继续默认 ad-hoc。设置 `DAYLIGHT_SIGN_IDENTITY=Daylight Release Code Signing`、`DAYLIGHT_SIGN_KEYCHAIN=$HOME/.daylight-signing/release.keychain-db` 和 `DAYLIGHT_SIGN_KEYCHAIN_PASSWORD_FILE=$HOME/.daylight-signing/keychain-password` 后运行 `npm run pack:mac`。构建在 `dist/native/credential-cache/` 按 Credentials 源码、Swift 工具链及签名证书缓存已签名的辅助程序，避免无意义重编译或重签改变 CDHash。更换源码或工具链可重新生成助手，但必须保持签名访问身份兼容。使用 `--previous-app /path/to/previous/Daylight.app` 显式与前一发布比较；身份不兼容时构建失败，确需手动安装迁移时显式传入 `--allow-credential-migration`。默认正式构建未配置签名身份会失败；隔离开发构建使用 `npm run pack:mac -- --development`，Bundle ID 和 Daylight 凭证服务名与正式版分离。凭证恢复与退出行为见[凭证恢复](credential-recovery.md)。
 
 ## 发布流程（维护者）
 
@@ -58,8 +60,9 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 # 1. 版本号：package.json、package-lock.json 一致，并在 Release 里写更新说明
 node scripts/release/check-version.mjs
 
-# 2. 用发布证书构建（不设置这些变量则是 ad-hoc 构建，CI 即如此）
-export DAYLIGHT_SIGN_IDENTITY=$(cat ~/.daylight-signing/release-cert.sha1)
+# 2. 用发布证书的通用名构建。正式构建未设置身份会失败；隔离开发构建使用
+#    npm run pack:mac -- --development
+export DAYLIGHT_SIGN_IDENTITY="Daylight Release Code Signing"
 export DAYLIGHT_SIGN_KEYCHAIN=~/.daylight-signing/release.keychain-db
 export DAYLIGHT_SIGN_KEYCHAIN_PASSWORD_FILE=~/.daylight-signing/keychain-password
 npm run dist:mac            # dist/Daylight-<版本>-arm64.dmg 与 dist/native/Daylight.app

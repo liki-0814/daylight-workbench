@@ -84,13 +84,13 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
         } else if phase == 5 && panel.isVisible {
             phase = 6
             web.evaluateJavaScript("document.querySelector('#quick-input').value") { value, error in
-                expect(error == nil && value as? String == "", "reopening clears query")
+                expect(error == nil && value as? String == "ab", "reopening preserves query")
                 app.sendEvent(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)!)
                 phase = 7
             }
         } else if phase == 7 && !panel.isVisible {
             expect(NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmost && !mainWindow.isVisible, "Escape preserves background workbench")
-            print("PASS: palette preserves frontmost app; native typing, mode switch, toggle, reset and Escape work")
+            print("PASS: palette preserves frontmost app; native typing, mode switch, toggle dismissal, reopening with preserved query and Escape work")
             timer.invalidate(); launcher.stop(); app.terminate(nil)
         }
     }

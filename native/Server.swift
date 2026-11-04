@@ -70,6 +70,7 @@ final class WorkbenchServer {
         let legacy = fm.homeDirectoryForCurrentUser.appendingPathComponent("liki_dev/daylight-workbench/.local")
         try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         if !fm.fileExists(atPath: file.path), ProcessInfo.processInfo.environment["WORKBENCH_DATA_DIR"] == nil,
+           Bundle.main.object(forInfoDictionaryKey: "DaylightDevelopment") as? Bool != true,
            fm.fileExists(atPath: legacy.appendingPathComponent("state.json").path) {
             // Validate before migrating; never replace a destination file or remove the source.
             let oldData = try Data(contentsOf: legacy.appendingPathComponent("state.json"))

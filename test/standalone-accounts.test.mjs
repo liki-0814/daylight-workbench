@@ -16,8 +16,8 @@ for(const id of ['kimi','grok','codex']){
   const login=await f.auth.login();safe(login);assert.equal(login.status,'pending');assert(new URL(login.url).protocol==='https:');
   await f.completeLogin();const result=id==='codex'?await f.auth.poll():{authorized:true};assert.equal(result.authorized,true);assert.match(f.auth.account.login,new RegExp(id));
   const rows=await f.provider.listModels();assert.equal(rows.length,1);assert.equal(f.provider.snapshot().configured,true);safe(f.provider.snapshot());
-  const before=f.keys.get(id+'-oauth');await Promise.all([f.auth.refresh(),f.auth.refresh()]);assert.notEqual(f.keys.get(id+'-oauth'),before);assert.equal(f.calls.filter(c=>new URLSearchParams(c.options.body).get('grant_type')==='refresh_token').length,1);
-  await f.auth.login();await f.auth.cancel();assert.equal(await f.auth.poll(),null);assert(f.keys.has(id+'-oauth'));
+  const before=await f.auth.sessions.get();await Promise.all([f.auth.refresh(),f.auth.refresh()]);assert.notEqual(await f.auth.sessions.get(),before);assert.equal(f.calls.filter(c=>new URLSearchParams(c.options.body).get('grant_type')==='refresh_token').length,1);
+  await f.auth.login();await f.auth.cancel();assert.equal(await f.auth.poll(),null);assert(await f.auth.sessions.get());
   await f.auth.logout();assert.equal(f.keys.has(id+'-oauth'),false);assert.equal(f.provider.snapshot().connected,false);await assert.rejects(f.provider.listModels(),{status:401});assert.equal(await readFile(path.join(f.dataDir,'cli-auth.json'),'utf8'),'unchanged');
  });
  test(id+' cancellation during credential renewal cannot restore a logged-out account',async t=>{

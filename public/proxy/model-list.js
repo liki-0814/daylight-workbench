@@ -35,7 +35,7 @@ export function renderModelRow(m,references=[],state={}){
 }
 
 export function createModelList({store,source}){
- const element=document.createElement('div');element.innerHTML=disclosureSection({id:source+'-models-details',className:'proxy-disclosure',title:'模型设置',description:'启用与默认参数',actions:refreshButton({ariaLabel:'刷新模型',attrs:{'data-refresh-models':true}}),content:'<div data-models-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-message></p>'});mountDisclosures(element);
+ const element=document.createElement('div');element.innerHTML=disclosureSection({id:source+'-models-details',className:'proxy-disclosure',appearance:'panel',title:'模型设置',actions:refreshButton({ariaLabel:'刷新模型',attrs:{'data-refresh-models':true}}),content:'<div data-models-list></div><p class="proxy-hint proxy-model-message ui-feedback-row" role="status" data-message></p>'});mountDisclosures(element);
  const details=element.querySelector('details'),list=element.querySelector('[data-models-list]'),message=element.querySelector('[data-message]'),refresh=element.querySelector('[data-refresh-models]');let models=[],references=[],referenceSnapshot,loaded=false,loading=false,version=0,visible=false;const pins=new Map();
  function paintSpeeds(){updateModelSpeeds(list,store.source(source)?.performance,{stale:!!store.error});}
  function paint(forceOpen=false){const open=forceOpen||list.querySelector('.proxy-disabled-models')?.open||false;list.innerHTML=modelGroups(models,(m,i,state)=>renderModelRow(m,references,state),{open,pins});paintSpeeds();}

@@ -1,42 +1,35 @@
 import { selectTasks } from './task-view.js';
-import { parseRoute, taskRoute, calendarRoute, focusRoute, conversationRoute, viewProjectId } from './routes.js';
+import { parseRoute, taskRoute, viewProjectId } from './routes.js';
 import { change, localDate } from './model.js';
 import { selectField } from './components/select.js';
 import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
-import { sidebarContent } from './components/sidebar.js';
-import { taskRangeTabs } from './components/task-range-tabs.js';
-import { settingsPage } from './components/settings-page.js';
+import { sidebarContent, revealNavigationItem } from './components/sidebar.js';
+import { disclosureSection } from './components/section.js';
+import { settingsPage, mountSettingsPreferences } from './components/settings-page.js';
 import { mountAISettings } from './ai-settings.js';
 import { notesField, mountNotes } from './components/task-notes.js';
 import { createTaskClient } from './task-client.js';
 import { taskRow as renderTaskRow } from './components/task-row.js';
-import { createTaskPicker } from './components/task-picker.js';
-import { createDialogShell } from './components/dialog-shell.js';
-import { createFocusClient } from './focus/client.js';
-import { createFocusController } from './focus/controller.js';
-import { createFocusWidget } from './focus/widget.js';
-import { createFocusPanel } from './focus/panel.js';
-import { createTodaySummary } from './focus/today-summary.js';
-import { createTaskSummary } from './focus/task-summary.js';
-import { mountFocusSettings } from './focus/settings.js';
 import { pageViews, isPage, sectionFor, esc, empty } from './app-helpers.js';
 
 const app = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
 const toast = document.querySelector('#toast');
 let heldTaskFocus = null;
-let state, version, token, busy = false, today = localDate();
-let view = 'all', query = '', tab = 'open', modal = null, toastTimer;
+let state, version, token, busy = false;
+let view = 'all', query = '', doneExpanded = false, doneCollapseForQuery = null, modal = null, toastTimer;
 let refreshing = false, taskReturn = null, aiActivity = '';
 const formDrafts = new Map();
-let aiPage, calendarPage, focusController, focusClient, focusWidget, todayPanel, todaySummary, statisticsPage, focusSettings, taskSummary, switchShell, pickerShell, picker, legacyPicker;
-let focusSelection = {};
-let calendar = { month: today.slice(0, 7), selectedDay: today, status: 'open', query: '', projectId: null, unassigned: false };
+let aiPage;
 const taskClient = createTaskClient({ getSnapshot: () => ({state, version}), getToken: () => token, onBusy(value) { if (value) heldTaskFocus = taskFocusTarget(); busy = value; render(); if (!value) heldTaskFocus = null; dialog.querySelectorAll('button[type=submit]').forEach(button => button.disabled = value || Boolean(modal?.needsRefresh)); }, onCommitted(result) { state = result.state; version = result.version; if (result.token) token = result.token; render(); if (!taskClient.getUndo()) toast.querySelector('[data-action=undo]')?.remove(); }, onConflict() { if (modal && modal.type !== 'choose') modal.needsRefresh = true; } });
 let cliPage, extensionsPage;
+let sidebarCollapsed = true;
+try { sidebarCollapsed = localStorage.getItem('daylight-sidebar-expanded') !== 'true'; } catch {}
+let showDoneEntry = true;
+try { showDoneEntry = localStorage.getItem('daylight-task-done-entry') !== 'false'; } catch {}
 let sidebarRoot, taskRoot, proxyPage, settingsRoot, updatePage, updaterReady = false, appRelease, releaseCheck, lastTaskView = 'all', sidebarMarkup = '';
-const scrollPositions = { task: 0, proxy: 0, settings: 0, update: 0, ai: 0, cli: 0, focus: 0, extensions: 0 };
+const scrollPositions = { task: 0, proxy: 0, settings: 0, update: 0, ai: 0, cli: 0, extensions: 0 };
 const pageLoads = new Map();
 function ensurePage(key, load) {
   if (!pageLoads.has(key)) pageLoads.set(key, load().catch(error => { pageLoads.delete(key); throw error; }));
@@ -73,23 +66,8 @@ function ensureExtensions() {
 function ensureAI() {
   return ensurePage('ai', async () => {
     const { createAIPage } = await import('./ai.js');
-    aiPage = createAIPage({ getToken: () => token, onChanged: change => change?.kind === 'extensions' ? extensionsPage?.controller.refresh(true) : change?.kind === 'focus' ? focusController?.refresh() : refreshExternal() });
+    aiPage = createAIPage({ getToken: () => token, onChanged: change => change?.kind === 'extensions' ? extensionsPage?.controller.refresh(true) : refreshExternal() });
     app.append(aiPage.element);
-  });
-}
-function ensureStatistics() {
-  return ensurePage('focus', async () => {
-    const { createStatisticsPage } = await import('./focus/statistics-page.js');
-    statisticsPage = createStatisticsPage({ client: focusClient, controller: focusController, getTaskSnapshot: () => ({ state, version }), onRoute(hash) { focusSelection = parseRoute(hash, state); history.replaceState(null, '', '/' + hash); }, openTask: id => openModal({ type: 'task', id }), notify });
-    app.append(statisticsPage.element);
-    statisticsPage.updateRoute(focusSelection);
-  });
-}
-function ensureCalendar() {
-  return ensurePage('calendar', async () => {
-    const { createCalendarPage } = await import('./calendar/page.js');
-    calendarPage = createCalendarPage({ getTaskSnapshot: () => ({ state, version }), taskClient, openTask: (id, options = {}) => openModal({ type: 'task', id, ...options }), openPicker: openTaskPicker, confirmTaskCompletion, onRoute(hash, { replace, route }) { calendar = { ...route }; history[replace ? 'replaceState' : 'pushState'](null, '', '/' + hash); }, notify });
-    app.append(calendarPage.element);
   });
 }
 function opening(message) {
@@ -105,17 +83,18 @@ function loadFailed(message, retry) {
 }
 
 function writeTaskURL(replace = false) {
-  if (!isPage(view)) history[replace ? 'replaceState' : 'pushState'](null, '', '/' + (view === 'calendar' ? calendarRoute(calendar) : taskRoute(view, tab, query)));
+  if (!isPage(view)) history[replace ? 'replaceState' : 'pushState'](null, '', '/' + taskRoute(view, doneExpanded ? 'done' : 'all', query));
 }
 function navigate(next, updateURL = true) {
+  if (['today','calendar','focus'].includes(next)) next = 'all';
   if (busy || dialog.open) return;
   const previousSection = sectionFor(view), nextSection = sectionFor(next);
   if (previousSection !== nextSection) scrollPositions[previousSection] = window.scrollY;
   const keepNavFocus = sidebarRoot?.contains(document.activeElement);
-  if (isPage(next) && !isPage(view)) taskReturn = { view, tab, query, calendar: {...calendar} };
+  if (isPage(next) && !isPage(view)) taskReturn = { view, doneExpanded, query };
   if (!isPage(next)) {
-    if (isPage(view) && taskReturn && next === lastTaskView) ({ view: next, tab, query, calendar } = taskReturn);
-    else { query = ''; tab = 'open'; }
+    if (isPage(view) && taskReturn && next === lastTaskView) ({ view: next, doneExpanded, query } = taskReturn);
+    else if (isPage(view)) { query = ''; doneExpanded = false; }
     lastTaskView = next;
   }
   view = next;
@@ -127,36 +106,11 @@ function navigate(next, updateURL = true) {
   if (previousSection !== nextSection) window.scrollTo(0, scrollPositions[nextSection]);
   if (keepNavFocus) [...sidebarRoot.querySelectorAll('[data-view]')].find(b => b.dataset.view === view)?.focus({ preventScroll: true });
 }
-function selection(status = tab) {
-  return { scope: view === 'today' ? 'today' : 'all', status, day: today, query, ...(view === 'inbox' ? { unassigned: true } : state.projects.some(p => p.id === viewProjectId(view)) ? { projectId: viewProjectId(view) } : {}) };
+function selection(status = 'open') {
+  return { scope: 'all', status, query, ...(view === 'inbox' ? { unassigned: true } : state.projects.some(p => p.id === viewProjectId(view)) ? { projectId: viewProjectId(view) } : {}) };
 }
 function captureTaskDraft() { if (modal?.type === 'task' && modal.id && !modal.saved) { const form=dialog.querySelector('#task-form'); if (form) formDrafts.set(modal.id,{fields:[...new FormData(form)],version:formDrafts.get(modal.id)?.version ?? version}); } }
-function startDiscussion(scope) {
-  captureTaskDraft();
-  const returnHash = (isPage(view) ? lastTaskView : view) === 'calendar' ? calendarRoute(calendar) : taskRoute(isPage(view) ? lastTaskView : view, tab, query);
-  if (dialog.open) dialog.close();
-  navigate('ai');
-  history.replaceState(null, '', '/' + conversationRoute(scope));
-  void aiPage.open({ scope, returnHash, ...(scope.kind === 'workspace' ? { viewContext: { scope: 'today', day: today } } : {}) });
-}
-async function showRelated(scope) {
-  try {
-    const params = new URLSearchParams({ scope: scope.kind, scopeId: scope.id, related: '1' });
-    const response = await fetch('/api/ai/conversations?' + params, { headers: { 'X-Workbench-Token': token } });
-    const data = await response.json(); if (!response.ok) throw new Error(data.error);
-    if (dialog.open) { captureTaskDraft(); dialog.close(); }
-    openModal({ type: 'related', scope, conversations: data.conversations });
-  } catch (e) { notify(e.message); }
-}
-
 const project = task => state.projects.find(p => p.id === task.projectId);
-const todayIds = () => state.plans[today] || [];
-const remaining = tasks => tasks.filter(t => t.status !== 'done');
-const selectedTasks = () => todayIds().map(id => state.tasks.find(t => t.id === id)).filter(Boolean);
-const oldTasks = () => {
-  const oldIds = new Set(Object.entries(state.plans).filter(([d]) => d < today).flatMap(([, ids]) => ids));
-  return state.tasks.filter(t => oldIds.has(t.id) && !todayIds().includes(t.id) && t.status !== 'done');
-};
 const button = (action, label, symbol, extra = '', style = 'icon-button') => actionButton({label,symbol,variant:'icon',iconOnly:true,className:style,attrs:{'data-action':action,disabled:busy},extra});
 
 function notify(message, undo = false) {
@@ -177,7 +131,7 @@ async function save(next, message, allowUndo = true) {
   dialog.querySelector('.dialog-error')?.remove();
   try {
     const result = await taskClient.saveState(next, {allowUndo});
-    notify(message + (result.warnings?.length ? '，计时状态待恢复' : ''), Boolean(taskClient.getUndo()));
+    notify(message, Boolean(taskClient.getUndo()));
     return true;
   } catch (error) {
     notify(error.message);
@@ -187,81 +141,28 @@ async function save(next, message, allowUndo = true) {
       (dialog.querySelector('.form-body') || dialog).append(warning);
     }
     return false;
-  } finally { if (modal?.type === 'choose') renderDialog(); }
+  }
 }
 
 async function mutate(action, message) {
   if (busy) return;
-  try { return await save(change(state, action, today), message); }
+  try { return await save(change(state, action, localDate()), message); }
   catch (error) { notify(error.message); return false; }
 }
 
-function taskRow(task, {reorder=false, choose=false, grouped=false} = {}) {
-  const ids = remaining(selectedTasks()).map(item => item.id);
-  return renderTaskRow(task, {project:project(task), busy, context:{reorder,choose,grouped,planned:todayIds().includes(task.id),showProject:view==='today'||!state.projects.some(project=>project.id===viewProjectId(view)),first:ids[0]===task.id,last:ids.at(-1)===task.id}});
-}
-
-function openTaskPicker({targetDay, onChoose, mode='plan'}) {
-  if (document.querySelector('dialog[open]')) return;
-  picker?.dispose(); pickerShell?.dispose();
-  picker = createTaskPicker({getState:()=>state,targetDay,mode,onChoose});
-  pickerShell = createDialogShell({title:mode==='focus'?'选择专注任务':'选择 '+targetDay+' 的任务',description:mode==='focus'?'计时使用已保存任务，不自动开始任务或加入今天。':'加入日期不改变任务所属项目和执行状态。',onClose(){picker?.dispose();}});
-  pickerShell.setContent(picker.element); pickerShell.open();
-}
-
-
-function openFocusStatistics(taskId) {
-  captureTaskDraft(); if (dialog.open) dialog.close();
-  focusSelection = taskId ? {taskId} : {};
-  navigate('focus'); statisticsPage?.updateRoute(focusSelection);
-  history.replaceState(null,'','/'+focusRoute(focusSelection));
-}
-function confirmTaskCompletion(id) {
-  return focusController?.getSnapshot().current?.taskId !== id || window.confirm('完成任务将结束相关专注计时，是否继续？');
-}
-async function startFocus(taskId) {
-  const task = state.tasks.find(task=>task.id===taskId);
-  if (!task || task.status==='done') throw new Error('请选择真实且未完成的任务开始专注');
-  const snapshot = focusController.getSnapshot(), selectedTaskVersion=version;
-  if (snapshot.current) {
-    if(snapshot.current.taskId===taskId && snapshot.current.phase==='work') { notify('这项任务已有正在进行的专注'); return false; }
-    captureTaskDraft(); if(dialog.open) dialog.close(); pickerShell?.close();
-    return new Promise(resolve=>{
-      switchShell?.dispose(); let settled=false;
-      const finish=value=>{if(!settled){settled=true;resolve(value);}};
-      switchShell=createDialogShell({title:'切换专注任务',description:'这会提前结束当前计时，再开始新一轮；不会完成任何任务。',onClose(){finish(false);}});
-      switchShell.setContent(`<p>当前：${esc(snapshot.current.taskTitleSnapshot||'短休息')}</p><p>新专注：${esc(task.title)}</p><div class="focus-actions">${actionButton({label:'结束当前并开始新轮',variant:'primary',attrs:{'data-focus-switch':true}})}${actionButton({label:'取消',attrs:{'data-dialog-close':true}})}</div><p data-focus-switch-error role="alert"></p>`);
-      switchShell.element.querySelector('[data-focus-switch]').addEventListener('click',async event=>{
-        event.target.disabled=true;switchShell.setBusy(true);
-        try { await focusController.act({type:'focus.switch',sessionId:snapshot.current.id,phase:'work',taskId},{taskVersion:selectedTaskVersion});finish(true);switchShell.setBusy(false);switchShell.close();notify('已切换专注任务'); }
-        catch(error) { switchShell.element.querySelector('[data-focus-switch-error]').textContent=error.message;event.target.disabled=false;switchShell.setBusy(false); }
-      });
-      if(!switchShell.open()) {finish(false);notify('请先关闭当前对话框');}
-    });
-  }
-  await focusController.act({type:'focus.start',phase:'work',taskId},{taskVersion:version});notify('专注已开始');return true;
-}
-function openFocusPicker() {
-  openTaskPicker({targetDay:today,mode:'focus',onChoose:async id=>{pickerShell?.close();try{return await startFocus(id);}catch(error){notify(error.message);return false;}}});
-}
-function initializeFocus() {
-  focusClient=createFocusClient({getToken:()=>token});focusController=createFocusController({client:focusClient,getToken:async({refresh}={})=>{if(refresh){const response=await fetch('/api/state');if(!response.ok)throw new Error('无法读取服务凭证');const latest=await response.json();token=latest.token;}return token;}});
-  const options={controller:focusController,getSuggestedTask:()=>state.tasks.find(task=>task.status==='active'),onStartTask:startFocus,onChooseTask:openFocusPicker,openTask:id=>{if(!state.tasks.some(task=>task.id===id)){notify('任务不存在或已删除');return;}if(document.querySelector('dialog[open]')){notify('请先关闭当前对话框');return;}openModal({type:'task',id});},onStatistics:()=>openFocusStatistics(),notify};
-  focusWidget=createFocusWidget(options);document.body.append(focusWidget.element);
-  todayPanel=createFocusPanel(options);todaySummary=createTodaySummary({client:focusClient,controller:focusController,onStatistics:()=>openFocusStatistics()});
-}
-
-
+function sidebarOptions() { return { collapsed: sidebarCollapsed, state, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady }; }
 
 function render() {
   if (!state) return;
-  if (!['today', 'inbox', 'all', 'done', 'calendar', ...pageViews].includes(view) && !state.projects.some(p => p.id === viewProjectId(view))) { view = 'all'; query = ''; notify('项目已删除，已返回任务列表'); }
+  if (!['inbox', 'all', ...pageViews].includes(view) && !state.projects.some(p => p.id === viewProjectId(view))) { view = 'all'; query = ''; notify('项目已删除，已返回任务列表'); }
   if (!sidebarRoot) {
     sidebarRoot = document.createElement('aside'); sidebarRoot.className = 'sidebar';
+    sidebarRoot.addEventListener('focusin', event => revealNavigationItem(event.target));
     taskRoot = document.createElement('main'); taskRoot.id = 'task-page';
     app.replaceChildren(sidebarRoot, taskRoot);
   }
-  const markup = sidebarContent({ state, day: today, view, busy, aiActivity, updateAvailable: appRelease?.status === 'available' || updaterReady });
+  app.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+  const markup = sidebarContent(sidebarOptions());
   if (markup !== sidebarMarkup) {
     const scroll = sidebarRoot.scrollTop;
     sidebarRoot.innerHTML = markup; sidebarMarkup = markup;
@@ -273,11 +174,7 @@ function render() {
     button.classList.toggle('parent-active', button.dataset.view === 'all' && state.projects.some(p => p.id === viewProjectId(view)));
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
-  taskRoot.hidden = isPage(view) || view === 'calendar';
-  calendarPage?.setVisible(view === 'calendar');
-  statisticsPage?.setVisible(view === 'focus');
-  focusSettings?.setVisible(view === 'settings');
-  todaySummary?.setVisible(view === 'today' && !query);
+  taskRoot.hidden = isPage(view);
   cliPage?.setVisible(view === 'cli');
   updatePage?.setVisible(view === 'update');
   extensionsPage?.setVisible(view === 'extensions');
@@ -325,7 +222,14 @@ function render() {
       settingsRoot = document.createElement('main'); settingsRoot.id = 'settings-page'; settingsRoot.className = 'settings-page';
       settingsRoot.innerHTML = settingsPage; app.append(settingsRoot);
       mountAISettings(settingsRoot, () => token);
-      focusSettings=mountFocusSettings(settingsRoot.querySelector('.ui-panel-stack'),{controller:focusController,notify});
+      mountSettingsPreferences(settingsRoot, {
+        isDoneEntryVisible: () => showDoneEntry,
+        onDoneEntryChange(value) {
+          showDoneEntry = value;
+          try { localStorage.setItem('daylight-task-done-entry', String(value)); } catch {}
+          render();
+        },
+      });
       settingsRoot.querySelector('.ui-panel-stack').prepend(proxyPage.settingsElement);
     }
     settingsRoot.hidden = false;
@@ -335,42 +239,52 @@ function render() {
   }
   proxyPage?.setVisible(false);
   if (settingsRoot) settingsRoot.hidden = true;
-  if (view === 'focus') {
-    if (!statisticsPage) { opening('正在打开专注统计…'); void ensureStatistics().then(() => { if (view === 'focus') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
-    statisticsPage.updateState(); statisticsPage.setVisible(true);document.title='Daylight · 专注统计';return;
-  }
-  if (view === 'calendar') {
-    if (!calendarPage) { opening('正在打开日历…'); void ensureCalendar().then(() => { if (view === 'calendar') render(); }).catch(error => { notify(error.message); loadFailed(error.message, () => render()); }); return; }
-    calendarPage.updateRoute(calendar); calendarPage.setVisible(true); document.title='Daylight · 日历'; return;
-  }
   document.title = 'Daylight · 任务管理';
   const currentProject = state.projects.find(p => p.id === viewProjectId(view));
-  const result = selectTasks(state, selection());
-  const tasks = result.tasks, { open: openCount, done: doneCount } = result.counts;
-  const active = state.tasks.find(t => t.status === 'active');
+  const openResult = selectTasks(state, selection('open'));
+  const doneResult = selectTasks(state, selection('done'));
+  const tasks = openResult.tasks, doneTasks = doneResult.tasks;
+  const { open: openCount, done: doneCount } = openResult.counts;
   const heading = currentProject?.name || '任务';
-  const rangeLabel = currentProject?.name || (view === 'inbox' ? '未归类' : view === 'today' ? '今天' : '全部项目');
-  const old = oldTasks();
-  const grouped = view === 'all';
-  const taskList = grouped ? [...state.projects.map(p => ({...p, tasks:tasks.filter(t=>t.projectId===p.id)})), {id:null,name:'未归类',color:'neutral',tasks:tasks.filter(t=>t.projectId===null)}].filter(p=>p.tasks.length).map(p=>`<section class="task-project-group"><div class="task-group-heading"><button data-view="${esc(p.id === null ? 'inbox' : 'project:'+p.id)}"><i class="dot ${esc(p.color)}"></i><strong>${esc(p.name)}</strong><span>${p.tasks.length}</span>${icon('arrow')}</button></div>${p.tasks.map(t=>taskRow(t,{grouped:true})).join('')}</section>`).join('') : tasks.map(t=>taskRow(t,{reorder:view==='today'&&!query})).join('');
+  const rangeLabel = currentProject?.name || (view === 'inbox' ? '未归类' : '全部项目');
+  const singleScope = Boolean(currentProject) || view === 'inbox';
+  const groups = [];
+  if (singleScope) {
+    if (tasks.length) groups.push({ project: currentProject, items: tasks, showHeading: false });
+  } else {
+    for (const p of state.projects) {
+      const items = tasks.filter(task => task.projectId === p.id);
+      if (items.length) groups.push({ project: p, items, showHeading: true });
+    }
+    const unassigned = tasks.filter(task => task.projectId === null);
+    if (unassigned.length) groups.push({ project: null, items: unassigned, showHeading: true });
+  }
+  const taskList = groups.map(group => `${group.showHeading ? `<h2 class="task-group-heading"><i class="dot ${esc(group.project?.color || 'neutral')}"></i><span>${esc(group.project?.name || '未归类')}</span><span data-count>${group.items.length} 项待办</span></h2>` : ''}${group.items.map(task => renderTaskRow(task, { busy })).join('')}`).join('');
+  const doneOpen = doneExpanded || (Boolean(query) && doneCount > 0 && doneCollapseForQuery !== query);
+  const doneDisclosure = showDoneEntry && doneCount ? disclosureSection({ id: 'task-done', title: `已完成 (${doneCount})`, className: 'task-done-disclosure', content: doneTasks.map(task => renderTaskRow(task, { busy })).join('') }) : '';
   const focusTarget = taskFocusTarget() || heldTaskFocus;
   taskRoot.innerHTML = `
-    <header class="topbar"><span>我的工作空间 <span class="slash">/</span> ${view === 'today' ? '今天' : '任务'}${currentProject ? ' / ' + esc(currentProject.name) : ''}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索${esc(rangeLabel)}…" aria-label="搜索${esc(rangeLabel)}中的${tab === 'done' ? '已完成' : '待办'}任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
-    <div class="workspace task-workspace ${view === 'today' ? 'today-workspace' : ''}">
-      <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${openCount} 项待办 · ${doneCount} 项已完成${query ? ' · 当前范围搜索结果' : ''}</p></div>${view === 'today' ? `<div class="date-stamp"><strong>${new Date().getDate()}</strong><span>${new Intl.DateTimeFormat('zh-CN', { month: 'long', weekday: 'long' }).format(new Date())}</span></div>` : `<button class="primary" data-action="new">${icon('plus')}新建任务</button>`}</section>
-      <div class="task-view-controls">${taskRangeTabs({ view })}<button class="text-button" data-action="new-project">${icon('plus')}新建项目</button></div>
-      ${currentProject ? `<div class="project-path">${icon('folder')}<span>${esc(currentProject.path || '未关联本地目录')}</span>${currentProject.path ? button('copy', '复制项目路径', 'copy', `data-id="${esc(currentProject.id)}"`) : ''}<button class="small-button" data-action="edit-project" data-id="${esc(currentProject.id)}">编辑项目</button><button class="small-button" data-action="related" data-kind="project" data-id="${esc(currentProject.id)}">相关对话</button><button class="small-button" data-action="discuss" data-kind="project" data-id="${esc(currentProject.id)}">新建项目对话</button><details class="project-operations"><summary>更多</summary><button class="danger-link" data-action="delete-project" data-id="${esc(currentProject.id)}">删除项目</button></details></div>` : ''}
-      ${query ? '<button class="text-button" data-action="search-all">搜索全部任务（保留状态）</button>' : ''}
-      <div class="content-grid single"><section class="task-column">
-      ${active && view === 'today' && !query ? `<div class="focus-card"><div class="focus-label"><span class="pulse"></span>当前正在做</div><div class="focus-title">${esc(active.title)}</div><div class="focus-bottom"><span>${esc(project(active)?.name || '未归类')}</span><button class="small-button" data-action="toggle" data-id="${esc(active.id)}">${icon('check')}完成</button></div></div>` : ''}
-      ${old.length && view === 'today' && !query ? `<div class="carryover"><span>${old.length} 项之前安排的任务尚未完成</span><button data-action="leftovers">重新选择 ${icon('arrow')}</button></div>` : ''}
-      <section class="task-panel"><div class="panel-header"><div class="tabs" role="group" aria-label="任务状态"><button class="${tab === 'open' ? 'chosen' : ''}" data-tab="open">待办<span>${openCount}</span></button><button class="${tab === 'done' ? 'chosen' : ''}" data-tab="done">已完成<span>${doneCount}</span></button></div>${view !== 'today' ? `${selectField({ name: 'task-filter', label: '项目筛选', hideLabel:true, value: view === 'all' ? '' : view === 'inbox' ? 'unassigned' : view, options: [{value:'',label:'全部项目'},{value:'unassigned',label:'未归类'},...state.projects.map(p=>({value:'project:'+p.id,label:p.name}))], compact:true })}${currentProject || view === 'inbox' ? '<button class="text-button" data-view="all">清除项目筛选</button>' : ''}` : ''}${view === 'today' ? `<div class="task-toolbar"><button class="text-button" data-action="discuss" data-kind="workspace">安排今天</button><button class="text-button" data-action="choose">${icon('plus')}选择任务</button></div>` : ''}</div>
-      <div class="task-list">${tasks.length ? taskList : empty(query ? 'search' : tab === 'done' ? 'done' : view === 'today' ? 'today' : view === 'inbox' ? 'inbox' : 'project')}</div>
-      ${tab === 'open' ? '<button class="add-row" data-action="new">' + icon('plus') + '添加任务</button>' : ''}</section>
-      ${view === 'today' ? '<p class="quiet-note">未加入今天的任务可在“任务”中查看。</p>' : ''}
-      </section></div><footer class="workspace-footer"><span>本地任务管理</span><span>${state.projects.length} 个项目 · ${state.tasks.length} 项任务</span></footer>
+    <header class="topbar"><span>我的工作空间 <span class="slash">/</span> 任务${currentProject ? ' / ' + esc(currentProject.name) : ''}</span><label class="search">${icon('search')}<input id="search" placeholder="搜索${esc(rangeLabel)}…" aria-label="搜索${esc(rangeLabel)}中的任务" value="${esc(query)}" autocomplete="off"><kbd>/</kbd></label></header>
+    <div class="workspace task-workspace">
+      <section class="page-heading"><div><h1>${esc(heading)}</h1><p>${openCount} 项待办${!singleScope && groups.length > 1 ? ` · ${groups.length} 个分组` : ''}${query ? ' · 搜索结果' : ''}</p></div>${actionButton({variant:'primary',symbol:'plus',label:'新建任务',attrs:{'data-action':'new'}})}</section>
+
+      <div class="task-view-controls">
+        ${selectField({ id: 'task-project-filter', name: 'task-filter', label: '项目筛选', hideLabel:true, value: view === 'all' ? '' : view === 'inbox' ? 'unassigned' : view, options: [{value:'',label:'全部项目'},{value:'unassigned',label:'未归类'},...state.projects.map(p=>({value:'project:'+p.id,label:p.name}))], compact:true })}
+        ${actionButton({variant:'text',symbol:'plus',label:'新建项目',attrs:{'data-action':'new-project'}})}
+      </div>
+      ${query ? actionButton({variant:'text',label:'搜索全部任务',attrs:{'data-action':'search-all'}}) : ''}
+      <section class="task-list-section" aria-label="任务列表">${tasks.length ? taskList : empty(query ? 'search' : view === 'inbox' ? 'inbox' : 'project')}</section>${doneDisclosure}
     </div>`;
-  if(view==='today'&&!query&&todayPanel){ const column=taskRoot.querySelector('.task-column');column.prepend(todaySummary.element);column.prepend(todayPanel.element); }
+  const doneDetails = taskRoot.querySelector('#task-done');
+  if (doneDetails) {
+    doneDetails.open = doneOpen;
+    doneDetails.querySelector('summary').setAttribute('data-done-toggle', 'true');
+    doneDetails.addEventListener('toggle', () => {
+      doneExpanded = doneDetails.open;
+      doneCollapseForQuery = doneDetails.open ? null : query;
+      writeTaskURL(true);
+    });
+  }
   restoreTaskFocus(focusTarget);
 }
 
@@ -378,15 +292,15 @@ function render() {
 function taskFocusTarget() {
   const element = document.activeElement;
   if (!element || element === document.body || !taskRoot.contains(element) || element.id === 'search') return null;
-  if ([todayPanel?.element, todaySummary?.element].some(panel => panel?.contains(element))) return { node: element };
-  const attributes = ['data-action', 'data-id', 'data-tab', 'data-view', 'data-project', 'data-range'].filter(name => element.hasAttribute(name));
+  const select = element.closest('workbench-select');
+  if(select) return {selector:`#${CSS.escape(select.id)} .select-trigger`};
+  const attributes = ['data-action', 'data-id', 'data-tab', 'data-view', 'data-project', 'data-range', 'data-segment-value', 'data-done-toggle'].filter(name => element.hasAttribute(name));
   const selector = element.tagName.toLowerCase() + attributes.map(name => `[${name}="${CSS.escape(element.getAttribute(name))}"]`).join('');
   const row = element.closest('[data-task]')?.dataset.task;
   return { selector: attributes.length ? selector : '', row, label: element.getAttribute('aria-label') || '' };
 }
 function restoreTaskFocus(target) {
   if (!target) return;
-  if (target.node) { if (target.node.isConnected) target.node.focus({ preventScroll: true }); return; }
   const next = (target.selector && taskRoot.querySelector(target.selector))
     || (target.row && taskRoot.querySelector(`[data-task="${CSS.escape(target.row)}"] .task-text`));
   next?.focus({ preventScroll: true });
@@ -394,32 +308,21 @@ function restoreTaskFocus(target) {
 
 function renderDialog() {
   if (!modal) return;
-  taskSummary?.dispose();taskSummary=null;
-  if (modal.type === 'related') {
-    dialog.innerHTML = `<div class="dialog-header"><h2 id="dialog-title">相关对话</h2>${button('close','关闭','close')}</div><div class="related-conversations">${modal.conversations.map(c => `<a href="#ai&conversation=${encodeURIComponent(c.id)}" data-open-conversation="${esc(c.id)}"><strong>${esc(c.title)}</strong><small>${esc(c.backend)} · ${esc(c.relatedReasons.join(' / '))}${['running','waiting'].includes(c.status) ? ' · ' + (c.status === 'waiting' ? '等待确认' : '运行中') : ''}</small></a>`).join('') || '<p class="muted">暂无相关对话</p>'}</div><div class="dialog-footer"><button class="primary" data-action="discuss" data-kind="${modal.scope.kind}" data-id="${esc(modal.scope.id)}">新建对话</button></div>`;
-  } else if (modal.type === 'delete') {
+  if (modal.type === 'delete') {
     const isTask = modal.kind === 'task';
     const item = (isTask ? state.tasks : state.projects).find(item => item.id === modal.id);
     const count = isTask ? 0 : state.tasks.filter(t => t.projectId === modal.id).length;
-    dialog.innerHTML = `<form id="delete-form"><div class="dialog-header"><h2 id="dialog-title">确认删除${isTask ? '这项任务' : '这个项目'}？</h2>${button('close', '关闭', 'close')}</div><div class="form-body"><p class="delete-name">${esc(isTask ? item?.title : item?.name)}</p><p class="field-note">${isTask ? '删除后会同时移除各日期中的安排。可在删除后的提示中撤销。' : `将同时删除项目下全部 ${count} 项任务（包括已完成任务）及其各日期安排。不会删除本地目录或文件。可在删除后的提示中撤销。`}</p></div><div class="dialog-footer"><button type="button" class="secondary" data-action="close" autofocus>取消</button><button type="submit" class="secondary danger-button">${isTask ? '确认删除任务' : count ? `删除项目及 ${count} 项任务` : '确认删除项目'}</button></div></form>`;
-  } else if (modal.type === 'choose') {
-    legacyPicker?.dispose();
-    dialog.innerHTML = `<div class="dialog-header"><div><h2 id="dialog-title">${modal.old ? '重新安排未完成任务' : '选择今日任务'}</h2><p>加入今天不会改变任务所属的项目。</p></div>${button('close','关闭','close')}</div><div data-legacy-picker></div><div class="dialog-footer"><span class="muted">已安排 ${remaining(selectedTasks()).length} 项任务</span><button class="primary" data-action="close">完成选择</button></div>`;
-    legacyPicker = createTaskPicker({getState:()=>modal?.old ? {...state,tasks:oldTasks()} : state,targetDay:today,onChoose:id=>mutate({type:'plan',id},'已加入今天')});
-    dialog.querySelector('[data-legacy-picker]').append(legacyPicker.element);
+    dialog.innerHTML = `<form id="delete-form"><div class="dialog-header"><h2 id="dialog-title">确认删除${isTask ? '这项任务' : '这个项目'}？</h2>${button('close', '关闭', 'close')}</div><div class="form-body"><p class="delete-name">${esc(isTask ? item?.title : item?.name)}</p><p class="field-note">${isTask ? '可在删除后的提示中撤销。' : `将同时删除项目下全部 ${count} 项任务（包括已完成任务）。不会删除本地目录或文件。可在删除后的提示中撤销。`}</p></div><div class="dialog-footer">${actionButton({label:'取消',attrs:{'data-action':'close',autofocus:true}})}${actionButton({variant:'danger',label:isTask?'确认删除任务':count?`删除项目及 ${count} 项任务`:'确认删除项目',attrs:{type:'submit'}})}</div></form>`;
   } else if (modal.type === 'project') {
     const p = state.projects.find(p => p.id === modal.id);
-    dialog.innerHTML = `<form id="project-form"><div class="dialog-header"><div><h2 id="dialog-title">${p ? '编辑项目' : '新建项目'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>项目名称<input name="name" required maxlength="200" placeholder="输入项目名称" value="${esc(p?.name || '')}" autofocus></label><label>本地项目目录 <span>选填</span><input name="path" maxlength="1000" placeholder="/Users/…" value="${esc(p?.path || '')}"></label><p class="field-note">目录仅作为关联信息，不会自动读取其中的文件。</p></div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><button class="primary" type="submit">${p ? '保存修改' : '创建项目'}</button></div></form>`;
+    dialog.innerHTML = `<form id="project-form"><div class="dialog-header"><div><h2 id="dialog-title">${p ? '编辑项目' : '新建项目'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>项目名称<input name="name" required maxlength="200" placeholder="输入项目名称" value="${esc(p?.name || '')}" autofocus></label><label>本地项目目录 <span>选填</span><input name="path" maxlength="1000" placeholder="/Users/…" value="${esc(p?.path || '')}"></label><p class="field-note">目录仅作为关联信息，不会自动读取其中的文件。</p></div><div class="dialog-footer">${actionButton({label:'取消',attrs:{'data-action':'close'}})}${actionButton({variant:'primary',label:p?'保存修改':'创建项目',attrs:{type:'submit'}})}</div></form>`;
   } else {
     const savedTask = state.tasks.find(t => t.id === modal.id);
     const draft = formDrafts.get(modal.id);
     const t = savedTask && draft ? { ...savedTask, ...Object.fromEntries(draft.fields), projectId: Object.fromEntries(draft.fields).projectId || null } : savedTask;
     const taskView = isPage(view) ? lastTaskView : view;
     const projectId = t ? t.projectId : (modal.projectId || (state.projects.some(p => p.id === viewProjectId(taskView)) ? viewProjectId(taskView) : null));
-    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '未归类 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}${notesField(t?.notes || '')}${!t ? `<label class="checkbox-field"><input type="checkbox" name="${modal.planDay || taskView === 'calendar' ? 'planDay' : 'today'}" value="${esc(modal.planDay || calendar.selectedDay)}" ${modal.planDay || taskView === 'calendar' || taskView === 'today' ? 'checked' : ''}>${modal.planDay || taskView === 'calendar' ? '安排到 ' + esc(modal.planDay || calendar.selectedDay) : '同时加入今天'}</label>` : ''}</div><div class="dialog-footer"><button type="button" class="secondary" data-action="close">取消</button><div class="footer-actions">${t ? `<button type="button" class="danger-link" data-action="delete-task" data-id="${esc(t.id)}">删除任务</button>` : ''}<button class="primary" type="submit">${t ? '保存修改' : '创建任务'}</button></div></div></form>`;
-  }
-  if (modal.type === 'task' && modal.id) {
-    dialog.querySelector('.dialog-footer')?.insertAdjacentHTML('beforebegin', `<div class="task-conversation-actions"><button type="button" class="small-button" data-action="related" data-kind="task" data-id="${esc(modal.id)}">相关对话</button><button type="button" class="small-button" data-action="discuss" data-kind="task" data-id="${esc(modal.id)}">讨论这项任务</button><small>讨论使用已保存的任务内容</small></div>`);
+    dialog.innerHTML = `<form id="task-form"><div class="dialog-header"><div><h2 id="dialog-title">${t ? '编辑任务' : '新建任务'}</h2></div>${button('close', '关闭', 'close')}</div><div class="form-body"><label>任务名称<input name="title" required maxlength="300" value="${esc(t?.title || '')}" placeholder="输入任务名称" autofocus></label>${selectField({ name: 'projectId', label: '所属项目', value: projectId || '', options: [{ value: '', label: '未归类 · 暂不归类' }, ...state.projects.map(p => ({ value: p.id, label: p.name }))] })}${notesField(t?.notes || '')}</div><div class="dialog-footer">${actionButton({label:'取消',attrs:{'data-action':'close'}})}<div class="footer-actions">${t ? actionButton({variant:'text',className:'danger-link',label:'删除任务',attrs:{'data-action':'delete-task','data-id':t.id}}) : ''}${actionButton({variant:'primary',label:t?'保存修改':'创建任务',attrs:{type:'submit'}})}</div></div></form>`;
   }
   const retained = formDrafts.get(modal.id);
   if (modal.type === 'task' && retained && retained.version !== version) {
@@ -428,7 +331,6 @@ function renderDialog() {
     dialog.querySelector('.form-body').insertAdjacentHTML('beforeend', '<p class="dialog-error" role="alert">编辑期间工作台已变化，输入已保留。请核对最新任务后再保存。<button type="button" class="text-button" data-action="discard-draft">读取最新任务（清除本地编辑草稿）</button></p>');
   }
   mountNotes(dialog);
-  if(modal.type==='task'&&modal.id&&focusController){taskSummary=createTaskSummary({taskId:modal.id,client:focusClient,controller:focusController,onStartTask:startFocus,onStatistics:openFocusStatistics,notify,getTask:()=>state.tasks.find(task=>task.id===modal?.id),hasUnsavedEdits(){const saved=state.tasks.find(task=>task.id===modal.id),form=dialog.querySelector('#task-form');return form.elements.title.value!==saved.title||form.elements.notes.value!==saved.notes||form.elements.projectId.value!==(saved.projectId||'');}});dialog.querySelector('.dialog-footer').before(taskSummary.element);}
 }
 
 function openModal(value) {
@@ -441,20 +343,27 @@ function openModal(value) {
 document.addEventListener('click', async event => {
   const brand = event.target.closest('.brand');
   if (brand && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('all'); return; }
-  if (event.target.closest('[data-open-conversation]')) { dialog.close(); return; }
   const target = event.target.closest('button');
   if (!target || target.disabled || busy) return;
   if (target.dataset.view) { navigate(target.dataset.view); return; }
-  if (target.dataset.tab) { tab = target.dataset.tab; writeTaskURL(); render(); return; }
   const { action, id } = target.dataset;
   if (action && ![taskRoot, sidebarRoot, dialog, toast].some(root => root?.contains(target))) return;
+  if (action === 'toggle-sidebar') {
+    sidebarCollapsed = !sidebarCollapsed;
+    try { localStorage.setItem('daylight-sidebar-expanded', String(!sidebarCollapsed)); } catch {}
+    // Pointer toggles reveal the drawer; keyboard navigation remains immediate.
+    app.classList.toggle('sidebar-motion', event.detail > 0);
+    app.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+    const label = sidebarCollapsed ? '展开导航' : '收起导航';
+    target.setAttribute('aria-expanded', String(!sidebarCollapsed));
+    target.setAttribute('aria-label', label); target.title = label;
+    sidebarMarkup = sidebarContent(sidebarOptions());
+    target.focus({preventScroll:true}); return;
+  }
   if (action === 'discard-draft') { formDrafts.delete(modal.id); modal.needsRefresh=false; renderDialog(); return; }
-  if (action === 'discuss') { startDiscussion({kind:target.dataset.kind,...(id ? {id} : {})}); return; }
-  if (action === 'related') { void showRelated({kind:target.dataset.kind,id}); return; }
   if (action === 'search-all') { view='all'; lastTaskView=view; writeTaskURL(); render(); return; }
   if (action === 'new') openModal({ type: 'task' });
   if (action === 'edit') openModal({ type: 'task', id });
-  if (action === 'choose' || action === 'leftovers') openModal({ type: 'choose', old: action === 'leftovers' });
   if (action === 'delete-task' || action === 'delete-project') {
     if (modal?.needsRefresh) return;
     openModal({ type: 'delete', kind: action === 'delete-task' ? 'task' : 'project', id });
@@ -463,10 +372,7 @@ document.addEventListener('click', async event => {
   if (action === 'new-project') openModal({ type: 'project' });
   if (action === 'close') { captureTaskDraft(); dialog.close(); }
   if (action === 'clear-search') { query = ''; writeTaskURL(true); render(); }
-  if (action === 'toggle' && (state.tasks.find(task=>task.id===id).status==='done'||confirmTaskCompletion(id))) await mutate({ type: 'toggle', id }, state.tasks.find(t => t.id === id).status === 'done' ? '任务已恢复为待办' : '任务已完成');
-  if (action === 'start') await mutate({ type: 'start', id }, state.tasks.find(t => t.id === id).status === 'active' ? '任务已暂停' : '已设为当前任务，并加入今天');
-  if (action === 'plan' || action === 'unplan') await mutate({ type: action, id }, action === 'plan' ? '已加入今天' : '已移出今天，任务仍保留');
-  if (action === 'up' || action === 'down') await mutate({ type: 'move', id, direction: action === 'up' ? -1 : 1 }, '已调整任务顺序');
+  if (action === 'toggle') await mutate({ type: 'toggle', id }, state.tasks.find(t => t.id === id).status === 'done' ? '任务已恢复为待办' : '任务已完成');
   if (action === 'undo') { try { await taskClient.undo(); notify('已撤销上一次修改'); } catch(error) { notify(error.message); } }
   if (action === 'copy') {
     try { await navigator.clipboard.writeText(state.projects.find(p => p.id === id).path); notify('项目路径已复制'); }
@@ -488,17 +394,12 @@ document.addEventListener('submit', async event => {
   if (!name.value.trim()) { name.setCustomValidity('请输入名称，不能只有空格'); name.reportValidity(); return; }
   let success;
   if (form.id === 'project-form') success = await mutate({ type: modal.id ? 'project.update' : 'project', id: modal.id || crypto.randomUUID(), name: data.get('name'), path: data.get('path') }, modal.id ? '项目修改已保存' : '项目已创建');
-  else if (!modal.id && (modal.planDay || (!isPage(view) ? view : lastTaskView)==='calendar')) {
-    try { await taskClient.act({type:'task.create',id:crypto.randomUUID(),title:data.get('title'),projectId:data.get('projectId')||null,notes:data.get('notes'),...(data.has('planDay')?{planDay:String(data.get('planDay'))}:{})});notify('任务已创建',Boolean(taskClient.getUndo()));success=true; }
-    catch(error) { notify(error.message);const warning=document.createElement('p');warning.className='dialog-error';warning.setAttribute('role','alert');warning.textContent=error.message;form.querySelector('.form-body').append(warning);success=false; }
-  }
-  else success = await mutate({ type: modal.id ? 'edit' : 'add', id: modal.id || crypto.randomUUID(), title: data.get('title'), projectId: data.get('projectId') || null, notes: data.get('notes'), today: data.has('today'), ...(data.has('planDay') ? {planDay: String(data.get('planDay'))} : {}) }, modal.id ? '修改已保存' : '任务已创建');
+  else success = await mutate({ type: modal.id ? 'edit' : 'add', id: modal.id || crypto.randomUUID(), title: data.get('title'), projectId: data.get('projectId') || null, notes: data.get('notes') }, modal.id ? '修改已保存' : '任务已创建');
   if (success) { modal.saved = true; if (modal.id) formDrafts.delete(modal.id); dialog.close(); }
 });
 
 document.addEventListener('input', event => {
   event.target.setCustomValidity?.('');
-  if (event.target.matches('[data-picker-search]')) { const position=event.target.selectionStart; modal.query=event.target.value; renderDialog(); const input=dialog.querySelector('[data-picker-search]'); input.focus(); input.setSelectionRange(position,position); return; }
   if (event.target.id !== 'search') return;
   const position = event.target.selectionStart;
   query = event.target.value;
@@ -509,9 +410,8 @@ document.addEventListener('input', event => {
 document.addEventListener('change', event => {
   const control = event.target.matches('workbench-select') ? event.target.querySelector('input') : event.target;
   if (control.name === 'task-filter') { const value=control.value; navigate(value.startsWith('project:') ? value : value === 'unassigned' ? 'inbox' : 'all'); }
-  if (control.name === 'picker-project') { modal.projectId=control.value; renderDialog(); }
 });
-dialog.addEventListener('close', () => { if (dialog.open) return; taskSummary?.dispose();taskSummary=null;legacyPicker?.dispose();legacyPicker=null; if (modal?.type === 'task' && modal.id && !modal.saved) { const form=dialog.querySelector('#task-form'); if (form) formDrafts.set(modal.id,{fields:[...new FormData(form)],version:formDrafts.get(modal.id)?.version ?? version}); } modal = null; });
+dialog.addEventListener('close', () => { if (dialog.open) return; if (modal?.type === 'task' && modal.id && !modal.saved) { const form=dialog.querySelector('#task-form'); if (form) formDrafts.set(modal.id,{fields:[...new FormData(form)],version:formDrafts.get(modal.id)?.version ?? version}); } modal = null; });
 dialog.addEventListener('click', event => {
   if (event.target !== dialog || busy) return;
   const rect = dialog.getBoundingClientRect();
@@ -521,12 +421,8 @@ document.addEventListener('keydown', event => {
   if (!state || busy) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if (!document.querySelector('dialog[open]')) openModal({ type: 'task' }); }
   if ((event.metaKey || event.ctrlKey) && event.code === 'Comma') { event.preventDefault(); navigate('settings'); }
-  if (event.key === '/' && !isPage(view) && !document.querySelector('dialog[open]') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) { event.preventDefault(); (view === 'calendar' ? calendarPage.element.querySelector('[data-calendar-search]') : document.querySelector('#search'))?.focus(); }
+  if (event.key === '/' && !isPage(view) && !document.querySelector('dialog[open]') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) { event.preventDefault(); document.querySelector('#search')?.focus(); }
 });
-setInterval(() => {
-  if (localDate() !== today && !busy) { today = localDate(); render(); if (modal?.type === 'choose') renderDialog(); notify('新的一天，今天的安排已更新'); }
-}, 30000);
-
 // Keep external skill writes visible without replacing an in-progress form.
 const releaseIntervalMs = 6 * 60 * 60 * 1000;
 function syncUpdateBadge() {
@@ -603,17 +499,14 @@ async function openDesktopRoute() {
     if (route.page === 'ai') await ensureAI();
     if (route.page === 'cli') await ensureCLI();
     if (route.page === 'extensions') await ensureExtensions();
-    if (route.page === 'focus') await ensureStatistics();
-    if(route.page==='focus')focusSelection=route;
-    navigate(route.page, false);if(route.page==='focus')statisticsPage?.updateRoute(route);
+    navigate(route.page, false);
     if (route.page === 'update' && route.check) { history.replaceState(null, '', '/#update'); void updatePage?.check(); }
-    if (route.page === 'ai' && (route.conversation || route.scope)) await aiPage.open({ conversation: route.conversation, scope: route.scope });
+    if (route.page === 'ai' && route.conversation) await aiPage.open({ conversation: route.conversation });
   } else {
-    if (route.view === 'calendar') await ensureCalendar();
-    if (route.explicit || !sidebarRoot) { if(route.view==='calendar') calendar={...calendar,...route}; navigate(route.explicit ? route.view : 'all', false); tab=route.status; query=route.query; lastTaskView=view; render(); if(route.view==='calendar') writeTaskURL(true); }
+    if (route.explicit || !sidebarRoot) { navigate(route.explicit ? route.view : 'all', false); doneExpanded = route.status === 'done'; query = route.query; lastTaskView = view; render(); }
     if (route.missing) notify(route.missing);
     if (route.taskId) openModal({ type:'task',id:route.taskId });
-    else if (route.newTask || route.newProject) openModal({type:route.newProject ? 'project' : 'task',...(route.view==='calendar'?{planDay:calendar.selectedDay}:{})});
+    else if (route.newTask || route.newProject) openModal({type:route.newProject ? 'project' : 'task'});
   }
 }
 
@@ -624,14 +517,14 @@ try {
   if (location.pathname === '/proxy.html') history.replaceState(null, '', `/${location.hash || '#proxy'}`);
   await load();
   const openingRoute = parseRoute(location.hash, state);
-  if (openingRoute.page === 'task' && openingRoute.view !== 'calendar') {
+  if (openingRoute.page === 'task') {
     view = openingRoute.explicit ? openingRoute.view : 'all';
-    tab = openingRoute.status || 'open';
+    doneExpanded = openingRoute.status === 'done';
     query = openingRoute.query || '';
     lastTaskView = view;
-  } else if (openingRoute.page === 'task' && openingRoute.view === 'calendar') view = 'calendar';
+  }
   else if (openingRoute.page !== 'task') view = openingRoute.page;
   render();
-  initializeFocus(); void refreshAppRelease(); await openDesktopRoute();
+  void refreshAppRelease(); await openDesktopRoute();
 }
 catch (error) { app.innerHTML = `<div class="load-error"><h1>暂时无法打开工作台</h1><p>${esc(error.message)}。请确认本地服务正在运行。</p><a href="/">重新连接</a></div>`; }
