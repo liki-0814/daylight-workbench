@@ -60,8 +60,9 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 # 1. 版本号：package.json、package-lock.json 一致，并在 Release 里写更新说明
 node scripts/release/check-version.mjs
 
-# 2. 用发布证书构建（不设置这些变量则是 ad-hoc 构建，CI 即如此）
-export DAYLIGHT_SIGN_IDENTITY=$(cat ~/.daylight-signing/release-cert.sha1)
+# 2. 用发布证书的通用名构建。正式构建未设置身份会失败；隔离开发构建使用
+#    npm run pack:mac -- --development
+export DAYLIGHT_SIGN_IDENTITY="Daylight Release Code Signing"
 export DAYLIGHT_SIGN_KEYCHAIN=~/.daylight-signing/release.keychain-db
 export DAYLIGHT_SIGN_KEYCHAIN_PASSWORD_FILE=~/.daylight-signing/keychain-password
 npm run dist:mac            # dist/Daylight-<版本>-arm64.dmg 与 dist/native/Daylight.app
