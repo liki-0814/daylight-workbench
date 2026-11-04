@@ -111,14 +111,20 @@ npm run test:native-focus-notifications
 
 ## 全局界面配置与组件
 
-`public/design-system.css` 是主窗口与快速搜索共用的视觉配置入口。修改 `:root` 中的变量即可调整各模块的字体、行高、留白、页面宽度和控件尺寸；模块通过 `var(...)` 与公共 `ui-*` 布局类复用。字号与对应行高成对调整，段落、字段、折叠区之间的距离使用语义间距变量。主题色覆盖集中在 `public/theme/colors.css`，页面底色与组件强调色分别通过 `--workbench-background`、`--accent` 覆盖；普通链接、图表和非强调控件使用 `--green` 的中性色映射，侧栏、选中底色及分组行使用中性灰。
+`public/design-system.css` 是主窗口与快速搜索共用的视觉配置入口。修改 `:root` 中的变量即可调整各模块的字体、行高、留白、页面宽度和控件尺寸；模块通过 `var(...)` 与公共 `ui-*` 布局类复用。字号与对应行高成对调整，段落、字段、折叠区之间的距离使用语义间距变量。主题色覆盖集中在 `public/theme/colors.css`，页面底色与组件强调色分别通过 `--workbench-background`、`--accent` 覆盖；普通文字、辅助文字、边框、选中、悬停与焦点使用公共语义变量，成功、警告和危险状态保留各自语义色。
 
 | 配置 | 用途 |
 | --- | --- |
 | `--font-page-*`、`--font-section-*`、`--font-body-*`、`--font-caption-*` | 页面标题、分区标题、正文与辅助文字的字号和行高 |
 | `--space-*`、`--paragraph-gap`、`--section-gap`、`--form-field-gap` | 通用留白、段间距、分区间距与字段间距 |
-| `--page-inline`、`--page-max-width`、`--form-reading-width` | 页面共同起点、全屏扩展与表单阅读宽度；页面最大宽度默认 `none` |
+| `--page-inline`、`--page-block-start`、`--page-max-width`、`--topbar-height` | topbar、工作区、页面标题与主要操作的共同锚点；页面框架默认最大宽度为 `1320px` |
+| `--task-reading-width`、`--ai-reading-width`、`--form-reading-width` | 公共页面框架内部的任务、对话与表单阅读列，不改变页面标题锚点 |
+| `--radius-control`、`--radius-panel`、`--radius-overlay` | 控件、面板与弹层的分层圆角 |
+| `--shadow-panel`、`--shadow-overlay` | 轻量面板阴影与弹层阴影 |
+| `--success`、`--warning`、`--danger` 及对应 `*-background`、`*-border` | 运行状态与反馈语义色 |
 | `--form-control-height`、`--button-height`、`--compact-button-height`、`--icon-button-size` | 输入框与下拉框、普通按钮、紧凑按钮及图标按钮的统一尺寸 |
+
+任务、AI、反向代理、CLI、扩展、设置和更新页面共用上述页面边距与标题锚点；任务列表只收窄内部阅读列。AI 保留全高度工作区，但 topbar 和水平边距使用同一变量。紧凑下拉触发器单行省略，完整选项仍在菜单中换行显示。页面、历史、消息、下拉和快捷面板不全局隐藏滚动条；根滚动条使用 `scrollbar-gutter: stable` 避免异步内容改变页面宽度。代理来源 Tab 使用明确的内部横向滚动区，键盘焦点仍由 `segmentedControl` 管理；移动导航与分段 Tab 在焦点进入时以即时、无平滑动画的方式滚入可视区。AI 的待确认区、错误区和输入区在矮窗口内可收缩，文本区内部滚动，发送与停止操作保持可达；键盘停止后焦点回到消息输入框。
 
 `public/components/button.js` 的 `actionButton` 生成原生按钮，支持 primary、secondary、text、icon、danger 变体；`button.css` 统一按钮、可操作链接、导航与选择控件的外观和交互状态，并兼容现有类名。该样式在各页面样式之后加载。新增操作优先复用这些组件，事件仍使用原来的点击代理、表单提交和键盘行为。
 

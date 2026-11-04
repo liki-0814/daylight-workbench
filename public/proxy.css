@@ -3,11 +3,12 @@
 }
 
 .proxy-panel {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin: 0;
-  overflow: hidden;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius-panel);
+  margin:0;
+  overflow:hidden;
+  box-shadow:var(--shadow-panel);
 }
 
 .proxy-panel h2,.proxy-section-title h2 {
@@ -42,18 +43,16 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #a2ada2;
+  background:var(--muted);
 }
 
-.proxy-dot.running {
-  background: #68895a;
-}
+.proxy-dot.running { background:var(--success); }
 
 .proxy-switch {
   width: 46px;
   height: 27px;
   border-radius: 20px;
-  background: #c4cdc1;
+  background:var(--control-border);
   padding: 3px;
   flex-shrink: 0;
   transition: background 150ms;
@@ -61,11 +60,11 @@
 
 .proxy-switch>span {
   display: block;
-  background: white;
+  background:var(--paper);
   width: 21px;
   height: 21px;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(16, 18, 20, .12);
+  box-shadow:var(--shadow-panel);
   transform: translateX(0);
   transition: transform 150ms;
 }
@@ -152,18 +151,13 @@
   font-family: var(--font-mono);
   font-size: var(--font-code-size);
   line-height: var(--font-code-line);
-  color: #465945;
+  color:var(--workbench-text);
   padding:0 var(--space-2);
   width: 100%;
 }
 
-.proxy-copy button {
-  flex-shrink: 0;
-}
-
-.proxy-copy input:focus {
-  outline: none;
-}
+.proxy-copy button { flex-shrink:0; }
+.proxy-copy input:focus { outline:none; }
 
 .proxy-connect-actions {
   display: flex;
@@ -181,9 +175,7 @@
   line-height: var(--font-caption-line);
 }
 
-.proxy-connect .proxy-hint {
-  margin-top: 0;
-}
+.proxy-connect .proxy-hint { margin-top:0; }
 
 .proxy-field {
   font-size: var(--font-caption-size);
@@ -201,8 +193,8 @@
   margin-top: var(--space-2);
   padding: var(--form-control-padding);
   border: 1px solid var(--control-border);
-  background: #fff;
-  border-radius: 6px;
+  background:var(--paper);
+  border-radius:var(--radius-control);
   color: inherit;
   max-width: 100%;
   width: 140px;
@@ -228,12 +220,13 @@
 
 .proxy-error {
   font-size: var(--font-caption-size);
-  color: #8a503e;
+  color:var(--danger);
   line-height: var(--font-caption-line);
-  background: #fcf3ed;
+  background:var(--danger-background);
   padding: 13px 18px;
   margin:0 var(--proxy-panel-inset) var(--space-4);
-  border-radius: 6px;
+  border:1px solid var(--danger-border);
+  border-radius:var(--radius-control);
 }
 
 .proxy-account-notice {
@@ -295,7 +288,7 @@
 }
 
 .proxy-disclosure>summary:focus-visible {
-  outline: 2px solid #63856c;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -397,7 +390,7 @@
 }
 
 :root[data-input-mode="keyboard"] .proxy-copy:focus-within {
-  outline: 2px solid #63856c;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -502,17 +495,35 @@
 }
 
 .proxy-heading .page-heading {
-  margin-bottom:0;
+  margin-bottom:var(--space-2);
 }
 
-.proxy-tabs { min-width:0; overflow-x:auto; flex-wrap:nowrap; }
+.proxy-tabs {
+  min-width:0;
+  overflow-x:auto;
+  flex-wrap:nowrap;
+  padding-bottom:var(--space-1);
+  scrollbar-width:thin;
+  scrollbar-color:var(--control-border) transparent;
+  overscroll-behavior-inline:contain;
+}
+.proxy-tabs::after {
+  content:'';
+  position:sticky;
+  right:0;
+  align-self:stretch;
+  flex:0 0 var(--space-4);
+  margin-left:calc(-1 * var(--space-4));
+  background:linear-gradient(to right,transparent,var(--soft));
+  pointer-events:none;
+}
 
 .proxy-navigation-row {
   display: flex;
   align-items: center;
   gap: var(--space-4);
 }
-.proxy-navigation-row .proxy-tabs { flex:1; min-width:0; flex-wrap:nowrap; border-bottom:0; }
+.proxy-navigation-row .proxy-tabs { flex:1; min-width:0; flex-wrap:nowrap; border-bottom:1px solid var(--line); }
 .proxy-navigation-row > button { flex: 0 0 auto; }
 .proxy-source-choices {
   display: grid;
@@ -571,14 +582,14 @@
 }
 
 .custom-proxy-grid input:not([type=checkbox]){
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: var(--form-control-padding);
-  background: var(--paper);
-  color: #28332d;
-  font: inherit;
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid var(--control-border);
+  border-radius:var(--radius-control);
+  padding:var(--form-control-padding);
+  background:var(--paper);
+  color:var(--control-text);
+  font:inherit;
 }
 
 .custom-proxy-grid input:not([type=checkbox]) {
@@ -910,16 +921,14 @@
 }
 
 .proxy-drawer .proxy-hint,.proxy-drawer .custom-proxy-grid label,.proxy-drawer .select-label,.proxy-drawer .custom-key-label,.proxy-drawer .route-priority-row small,.proxy-drawer .dialog-header p {
-  color: #64715f;
+  color:var(--muted);
 }
 
 .proxy-drawer .select-trigger {
-  border-color: var(--control-border);
-
-  background: var(--paper);
-  color: #374c2e;
-
-  padding: var(--form-control-padding);
+  border-color:var(--control-border);
+  background:var(--paper);
+  color:var(--control-text);
+  padding:var(--form-control-padding);
 }
 
 .proxy-drawer .custom-proxy-actions {
@@ -928,21 +937,10 @@
   padding-top: var(--space-4);
 }
 
-.proxy-drawer .custom-proxy-actions [data-delete] {
-  color: #9b3434;
-}
-
-.proxy-drawer .custom-model-row {
-  padding: var(--space-4) 0;
-}
-
-.proxy-drawer .custom-model-row details {
-  margin-left: 28px;
-}
-
-.proxy-model[data-editing] {
-  background: #36594408;
-}
+.proxy-drawer .custom-proxy-actions [data-delete] { color:var(--danger); }
+.proxy-drawer .custom-model-row { padding:var(--space-4) 0; }
+.proxy-drawer .custom-model-row details { margin-left:28px; }
+.proxy-model[data-editing] { background:var(--accent-soft); }
 
 .proxy-discard {
   width: min(var(--confirmation-width),calc(100vw - 32px));
@@ -1040,11 +1038,11 @@
 }
 
 .route-warning {
-  display: block;
-  color: #926525;
-  margin-top: 6px;
-  font-size: var(--font-meta-size);
-  line-height: var(--font-meta-line);
+  display:block;
+  color:var(--warning);
+  margin-top:var(--space-2);
+  font-size:var(--font-meta-size);
+  line-height:var(--font-meta-line);
 }
 
 .route-source-count {
@@ -1323,11 +1321,6 @@
   opacity: .55;
 }
 
-/* Reserve the "已保存" feedback row so saving a toggle does not push everything below the list down. */
-.ui-disclosure-body .proxy-model-message:empty {
-  display: flex;
-  visibility: hidden;
-}
 
 .proxy-navigation > .proxy-hint:not(.sr-only):not([hidden]) { margin-top:var(--space-4); }
 .proxy-account .proxy-caption { font-size:var(--font-body-size); }

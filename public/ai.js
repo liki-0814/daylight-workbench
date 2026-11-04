@@ -225,7 +225,12 @@ export function createAIPage({ getToken, onChanged }) {
       }
       else if (b.dataset.removeReference) { references = references.filter(r => r.id !== b.dataset.removeReference); paintReferences(); }
       else if (b.dataset.prompt) { $('#ai-message').value = b.dataset.prompt; resizeInput(); $('#ai-message').focus(); }
-      else if (b.classList.contains('ai-stop') && current) { current = (await api(`/conversations/${current.id}/cancel`, {})).conversation; paint(); }
+      else if (b.classList.contains('ai-stop') && current) {
+        const refocus = document.activeElement === b;
+        current = (await api(`/conversations/${current.id}/cancel`, {})).conversation;
+        paint();
+        if (refocus) $('#ai-message').focus({ preventScroll:true });
+      }
       else if (b.dataset.extensionSubmission && current?.extensionSubmission) {
         const id=current.id; b.disabled=true;
         try { const r=await api(`/conversations/${id}/extension-submission`,{id:b.dataset.submissionId,action:b.dataset.extensionSubmission}); if(current?.id===id){current=r.conversation;paint();} onChanged?.({kind:'extensions'}); } finally {b.disabled=false;}

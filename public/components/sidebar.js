@@ -11,3 +11,7 @@ export function sidebarContent({ state, view = 'all', aiActivity = '', updateAva
     ${actionButton({variant:'icon',iconOnly:true,className:'sidebar-toggle',symbol:'menu',label:collapsed?'展开导航':'收起导航',attrs:{'data-action':'toggle-sidebar','aria-expanded':String(!collapsed)}})}${actionButton({variant:'text',className:'capture',symbol:'plus',label:'新建任务',attrs:{'data-action':'new','aria-label':'新建任务',title:'新建任务（⌘ K）'},content:'<span class="capture-label">新建任务</span><span class="capture-shortcut">⌘ K</span>'})}
     <nav class="page-navigation" aria-label="主要导航">${nav('all','任务','tasks')}${nav('ai','AI 对话','chat',`<small data-ai-activity>${esc(aiActivity)}</small>`)}${nav('proxy','反向代理','grid')}${nav('cli','CLI 配置','terminal')}${nav('extensions','扩展管理','plug')}${nav('update','更新','refresh', updateAvailable ? '<small data-app-update>有更新</small>' : '')}${nav('settings','设置','gear')}</nav>`;
 }
+
+export function revealNavigationItem(target) {
+  target?.closest?.('.page-navigation .nav-item')?.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'instant' });
+}

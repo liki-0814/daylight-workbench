@@ -4,7 +4,7 @@ import { change, localDate } from './model.js';
 import { selectField } from './components/select.js';
 import { icon } from './components/icons.js';
 import { actionButton } from './components/button.js';
-import { sidebarContent } from './components/sidebar.js';
+import { sidebarContent, revealNavigationItem } from './components/sidebar.js';
 import { disclosureSection } from './components/section.js';
 import { settingsPage, mountSettingsPreferences } from './components/settings-page.js';
 import { mountAISettings } from './ai-settings.js';
@@ -157,6 +157,7 @@ function render() {
   if (!['inbox', 'all', ...pageViews].includes(view) && !state.projects.some(p => p.id === viewProjectId(view))) { view = 'all'; query = ''; notify('项目已删除，已返回任务列表'); }
   if (!sidebarRoot) {
     sidebarRoot = document.createElement('aside'); sidebarRoot.className = 'sidebar';
+    sidebarRoot.addEventListener('focusin', event => revealNavigationItem(event.target));
     taskRoot = document.createElement('main'); taskRoot.id = 'task-page';
     app.replaceChildren(sidebarRoot, taskRoot);
   }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialState } from '../public/model.js';
-import { sidebarContent } from '../public/components/sidebar.js';
+import { sidebarContent, revealNavigationItem } from '../public/components/sidebar.js';
 import { icon } from '../public/components/icons.js';
 
 test('sidebar shows seven page tabs, without focus statistics, project lists or save-status labels', () => {
@@ -29,4 +29,13 @@ test('sidebar shows seven page tabs, without focus statistics, project lists or 
   assert.match(sidebarContent({ state: initialState(), view: 'all', updateAvailable: true }), /data-view="update"[^>]*>[\s\S]*data-app-update>有更新[\s\S]*data-view="settings"/);
   assert.doesNotMatch(sidebarContent({ state: initialState(), view: 'all', updateAvailable: true }).split('data-view="settings"')[1], /data-app-update/);
   assert.match(sidebarContent({ state: initialState(), view: 'update' }), /data-view="update" aria-current="page"/);
+});
+
+test('sidebar focus reveals partially visible navigation without smooth scrolling', () => {
+  let options;
+  const item = { scrollIntoView(value) { options = value; } };
+  const target = { closest(selector) { return selector === '.page-navigation .nav-item' ? item : null; } };
+  revealNavigationItem(target);
+  assert.deepEqual(options, { block:'nearest', inline:'nearest', behavior:'instant' });
+  revealNavigationItem({ closest() { return null; } });
 });

@@ -30,7 +30,10 @@ export function setSegmentedValue(group, value, { focus = false } = {}) {
     button.setAttribute(attribute, String(button === selected));
     button.tabIndex = button === selected ? 0 : -1;
   }
-  if (focus) selected?.focus();
+  if (focus) {
+    selected?.focus();
+    selected?.scrollIntoView({ block:'nearest', inline:'nearest', behavior:'instant' });
+  }
   return selected?.dataset.segmentValue;
 }
 

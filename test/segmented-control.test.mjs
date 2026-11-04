@@ -14,7 +14,7 @@ function fixture(role='radiogroup') {
   group.buttons = ['a','b','c','d'].map(value => ({
     dataset:{segmentValue:value},hidden:false,disabled:false,attributes:{},tabIndex:-1,
     closest(selector) { return selector==='.ui-segmented'?group:selector==='[hidden]'?(this.hidden?this:null):this; },
-    setAttribute(name,value){this.attributes[name]=value;},focus(){focused=this;}
+    setAttribute(name,value){this.attributes[name]=value;},focus(){focused=this;},scrollIntoView(options){this.scrollOptions=options;}
   }));
   return {group,get focused(){return focused;}};
 }
@@ -31,6 +31,7 @@ test('radio keyboard selection still wraps, updates checked state and moves focu
   const f=fixture(),changes=[];setSegmentedValue(f.group,'a');const dispose=mountSegmentedControl(f.group,{onChange:value=>changes.push(value)});
   assert.equal(f.group.emit('keydown',f.group.buttons[0],'ArrowLeft'),true);
   assert.equal(f.focused.dataset.segmentValue,'d');assert.deepEqual(changes,['d']);
+  assert.deepEqual(f.focused.scrollOptions,{block:'nearest',inline:'nearest',behavior:'instant'});
   assert.equal(f.group.buttons.filter(button=>button.tabIndex===0).length,1);assert.equal(f.group.buttons[3].attributes['aria-checked'],'true');
   dispose();f.group.emit('click',f.group.buttons[0]);assert.deepEqual(changes,['d']);
 });

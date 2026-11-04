@@ -88,7 +88,12 @@
   --refresh-icon-size: 14px;
   --button-icon-size: 16px;
   --button-icon-gap: var(--space-2);
-  --button-radius: 6px;
+  --radius-control: 6px;
+  --radius-panel: 12px;
+  --radius-overlay: 14px;
+  --shadow-panel: 0 1px 2px rgba(16, 18, 20, .035);
+  --shadow-overlay: 0 16px 48px rgba(16, 18, 20, .14);
+  --button-radius: var(--radius-control);
   --button-font-weight: 500;
   --button-disabled-opacity: .45;
   --button-focus-width: 2px;
@@ -104,9 +109,9 @@
   --panel-inline-inset: 26px;
   --dialog-inline-inset: 28px;
   --form-control-height: 44px;
-  --control-border: #dce4d3;
-  --control-background: #fcfdfb;
-  --control-text: #374c2e;
+  --control-border: #d8dcDF;
+  --control-background: #fff;
+  --control-text: #17181a;
   --form-control-line-height: var(--font-control-line);
   --compact-control-height: 36px;
   --form-control-padding-block: calc((var(--form-control-height) - var(--font-control-line) - 2px) / 2);
@@ -117,8 +122,13 @@
   --compact-button-height: 36px;
   --icon-button-size: 28px;
 
-  /* Page containers stop growing at a comfortable measure and centre on wide windows; forms keep a readable measure. */
+  /* Shared page anchors; internal reading columns may be narrower. */
   --page-max-width: 1320px;
+  --topbar-height: 76px;
+  --page-block-start: 40px;
+  --page-block-end: var(--space-6);
+  --task-reading-width: 980px;
+  --ai-reading-width: 840px;
   --form-reading-width: 760px;
   --form-panel-min-width: 520px;
   --form-label-width: 128px;
@@ -137,17 +147,23 @@
   --task-column-gap: 13px;
   --task-title-size: var(--font-body-size);
 
-  --accent: #365944;
-  --muted: #768078;
-  --line: #e5e8e0;
+  --accent: #1773be;
+  --muted: #6b7075;
+  --line: #e7e9ec;
   --paper: #fff;
-  --danger: #a04436;
-  --warning: #9c5b24;
-  --warning-background: #fff5e8;
-  --selection-background: #edf2e6;
-  --soft: #eef2e9;
-  --workbench-text: #28332d;
-  --workbench-background: #f7f8f5;
+  --success: #2f7d5c;
+  --success-background: #edf7f1;
+  --success-border: #c9e5d6;
+  --danger: #a4473b;
+  --danger-background: #fcefed;
+  --danger-border: #edcbc5;
+  --warning: #8a5a18;
+  --warning-background: #fff6e7;
+  --warning-border: #e8d3aa;
+  --selection-background: #ddeefa;
+  --soft: #f3f6f9;
+  --workbench-text: #17181a;
+  --workbench-background: #f2f5f8;
   font-family: var(--font-ui);
   font-size: var(--font-body-size);
   line-height: var(--font-body-line);
@@ -296,7 +312,7 @@ input[type="checkbox"], input[type="radio"] {
 }
 
 /* Panel disclosures reuse the same heading/body anchors without separator rules. */
-.ui-disclosure-panel { border:1px solid var(--line); border-radius:var(--button-radius); background:var(--paper); }
+.ui-disclosure-panel { border:1px solid var(--line); border-radius:var(--radius-panel); background:var(--paper); box-shadow:var(--shadow-panel); }
 .ui-disclosure-panel > .ui-disclosure-heading { min-height:calc(var(--button-height) + var(--space-4) * 2); padding:var(--space-4) var(--panel-inline-inset); }
 .ui-disclosure-panel > .ui-disclosure-body { padding:0 var(--panel-inline-inset) var(--space-4) calc(var(--panel-inline-inset) + var(--disclosure-marker-width)); }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
@@ -335,6 +351,7 @@ input[type="checkbox"], input[type="radio"] {
 @media (max-width: 1150px) {
   :root {
     --page-inline: 26px;
+    --page-block-start: var(--space-7);
     --page-footer-gap: var(--space-7);
     --task-row-inset: var(--space-4);
     --task-column-gap: 9px;
@@ -350,7 +367,10 @@ input[type="checkbox"], input[type="radio"] {
     --font-brand-line: 24px;
     --font-pi-mark-size: 26px;
     --icon-button-size: 24px;
+    --topbar-height: 55px;
     --page-inline: 18px;
+    --page-block-start: var(--space-6);
+    --page-block-end: var(--space-5);
     --page-heading-gap: var(--space-6);
     --panel-block-inset: var(--space-5);
     --panel-inline-inset: 18px;

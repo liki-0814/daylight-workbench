@@ -22,6 +22,15 @@
   --composer-background: #F4F8FB;
   --done-ink: #8A9097;
   --done-fill: #B7BDC4;
+  --success: #2F7D5C;
+  --success-background: #EDF7F1;
+  --success-border: #C9E5D6;
+  --warning: #8A5A18;
+  --warning-background: #FFF6E7;
+  --warning-border: #E8D3AA;
+  --danger: #A4473B;
+  --danger-background: #FCEFED;
+  --danger-border: #EDcbc5;
 }
 
 .sidebar {
