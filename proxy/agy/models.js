@@ -1,4 +1,5 @@
 import {booleanCapability,reasoningCapabilities,mergeModelCapabilities} from '../../core/model-capabilities.js';
+import {isAgyMediaEntry} from '../shared/published-models.js';
 import {reasoningEfforts} from './protocol.js';
 
 // Discover concrete presets directly without starting CLI authentication.
@@ -8,7 +9,7 @@ export function discoverModels(catalog){
  const ids=preferred.length?preferred:entries.map(([id])=>id);
  const label=value=>String(value||'').trim().toLowerCase();
  const models=ids.flatMap(id=>{
-  const model=catalog.models?.[id];if(!model?.displayName)return[];
+  const model=catalog.models?.[id];if(!model?.displayName||isAgyMediaEntry(id,model))return[];
   const aliases=entries.filter(([alias,m])=>alias!==id&&/-(low|medium|high|xhigh|max)$/.test(alias)&&label(m.displayName)===label(model.displayName));
   const publicId=/-agent$/.test(id)&&aliases.length===1?aliases[0][0]:id;
   return [{id:publicId,displayName:model.displayName.trim()}];

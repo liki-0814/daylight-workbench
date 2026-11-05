@@ -3,14 +3,15 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { oauthError } from '../shared/oauth-account.js';
+import { CatalogCache } from '../shared/catalog-cache.js';
+import { cachedIds, parseOpenAIImageModels } from '../shared/published-models.js';
 import { assertImageUrl, assertMediaOk, fail, imageResult, onlyKeys, readJsonLimited } from '../shared/media.js';
 
 const ORIGIN = 'https://chatgpt.com/backend-api/codex';
 const CLIENT_VERSION = '0.161.0';
-const FLARE = new Set(['gpt-image-2.5-flare', 'gpt-image-2.5-flare-2026-09-08', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-sunburst-2026-09-08', 'chatgpt-image-latest']);
-const IMAGE2 = new Set(['gpt-image-2', 'gpt-image-2-2026-04-21']);
-const LEGACY = new Set(['gpt-image-1.5', 'gpt-image-1-mini']);
-export const codexMediaIds = [...FLARE, ...IMAGE2, ...LEGACY];
+// OpenAPI 生成的 ImageModel 枚举。ChatGPT 的 /v1/models 只返回对话模型。
+export const CODEX_IMAGE_CATALOG = 'https://raw.githubusercontent.com/openai/openai-python/main/src/openai/types/image_model.py';
+export const codexMediaIds = ['gpt-image-1.5', 'gpt-image-2', 'gpt-image-2-2026-04-21', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-sunburst-2026-09-08', 'gpt-image-2.5-flare', 'gpt-image-2.5-flare-2026-09-08', 'gpt-image-2.6-sunburst', 'gpt-image-2.6-flare', 'gpt-image-1-mini', 'chatgpt-image-latest'];
 const FLEX = { '1:1': [1024, 1024], '16:9': [1536, 864], '9:16': [864, 1536], '4:3': [1024, 768], '3:4': [768, 1024], '3:2': [1536, 1024], '2:3': [1024, 1536], '21:9': [1792, 768], '5:2': [1600, 640] };
 const KEYS = new Set(['model', 'prompt', 'n', 'response_format', 'quality', 'aspect_ratio', 'resolution', 'size', 'image', 'images', 'background', 'input_fidelity']);
 
@@ -35,9 +36,13 @@ async function cliImageAuth(file) {
 }
 
 function family(model) {
-  if (FLARE.has(model)) return 'flare';
-  if (IMAGE2.has(model)) return 'image2';
-  return 'legacy';
+  if (/^gpt-image-1(?:[.-]|$)/.test(model)) return 'legacy';
+  if (/^gpt-image-2(?:-\d{4}-\d{2}-\d{2})?$/.test(model)) return 'image2';
+  return 'flare';
+}
+
+export function codexImageId(model) {
+  return typeof model === 'string' && ((/^gpt-image-/.test(model) && model !== 'gpt-image-1') || /^chatgpt-image-/.test(model));
 }
 
 function checkSize(model, size) {
@@ -94,9 +99,23 @@ async function session(provider) {
 }
 
 export function attachCodexMedia(provider) {
-  provider.mediaOwns = model => codexMediaIds.includes(model);
+  provider.mediaCatalogCache = new CatalogCache();
+  const previous = provider.auth.onChange;
+  provider.auth.onChange = () => { provider.mediaCatalogCache.invalidate(); previous?.call(provider.auth); };
+  provider.mediaOwns = codexImageId;
   provider.mediaLoginError = async () => await session(provider) ? null : loginError();
-  provider.mediaModels = async () => await session(provider) ? codexMediaIds.map(row) : [];
+  provider.mediaModels = async (options) => {
+    if (!await session(provider)) return [];
+    const ids = await cachedIds(provider.mediaCatalogCache, {
+      identity: 'codex-images', refresh: options?.refresh === true, fallback: codexMediaIds,
+      load: async () => {
+        const response = await provider.fetchImpl(CODEX_IMAGE_CATALOG, { redirect: 'error', signal: AbortSignal.timeout(30000) });
+        if (!response.ok) { await response.body?.cancel(); throw new Error(`image catalog ${response.status}`); }
+        return parseOpenAIImageModels(await response.text());
+      },
+    });
+    return ids.map(row);
+  };
   bindMediaModelSettings(provider);
   provider.executeMedia = (input, context) => execute(provider, input, context);
 }

@@ -2,12 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { oauthError } from '../shared/oauth-account.js';
 import { bindMediaModelSettings } from '../shared/model-settings.js';
 import { IMAGE_BYTES, assertImageUrl, assertMediaOk, fail, imageResult, onlyKeys, readBytesLimited, readJsonLimited } from '../shared/media.js';
+import { agyMediaEntries, isAgyImageId } from '../shared/published-models.js';
 import { assertPublicImageUrl } from '../shared/remote-image.js';
 
 const HOST = 'https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent';
 export const agyMediaIds = ['gemini-3-pro-image', 'gemini-3.1-flash-image', 'gemini-3.1-flash-image-preview', 'gemini-2.5-flash-image-preview'];
 const KEYS = new Set(['model', 'prompt', 'n', 'response_format', 'aspect_ratio', 'resolution', 'quality', 'image', 'images']);
-const row = id => ({ id, displayName: id, output: 'image', status: 'ready', source: 'agy' });
+const row = (id, displayName = id) => ({ id, displayName, output: 'image', status: 'ready', source: 'agy' });
 const loginError = () => oauthError('请在 Daylight 中网页登录 AGY');
 
 async function session(provider) {
@@ -32,9 +33,18 @@ async function inlineImage(url, { fetchImpl, lookup }, signal) {
 }
 
 export function attachAgyMedia(provider) {
-  provider.mediaOwns = model => agyMediaIds.includes(model);
+  provider.mediaOwns = model => isAgyImageId(model) || provider.mediaCatalogIds?.has(model) === true;
   provider.mediaLoginError = async () => await session(provider) ? null : loginError();
-  provider.mediaModels = async () => await session(provider) ? agyMediaIds.map(row) : [];
+  provider.mediaModels = async (options) => {
+    if (!await session(provider)) return [];
+    let entries = agyMediaIds.map(id => ({ id, displayName: id }));
+    try {
+      const found = agyMediaEntries(await provider.catalog(options?.refresh === true));
+      if (found.length) entries = found;
+    } catch { /* 目录里没有图像模型时保留种子，请求仍接受新的 image id */ }
+    provider.mediaCatalogIds = new Set(entries.map(item => item.id));
+    return entries.map(item => row(item.id, item.displayName));
+  };
   bindMediaModelSettings(provider);
   provider.executeMedia = (input, context) => execute(provider, input, context);
 }

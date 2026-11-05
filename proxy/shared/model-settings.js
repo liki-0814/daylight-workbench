@@ -57,8 +57,8 @@ export function modelSettings(file){
 // Media and chat models use the same persistent enable/disable preference.
 export function bindMediaModelSettings(provider){
  const catalog=provider.mediaModels;
- provider.mediaModels=async()=>{
-  const [models,settings]=await Promise.all([catalog(),provider.settings.read()]);
+ provider.mediaModels=async(options)=>{
+  const [models,settings]=await Promise.all([catalog(options),provider.settings.read()]);
   return models.map(model=>({...model,enabled:!(settings.disabled||[]).includes(model.id)}));
  };
  provider.setMediaModel=async input=>{

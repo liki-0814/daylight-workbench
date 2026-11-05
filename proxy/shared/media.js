@@ -78,16 +78,28 @@ export async function mediaCatalog(registry) {
 }
 
 export async function selectMedia(registry, model, source) {
-  if (model === 'gpt-image-2.5') fail('没有 gpt-image-2.5。请使用 gpt-image-2.5-flare 或 gpt-image-2.5-sunburst');
-  const ready = await mediaCatalog(registry);
-  const matches = ready.filter(row => (row.id === model || row.aliases?.includes(model)) && (!source || row.source === source));
-  if (matches.length > 1) fail('模型对应多个来源', 400, 'model_ambiguous', { sources: [...new Set(matches.map(row => row.source))] });
-  if (matches.length === 1) return matches[0];
+  if (model === 'gpt-image-1') fail('gpt-image-1 已于 2026-10-23 关闭。请使用当前图像目录中的模型');
+  if (/^gpt-image-2\.\d+$/.test(model)) fail(`没有 ${model}。请使用 ${model}-flare 或 ${model}-sunburst`);
+  const rows = [];
   for (const provider of Object.values(registry.providers)) {
-    if (typeof provider.mediaLoginError !== 'function' || !provider.mediaOwns?.(model)) continue;
-    const error = await provider.mediaLoginError();
-    if (error) throw error;
+    if (typeof provider.mediaModels !== 'function') continue;
+    rows.push(...await provider.mediaModels());
   }
+  const named = rows.filter(row => (row.id === model || row.aliases?.includes(model)) && (!source || row.source === source));
+  const ready = named.filter(row => row.status === 'ready' && row.enabled !== false);
+  if (ready.length > 1) fail('模型对应多个来源', 400, 'model_ambiguous', { sources: [...new Set(ready.map(row => row.source))] });
+  if (ready.length === 1) return ready[0];
+  if (named.length) fail('模型不存在或已停用', 400, 'model_not_found');
+  const owners = [];
+  for (const [id, provider] of Object.entries(registry.providers)) {
+    if (source && source !== id) continue;
+    if (!provider.mediaOwns?.(model)) continue;
+    const error = await provider.mediaLoginError?.();
+    if (error) throw error;
+    owners.push(id);
+  }
+  if (owners.length > 1) fail('模型对应多个来源', 400, 'model_ambiguous', { sources: owners });
+  if (owners.length === 1) return { id: model, source: owners[0], status: 'ready' };
   fail('模型不存在或已停用', 400, 'model_not_found');
 }
 
