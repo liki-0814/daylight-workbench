@@ -16,12 +16,12 @@ test('failed repair never claims restored access and relogin remains available',
 test('a stale success response cannot override current recovery evidence',async t=>{
  const f=stateFixture(t);f.recovery=recovery;
  await f.store.auth('grok','repair');assert.equal(f.store.authNotice('grok'),undefined);
- f.recovery=null;await f.store.auth('grok','repair');assert.match(f.store.authNotice('grok'),/后台读取验证通过/);
+ f.recovery=null;await f.store.auth('grok','repair');assert.equal(f.store.authNotice('grok'),undefined);
  f.recovery=recovery;await f.store.refresh();assert.equal(f.store.authNotice('grok'),undefined);
 });
 test('network failure is separate from verified credential access; a later failed attempt clears the success',async t=>{
  const f=stateFixture(t);f.result={ok:true,credentialRepaired:true,connected:false,error:'无法连接来源服务'};
- await f.store.auth('grok','repair');assert.match(f.store.authNotice('grok'),/后台凭证访问已验证，来源连接检测失败/);
+ await f.store.auth('grok','repair');assert.match(f.store.authNotice('grok'),/来源连接检测失败：无法连接来源服务/);
  f.result=new Error(recovery.message);f.recovery=recovery;
  await assert.rejects(f.store.auth('grok','repair'),/后台访问验证失败/);assert.equal(f.store.authNotice('grok'),undefined);
 });
@@ -47,7 +47,7 @@ test('repair waits for a fresh source snapshot rather than accepting an earlier 
   if(++reads===1)await held;return snapshot;
  },source:async()=>{repaired=true;return{ok:true,credentialRepaired:true,connectionChecked:false};}});t.after(()=>store.dispose());
  const poll=store.refresh(),repair=store.auth('grok','repair');resolve();await Promise.all([poll,repair]);
- assert.equal(reads,2);assert.equal(store.source('grok').credentialRecovery,undefined);assert.match(store.authNotice('grok'),/后台读取验证通过/);
+ assert.equal(reads,2);assert.equal(store.source('grok').credentialRecovery,undefined);assert.equal(store.authNotice('grok'),undefined);
 });
 test('cancel during post-repair refresh prevents a late success notice',async t=>{
  let release,started;const held=new Promise(r=>release=r),ready=new Promise(r=>started=r);
