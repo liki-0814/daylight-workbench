@@ -4,6 +4,7 @@ import { actionLinks } from './components/action-links.js';
 import { markdown, processMessage } from './components/ai-message.js';
 import { selectField } from './components/select.js';
 import { backendField } from './components/ai-backend.js';
+import { clientIcon } from './extensions/client-icons.js';
 import { backendName } from '../core/ai-backends.js';
 import { focusDraftCard, focusSubmissionCard } from './focus/draft-card.js';
 import { extensionDraftCard, extensionSubmissionCard } from './extensions/review.js';
@@ -14,13 +15,22 @@ export function createAIPage({ getToken, onChanged }) {
   const element = document.createElement('main'); element.className = 'ai-page';
   element.innerHTML = `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> AI 对话</span></header>
     <div class="workspace ai-workspace">
-    <div class="ai-layout"><aside class="ai-history"><div class="ai-history-heading"><div class="ai-history-title"><h1>AI 对话</h1>${actionButton({label:'新建对话',symbol:'plus',variant:'icon',iconOnly:true,className:'ai-new'})}</div></div><nav aria-label="历史对话" class="ai-history-list"></nav></aside>
+    <div class="ai-layout"><aside class="ai-history" id="ai-history"><div class="ai-history-heading"><div class="ai-history-title"><h1>AI 对话</h1><div class="ai-history-actions">${actionButton({label:'收起历史对话',variant:'icon',iconOnly:true,className:'ai-history-collapse',content:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',attrs:{type:'button','data-history-toggle':true,'aria-expanded':'true','aria-controls':'ai-history'}})}${actionButton({label:'新建对话',symbol:'plus',variant:'icon',iconOnly:true,className:'ai-new'})}</div></div></div><nav aria-label="历史对话" class="ai-history-list"></nav></aside>
     <section class="ai-chat" aria-label="AI 对话"><div class="ai-messages"></div><div class="ai-pending"></div><p class="ai-error" role="alert"></p><span class="ai-status" role="status"></span><form class="ai-composer"><label class="sr-only" for="ai-message">发送消息</label><div class="ai-references"></div><div class="ai-mention-menu" hidden></div><textarea id="ai-message" rows="2" placeholder="@ 引用项目、任务或对话 · / 引用技能" maxlength="30000"></textarea><div class="ai-composer-footer"><div class="ai-composer-tools">${actionButton({variant:'icon',iconOnly:true,symbol:'plus',label:'添加引用',attrs:{type:'button','data-mention-add':true}})}<div class="ai-backend-holder"></div><div class="ai-model-holder">${selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'正在读取模型…'}],compact:true,hideLabel:true})}</div><div class="ai-effort-holder"></div><div class="ai-context-holder"></div></div><div class="ai-send-actions">${actionButton({label:'停止生成',variant:'icon',iconOnly:true,className:'ai-stop',content:'■',attrs:{hidden:true}})}${actionButton({label:'发送消息',variant:'primary',iconOnly:true,className:'ai-send',attrs:{type:'submit'},content:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg>'})}</div></div></form></section></div></div>`;
   const deleteDialog=createDialogShell({title:'删除这段对话？'});
   deleteDialog.element.classList.add('ai-delete-dialog');
   deleteDialog.setContent(`<form><div class="form-body"><p class="delete-name"></p><p class="field-note">全部聊天记录将被删除，无法撤销。已创建的项目、任务和其他对话中的引用快照会保留。</p><p class="dialog-error" role="alert"></p></div><div class="dialog-footer">${actionButton({label:'取消',attrs:{'data-delete-cancel':true,autofocus:true}})}${actionButton({label:'删除对话',variant:'danger',attrs:{type:'submit'}})}</div></form>`);
   element.append(deleteDialog.element);
   const $ = s => element.querySelector(s);
+  let historyCollapsed = localStorage.getItem('daylight:ai-history-collapsed') === '1';
+  function paintHistory() {
+    element.classList.toggle('history-collapsed', historyCollapsed);
+    const button = $('.ai-history-collapse');
+    if (!button) return;
+    const label = historyCollapsed ? '展开历史对话' : '收起历史对话';
+    button.title = label; button.setAttribute('aria-label', label); button.setAttribute('aria-expanded', String(!historyCollapsed));
+  }
+  paintHistory();
   let deleteTarget = null, deleting = false, historyMarkup = '', lastHistoryRead = 0;
   function resetConversation() {
     current=null; pendingId=null; lastMessages='';
@@ -77,7 +87,7 @@ export function createAIPage({ getToken, onChanged }) {
     $('.ai-send').disabled = busy || openingReference || loadingModels || running(c);
     $('.ai-new').disabled = busy || openingReference;
     $('#ai-model').disabled = busy || openingReference || running(c) || loadingModels;
-    if ($('#ai-backend')) $('#ai-backend').disabled = !!c || busy || openingReference || loadingModels;
+    element.querySelectorAll('[data-backend]').forEach(button => { button.disabled = !!c || busy || openingReference || loadingModels || button.dataset.unavailable === '1'; });
     if (c && catalog.some(m => m.id === c.config.model)) $('#ai-model').value = c.config.model;
     $('.ai-status').textContent = openingReference ? '正在关联扩展…' : c?.status === 'waiting' ? '等待你的回答或确认' : c?.status === 'running' ? `${c.activity || '正在等待模型响应…'}${c.runStartedAt ? ' · ' + Math.max(0, Math.floor((Date.now()-Date.parse(c.runStartedAt))/1000)) + ' 秒' : ''}` : '';
     if (c?.error) $('.ai-error').textContent = c.error;
@@ -111,8 +121,8 @@ export function createAIPage({ getToken, onChanged }) {
       const config = current?.config || defaults[backend];
       const id = current?.id;
       $('.ai-backend-holder').innerHTML = backendField({id:'ai-backend',value:backend,backends:detectedBackends});
-      $('#ai-backend').disabled = !!current || busy || openingReference || loadingModels;
-      $('#ai-backend').title = current ? '新建对话可切换后端' : '自动检测本机 CLI，选择本次对话后端';
+      element.querySelectorAll('[data-backend]').forEach(button => { button.disabled = !!current || busy || openingReference || loadingModels || button.dataset.unavailable === '1'; });
+      $('.ai-backend-icons').title = current ? '新建对话可切换后端' : '自动检测本机 CLI，选择本次对话后端';
       $('.ai-model-holder').innerHTML = selectField({name:'model',label:'模型',id:'ai-model',options:[{value:'',label:'正在读取模型…'}],compact:true,hideLabel:true,disabled:true});
       const result = await api('/discover', { backend, path: config.path });
       if (ticket !== modelLoad || current?.id !== id) return;
@@ -135,7 +145,7 @@ export function createAIPage({ getToken, onChanged }) {
   element.addEventListener('change', async e => {
     const control=e.target.matches('workbench-select') ? e.target.querySelector('input') : e.target;
     if (control.name?.startsWith('draft-project-')) { control.dataset.edited='1'; return; }
-    if (e.target.id === 'ai-backend' && !current) { selectedBackend = $('#ai-backend').value; const draft=composerDrafts.get(draftKey()); if(draft)delete draft.model; skills=[]; paintReferences(); error(null); void loadModels(); return; }
+
     if (control.name === 'effort' || control.name === 'contextWindow') {
       if (current) return;
       const backend = selectedBackend;
@@ -155,7 +165,7 @@ export function createAIPage({ getToken, onChanged }) {
     const retained=references.filter(r=>ids.has(r.id));
     if(retained.length!==references.length){references=retained;paintReferences();}
     for(const draft of composerDrafts.values())draft.references=draft.references.filter(r=>ids.has(r.id));
-    const markup = conversations.map(c => `<div class="ai-history-item ${current?.id === c.id ? 'selected' : ''}"><button type="button" class="ai-history-open" data-conversation="${esc(c.id)}" ${current?.id===c.id?'aria-current="true"':''} title="${esc(c.title)}"><span>${esc(c.title)}</span><small>${backendName(c.backend)}${running(c) ? (c.status === 'waiting' ? ' · 等待确认' : ' · 运行中') : ''}</small></button><button type="button" class="ai-history-action" data-delete-conversation="${esc(c.id)}" aria-label="删除对话：${esc(c.title)}" title="${running(c)?'请先结束生成或待确认内容':'删除对话'}" ${running(c)?'disabled':''}>⋯</button></div>`).join('') || `<p class="ai-history-empty">还没有对话，点击 ＋ 开始</p>`;
+    const markup = conversations.map(c => `<div class="ai-history-item ${current?.id === c.id ? 'selected' : ''}"><button type="button" class="ai-history-open" data-conversation="${esc(c.id)}" ${current?.id===c.id?'aria-current="true"':''} title="${esc(c.title)}"><span>${esc(c.title)}</span><small>${clientIcon(c.backend, 'ai-history-backend') || esc(backendName(c.backend))}${running(c) ? (c.status === 'waiting' ? ' · 等待确认' : ' · 运行中') : ''}</small></button><button type="button" class="ai-history-action" data-delete-conversation="${esc(c.id)}" aria-label="删除对话：${esc(c.title)}" title="${running(c)?'请先结束生成或待确认内容':'删除对话'}" ${running(c)?'disabled':''}>⋯</button></div>`).join('') || `<p class="ai-history-empty">还没有对话，点击 ＋ 开始</p>`;
     if(markup!==historyMarkup){historyMarkup=markup;$('.ai-history-list').innerHTML=markup;}
     lastHistoryRead=Date.now();
   }
@@ -196,6 +206,8 @@ export function createAIPage({ getToken, onChanged }) {
   element.addEventListener('click', async e => {
     try {
       const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.historyToggle !== undefined) { historyCollapsed = !historyCollapsed; localStorage.setItem('daylight:ai-history-collapsed', historyCollapsed ? '1' : '0'); paintHistory(); return; }
+      if (b.dataset.backend && !current && !b.disabled) { selectedBackend = b.dataset.backend; $('#ai-backend').value = selectedBackend; element.querySelectorAll('[data-backend]').forEach(button => { const on = button.dataset.backend === selectedBackend; button.classList.toggle('selected', on); button.setAttribute('aria-pressed', String(on)); }); const draft=composerDrafts.get(draftKey()); if(draft)delete draft.model; skills=[]; paintReferences(); error(null); void loadModels(); return; }
       if (b.dataset.mentionAdd !== undefined) { mentionOpen = true; mentionType = '@'; renderMentions(''); $('#ai-message').focus(); return; }
       if(b.dataset.deleteConversation) {
         if(busy||deleting)return;

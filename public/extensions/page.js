@@ -8,6 +8,7 @@ import { sectionHeading, refreshButton, setRefreshState } from '../components/se
 import { segmentedControl, mountSegmentedControl } from '../components/segmented-control.js';
 import { createDialogShell } from '../components/dialog-shell.js';
 import { selectField, updateSelectField } from '../components/select.js';
+import { clientIcon } from './client-icons.js';
 
 const categories = [
   { value: 'skills', label: 'Skills', collection: 'skills', title: 'Skills 来源', action: '新建 Skill' },
@@ -27,11 +28,8 @@ export function createExtensionsPage({ getToken, onDiscuss, onChanged }) {
   const $ = selector => element.querySelector(selector);
   let route = { tab: 'skills', query: '' }, state, readFailure, selected, detailTicket = 0, visible = false, tabsDispose, shell, probeTimer, detailKey = '', listMarkup, submitting = false, bindingPreviewing = false, mcpPreviewing = false, selectionPreviewing = false;
   const category = () => categories.find(item => item.value === route.tab) || categories[0];
-  const clientIcons = { codex: '/extensions/icons/codex.svg', qoder: '/extensions/icons/qoder.svg', pi: '/extensions/icons/pi.svg', grok: '/extensions/icons/grok.png', claude: '/extensions/icons/claude.svg', hermes: '/extensions/icons/hermes.png' };
   function clientMark(client) {
-    const src = clientIcons[client.id];
-    if (!src) return `<span class="extension-client-fallback">${esc(client.name.slice(0, 1))}</span>`;
-    return `<img class="extension-client-icon" data-client="${esc(client.id)}" src="${src}" alt="" width="18" height="18">`;
+    return clientIcon(client.id) || `<span class="extension-client-fallback">${esc(client.name.slice(0, 1))}</span>`;
   }
   function bindingControl(skill, binding, compact = false) {
     const software = state.clients.find(item => item.id === binding.clientId);

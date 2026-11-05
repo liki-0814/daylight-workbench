@@ -26,7 +26,7 @@
 .extension-row-copy > span { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .extension-row-copy small { overflow-wrap: anywhere; }
 .extension-row-status { display: flex; flex-direction: column; gap:var(--space-2); font-size:var(--font-caption-size); color:var(--muted); flex:0 0 150px; }
-.extension-row-status:has(> .extension-binding-control:nth-child(2)) { display:flex; flex-wrap:wrap; justify-content:flex-end; flex-basis:auto; gap:var(--space-2); }
+.extension-row-status:has(> .extension-binding-control:nth-child(2)) { display:grid; grid-template-columns:repeat(2,max-content); justify-content:end; justify-items:start; flex-basis:auto; gap:4px 14px; }
 .extension-binding-control { display: flex; align-items: center; gap: var(--space-2); min-height: var(--compact-control-height); cursor: pointer; }
 .extension-client-icon { width: 18px; height: 18px; display: block; object-fit: contain; border-radius: 4px; }
 .extension-client-icon[data-client="grok"] { border-radius: 5px; }
@@ -52,9 +52,17 @@
 .extension-binding { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
 .extension-binding > div { display: flex; flex-direction: column; min-width: 0; }
 .extension-binding small { color: var(--muted); }
-.extension-detail dl { margin:0; }
-.extension-detail dt { color: var(--muted); margin-top: var(--space-3); }
-.extension-detail dd { margin: var(--space-1) 0 0; white-space: pre-wrap; }
+.extension-detail dl {
+  margin:0;
+  display:grid;
+  grid-template-columns:max-content minmax(0,1fr);
+  column-gap:var(--space-4);
+  row-gap:var(--space-3);
+  align-items:baseline;
+}
+.extension-detail dt { margin:0; color: var(--muted); }
+.extension-detail dd { margin:0; min-width:0; white-space: pre-wrap; }
+@media (max-width: 650px) { .extension-detail dl { grid-template-columns: minmax(0, 1fr); } }
 .extension-empty { padding: var(--space-5); color: var(--muted); }
 .extension-error { color:var(--danger); }
 .extension-error:empty { display: none; }

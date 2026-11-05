@@ -78,5 +78,5 @@ export async function createAIService({ dataDir, endpoint, adapters } = {}) {
       return send(res, 200, { conversation: c });
     } catch (e) { send(res, e.status || 400, { error: e.message, ...(e.code ? { code: e.code } : {}), ...(e.version !== undefined ? { version: e.version } : {}), ...(e.details ? { details: e.details } : {}) }); }
   }
-  return { handle, store, tool, async close() { closed = true; runtime.close(); await quick.close(); } };
+  return { handle, store, tool, async close() { closed = true; runtime.close(); await quick.close(); await providers.qoder?.close?.(); } };
 }

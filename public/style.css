@@ -866,18 +866,15 @@ dialog::backdrop {
   box-shadow:var(--shadow-panel);
 }
 
-.shortcut-list { list-style:none; margin:0; padding:0; }
+.shortcut-list { list-style:none; margin:0; padding:0; display:grid; gap:var(--space-4); }
 
 .shortcut-list li {
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:var(--space-4);
-  padding:var(--space-4) 0;
+  min-height:var(--font-body-line);
 }
-
-.shortcut-list li:first-child { padding-top:0; }
-.shortcut-list li:last-child { padding-bottom:0; }
 
 .shortcut-list strong {
   display:block;
@@ -902,13 +899,19 @@ dialog::backdrop {
   padding:6px var(--space-2);
 }
 
-.settings-facts { margin:0; display:grid; gap:var(--space-4); }
+.settings-facts {
+  margin:0;
+  display:grid;
+  grid-template-columns:max-content minmax(0,1fr);
+  column-gap:var(--space-4);
+  row-gap:var(--space-4);
+}
 
 .settings-facts>div {
   display:grid;
-  grid-template-columns:max-content minmax(0,1fr);
-  gap:var(--space-4);
-  align-items:start;
+  grid-template-columns:subgrid;
+  grid-column:1 / -1;
+  align-items:center;
 }
 
 .settings-facts dt {
@@ -919,9 +922,17 @@ dialog::backdrop {
 
 .settings-facts dd {
   margin:0;
+  min-width:0;
   font-size:var(--font-caption-size);
   text-align:left;
   color:var(--workbench-text);
+  line-height:var(--font-caption-line);
+}
+
+.settings-facts :is(.ui-button-text,.text-button) {
+  min-height:var(--font-caption-line);
+  padding-block:0;
+  font-size:var(--font-caption-size);
   line-height:var(--font-caption-line);
 }
 
@@ -930,10 +941,11 @@ dialog::backdrop {
     align-items: flex-start;
     gap: 10px;
   }
+  .settings-facts,
   .settings-facts>div {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
   }
+  .settings-facts>div { row-gap: var(--space-2); }
   .settings-facts dd {
     text-align: left;
   }

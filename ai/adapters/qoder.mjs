@@ -1,5 +1,5 @@
 import { qoderEvents } from './qoder-events.mjs';
-import { query, qodercliAuth } from '@qoder-ai/qoder-agent-sdk';
+import { query, qodercliAuth, shutdownDaemon } from '@qoder-ai/qoder-agent-sdk';
 import { executable, childEnv } from './process.mjs';
 import { instructions, definitions } from '../tools/definitions.mjs';
 import { quickInstructions } from '../quick.mjs';
@@ -31,6 +31,8 @@ export async function discover(settings, cwd) {
     return { path: executable('qoder', settings.path), version: init.qodercli_version, skills: (init.skills || []).map(s => ({ name: s.name, path: `qoder:${s.name}`, description: s.description || '', enabled: true })), models: models.map(m => ({ id: m.modelId || m.id || m.value || m.model, name: m.displayName || m.modelName || m.name || m.label || m.id, efforts: m.efforts || [], contextWindows: m.availableContextWindows || [], maxInputTokens: m.maxInputTokens, maxOutputTokens: m.maxOutputTokens })).filter(m => m.id) };
   } finally { release(); q.close(); }
 }
+// The SDK keeps one qodercli --sdk process for later sessions. Close it with the AI service.
+export function close() { return shutdownDaemon(); }
 export function promptContent(text, images = []) {
   return images.length ? [{ type: 'text', text }, ...images.map(image => ({ type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.data } }))] : text;
 }
