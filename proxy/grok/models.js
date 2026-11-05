@@ -2,7 +2,7 @@ import {positiveCapacity,booleanCapability,reasoningCapabilities} from '../../co
 // Grok Responses catalog capabilities; hidden/non-Responses models stay excluded.
 export function parseModels(data){
         if (!Array.isArray(data.data)) throw new Error('invalid model catalog');
-        return data.data.filter(m => m.api_backend === 'responses' && !m.hidden).map(m => {
+        return data.data.filter(m => m.api_backend === 'responses' && !m.hidden && !/^grok-imagine-(?:image|video)(?:-|$)/.test(m.id)).map(m => {
           // context_window is the upstream default, not its largest selectable tier.
           const windows=[...new Set([m.context_window,...(Array.isArray(m.context_windows)?m.context_windows:[])].filter(positiveCapacity))].sort((a,b)=>a-b);
           const contextWindow=windows.at(-1);

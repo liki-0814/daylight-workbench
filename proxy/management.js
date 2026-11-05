@@ -115,7 +115,7 @@ export function createManagement({registry,router,sourceState,records,viewSettin
   const p=provider(id);
   if(operation==='status')return catalogStatus(id,query.has('refresh'));
   if(operation==='models')return{models:await listModels(id,query.has('refresh'))};
-  if(operation==='media-models')return{models:typeof p.mediaModels==='function'?await p.mediaModels():[]};
+  if(operation==='media-models')return{models:typeof p.mediaModels==='function'?await p.mediaModels({refresh:query.has('refresh')}):[]};
   if(operation==='media-models/setting'){
    if(typeof p.setMediaModel!=='function')fail('来源不支持图像与视频设置',400);
    return{models:await p.setMediaModel(input)};

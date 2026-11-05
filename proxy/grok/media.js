@@ -1,9 +1,13 @@
 import { bindMediaModelSettings } from '../shared/model-settings.js';
 import { randomUUID } from 'node:crypto';
 import { authError } from './auth.js';
+import { CatalogCache } from '../shared/catalog-cache.js';
+import { cachedIds, parseXaiMediaModels } from '../shared/published-models.js';
 import { assertImageUrl, assertMediaOk, fail, imageBudget, imageResult, onlyKeys, readJsonLimited } from '../shared/media.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
+// cli-chat-proxy 的 /models 只有对话模型。图像和视频以 api.x.ai 的目录为准。
+const MEDIA_CATALOG = 'https://api.x.ai/v1/models';
 const IMAGES = ['grok-imagine-image-2.0', 'grok-imagine-image', 'grok-imagine-image-quality'];
 const VIDEOS = ['grok-imagine-video-1.5', 'grok-imagine-video-1.5-lite', 'grok-imagine-video'];
 const RATIOS = new Set(['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '2:1', '1:2', '19.5:9', '9:19.5', '20:9', '9:20', '21:9', '5:2', 'auto']);
@@ -73,8 +77,16 @@ function videoList(value, label, max, model) {
 }
 
 // Validates a client video body against the model's caps and returns the exact upstream body. Anything not named here is never forwarded.
+function videoCaps(model) {
+  if (VIDEO_CAPS[model]) return VIDEO_CAPS[model];
+  if (!/^grok-imagine-video(?:-|$)/.test(model)) return null;
+  if (/-lite(?:-|$)/.test(model)) return VIDEO_CAPS['grok-imagine-video-1.5-lite'];
+  if (/^grok-imagine-video(?:-\d{4}-\d{2}-\d{2})?$/.test(model)) return VIDEO_CAPS['grok-imagine-video'];
+  return VIDEO_CAPS['grok-imagine-video-1.5'];
+}
+
 function videoUpstream(body, model) {
-  const caps = VIDEO_CAPS[model];
+  const caps = videoCaps(model);
   if (!caps) fail('模型不是视频模型');
   for (const key of VIDEO_REJECTED) if (body[key] !== undefined) fail(VIDEO_REDIRECTS[key] || `不支持的字段：${key}`);
   onlyKeys(body, VIDEO_KEYS);
@@ -140,10 +152,33 @@ async function jsonCall(provider, endpoint, body, signal, observe) {
   return send(await provider.auth.credential(), false);
 }
 
+function outputOf(id) {
+  return /^grok-imagine-video(?:-|$)/.test(id) ? 'video' : 'image';
+}
+
+export function grokMediaId(model) {
+  return typeof model === 'string' && /^grok-imagine-(?:image|video)(?:-|$)/.test(model);
+}
+
 export function attachGrokMedia(provider) {
-  provider.mediaOwns = model => grokMediaIds.has(model);
+  provider.mediaCatalogCache = new CatalogCache();
+  const previous = provider.auth.onChange;
+  provider.auth.onChange = () => { provider.mediaCatalogCache.invalidate(); previous?.call(provider.auth); };
+  provider.mediaOwns = grokMediaId;
   provider.mediaLoginError = async () => await loggedIn(provider) ? null : authError();
-  provider.mediaModels = async () => await loggedIn(provider) ? [...IMAGES.map(id => row(id, 'image')), ...VIDEOS.map(id => row(id, 'video'))] : [];
+  provider.mediaModels = async (options) => {
+    const credential = await loggedIn(provider);
+    if (!credential) return [];
+    const ids = await cachedIds(provider.mediaCatalogCache, {
+      identity: credential.identity || 'grok', refresh: options?.refresh === true, fallback: [...IMAGES, ...VIDEOS],
+      load: async () => {
+        const response = await provider.fetchImpl(MEDIA_CATALOG, { redirect: 'error', signal: AbortSignal.timeout(30000), headers: { Authorization: `Bearer ${credential.token}`, Accept: 'application/json' } });
+        if (!response.ok) { await response.body?.cancel(); throw new Error(`media catalog ${response.status}`); }
+        return parseXaiMediaModels(await response.json());
+      },
+    });
+    return ids.map(id => row(id, outputOf(id)));
+  };
   bindMediaModelSettings(provider);
   provider.executeMedia = (input, context) => execute(provider, input, context);
 }

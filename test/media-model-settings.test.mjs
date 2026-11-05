@@ -11,10 +11,11 @@ import { selectMedia } from '../proxy/shared/media.js';
 import { createProxyService } from '../proxy/service.js';
 import { createProxyState } from '../public/proxy/state.js';
 
+const offline = async () => { throw new Error('offline'); };
 const providers = {
-  agy: dataDir => new AgyProvider({ dataDir, auth: { identity: 'a', token: async () => 'test' } }),
-  codex: dataDir => new CodexProvider({ dataDir, auth: { identity: 'c', read: async () => ({ identity: 'c', token: 'test' }), close() {} } }),
-  grok: dataDir => new GrokProvider({ dataDir, auth: { identity: 'g', credential: async () => ({ identity: 'g', token: 'test' }) } }),
+  agy: dataDir => new AgyProvider({ dataDir, fetchImpl: offline, auth: { identity: 'a', token: async () => 'test' } }),
+  codex: dataDir => new CodexProvider({ dataDir, fetchImpl: offline, auth: { identity: 'c', read: async () => ({ identity: 'c', token: 'test' }), close() {} } }),
+  grok: dataDir => new GrokProvider({ dataDir, fetchImpl: offline, auth: { identity: 'g', credential: async () => ({ identity: 'g', token: 'test' }) } }),
 };
 
 for (const [source, create] of Object.entries(providers)) {
