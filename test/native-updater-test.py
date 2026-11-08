@@ -173,6 +173,7 @@ try:
 
     # 3. Rejections leave the installed app untouched.
     b = Instance('reject'); instances.append(b); b.start()
+    b.wait(lambda s: s.get('reason') != 'checking', 30, 'environment check')
     Mock.state['tamper_zip'] = True
     b.check(); b.post(action='download'); failed = b.wait(lambda s: s.get('error'), 60, 'tampered download to fail')
     checked(failed['phase'] == 'idle' and b.installed_version() == OLD, f'tampered package rejected ({failed["error"]["code"]}); app unchanged')
@@ -190,6 +191,7 @@ try:
 
     # 4. A build that never reports healthy is rolled back automatically.
     c = Instance('health', extra_env={'DAYLIGHT_HELPER_HEALTH': '0.2'}); instances.append(c); c.start()
+    c.wait(lambda s: s.get('reason') != 'checking', 30, 'environment check')
     c.check(); c.post(action='download'); c.wait(lambda s: s['phase'] == 'ready', 60, 'download')
     c.post(action='install')
     outcome = c.wait(lambda s: s['current']['version'] == OLD and s.get('lastResult', {}).get('status') == 'rolled-back', 90, 'automatic rollback')
