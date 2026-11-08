@@ -110,4 +110,4 @@ python3 "$SKILL/scripts/workbench.py" extension-operation --id REQUEST_ID
 
 ## 覆盖边界
 
-当前客户端覆盖任务/项目、导出/撤销、AI 历史删除、扩展事务以及历史日历/专注兼容接口。代理凭证修复、应用更新和快速回答没有本客户端命令；不能声称全部功能均已提供外部 Skill 接口。具体 HTTP 和人工授权边界参见 [API 参考](references/api.md)。
+当前客户端覆盖任务/项目、导出/撤销、AI 历史删除、扩展事务、代理来源管理以及历史日历/专注兼容接口。代理凭证修复、应用更新和快速回答没有本客户端命令；不能声称全部功能均已提供外部 Skill 接口。具体 HTTP、代理命令和人工授权边界参见 [API 参考](references/api.md)。

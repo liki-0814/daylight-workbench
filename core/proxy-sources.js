@@ -7,6 +7,7 @@ export const proxySources=Object.freeze([
  {id:'codex',name:'Codex',label:'Codex',kind:'provider',mark:'C',tone:'codex',piOrder:0},
  {id:'kimi',name:'Kimi',label:'Kimi',kind:'provider',mark:'K',tone:'kimi',piOrder:2},
  {id:'copilot',name:'GitHub Copilot',label:'Copilot',kind:'provider',mark:'C',tone:'codex',piOrder:1},
+ {id:'qoder-cn',name:'Qoder CN',label:'Qoder CN',kind:'provider',mark:'Q',tone:'codex',piOrder:4.5},
  {id:'custom',name:'自定义',label:'自定义',kind:'source',mark:'M',tone:'custom',piOrder:6},
 ].map(Object.freeze));
 export const proxySourceNames=Object.freeze(Object.fromEntries(proxySources.map(({id,name})=>[id,name])));

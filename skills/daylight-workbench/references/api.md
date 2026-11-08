@@ -6,6 +6,8 @@
 
 当前 UI 默认完整任务列表，`tasks --scope all --status all`。today/calendar/focus 相关 API 仅作历史兼容，不对应现有页面。代理凭证修复、应用更新和快速回答尚无本 Skill 客户端命令。
 
+Qoder CN 代理来源 ID 为 `qoder-cn`。`workbench.py proxy-state` 读取来源和版本；`proxy-discover --source qoder-cn` 刷新模型目录；`proxy-prepare --file ACTION.json` 预览操作，`proxy-apply --file ACTION.json --expected-version VERSION --request-id ID` 应用已审阅操作；`proxy-login-state --source qoder-cn` 查询授权。浏览器授权须用户完成；写入结果未知时使用原 requestId 和原参数重试。代理覆盖与限制见仓库 `docs/reverse-proxy.md`。
+
 ## 读取与导出
 
 - `GET /api/v1/capabilities`：实时能力表、接口版本及去重窗口。

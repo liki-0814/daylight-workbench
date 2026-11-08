@@ -12,7 +12,7 @@ export function createSourcePage({store,source,name,confirmAction}){
  function paint(){
   if(disposed)return;const focusBefore=document.activeElement;const description=store.source(source),status=store.status,authentication=description?.authentication||{operations:[]},ops=authentication.operations,connected=status?.sources?.[source]?.connected||false;
   $('[data-caption]').textContent=(description?.name||name)+' 账号';
-  const account=description?.account||(authentication.requiresStoppedService?status?.account:undefined);
+  const account=description?.account||(source==='qoder'?status?.account:undefined);
   $('[data-account]').textContent=account?[account.login,account.organization,account.uid].filter(Boolean).join(' · '):(!description?.configured&&authentication.instruction)||status?.sources?.[source]?.error||description?.error?.hint||(connected?'已连接 '+(description?.name||name):authentication.instruction||'尚未连接 · 请登录后刷新');
   const identityKey=description?.identityKey,nextRevision=description?.revision,revisionChanged=revision!==nextRevision;revision=nextRevision;
   if(identity!==identityKey){identity=identityKey;models.reset();media.reset();if(visible){models.setVisible(true);media.setVisible(true);}}

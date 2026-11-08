@@ -22,10 +22,12 @@ function expiry(data, access) {
 export async function pollLogin(http, config, pending, fetchImpl) {
   const url = new URL('/api/v1/deviceToken/poll', config.openapiUrl);
   url.searchParams.set('nonce', pending.nonce); url.searchParams.set('verifier', pending.verifier);
+  if (config.challengeMethodInPoll) url.searchParams.set('challenge_method', 'S256');
   const response = await fetchImpl(url, { headers: { accept: 'application/json' } });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`登录查询失败（${response.status}）`);
   const data = await response.json(), access = accessOf(data);
+  if (config.challengeMethodInPoll && ((data.nonce && data.nonce !== pending.nonce) || (data.code_challenge && data.code_challenge !== createHash('sha256').update(pending.verifier).digest('base64url')) || (data.code_challenge_method && data.code_challenge_method !== 'S256'))) throw new Error('登录校验失败，请重新登录');
   if (!access) throw new Error('登录响应缺少令牌，请重新登录');
   const statusResponse = await http.openapi('GET', '/api/v3/user/status', { token: access });
   if (!statusResponse.ok) throw new Error(`账号查询失败（${statusResponse.status}）`);

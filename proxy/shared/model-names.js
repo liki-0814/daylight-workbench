@@ -30,10 +30,10 @@ export function withModelNames(source, provider) {
     return index < 0 ? undefined : {model: models[index], name: names[index]};
   }
   const execute = async (input, context) => {
-    const ref = source === 'qoder' ? parseModelRef(input.raw.model) : {id: input.raw.model};
+    const ref = ['qoder','qoder-cn'].includes(source) ? parseModelRef(input.raw.model) : {id: input.raw.model};
     const found = await original(ref.id);
     if (!found) return provider.execute(input, context);
-    const suffix = source === 'qoder' ? input.raw.model.trim().slice(ref.id.length) : '';
+    const suffix = ['qoder','qoder-cn'].includes(source) ? input.raw.model.trim().slice(ref.id.length) : '';
     const result = await provider.execute({...input, raw: {...input.raw, model: found.model.id + suffix}}, context);
     return result.model === found.model.id ? {...result, model: found.name.id} : result;
   };

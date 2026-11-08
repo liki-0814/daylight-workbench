@@ -17,9 +17,9 @@ import {createMediaJobs} from './shared/media-jobs.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
-export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, qwenworkProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
+export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, qwenworkProvider, qoderCNProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
   const metadata=createModelMetadata({dataDir,fetchImpl,enabled:!injectedProvider,...pricingOptions});
-  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,customSources,metadata,getPort:()=>settings.port});
+  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,qoderCNProvider,customSources,metadata,getPort:()=>settings.port});
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');
   const sourceState = new SourceState();
@@ -53,6 +53,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   const viewSettings=createViewSettings(path.join(directory,'view.json'));
   const sources = async () => {
     const account = await accounts.load();
+    await providers['qoder-cn']?.accounts?.load().catch(()=>{});
     if (!injectedProvider && registry.snapshot('qoder').catalogIdentityKey !== account?.id) {
       sourceState.invalidate('qoder');
       if (router.catalogs.has('qoder')) router.invalidateSource('qoder');
@@ -66,6 +67,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   const gateway=createGateway({getSettings:()=>settings,router,registry,sourceState,records,active,finishing,calibration,jobs});
   const status = async () => {
     const account = await accounts.load();
+    await providers['qoder-cn']?.accounts?.load().catch(()=>{});
     return { state, startedAt, activeRequests: active.size, port: settings.port, autoStart: settings.autoStart,
       baseUrl: `http://127.0.0.1:${settings.port}/v1`, lastError,
       node: { path: process.execPath, version: process.version },

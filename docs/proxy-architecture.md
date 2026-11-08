@@ -73,6 +73,7 @@
 | Qoder | `stream.js` | 拆开上游 SSE 包装后交给共享 Chat 流解析器 |
 | Qoder | `models.js` | Qoder 目录、CLI 模型配置、原生上下文档位、专属设置和排队规则 |
 | Qoder | `quota.js` | Credits、团队包、按账号隔离的额度快照历史 |
+| Qoder CN | `qoder/cn.js` | 中国站独立来源、设备登录、钥匙串凭据和来源状态；复用 Qoder 签名及聊天协议，不提供媒体和额度 |
 | AGY | `provider.js` | 认证、目录缓存、有效设置与上游执行编排 |
 | AGY | `auth.js` | 独立 Google OAuth、Keychain、静默续期及旧登录只读导入 |
 | AGY | `oauth-client.js`、`client-discovery.js` | 优先读取本机 OAuth 配置，缺失时只读检测官方安装中的已知 consumer 客户端；校验登录方式和参数，不执行 CLI 或读取账号令牌 |

@@ -85,6 +85,7 @@ def run(command):
         finally: stop()
 
 node = run(['node', str(root / 'fixtures/task-contract-server.mjs')])
-native = run([str(root / 'dist/native/Daylight.app/Contents/MacOS/Daylight'), '--headless'])
+native_binary = pathlib.Path(os.environ.get('DAYLIGHT_TEST_APP', str(root / 'dist/native/Daylight.app'))) / 'Contents/MacOS/Daylight'
+native = run([str(native_binary), '--headless'])
 assert node == native, [(i, a, b) for i, (a, b) in enumerate(zip(node, native)) if a != b]
 print(f'Node/native contract passed: {len(cases)} cases, restarts, legacy receipts, persisted state and all shared assets')

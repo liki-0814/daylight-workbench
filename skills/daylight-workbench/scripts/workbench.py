@@ -21,6 +21,16 @@ def main():
     parser.add_argument('--data-dir')
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('capabilities')
+    commands.add_parser('proxy-state', help='读取代理来源与配置版本')
+    for name in ['proxy-discover', 'proxy-login-state']:
+        command = commands.add_parser(name)
+        command.add_argument('--source', required=True)
+    proxy_prepare = commands.add_parser('proxy-prepare', help='预览代理操作')
+    proxy_prepare.add_argument('--file', required=True)
+    proxy_apply = commands.add_parser('proxy-apply', help='执行已审阅的代理操作')
+    proxy_apply.add_argument('--file', required=True)
+    proxy_apply.add_argument('--expected-version', required=True)
+    proxy_apply.add_argument('--request-id', required=True)
     commands.add_parser('extensions-state', help='只读 ~/.agents 扩展来源与接入事实')
     commands.add_parser('extensions-diagnostics', help='静态检查，不启动 MCP')
     extension_detail = commands.add_parser('extension-detail')
@@ -118,6 +128,18 @@ def main():
             params['unassigned'] = '1'
         route = '/api/v1/tasks?' + urllib.parse.urlencode(params)
     payload = None
+    proxy_commands = ['proxy-state', 'proxy-discover', 'proxy-prepare', 'proxy-apply', 'proxy-login-state']
+    if args.command in proxy_commands:
+        route = '/api/v1/proxy/' + {'proxy-state': 'state', 'proxy-discover': 'discover', 'proxy-prepare': 'prepare', 'proxy-apply': 'apply', 'proxy-login-state': 'loginState'}[args.command]
+        if args.command in ['proxy-discover', 'proxy-login-state']:
+            if not re.fullmatch(r'[a-zA-Z0-9:_-]{1,100}', args.source):
+                raise ValueError('代理来源 ID 无效')
+            payload = {'sourceId': args.source}
+        if args.command in ['proxy-prepare', 'proxy-apply']:
+            action = json.load(sys.stdin) if args.file == '-' else json.loads(Path(args.file).expanduser().read_text())
+            payload = {'action': action}
+            if args.command == 'proxy-apply':
+                payload.update({'requestId': args.request_id, 'expectedVersion': args.expected_version})
     focus_commands = ['focus-state', 'focus-stats', 'focus-sessions', 'task-focus', 'focus-prepare', 'focus-apply', 'focus-export']
     extension_commands = ['extensions-state', 'extensions-diagnostics', 'extension-detail', 'extension-operation', 'extensions-prepare', 'extensions-apply']
     if args.command in extension_commands:
@@ -174,11 +196,11 @@ def main():
                                      headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     try:
-        if args.command == 'calendar' or args.command in focus_commands or args.command in extension_commands:
+        if args.command == 'calendar' or args.command in focus_commands or args.command in extension_commands or args.command in proxy_commands:
             check = urllib.request.Request(url.rstrip('/') + '/api/v1/capabilities', headers={'Authorization': 'Bearer ' + token})
             with opener.open(check, timeout=15) as response:
                 caps = json.load(response)
-            if not caps.get('extensions' if args.command in extension_commands else 'calendarQuery' if args.command == 'calendar' else 'focus'):
+            if not caps.get('proxy' if args.command in proxy_commands else 'extensions' if args.command in extension_commands else 'calendarQuery' if args.command == 'calendar' else 'focus'):
                 raise ValueError('服务尚不支持此功能，请升级服务；不得直接编辑数据文件')
         with opener.open(request, timeout=15) as response:
             result = json.load(response)

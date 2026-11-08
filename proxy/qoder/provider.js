@@ -32,9 +32,9 @@ export class QoderProvider {
   clear() { this.catalogCache.invalidate(); this.sessions = new SessionStore(); }
   async ready() {
     return this.accounts.run(async () => {
-      const account = await this.accounts.require();
+      let account = await this.accounts.require();
       if (account.credential.expires < Date.now() + 60_000) {
-        account.credential = await refreshCredential(this.http, account.credential);
+        account = {...account, credential: await refreshCredential(this.http, account.credential)};
         await this.accounts.save(account);
       }
       return account;

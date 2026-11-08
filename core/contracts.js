@@ -46,5 +46,6 @@ export function capabilities() {
   return { apiVersion: 1, operations, taskQuery: taskQueryCapability,
     calendarQuery: calendarCapability, taskPlanning: taskPlanningCapability, focus: focusCapability, extensions: extensionsCapability,
     aiConversations: { reads: 'GET /api/v1/ai/state', writes: 'POST /api/v1/ai/actions', operations: ['ai.conversation.delete'] },
+    proxy: {state:'GET /api/v1/proxy/state',discover:'POST /api/v1/proxy/discover',prepare:'POST /api/v1/proxy/prepare',apply:'POST /api/v1/proxy/apply',loginState:'POST /api/v1/proxy/loginState',sources:'dynamic'},
     retention: 'last 100 successful request IDs', writes: 'POST /api/v1/actions {requestId, expectedVersion, day?, action}', reads: 'GET /api/v1/state' };
 }

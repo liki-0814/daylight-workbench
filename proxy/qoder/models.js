@@ -137,7 +137,7 @@ export function parseModelList(body, scene = "assistant") {
 export async function fetchModels(http, session) {
     const url = http.algoUrl("/algo/api/v2/model/list");
     const res = await http.signedGet(url, session);
-    if (!res.ok) throw new Error(`model/list failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) { await res.body?.cancel(); throw Object.assign(new Error(`Qoder 模型目录请求失败（${res.status}）`), {status: res.status}); }
     const body = await res.json();
     return parseModelList(body);
 }
