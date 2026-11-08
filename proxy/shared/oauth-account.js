@@ -14,7 +14,7 @@ export function trustedURL(value,domains){
 }
 // Daylight owns these credentials. Never read, rotate or delete a CLI's token file.
 export class OAuthAccount {
- constructor({id,name,fetchImpl=fetch,secrets, dataDir,now=Date.now}){Object.assign(this,{id,name,fetchImpl,secrets,now});this.secrets=secrets||new Secrets();this.key=id+'-oauth';this.sessions=new CredentialSessions({secrets:this.secrets,key:this.key,dataDir:dataDir||(!secrets?(process.env.WORKBENCH_DATA_DIR||path.join(os.homedir(),'Library/Application Support/Daylight')):undefined)});this.epoch=0;this.mutate=serial();this.lifetime=new AbortController();}
+ constructor({id,name,fetchImpl=fetch,secrets, dataDir,now=Date.now}){Object.assign(this,{id,name,fetchImpl,secrets,now});this.secrets=secrets||new Secrets();this.key=id+'-oauth';this.sessions=new CredentialSessions({secrets:this.secrets,key:this.key,dataDir:dataDir||(!secrets?(process.env.WORKBENCH_DATA_DIR||path.join(os.homedir(),'Library/Application Support/Daylight')):undefined)});this.epoch=0;this.silentRecoveryAttempts=0;this.mutate=serial();this.lifetime=new AbortController();}
  requestSignal(signal){return AbortSignal.any([this.lifetime.signal,AbortSignal.timeout(30000),...(signal?[signal]:[])]);}
  accessToken(session){return session?.access_token;}
  sessionIdentity(session){return createHash('sha256').update(JSON.stringify([this.id,session.account.id,session.clientId])).digest('hex');}
@@ -29,13 +29,21 @@ export class OAuthAccount {
   if(!response.ok&&!data.error)throw Object.assign(Error(`${this.name} 授权请求失败（${response.status}）`),{status:response.status});
   return data;
  }
- async readSession({signal}={}){
+ scheduleSilentRecovery(epoch){
+  if(this.closed||epoch!==this.epoch||this.silentRecoveryTimer||this.silentRecoveryAttempts>=3)return;
+  const delay=[1000,2000,4000][this.silentRecoveryAttempts++];
+  this.silentRecoveryTimer=setTimeout(()=>{this.silentRecoveryTimer=null;if(this.closed||epoch!==this.epoch||!this.recovery)return;void this.mutate(()=>this.recovery&&epoch===this.epoch?this.readSession({automaticRecovery:true}):undefined).catch(()=>{});},delay);
+  this.silentRecoveryTimer.unref?.();
+ }
+ clearSilentRecovery(){clearTimeout(this.silentRecoveryTimer);this.silentRecoveryTimer=null;this.silentRecoveryAttempts=0;}
+ async readSession({signal,automaticRecovery=false}={}){
   if(this.closed)throw oauthError(`${this.name} 来源已关闭`);
-  if(this.recovery?.code?.startsWith('EKEYCHAIN'))throw Object.assign(new Error(this.recovery.message),{code:this.recovery.code});
-  const epoch=this.epoch;let raw;try{raw=await this.sessions.get({signal:signal?AbortSignal.any([this.lifetime.signal,signal]):this.lifetime.signal});}catch(error){if(epoch===this.epoch&&error.code!=='EKEYCHAIN_CANCELLED')this.recovery={code:error.code,message:operationError(error),stage:'storage'};throw error;}if(epoch!==this.epoch)throw oauthError('登录状态已变化，请重新请求');
+  if(!automaticRecovery&&this.recovery?.code?.startsWith('EKEYCHAIN'))throw Object.assign(new Error(this.recovery.message),{code:this.recovery.code});
+  const epoch=this.epoch;let raw;try{raw=await this.sessions.get({signal:signal?AbortSignal.any([this.lifetime.signal,signal]):this.lifetime.signal});}catch(error){if(epoch===this.epoch&&error.code!=='EKEYCHAIN_CANCELLED'){this.recovery={code:error.code,message:operationError(error),stage:'storage'};if(['EKEYCHAIN_AUTH_FAILED','EKEYCHAIN_INTERACTION_REQUIRED'].includes(error.code))this.scheduleSilentRecovery(epoch);}throw error;}if(epoch!==this.epoch)throw oauthError('登录状态已变化，请重新请求');
   let session;try{session=JSON.parse(raw);}catch{}
   this.account=session?.account;this.identity=session?.account?.id?this.sessionIdentity(session):undefined;
   if(!this.accessToken(session)||!session.account?.id)throw oauthError(`请在 Daylight 中网页登录 ${this.name}`);
+  if(this.recovery){this.recovery=null;this.clearSilentRecovery();this.accountChanged();}
   return session;
  }
  session(data,previous={}){
@@ -45,7 +53,7 @@ export class OAuthAccount {
  async commit(session,epoch){return this.mutate(async()=>{
   if(epoch!==this.epoch)throw oauthError('登录状态已变化，请重新请求');
   session.identity=this.sessionIdentity(session);
-  try{await this.sessions.replace(JSON.stringify(session),{interactive:this.pending?.epoch===epoch,signal:AbortSignal.any([this.lifetime.signal,AbortSignal.timeout(180000),...(this.pending?[this.pending.controller.signal]:[])]),valid:()=>epoch===this.epoch&&!this.closed,committed:()=>{this.recovery=null;this.account=session.account;this.identity=session.identity;if(this.pending?.epoch===epoch)this.pending.credentialCommitted=true;}});}
+  try{await this.sessions.replace(JSON.stringify(session),{interactive:this.pending?.epoch===epoch,signal:AbortSignal.any([this.lifetime.signal,AbortSignal.timeout(180000),...(this.pending?[this.pending.controller.signal]:[])]),valid:()=>epoch===this.epoch&&!this.closed,committed:()=>{this.recovery=null;this.clearSilentRecovery();this.account=session.account;this.identity=session.identity;if(this.pending?.epoch===epoch)this.pending.credentialCommitted=true;}});}
   catch(error){if(epoch===this.epoch&&error.code!=='AUTH_CANCELLED')this.recovery={code:error.code,message:operationError(error,'凭证保存失败，请重新登录'),stage:'storage'};throw error;}
   return session;
  });}
@@ -62,7 +70,7 @@ export class OAuthAccount {
   })();this.refreshing={epoch,identity:saved.identity,task};
   try{return await task;}finally{if(this.refreshing?.task===task)this.refreshing=null;}
  }
- cancelPending(){this.epoch++;this.pending?.controller.abort();this.repairController?.abort();this.pending=null;this.polling=null;this.stopListener?.();}
+ cancelPending(){this.epoch++;this.clearSilentRecovery();this.pending?.controller.abort();this.repairController?.abort();this.pending=null;this.polling=null;this.stopListener?.();}
  async cancel(){if(this.pending?.credentialCommitted)return{status:'authenticated',authorized:true};this.cancelPending();return{status:'cancelled'};}
  async refresh(){await this.getSession(true);return{ok:true};}
  async repair(){
@@ -82,7 +90,7 @@ export class OAuthAccount {
     // A one-time system grant can read an old item without fixing its ACL.
     // Move to a new owned item and require a silent read before publication.
     await this.sessions.replace(JSON.stringify(session),{interactive:true,verifyInteractive:false,signal,valid,committed:()=>{
-     this.recovery=null;this.account=session.account;this.identity=session.identity;
+     this.recovery=null;this.clearSilentRecovery();this.account=session.account;this.identity=session.identity;
     }});
     this.accountChanged();return{ok:true,credentialRepaired:true};
    }catch(error){

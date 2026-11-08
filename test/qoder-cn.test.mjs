@@ -64,3 +64,20 @@ test('credential repair publishes only after silent verification and remains usa
  const result=await f.provider.auth.repair();assert.equal(result.credentialRepaired,true);assert.deepEqual(calls,[true,false]);
  assert.equal((await new CNAccountStore({dataDir:f.dataDir,secrets:f.secrets}).load()).credential.uid,'cn-user');
 });
+
+test('first CN login is available while gateway runs; replacing or logging out an account remains stopped-only',async t=>{
+ const f=await fixture(t);const {createWorkbench}=await import('../server.mjs');const net=await import('node:net');
+ const probe=net.createServer();await new Promise(r=>probe.listen(0,'127.0.0.1',r));const port=probe.address().port;await new Promise(r=>probe.close(r));
+ const server=await createWorkbench({dataDir:f.dataDir,proxyOptions:{qoderCNProvider:f.provider,includeGateway:false,includeAgy:false,includeGrok:false,provider:{listModels:async()=>[{id:'fixture',enabled:true}],execute:async()=>({kind:'events',events:[]})}},extensionsOptions:{agentsRoot:path.join(f.dataDir,'agents'),home:f.dataDir,environment:{PATH:'/usr/bin:/bin'}}});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(async()=>{await server.closeProxy();server.closeAllConnections();await new Promise(r=>server.close(r));});
+ const base=`http://127.0.0.1:${server.address().port}`,token=(await(await fetch(base+'/api/state')).json()).token;
+ async function call(route,body){const res=await fetch(base+'/api/proxy/'+route,{method:body===undefined?'GET':'POST',headers:{'x-workbench-token':token,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});return{status:res.status,body:await res.json()};}
+ await call('settings',{port,autoStart:false});assert.equal((await call('service',{enabled:true})).status,200);
+ await call('sources');assert.equal((await call('sources/qoder-cn/auth/login',{})).status,200);assert.equal((await call('sources/qoder-cn/auth/cancel',{})).status,200);
+ const {execFile}=await import('node:child_process'),{promisify}=await import('node:util'),{writeFile}=await import('node:fs/promises');const run=promisify(execFile),client=path.resolve('skills/daylight-workbench/scripts/workbench.py');
+ const cli=async(...args)=>JSON.parse((await run('python3',[client,'--url',base,'--data-dir',f.dataDir,...args])).stdout);
+ const state=await cli('proxy-state'),file=path.join(f.dataDir,'login-action.json');await writeFile(file,JSON.stringify({type:'auth.login',sourceId:'qoder-cn'}));
+ assert.equal((await cli('proxy-prepare','--file',file)).action.sourceId,'qoder-cn');assert.equal((await cli('proxy-apply','--file',file,'--expected-version',state.version,'--request-id','cn-login-fixture')).ok,true);
+ f.authorize();assert.equal((await call('sources/qoder-cn/auth/poll')).body.authorized,true);
+ assert.equal((await call('sources/qoder-cn/auth/login',{})).status,409);assert.equal((await call('sources/qoder-cn/auth/logout',{})).status,409);
+});

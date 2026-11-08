@@ -134,3 +134,27 @@ test('repair shares one deadline across keychain steps and cannot publish after 
  assert.equal((await f.auth.sessions.state()).current,'review-oauth');
  assert.equal(f.auth.recovery.code,'EKEYCHAIN_TIMEOUT');
 });
+
+test('a transient keychain failure recovers silently without prompting or changing credentials',async t=>{
+ const f=await fixture(t);let attempts=0,success;const done=new Promise(resolve=>{success=resolve;});
+ f.auth.onChange=success;f.secrets.get=async(id,options)=>{assert.notEqual(options?.interactive,true);if(++attempts===1)throw Object.assign(Error('temporary'),{code:'EKEYCHAIN_AUTH_FAILED'});return JSON.stringify(session('restored'));};
+ await assert.rejects(f.auth.readSession(),{code:'EKEYCHAIN_AUTH_FAILED'});const watchdog=setTimeout(()=>success(),3000);await done;clearTimeout(watchdog);
+ assert.equal(f.auth.recovery,null);assert.equal(f.auth.account.id,'restored');assert.equal(attempts,2);assert.equal((await f.auth.sessions.state()).current,'review-oauth');
+});
+
+test('silent recovery stops after three attempts and never shows a system prompt',async t=>{
+ const f=await fixture(t),scheduled=[];let calls=0;
+ t.mock.method(globalThis,'setTimeout',(fn,ms)=>{const timer={fn,ms,unref(){}};scheduled.push(timer);return timer;});
+ t.mock.method(globalThis,'clearTimeout',()=>{});
+ f.secrets.get=async(_id,options)=>{assert.notEqual(options?.interactive,true);calls++;throw denied();};
+ await assert.rejects(f.auth.readSession());
+ for(const delay of [1000,2000,4000]){const timer=scheduled.shift();assert.equal(timer.ms,delay);timer.fn();await f.auth.mutate(async()=>{});}
+ assert.equal(calls,4);assert.equal(scheduled.length,0);assert.equal(f.auth.recovery.code,'EKEYCHAIN_INTERACTION_REQUIRED');
+});
+
+test('automatic retry cannot read credentials after the account is closed',async t=>{
+ const f=await fixture(t);let timer,reads=0;
+ t.mock.method(globalThis,'setTimeout',(fn)=>{timer={fn,unref(){}};return timer;});t.mock.method(globalThis,'clearTimeout',()=>{});
+ f.secrets.get=async()=>{reads++;throw denied();};await assert.rejects(f.auth.readSession());
+ f.auth.close();timer.fn();await f.auth.mutate(async()=>{});assert.equal(reads,1);
+});

@@ -75,7 +75,7 @@ export class QoderCNProvider extends QoderProvider {
   super(config,http,accounts);this.auth=new CNAuth({accounts,http,config,fetchImpl:http.fetchImpl,onChange:()=>this.clear()});
   for(const key of ['mediaOwns','mediaLoginError','mediaModels','setMediaModel','executeMedia'])delete this[key];
  }
- snapshot(){const c=this.accounts.current?.credential;return {...sourceSnapshot({...sourceDescription,identityKey:this.accounts.current?.id,configured:!!c,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,catalogIdentityKey:this.cache?.identity}),account:c?{login:[c.organizationName,c.uid].filter(Boolean).join(' · ')}:undefined};}
+ snapshot(){const c=this.accounts.current?.credential;const requiresStoppedService=!!c||!this.accounts.loaded||!!this.accounts.recovery;return {...sourceSnapshot({...sourceDescription,authentication:{...sourceDescription.authentication,requiresStoppedService},identityKey:this.accounts.current?.id,configured:!!c,connected:!!this.cache&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at,catalogIdentityKey:this.cache?.identity}),account:c?{login:[c.organizationName,c.uid].filter(Boolean).join(' · ')}:undefined};}
  async status(force=false){return checkAccountCatalog(this,force);}
  async catalog(account,force=false){const epoch=this.auth.epoch;const result=await super.catalog(account,force);if(epoch!==this.auth.epoch)throw Object.assign(new Error('Qoder CN 账号已切换，请重新请求'),{status:401});return result;}
  async ready(){
