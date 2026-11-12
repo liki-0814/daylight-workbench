@@ -10,7 +10,7 @@
 - **macOS 桌面**：菜单栏任务入口、窗口关闭后驻留，以及 `⌥Space` 快速搜索。
 - **扩展管理**：维护 ~/.agents 下的 Skills、MCP 与 Codex/Qoder/Pi 接入，支持 AI 管理草稿、归档与回执恢复。
 - **AI 对话**：自动识别并连接本机 Codex、Qoder 或 Pi CLI，支持流式回答、历史会话、项目/任务关联与引用、可编辑变更草稿。
-- **模型中转**：Qoder、AGY、Grok、Codex、Kimi、GitHub Copilot 与自定义上游共用接入地址、API Key 和服务开关，以及模型/额度组件。
+- **模型中转**：Qoder、Qoder CN、千问办公、WorkBuddy、AGY、Grok、Codex、Kimi、GitHub Copilot 与自定义上游共用接入地址、API Key 和服务开关，以及模型/额度组件。
 - **快捷问答**：`⌥Space` 面板中的临时单轮 AI 问答，支持粘贴剪贴板图片。
 - **应用内更新**：侧栏「更新」页检查 GitHub Releases 的正式发布，经 Ed25519 签名与 SHA-256 校验后在应用内替换并保留回滚；默认仅提醒，详见 [应用内更新](docs/updates.md)。
 - **请求诊断**：统一查看来源状态、请求结果、阶段耗时、模型映射及上游实际返回的用量。

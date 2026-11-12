@@ -11,11 +11,11 @@ Qoder CN 是独立来源，与国际版 Qoder 分别登录、保存模型设置�
 
 来源隔离和模拟推理覆盖在 `test/qoder-cn.test.mjs`；其结果不能代替真实账号、工具调用或原生程序验收。
 
-侧栏“反向代理”包含 Qoder、Qoder CN、千问办公、AGY、Grok、Codex、Kimi、Copilot、自定义来源及模型路由标签，分别管理账号、模型与额度，共用一个服务开关、接入地址和 API Key；模型、额度、运行设置默认折叠。默认手动开启，可在停止状态下设置“随 Daylight 启动”。关闭窗口后继续运行，退出 App 时停止代理；有请求进行时，停止前需要确认中断。后端和前端的具体文件职责见 [中转架构](proxy-architecture.md)。
+侧栏“反向代理”包含 Qoder、Qoder CN、千问办公、WorkBuddy、AGY、Grok、Codex、Kimi、Copilot、自定义来源及模型路由标签，分别管理账号、模型与额度，共用一个服务开关、接入地址和 API Key；模型、额度、运行设置默认折叠。默认手动开启，可在停止状态下设置“随 Daylight 启动”。关闭窗口后继续运行，退出 App 时停止代理；有请求进行时，停止前需要确认中断。后端和前端的具体文件职责见 [中转架构](proxy-architecture.md)。
 
 标签栏右侧“显示来源”可勾选需要显示的来源，默认全部显示，保存后在本机持续生效。隐藏只影响来源页面，不会停用来源、退出账号、删除配置或改变模型路由，代理运行时也能修改。模型路由始终可见；当前来源被隐藏时切换到第一个可见页面。显示设置独立保存在 `qoder/view.json`，记录隐藏项而非固定的可见白名单，新增来源默认显示。
 
-Qoder、Qoder CN、AGY、Grok、Codex、Kimi、Copilot 都可直接在 Daylight 登录，无需安装对应 CLI。来源页复用同一账号栏：未登录时提供网页登录，登录后显示账号、刷新登录和退出账号；“刷新登录”续期当前凭据并重新检测目录。Qoder 和 Qoder CN 更换或退出已有账号前仍需停止代理。取消待完成的授权不删除已有账号，退出只清除 Daylight 保存的该来源凭据，不修改 CLI 登录文件。AGY、Kimi、Grok、Codex 和 Copilot 凭据保存在 macOS Keychain。
+Qoder、Qoder CN、AGY、Grok、Codex、Kimi、Copilot 和 WorkBuddy 都可直接在 Daylight 登录，无需安装对应 CLI。来源页复用同一账号栏：未登录时提供网页登录，登录后显示账号、刷新登录和退出账号；“刷新登录”续期当前凭据并重新检测目录。Qoder 和 Qoder CN 更换或退出已有账号前仍需停止代理。取消待完成的授权不删除已有账号，退出只清除 Daylight 保存的该来源凭据，不修改 CLI 登录文件。AGY、Kimi、Grok、Codex 和 Copilot 凭据保存在 macOS Keychain。
 
 独立认证仅用于反向代理。AI 对话的 Codex / Qoder 执行后端继续使用各自 CLI；AI 管理工具可以为所有上述来源生成登录、取消、刷新及退出草稿，由用户审阅应用。
 
@@ -48,6 +48,20 @@ Qoder 在输出前收到排队业务码 `10605` 或临时错误 `10500` 时，�
 - App 自动检测 PATH、Homebrew、nvm、mise、fnm 和 Volta 中的 Node，也可手动指定绝对路径。使用标准 Node API，无额外 npm 运行依赖，不打包 Node。
 - 共用服务配置和请求用量沿用 Daylight 数据目录的 `qoder/`，AGY 模型设置单独存放在 `agy/`；文件权限为 0600。用量只记录来源、模型、结果、耗时、重试和 token 数，保留最近 1,000 次请求，不记录 prompt 或工具参数。AGY 令牌保存于 Keychain；`agy/auth.json` 只记录退出后禁止重新导入旧登录的标记。
 - 原生任务服务保持独立；代理与 AI 分别使用按需启动的 Node 子进程。Node 不可用或代理配置损坏时，任务管理继续工作。退出父进程后子进程自动停止。
+
+
+## WorkBuddy 国内版
+
+WorkBuddy 使用独立网页授权、模型目录和 Chat 上游，依赖非官方接口；服务变更可能使来源不可用。账号凭据使用 Daylight 的钥匙串受管理条目，不读取或刷新 WorkBuddy 桌面应用的凭据。登录、刷新、退出与模型目录状态分别显示；无已核实额度接口。上游只提供流式响应，非流式请求由网关聚合；其他协议使用既有转换，不支持无损转换的参数会报错。
+
+2026-11-13 在隔离原生开发 App 与独立账号上，使用 `hy4free` 验证了网页授权、钥匙串保存及进程重启后静默读回、刷新、目录读取；通过真实本地网关完成了 Responses 和 Messages 的多个工具调用及结果续接。其他模型、正式签名 App 的真实账号授权和所有参数组合尚未逐项验证。非官方接口不可用时检查登录和网络后重新尝试。
+
+| 功能 | 服务 / Web API | Agent API 与 Skill 客户端 | 测试 / 状态 |
+| --- | --- | --- | --- |
+| 账号授权、刷新、退出 | `WorkBuddyAuth`；`/api/proxy/sources/workbuddy/auth/{login,poll,cancel,refresh,logout}` | `/api/v1/proxy/{prepare,apply,loginState}`；`proxy-prepare`、`proxy-apply`、`proxy-login-state` | 隔离测试；原生开发 App 的独立账号实测登录、重启静默读回和刷新 |
+| 模型目录与设置 | `WorkBuddyProvider.listModels/setModel`；来源 `models`、`models/setting` | `/api/v1/proxy/{state,discover,prepare,apply}`；对应 `proxy-*` 命令 | 隔离测试及真实目录检查 |
+| 模型调用 | `WorkBuddyProvider.execute`；网关 `/v1/chat/completions`、`/v1/responses`、`/v1/messages` | 下游通过网关调用；Agent 管理测试使用 `proxy-discover` | 模拟网关 Chat/Responses；真实 Chat、Responses、Messages 工具调用及续接 |
+| 额度 | 未实现 | 未实现 | 未支持 |
 
 
 ## 千问办公

@@ -9,7 +9,7 @@ function fixture(source,options={}){
  let child;
  const secrets=new Secrets({...options,spawnImpl:(_helper,args,spawnOptions)=>{
   assert.deepEqual(args,[]);assert.deepEqual(spawnOptions.stdio,['pipe','pipe','pipe']);
-  child=spawn(process.execPath,['--input-type=module','-e',source],spawnOptions);return child;
+  child=spawn(process.execPath,['--input-type=module','-e',source],{...spawnOptions,env:{...process.env,NODE_NO_WARNINGS:'1'}});return child;
  }});
  return {secrets,get child(){return child;}};
 }
@@ -37,13 +37,13 @@ test('missing credential stays undefined',async()=>{
 });
 for(const status of [-25308,-25315])test(`interaction-required status ${status} fails explicitly without a retry`,async()=>{
  let calls=0;
- const f=fixture(`process.stderr.write('钥匙串操作失败：${status}');process.exit(1);`);
+ const f=fixture(`process.stderr.write('钥匙串操作失败：${status}',()=>process.exit(1));`);
  const original=f.secrets.spawnImpl;f.secrets.spawnImpl=(...args)=>{calls++;return original(...args);};
  await assert.rejects(f.secrets.get('fixture-id'),error=>error.code==='EKEYCHAIN_INTERACTION_REQUIRED'&&/未弹出授权窗口/.test(error.message));
  assert.equal(calls,1);
 });
 test('keychain authentication failure stays distinct from upstream login and never retries',async()=>{
- const f=fixture("process.stderr.write('钥匙串操作失败：-25293');process.exit(1)");
+ const f=fixture("process.stderr.write('钥匙串操作失败：-25293',()=>process.exit(1))");
  await assert.rejects(f.secrets.get('fixture-id'),error=>error.code==='EKEYCHAIN_AUTH_FAILED'&&/不代表上游账号已退出/.test(error.message));
 });
 test('timeout reaps a helper that ignores SIGTERM before rejecting',async t=>{

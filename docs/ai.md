@@ -6,7 +6,7 @@
 
 ## 代理管理工具
 
-AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_discover_proxy_models`、`daylight_test_proxy`、`daylight_get_proxy_login`、`daylight_get_proxy_requests`、`daylight_propose_proxy_changes`。可创建/局部更新自定义来源、修改模型映射与默认参数、启停或删除自定义来源、配置独立 Key 的模型权限、调整同名模型主用与备用顺序、启停统一出口、管理 Qoder、AGY、Kimi、Grok、Codex、GitHub Copilot 的独立网页登录、取消授权、刷新登录和退出账号；写入在对话内生成审阅卡片，用户应用后才保存。Qoder 退出账号前需停止代理。AGY 使用独立 Google 网页登录。Key 在卡片的密码框填写，直接进入钥匙串，不进入模型上下文或对话存档。模型能力未知时保持未知；连接测试读取模型目录，不发送推理请求。模型容量与公共管理层见 [中转架构](proxy-architecture.md)。
+AI 的公共 MCP 工具还支持代理管理：`daylight_get_proxy`、`daylight_discover_proxy_models`、`daylight_test_proxy`、`daylight_get_proxy_login`、`daylight_get_proxy_requests`、`daylight_propose_proxy_changes`。可创建/局部更新自定义来源、修改模型映射与默认参数、启停或删除自定义来源、配置独立 Key 的模型权限、调整同名模型主用与备用顺序、启停统一出口、管理 Qoder、千问办公、WorkBuddy、AGY、Kimi、Grok、Codex、GitHub Copilot 的独立网页登录、取消授权、刷新登录和退出账号；写入在对话内生成审阅卡片，用户应用后才保存。Qoder 退出账号前需停止代理。AGY 使用独立 Google 网页登录。Key 在卡片的密码框填写，直接进入钥匙串，不进入模型上下文或对话存档。模型能力未知时保持未知；连接测试读取模型目录，不发送推理请求。模型容量与公共管理层见 [中转架构](proxy-architecture.md)。
 
 规范化管理出口为 `GET /api/v1/proxy/state` 和 `POST /api/v1/proxy/{discover,test,prepare,apply,loginState,requests}`，沿用本地 Agent Bearer 认证。`prepare` 只校验公开 action；`apply` 需要 `requestId`、读取时的 `expectedVersion` 和 action，按配置快照拒绝过期变更并保留最近 100 个请求回执。支持 `source.save`、`source.enabled`、`source.delete`、`model.setting`、`route.save`、`auth.login`、`auth.cancel`、`auth.refresh`、`auth.logout`、`service.enabled`。`state.routes` 给出完整来源 ID/主备顺序；`route.save` 接受模型 id、完整 order 和 excluded，删除来源时同步清理路由引用。`source.save.keys` 仅含 id/enabled/models，`prepare.requiresKeys` 列出缺少凭据的 Key；用户在审阅框安全填写后通过 `apply.apiKeys`（Key id 到凭据的映射）送入凭据存储。发现模型返回各 Key 独立目录及合并目录，保存时覆盖旧目录。各来源授权启动只返回经安全过滤的登录链接、适用的用户码及状态，由用户完成后读取 `loginState` 确认；启动成功不表示登录完成。此出口不返回明文凭据，不替代供下游调用的 `/v1/chat/completions`、`/v1/responses`、`/v1/messages`。
 ## CLI 运行时与权限
@@ -92,7 +92,7 @@ Codex/Qoder 共用 `daylight_get_calendar`、`daylight_get_focus`、`daylight_ge
 
 扩展查询和管理通过四个 daylight 扩展工具进入共用服务，管理目录不替换当前 Skill picker 或运行工作目录。extensionReferences 是独立的真实对象快照，不扩大 workspace/project/task scope。extensionChanges 使用与页面共用的差异审阅；extensionSubmission 在批准发送前保存完整原请求，重启或丢失响应后可通过 extension-submission 核对。未知提交未核对时不能删除该对话。公共 MCP 不自动装载到模型会话。详见[扩展管理](extensions.md)。
 
-反向代理的账号管理与上述 AI 对话运行时分开：Qoder、Kimi、Grok、Codex、Copilot 均可通过代理管理工具生成登录、取消、刷新登录及退出草稿；用户在页面审阅应用并在官方网页授权。`daylight_get_proxy_login` 可读取这些来源的公开授权状态，不返回令牌；独立代理账号不会替换 AI 对话的 CLI 登录。
+反向代理的账号管理与上述 AI 对话运行时分开：Qoder、千问办公、WorkBuddy、Kimi、Grok、Codex、Copilot 均可通过代理管理工具生成登录、取消、刷新登录及退出草稿；用户在页面审阅应用并在官方网页授权。`daylight_get_proxy_login` 可读取这些来源的公开授权状态，不返回令牌；独立代理账号不会替换 AI 对话的 CLI 登录。
 
 
 ## 对话布局与项目 Skill

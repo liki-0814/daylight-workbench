@@ -8,14 +8,15 @@ import {CodexProvider,sourceDescription as codexDescription} from './codex/provi
 import {KimiProvider,sourceDescription as kimiDescription} from './kimi/provider.js';
 import {CopilotProvider,sourceDescription as copilotDescription} from './copilot/provider.js';
 import {QwenWorkProvider,sourceDescription as qwenWorkDescription} from './qwenwork/provider.js';
+import {WorkBuddyProvider,sourceDescription as workbuddyDescription} from './workbuddy/provider.js';
 import {CustomSources} from './custom/sources.js';
 import {sourceSnapshot} from './shared/contracts.js';
 import {headerDeadline} from './shared/header-deadline.js';
 import {withModelNames} from './shared/model-names.js';
 
 // These descriptions also keep injected test providers on the public contract.
-const builtins={qoder:qoderDescription,'qoder-cn':qoderCNDescription,agy:agyDescription,grok:grokDescription,codex:codexDescription,kimi:kimiDescription,copilot:copilotDescription,qwenwork:qwenWorkDescription};
-export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,qoderCNProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort,metadata}){
+const builtins={qoder:qoderDescription,'qoder-cn':qoderCNDescription,agy:agyDescription,grok:grokDescription,codex:codexDescription,kimi:kimiDescription,copilot:copilotDescription,qwenwork:qwenWorkDescription,workbuddy:workbuddyDescription};
+export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,workbuddyProvider,qoderCNProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort,metadata}){
  const config={...loadConfig(dataDir),...overrides},accounts=new AccountStore(config.accountFile);
  const transport=(url,options={})=>{const deadline=headerDeadline(options.signal,options.signal?300000:30000);return fetchImpl(url,{...options,redirect:'error',signal:deadline.signal}).finally(()=>deadline.settle());};
  const qoder=provider||new QoderProvider(config,new QoderHttp(config,transport),accounts);
@@ -23,6 +24,7 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
  const custom=customSources||(includeGateway?new CustomSources({dataDir,fetchImpl,getPort}):null);
  const providers={
   ...(copilotProvider||includeGateway?{copilot:copilotProvider||new CopilotProvider({dataDir,fetchImpl})}:{}),
+  ...(workbuddyProvider||includeGateway?{workbuddy:workbuddyProvider||new WorkBuddyProvider({dataDir,fetchImpl})}:{}),
   ...(qwenworkProvider||includeGateway?{qwenwork:qwenworkProvider||new QwenWorkProvider({dataDir,fetchImpl})}:{}),
   ...(qoderCNProvider||includeGateway?{'qoder-cn':qoderCNProvider||new QoderCNProvider(cnConfig,new QoderHttp(cnConfig,transport),new CNAccountStore({dataDir}))}:{}),
   ...(kimiProvider||includeGateway?{kimi:kimiProvider||new KimiProvider({dataDir,fetchImpl})}:{}),

@@ -1,6 +1,6 @@
 # 代理凭证恢复
 
-OAuth 来源（Codex、AGY、Grok、Kimi、Copilot）的令牌仍只保存在系统钥匙串中。`proxy/credentials/<source>-oauth.json` 只存当前凭证项和待清理项的引用，不存令牌。Qoder、千问办公使用各自原有的账号文件，不迁移到此存储。
+独立凭证来源（Codex、AGY、Grok、Kimi、Copilot、WorkBuddy）的令牌仍只保存在系统钥匙串中。`proxy/credentials/<source>-oauth.json` 只存当前凭证项和待清理项的引用，不存令牌。Qoder、千问办公使用各自原有的账号文件，不迁移到此存储。
 
 ## 登录与退出
 

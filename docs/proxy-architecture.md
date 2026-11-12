@@ -97,6 +97,7 @@
 | Copilot | `provider.js` | 目录缓存、模型设置、按声明分流 Chat/Responses/Messages、401 单次重试与账号隔离 |
 | Copilot | `models.js` / `quota.js` | 上游能力与请求配额，保留未知值 |
 | Custom | `sources.js` | 来源和逐 Key 配置、发现、校验、保存/删除、配置版本、Keychain 调用 |
+| WorkBuddy | `auth.js`, `models.js`, `provider.js` | 国内版独立网页会话、账号隔离的目录缓存、Chat 流执行；共享凭据存储与协议转换 |
 | Custom | `provider.js` | 单来源执行实例、映射、逐 Key 权限、冷却/回退/亲和性、协议转换 |
 | Custom | `models.js` | 目录解析、模型校验、逐 Key 权限与容量的保守合并 |
 
