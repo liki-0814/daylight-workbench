@@ -142,7 +142,6 @@ dialog,
 .task-row,
 .shortcut-list li,
 .settings-facts>div,
-.update-history li,
 .cli-model-row {
   border-color: var(--line);
 }

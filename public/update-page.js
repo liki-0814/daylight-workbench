@@ -96,8 +96,8 @@ export function updateMarkup({ release = null, updater = null, checking = false,
   const mode = updater?.mode || 'notify';
   const note = updateModes.find(item => item.value === mode)?.note || '';
   const supported = updater?.supported === true;
-  const history = Array.isArray(updater?.history) ? updater.history : [];
   const backup = updater?.backup;
+  const rollback = backup ? `<div class="app-update-actions">${actionButton({ label: `回滚到 ${backup.version}`, symbol: 'undo', variant: 'secondary', attrs: { 'data-update-rollback': true, disabled: working || !supported } })}${backup.sameSigner === false ? '<span class="update-inline-note">上一版本的签名与当前不同，回滚后可能需要重新授权。</span>' : ''}</div>` : '';
   const sourceLink = `<a href="${repositoryURL}" target="_blank" rel="noreferrer">liki-0814/daylight-workbench</a>`;
   const signing = ({ 'self-signed': '自签名发布证书', 'ad-hoc': '临时签名', developer: '开发者签名', unsigned: '未签名' })[updater?.current?.signing];
   return `<header class="topbar"><span>我的工作空间 <span class="slash">/</span> 更新</span></header>
@@ -118,6 +118,7 @@ export function updateMarkup({ release = null, updater = null, checking = false,
           ${notices.join('')}
           ${live}
           <div class="app-update-actions">${actions.join('')}${links.join('')}</div>
+          ${rollback}
         </section>
         <section class="settings-panel" aria-label="自动更新">
           ${sectionHeading({title:'自动更新',className:'settings-heading'})}
@@ -127,11 +128,6 @@ export function updateMarkup({ release = null, updater = null, checking = false,
         <section class="settings-panel" aria-label="更新说明">
           ${sectionHeading({title:'更新说明',className:'settings-heading'})}
           ${latest?.body ? `<div class="update-notes" data-update-notes>${notesHtml || `<p>${esc(latest.notes)}</p>`}</div>` : `<p class="update-empty" data-update-notes-empty>${latest ? '该发布没有填写说明。' : '有新的正式发布后，完整说明会显示在这里。'}</p>`}
-        </section>
-        <section class="settings-panel" aria-label="更新历史">
-          ${sectionHeading({title:'更新历史',className:'settings-heading'})}
-          ${history.length ? `<ul class="update-history" data-update-history>${history.map(item => `<li data-status="${esc(item.status)}"><div><strong>${esc(item.from)} → ${esc(item.to)}</strong><span>${resultLine(item)}</span></div></li>`).join('')}</ul>` : '<p class="update-empty" data-update-history-empty>还没有更新记录。</p>'}
-          ${backup ? `<div class="app-update-actions">${actionButton({ label: `回滚到 ${backup.version}`, symbol: 'undo', variant: 'secondary', attrs: { 'data-update-rollback': true, disabled: working || !supported } })}${backup.sameSigner === false ? '<span class="update-inline-note">上一版本的签名与当前不同，回滚后可能需要重新授权。</span>' : ''}</div>` : ''}
         </section>
       </div>
     </div>`;

@@ -1,7 +1,17 @@
 :root {
   color: var(--workbench-text);
   background: var(--workbench-background);
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 * {
@@ -1149,7 +1159,7 @@ dialog::backdrop {
   .sidebar { position:static; width:auto; clip-path:none; border-right:0; border-bottom:1px solid var(--line); height:var(--mobile-navigation-height); display:flex; flex-direction:row; align-items:center; padding:var(--space-2); overflow:hidden; }
   .sidebar-collapsed .sidebar { clip-path:none; }
   .sidebar .brand,.sidebar .capture,.sidebar .sidebar-toggle { display:none; }
-  .sidebar>nav.page-navigation:first-of-type { display:flex; flex-direction:row; flex:1; min-width:0; margin:0; gap:var(--space-1); overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; scrollbar-color:var(--control-border) transparent; }
+  .sidebar>nav.page-navigation:first-of-type { display:flex; flex-direction:row; flex:1; min-width:0; margin:0; gap:var(--space-1); overflow-x:auto; overflow-y:hidden; }
   .page-navigation .nav-item { display:grid; grid-template-columns:1fr; grid-template-rows:22px var(--font-meta-line); align-content:center; justify-items:center; flex:0 0 64px; min-width:64px; min-height:48px; margin:0; padding:var(--space-1); gap:0; }
   .page-navigation .nav-item>.icon { width:18px; height:18px; }
   .sidebar-collapsed .nav-item::before { width:auto; }

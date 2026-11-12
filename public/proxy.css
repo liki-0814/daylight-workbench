@@ -507,8 +507,6 @@
   overflow-x:auto;
   flex-wrap:nowrap;
   padding-bottom:var(--space-1);
-  scrollbar-width:thin;
-  scrollbar-color:var(--control-border) transparent;
   overscroll-behavior-inline:contain;
 }
 .proxy-tabs::after {

@@ -43,7 +43,6 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
     private var currentDR: String?
     private var signing = "unknown"
     private var support: [String: Any] = ["supported": false, "reason": "checking", "message": "正在检查安装环境…"]
-    private var history: [[String: Any]] = []
     private var backupInfo: [String: Any]?
     private var lastResult: [String: Any]?
     private var acknowledgedResult: String?
@@ -94,7 +93,6 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
     private var settingsFile: URL { updates.appendingPathComponent("settings.json") }
     private var healthFile: URL { updates.appendingPathComponent("health.json") }
     private var resultFile: URL { updates.appendingPathComponent("last-result.json") }
-    private var historyFile: URL { updates.appendingPathComponent("history.json") }
     private func now() -> String { formatter.string(from: Date()) }
 
     func mapAPI(_ url: String) -> String {
@@ -165,7 +163,6 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
             self.lock.lock()
             if let value = saved?["mode"] as? String, ["notify", "download-quit", "download-prompt"].contains(value) { self.mode = value }
             self.acknowledgedResult = saved?["acknowledgedResult"] as? String
-            self.history = self.readJSON(self.historyFile) as? [[String: Any]] ?? []
             self.lock.unlock()
             self.loadLastResult()
             self.refreshEnvironment()
@@ -179,11 +176,6 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
         guard let result = readJSON(resultFile) as? [String: Any], let id = result["id"] as? String else { return }
         lock.lock()
         lastResult = result
-        if !history.contains(where: { $0["id"] as? String == id }) {
-            history.insert(result, at: 0)
-            history = Array(history.prefix(20))
-            writeJSON(history, to: historyFile)
-        }
         lock.unlock()
     }
 
@@ -247,7 +239,7 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
         var out: [String: Any] = [
             "supported": support["supported"] as? Bool == true, "phase": phase, "mode": mode,
             "current": ["version": currentVersion, "signing": signing, "bundlePath": bundleURL.path],
-            "progress": ["received": received, "total": total], "history": history,
+            "progress": ["received": received, "total": total],
         ]
         if let reason = support["reason"] { out["reason"] = reason }
         if let message = support["message"] { out["message"] = message }

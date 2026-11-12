@@ -168,7 +168,7 @@ try:
     code, answer = a.post(action='rollback'); checked(code == 200, 'rollback request accepted')
     rolled = a.wait(lambda s: s['current']['version'] == OLD and s.get('lastResult', {}).get('kind') == 'rollback', 90, 'rollback')
     checked(a.installed_version() == OLD and rolled['lastResult']['status'] == 'success', f'manual rollback returned to {OLD}')
-    checked(any(item.get('to') == NEW for item in rolled['history']), 'history records the earlier update')
+    checked('history' not in rolled, 'update history is not returned')
     a.quit()
 
     # 3. Rejections leave the installed app untouched.

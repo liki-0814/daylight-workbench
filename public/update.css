@@ -1,6 +1,6 @@
 /* The update page reuses the settings panels in one column: status, then the
-   update mode, then the notes and history. Two columns split the action from
-   the setting that changes it, and leave the notes in a narrow side column. */
+   update mode, then the notes. Two columns split the action from the setting
+   that changes it, and leave the notes in a narrow side column. */
 .update-inline-actions { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap:wrap; margin-left:var(--space-2); vertical-align: middle; }
 .settings-facts dd a:not(.text-button) { color:var(--accent-ink); overflow-wrap:anywhere; }
 .update-live { min-height: 0; display: grid; gap: var(--space-2); margin:0; font-size: var(--font-caption-size); line-height: var(--font-caption-line); color: var(--muted); }
@@ -15,11 +15,6 @@
 .update-notes a { color: var(--accent-ink); }
 .update-empty, .update-mode-note, .update-inline-note { margin:0; color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
 .update-mode { margin:0; }
-.update-history { display:grid; gap:var(--space-4); list-style:none; margin:0; padding:0; }
-.update-history li { min-width:0; overflow-wrap:anywhere; }
-.update-history strong { display: block; font-weight: 550; font-size: var(--font-body-size); line-height: var(--font-body-line); }
-.update-history span { display: block; color: var(--muted); font-size: var(--font-caption-size); line-height: var(--font-caption-line); }
-.update-history li[data-status="failed"] span, .update-history li[data-status="rolled-back"] span { color:var(--warning); }
 .update-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); }
 @media (max-width: 650px) {
   .update-notice { flex-direction: column; align-items: flex-start; }

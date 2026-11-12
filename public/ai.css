@@ -193,11 +193,11 @@
 
 .ai-user {
   margin-top: var(--space-5);
-  align-self: flex-start;
+  align-self: flex-end;
   width: fit-content;
   max-width: min(85%,var(--ai-reading-width));
-  margin-left: auto;
-  margin-right: max(0px, calc(100% - var(--ai-reading-width)));
+  margin-left: 0;
+  margin-right: 0;
   padding: var(--space-3) var(--space-4);
   background: var(--paper);
   border: 1px solid var(--line);

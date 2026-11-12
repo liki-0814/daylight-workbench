@@ -21,7 +21,7 @@ let release, updater, checkCalls = 0, posts = [];
 const reset = () => {
   checkCalls = 0; posts = [];
   release = { current: '0.6.0', status: 'available', checkedAt: new Date().toISOString(), latest: { version: '0.7.0', name: '0.7.0', publishedAt: '2026-10-29T00:00:00Z', htmlUrl: `${base}/tag/v0.7.0`, notes: '更新', body: '## 新增\n- 应用内更新\n\n<script>window.__xss=1</script>\n\n[发布页](https://github.com/liki-0814/daylight-workbench)\n\n<img src=x onerror="window.__xss=1">', asset: { name: 'Daylight-0.7.0-arm64.dmg', url: `${base}/download/v0.7.0/Daylight-0.7.0-arm64.dmg` }, install: { ok: true, size: 31457280, minOS: '13.0', date: '2026-10-29T00:00:00Z' } } };
-  updater = { supported: true, phase: 'idle', mode: 'notify', history: [], backup: null, lastResult: null, current: { version: '0.6.0', signing: 'self-signed' } };
+  updater = { supported: true, phase: 'idle', mode: 'notify', backup: null, lastResult: null, current: { version: '0.6.0', signing: 'self-signed' } };
 };
 async function mock(page) {
   await page.route('**/api/app/update**', route => { if (route.request().url().includes('refresh=1')) checkCalls += 1; return json(route, release); });
@@ -147,20 +147,20 @@ try {
     assert.match(await page.locator('[data-update-mode-note]').innerText(), /退出 Daylight 时静默安装/);
     note(`${width}px mode control works with the keyboard and keeps focus`);
 
-    // 6) history, rollback and results
-    Object.assign(updater, { backup: { version: '0.5.1', createdAt: '2026-10-28T00:00:00Z', sameSigner: true }, history: [{ status: 'success', kind: 'install', from: '0.5.1', to: '0.6.0', at: '2026-10-28T00:00:00Z' }, { status: 'rolled-back', kind: 'install', from: '0.6.0', to: '0.6.1', at: '2026-10-29T00:00:00Z' }], lastResult: { status: 'rolled-back', kind: 'install', from: '0.6.0', to: '0.6.1', at: '2026-10-29T00:00:00Z' }, error: { code: 'download', message: '下载中断' } });
+    // 6) rollback and results
+    Object.assign(updater, { backup: { version: '0.5.1', createdAt: '2026-10-28T00:00:00Z', sameSigner: true }, lastResult: { status: 'rolled-back', kind: 'install', from: '0.6.0', to: '0.6.1', at: '2026-10-29T00:00:00Z' }, error: { code: 'download', message: '下载中断' } });
     await page.locator('[data-view="settings"]').click(); await page.locator('[data-view="update"]').click();
-    await page.locator('[data-update-history] li').first().waitFor();
-    assert.equal(await page.locator('[data-update-history] li').count(), 2);
+    await page.locator('[data-update-rollback]').waitFor();
+    assert.equal(await page.locator('[data-update-history]').count(), 0);
     assert.equal(await page.locator('[data-update-result]').count(), 1);
     assert.equal(await page.locator('[role="alert"]').count() >= 1, true);
-    if (width === 1240) await shot(page, 'history-1240');
+    if (width === 1240) await shot(page, 'rollback-1240');
     await page.locator('[data-update-ack]').first().click();
     await page.waitForFunction(() => !document.querySelector('[data-update-result]'));
     await page.locator('[data-update-rollback]').click();
     await page.locator('dialog[open]').getByRole('button', { name: '回滚并重启' }).click();
     assert.equal(posts.at(-1).action, 'rollback');
-    note(`${width}px history, notices, acknowledge and rollback confirmation work`);
+    note(`${width}px notices, acknowledge and rollback confirmation work`);
 
     // 7) states: current, unavailable, web edition fallback, loading
     reset(); release = { current: '0.6.0', status: 'current', checkedAt: new Date().toISOString(), latest: { ...release.latest, version: '0.6.0', install: undefined } };

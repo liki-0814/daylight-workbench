@@ -9,7 +9,7 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 3. **下载**：Swift 层 `URLSession` 下载到 `~/Library/Application Support/Daylight/updates/<版本>/`（目录权限 0700）。同一时间只保留一个版本，可随时取消。
 4. **校验**：大小与 SHA-256 对照清单，并在 GitHub 提供 `digest` 时再对照一次；`ditto` 解压；`codesign --verify --strict --deep`；Bundle ID、版本号必须高于当前（除非清单明确 `downgradeable`）；新包的 designated requirement 必须与当前 App 完全一致，否则判定为「签名身份变化」，不安装并提示去 GitHub 手动下载。
 5. **空闲检查**：安装前检查反向代理的活动请求和运行中/等待确认的 AI 对话；不空闲时弹窗确认，可选择稍后。
-6. **替换**：随包的 `DaylightUpdater` 辅助程序被复制到更新目录后运行。它等待主进程退出（最多 30 秒），用 `renamex_np(RENAME_SWAP)` 原子交换新旧 App，再次校验，然后打开新 App。新 App 启动后写入 `health.json`；辅助程序在 60 秒内没看到它则自动换回旧版本并重新打开。成功后上一版本作为唯一备份保留在 `updates/backup/`，可在更新页「回滚」。结果写入 `last-result.json` 并进入更新历史，下次显示更新页时展示。
+6. **替换**：随包的 `DaylightUpdater` 辅助程序被复制到更新目录后运行。它等待主进程退出（最多 30 秒），用 `renamex_np(RENAME_SWAP)` 原子交换新旧 App，再次校验，然后打开新 App。新 App 启动后写入 `health.json`；辅助程序在 60 秒内没看到它则自动换回旧版本并重新打开。成功后上一版本作为唯一备份保留在 `updates/backup/`，可在更新页「回滚」。最近一次结果写入 `last-result.json`，在更新页确认前显示一次；不保留更新历史列表。
 7. **不会做的事**：不写隔离属性（quarantine），所以无需 Gatekeeper 放行；不触碰设置、任务、凭据文件；失败时旧 App 保持原样。
 
 ## 自动更新模式
@@ -75,7 +75,7 @@ node scripts/release/package-update.mjs --tag v<版本>   # dist/update/
 
 ## 更新页
 
-`public/update-page.js` 与 `public/update.css` 复用设置页的版式和通用组件。页面展示仓库地址（打开/复制）、当前与最新版本、渲染后的完整更新说明（Markdown 经净化）、检查/下载并安装/重启/取消操作与进度、自动更新模式、更新历史与回滚；每种状态（检查中、已是最新、有更新、下载中、已就绪、安装中、失败、需要重新授权、不支持、网页版）都有对应展示，状态变化通过 `aria-live` 播报，键盘与焦点保持可用。
+`public/update-page.js` 与 `public/update.css` 复用设置页的版式和通用组件。页面展示仓库地址（打开/复制）、当前与最新版本、渲染后的完整更新说明（Markdown 经净化）、检查/下载并安装/重启/取消操作与进度、自动更新模式和回滚；不展示更新历史。每种状态（检查中、已是最新、有更新、下载中、已就绪、安装中、失败、需要重新授权、不支持、网页版）都有对应展示，状态变化通过 `aria-live` 播报，键盘与焦点保持可用。
 
 接口：`GET /api/app/update`（发布信息，`?refresh=1` 跳过缓存）与 `GET/POST /api/app/updater`（更新器状态与操作：`download`、`cancel`、`discard`、`install`、`rollback`、`ack`、`mode`）。后者需要 `x-workbench-token`，POST 另要求同源 `Origin`。
 

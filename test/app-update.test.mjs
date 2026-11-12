@@ -73,7 +73,7 @@ const available = (extra = {}) => ({
   current: '0.5.1', status: 'available', checkedAt: '2026-10-19T00:00:00Z',
   latest: { version: '0.9.0', name: '0.9.0', publishedAt: '2026-10-19T00:00:00Z', htmlUrl: page, notes: '修复 <script>', body: '## 修复\n- 登录', asset: { name: 'Daylight-0.9.0-arm64.dmg', url: arm64 }, install: { ok: true, size: 5242880, minOS: '13.0', date: '2026-10-19T00:00:00Z' }, ...extra },
 });
-const native = (extra = {}) => ({ supported: true, phase: 'idle', mode: 'notify', history: [], backup: null, lastResult: null, current: { version: '0.5.1', signing: 'self-signed' }, ...extra });
+const native = (extra = {}) => ({ supported: true, phase: 'idle', mode: 'notify', backup: null, lastResult: null, current: { version: '0.5.1', signing: 'self-signed' }, ...extra });
 
 test('update page markup shows the repository, versions and one primary action per state', () => {
   const idle = updateMarkup({ release: available(), updater: native() });
@@ -101,11 +101,12 @@ test('update page markup shows the repository, versions and one primary action p
   assert.equal(progressText(native({ phase: 'verifying', target: '0.9.0' })), '正在校验 0.9.0');
 });
 
-test('update page keeps status, mode, notes and history in one column', () => {
+test('update page keeps status, mode and notes in one column', () => {
   const html = updateMarkup({ release: available(), updater: native() });
   assert.equal(html.match(/ui-panel-stack/g).length, 1);
   assert.equal(html.includes('ui-panel-grid'), false);
-  const order = ['aria-label="版本"', 'aria-label="自动更新"', 'aria-label="更新说明"', 'aria-label="更新历史"'].map(label => html.indexOf(label));
+  assert.doesNotMatch(html, /更新历史|data-update-history/);
+  const order = ['aria-label="版本"', 'aria-label="自动更新"', 'aria-label="更新说明"'].map(label => html.indexOf(label));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   assert.ok(order.every(index => index > 0));
 });
@@ -123,30 +124,29 @@ test('update page markup falls back to the DMG when in-app install is unavailabl
   assert.match(reauth, /签名身份变了/);
 });
 
-test('update page markup covers loading, error, empty and history states', () => {
+test('update page markup covers loading, error, empty and rollback states', () => {
   assert.match(updateMarkup({}), /正在检查…/);
   assert.match(updateMarkup({ loadError: '无法读取更新状态' }), /无法读取更新状态/);
   assert.match(updateMarkup({ release: { current: '0.5.1', status: 'current', latest: null }, updater: native() }), /已是最新正式发布/);
   assert.match(updateMarkup({ release: { current: '0.5.1', status: 'unavailable', latest: null, error: '暂时无法连接 GitHub 发布' }, updater: native() }), /暂时无法连接 GitHub 发布/);
-  assert.match(updateMarkup({ release: available(), updater: native() }), /data-update-history-empty/);
+  assert.doesNotMatch(updateMarkup({ release: available(), updater: native() }), /data-update-history/);
   assert.match(updateMarkup({ release: available({ body: '' }), updater: native() }), /data-update-notes-empty/);
-  const history = updateMarkup({
+  const rollback = updateMarkup({
     release: available(),
     updater: native({
       backup: { version: '0.5.0', createdAt: '2026-10-18T00:00:00Z', sameSigner: false },
-      history: [{ status: 'rolled-back', from: '0.5.0', to: '0.5.1', at: '2026-10-18T00:00:00Z' }, { status: 'success', kind: 'install', from: '0.4.0', to: '0.5.0' }],
-      lastResult: { status: 'failed', kind: 'install', from: '0.5.1', to: '0.9.0', message: '磁盘已满' },
+      lastResult: { status: 'rolled-back', kind: 'install', from: '0.5.1', to: '0.9.0', message: '磁盘已满' },
       error: { code: 'download', message: '下载中断 <b>' },
     }),
   });
-  assert.match(history, /data-update-rollback/);
-  assert.match(history, /回滚到 0\.5\.0/);
-  assert.match(history, /签名与当前不同/);
-  assert.match(history, /0\.9\.0 启动后|0\.5\.1 启动后未通过健康检查，已自动回滚到 0\.5\.0/);
-  assert.match(history, /更新失败，已保持原版本：磁盘已满/);
-  assert.match(history, /下载中断 &lt;b&gt;/);
-  assert.match(history, /role="alert"/);
-  assert.match(history, /data-update-ack/);
+  assert.doesNotMatch(rollback, /更新历史|data-update-history/);
+  assert.match(rollback, /data-update-rollback/);
+  assert.match(rollback, /回滚到 0\.5\.0/);
+  assert.match(rollback, /签名与当前不同/);
+  assert.match(rollback, /0\.9\.0 启动后未通过健康检查，已自动回滚到 0\.5\.1/);
+  assert.match(rollback, /下载中断 &lt;b&gt;/);
+  assert.match(rollback, /role="alert"/);
+  assert.match(rollback, /data-update-ack/);
 });
 
 test('update page markup keeps release links on GitHub and escapes notes', () => {
