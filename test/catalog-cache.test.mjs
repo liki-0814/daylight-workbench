@@ -74,6 +74,7 @@ test('proxy page model/settings/custom-source changes reach Pi through the share
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-catalog-'));
   const qoder = provider(), agy = provider(); let agyModels = [{ ...model, id: 'agy-model', contextLimit:4000, settingFields:['contextWindow'] }];
   agy.listModels = async () => { agy.calls++; return agyModels; };
+  agy.snapshot = () => ({ configured: true, connected: true, checkedAt: Date.now() });
   agy.setModel = async () => (agyModels = [{ ...agyModels[0], contextWindow: 2000 }]);
   const custom = new CustomSources({ dataDir, secrets: { delete: async () => {} }, fetchImpl: async () => { assert.fail('custom save must not discover remotely'); } });
   const bridge = await createProxyService({ dataDir, provider: qoder, agyProvider: agy, customSources: custom, piOptions: { piDir: path.join(dataDir, 'pi'), getInfo: async () => ({ installed: true, version: 'test' }) } });
@@ -85,6 +86,7 @@ test('proxy page model/settings/custom-source changes reach Pi through the share
     const result = await res.json(); assert.equal(res.status, 200, JSON.stringify(result)); return result;
   };
   await call('/api/qoder/models'); await call('/api/agy/models');
+  const result = await call('/api/cli/pi/state');
   const initial = await call('/api/cli/pi/state');
   for (let i = 0; i < 3; i++) assert.equal((await call('/api/cli/pi/state')).version, initial.version);
   assert.deepEqual([qoder.calls, agy.calls], [1, 1]);

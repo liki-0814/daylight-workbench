@@ -6,11 +6,13 @@ import {CustomSources} from '../proxy/custom/sources.js';import {convertRequest,
 const temp=async t=>{const dir=await mkdtemp(path.join(os.tmpdir(),'gateway-test-'));t.after(()=>rm(dir,{recursive:true,force:true,maxRetries:3}));return dir;};
 const secrets=()=>{const values=new Map();return{get:async id=>values.get(id),set:async(id,k)=>values.set(id,k),delete:async id=>values.delete(id)};};
 test('custom sources keep secrets out of settings, preserve blank keys and reject self loops',async t=>{
- const dataDir=await temp(t),vault=secrets(),c=new CustomSources({dataDir,secrets:vault});
+ const dataDir=await temp(t),vault=secrets(),defaults=new CustomSources({dataDir,secrets:vault}),c=new CustomSources({dataDir,secrets:vault,getPort:()=>4400,getManagementPort:()=>4328});
  const a=await c.save({name:'sample',baseUrl:'https://example.com/v1',protocol:'responses',apiKey:'hidden-secret',models:[{id:'public',upstreamId:'private'}]});assert.equal(a.hasKey,true);
  assert.ok(!(await readFile(c.file,'utf8')).includes('hidden-secret'));
  await c.save({...a,apiKey:''});assert.equal(await vault.get(a.id),'hidden-secret');
- for(const baseUrl of ['http://localhost:4319/v1','http://127.1:4319/v1','https://u:p@example.com'])await assert.rejects(()=>c.save({...a,baseUrl}));
+ for(const baseUrl of ['http://localhost:4318/v1','http://localhost:4319/v1','http://127.1:4319/v1'])await assert.rejects(()=>defaults.save({...a,baseUrl}));
+ for(const baseUrl of ['http://localhost:4328/v1','http://127.0.0.1:4400/v1','http://127.1:4400/v1','https://u:p@example.com'])await assert.rejects(()=>c.save({...a,baseUrl}));
+ await c.save({...a,baseUrl:'http://127.0.0.1:4401/v1'});
  await assert.rejects(()=>c.save({...a,models:[{id:'x'},{id:'x'}]}));
  await c.remove(a.id);assert.equal(await vault.get(a.id),undefined);
 });

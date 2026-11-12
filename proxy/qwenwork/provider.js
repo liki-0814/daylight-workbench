@@ -34,7 +34,7 @@ export function loadConfig(dataDir, env = process.env) {
 export const sourceDescription = {
   id: 'qwenwork', name: '千问办公',
   authentication: {mode: 'browser', operations: ['login', 'poll', 'cancel', 'logout', 'refresh'], instruction: '千问办公网页登录 · 无需本机 CLI', loginLabel: '网页登录'},
-  capabilities: {quota: false, editableSource: false},
+  capabilities: {quota: false, editableSource: false, startupDiscovery: true, publicModelNames: {preserveIdSuffix: false}},
   nativeProtocols: ['chat', 'responses', 'messages'],
 };
 

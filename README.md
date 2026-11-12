@@ -157,7 +157,7 @@ Node 测试使用临时数据目录与模拟上游；原生测试针对实际 Ap
 | `extensions/` | 本地主来源、客户端接入与可恢复扩展操作 |
 | `ai/` | AI 会话、CLI 适配和业务工具 |
 | `proxy/` | 统一中转服务入口，`shared/` 放公共协议、路由、存储和请求记录 |
-| `proxy/{qoder,agy,grok,codex,kimi,copilot,custom}/` | 各来源的认证和推理适配 |
+| `proxy/{qoder,qwenwork,workbuddy,agy,grok,codex,kimi,copilot,custom}/` | 各来源的认证和推理适配；Qoder CN 复用 `qoder/cn.js` |
 | `skills/` | 外部工作台管理 skill |
 | `test/` | 单元测试和集成测试 |
 

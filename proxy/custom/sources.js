@@ -14,10 +14,12 @@ const migrationRead={interactive:false,timeoutMs:4000};
 const legacyKey=s=>({id:'default',enabled:true,hasKey:!!s.hasKey,models:s.models||[]});
 const normalize=s=>{const keys=s.keys||[legacyKey(s)];return{...s,keys,hasKey:keys.some(k=>k.enabled!==false&&k.hasKey),models:modelUnion(keys)};};
 export class CustomSources {
- constructor({dataDir,fetchImpl=fetch,secrets=new Secrets(),legacySecrets,getPort=()=>4319,promptCache=new AdaptivePromptCache({file:path.join(dataDir,'custom-proxy/prompt-cache.json')}),now=Date.now}){Object.assign(this,{fetchImpl,secrets,legacySecrets:legacySecrets??secrets.previous?.(dataDir),getPort,promptCache,now});this.file=path.join(dataDir,'custom-proxy/sources.json');this.mutate=serial();this.affinities=new Map();this.cooldowns=new Map();this.migration=null;}
+ constructor({dataDir,fetchImpl=fetch,secrets=new Secrets(),legacySecrets,getPort=()=>4319,getManagementPort=()=>Number(process.env.PORT||4318),promptCache=new AdaptivePromptCache({file:path.join(dataDir,'custom-proxy/prompt-cache.json')}),now=Date.now}){Object.assign(this,{fetchImpl,secrets,legacySecrets:legacySecrets??secrets.previous?.(dataDir),getPort,getManagementPort,promptCache,now});this.file=path.join(dataDir,'custom-proxy/sources.json');this.mutate=serial();this.affinities=new Map();this.cooldowns=new Map();this.migration=null;}
  async list(){return(await readJson(this.file,[])).map(s=>({...normalize(s),settingFields:customSettingFields}));}
  url(source,endpoint){let u;try{u=new URL(source.baseUrl);}catch{throw invalid('Base URL 无效');}if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)throw invalid('Base URL 需为不含账号、查询参数的 HTTP(S) 地址');
-  if(['localhost','127.0.0.1','[::1]','0.0.0.0'].includes(u.hostname)&&[this.getPort(),4318].includes(Number(u.port||80)))throw invalid('上游不能指向 Daylight 自身');
+  const port=Number(u.port||(u.protocol==='https:'?443:80)),localPorts=new Set([this.getPort(),this.getManagementPort()].map(Number));
+  const local=['localhost','127.0.0.1','[::1]','0.0.0.0'].includes(u.hostname)&&localPorts.has(port);
+  if(local)throw invalid('上游不能指向 Daylight 自身');
   return u.href.replace(/\/$/,'')+'/'+endpoint.replace(/^\//,'');}
  async save(input,{preview=false,validateOnly=false}={}){return this.mutate(async()=>{
   const list=await this.list(),old=list.find(s=>s.id===input.id);if(input.id&&!old)throw invalid('来源不存在');

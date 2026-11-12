@@ -46,12 +46,7 @@
 .search,
 .search input::placeholder,
 .page-heading p,
-.date-stamp span,
 .empty p,
-.quiet-note,
-.focus-label,
-.focus-bottom,
-.project-path,
 .dialog-header p,
 .form-body>label>span,
 .form-body input::placeholder,
@@ -65,7 +60,6 @@
 }
 
 .search input,
-.date-stamp strong,
 .settings-facts dd,
 .keys kbd,
 .ai-suggestions button,
@@ -100,19 +94,11 @@
   background: var(--hover-tint);
 }
 
-.is-active {
-  background: var(--selection-background);
-}
-
-.task-range-tabs,
-.focus-card,
 .keys kbd,
 .notes-editor,
 .update-notes pre,
 .update-notice,
 .ai-suggestions button,
-.ai-user,
-.ai-operation,
 .ai-stop,
 .ai-card,
 .ai-references>span,
@@ -128,8 +114,6 @@
 
 .capture,
 .search kbd,
-.date-stamp,
-.project-path>small,
 dialog,
 .check-button,
 .keys kbd,
@@ -151,7 +135,6 @@ dialog,
   border-color: var(--done-fill);
 }
 
-.is-active .check-button,
 .ai-composer:focus-within {
   border-color: var(--focus-ring);
 }

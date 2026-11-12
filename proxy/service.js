@@ -17,9 +17,9 @@ import {createMediaJobs} from './shared/media-jobs.js';
 import {createManagement,createLegacyReader} from './management.js';
 export {send,readBody,equalSecret} from './gateway.js';
 
-export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, qwenworkProvider, workbuddyProvider, qoderCNProvider, customSources, piOptions = {}, pricingOptions = {} } = {}) {
+export async function createProxyService({ dataDir, fetchImpl = networkFetch, config: overrides = {}, provider: injectedProvider, agyProvider, grokProvider, includeGrok = false, includeAgy = false, includeGateway = false, codexProvider, kimiProvider, copilotProvider, qwenworkProvider, workbuddyProvider, qoderCNProvider, customSources, getManagementPort = () => Number(process.env.PORT || 4318), piOptions = {}, pricingOptions = {} } = {}) {
   const metadata=createModelMetadata({dataDir,fetchImpl,enabled:!injectedProvider,...pricingOptions});
-  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,workbuddyProvider,qoderCNProvider,customSources,metadata,getPort:()=>settings.port});
+  const registry=createProviders({dataDir,fetchImpl,config:overrides,provider:injectedProvider,agyProvider,grokProvider,includeGrok,includeAgy,includeGateway,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,workbuddyProvider,qoderCNProvider,customSources,metadata,getPort:()=>settings.port,getManagementPort});
   const {config,accounts,custom,providers,qoder:provider}=registry;
   const directory=path.dirname(config.accountFile),serviceFile=path.join(directory,'service.json'),usageFile=path.join(directory,'usage.json');
   const sourceState = new SourceState();
@@ -59,7 +59,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       sourceState.invalidate('qoder');
       if (router.catalogs.has('qoder')) router.invalidateSource('qoder');
     }
-    return sourceState.snapshot(providers, custom ? await custom.list() : [], records.rows, router.conflicts, !!account || !!injectedProvider,registry.snapshot);
+    return sourceState.snapshot(providers, custom ? await custom.list() : [], records.rows, router.conflicts,registry.snapshot);
   };
   let listener, state = 'stopped', startedAt = null, lastError = '';
   const mutate = serial(), active = new Set(), finishing = new Set();
@@ -73,7 +73,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
       baseUrl: `http://127.0.0.1:${settings.port}/v1`, lastError,
       node: { path: process.execPath, version: process.version },
       account: account ? { uid: account.credential.uid, organization: account.credential.organizationName, plan: account.credential.plan } : null,
-      sources: Object.fromEntries(Object.keys(providers).map(id=>{const snapshot=registry.snapshot(id);return[id,{connected:id==='qoder'?!!account:snapshot.connected&&!router.errors[id],error:snapshot.error||router.errors[id],identityKey:snapshot.identityKey}];})),
+      sources: Object.fromEntries(Object.keys(providers).map(id=>{const snapshot=registry.snapshot(id);return[id,{connected:snapshot.connected&&!router.errors[id],error:snapshot.error||router.errors[id],identityKey:snapshot.identityKey}];})),
       conflicts: router.conflicts || [],
       login: provider.auth?.pending ? {url:provider.auth.pending.url,expiresAt:provider.auth.pending.expiresAt} : null };
   };
@@ -151,7 +151,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   const initialize = () => {
     const startup = settings.autoStart ? mutate(start).catch(() => {}) : Promise.resolve();
     // These accounts need a probe before their saved login/catalog is visible.
-    const discovery = !settings.autoStart ? Promise.allSettled(Object.entries(providers).filter(([id,p])=>p.startupDiscovery===true||['codex','copilot','kimi','grok','qwenwork'].includes(id)).map(([id])=>listModels(id))) : Promise.resolve();
+    const discovery = !settings.autoStart ? Promise.allSettled(Object.keys(providers).filter(id=>registry.snapshot(id).capabilities?.startupDiscovery===true).map(id=>listModels(id))) : Promise.resolve();
     return Promise.all([startup, discovery]).then(() => {});
   };
   return { handle, close, initialize, status, accounts };

@@ -5,6 +5,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { createProxyTools } from '../proxy/shared/tools.js';
 import { createPiConfig } from '../cli/pi-config.js';
+import { createProviders } from '../proxy/providers.js';
+import { createProxyService } from '../proxy/service.js';
 
 test('a newly registered source uses public management and auth capabilities without name branches', async t => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-new-source-'));
@@ -36,6 +38,38 @@ test('a newly registered source uses public management and auth capabilities wit
   await tools.discover({sourceId:id});
   assert.ok(calls.includes(url+'/models?refresh=1'));
   await assert.rejects(tools.prepare({action:{type:'auth.logout',sourceId:id}}),/不支持/);
+});
+
+test('provider declarations control startup discovery and public connection state', async t => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-discovery-capability-'));
+  let discoveries = 0, defaultDiscoveries = 0;
+  const provider = {listModels:async()=>{defaultDiscoveries++;return[];},execute:async()=>({kind:'events',events:[]})};
+  const discovered = {
+    snapshot:()=>({id:'codex',name:'Injected',configured:true,connected:true,authentication:{operations:[]},capabilities:{startupDiscovery:true}}),
+    listModels:async()=>{discoveries++;return[];},execute:provider.execute,
+  };
+  const service = await createProxyService({dataDir,provider,codexProvider:discovered,pricingOptions:{enabled:false},piOptions:{piDir:path.join(dataDir,'pi'),getInfo:async()=>({installed:false})}});
+  t.after(()=>service.close());
+  assert.equal((await service.status()).sources.codex.connected,true);
+  await service.initialize();
+  assert.equal(discoveries,1);
+  assert.equal(defaultDiscoveries,0);
+});
+
+test('provider declarations opt into public names without source-name branches', async t => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'daylight-name-capability-'));
+  t.after(()=>rm(dataDir,{recursive:true,force:true}));
+  const calls = [];
+  const qwenworkProvider = {
+    snapshot:()=>({id:'qwenwork',name:'Injected',configured:true,connected:true,authentication:{operations:[]},capabilities:{publicModelNames:{preserveIdSuffix:false}}}),
+    listModels:async()=>[{id:'native-mode',displayName:'Readable Model',enabled:true}],
+    execute:async input=>{calls.push(input.raw.model);return{kind:'events',events:[]};},
+  };
+  const registry = createProviders({dataDir,provider:{listModels:async()=>[]},qwenworkProvider});
+  assert.equal((await registry.listModels('qwenwork'))[0].id,'readable-model');
+  await registry.execute('qwenwork',{raw:{model:'readable-model'},protocol:'chat'});
+  assert.deepEqual(calls,['native-mode']);
+  assert.equal(registry.snapshot('qwenwork').capabilities.startupDiscovery,true);
 });
 
 test('Pi protocol restrictions follow source metadata even for an unfamiliar source', async t => {

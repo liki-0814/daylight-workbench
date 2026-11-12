@@ -9,7 +9,7 @@ import path from 'node:path';
 import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
 import {attachCodexMedia} from './media.js';
 
-export const sourceDescription = {id:'codex',name:'Codex',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'ChatGPT 网页登录 · 无需 CLI',loginLabel:'Continue with ChatGPT'},capabilities:{quota:true,editableSource:false,requestOutputBudget:false,pi:{'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'}},nativeProtocols:['responses']};
+export const sourceDescription = {id:'codex',name:'Codex',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'ChatGPT 网页登录 · 无需 CLI',loginLabel:'Continue with ChatGPT'},capabilities:{quota:true,editableSource:false,startupDiscovery:true,requestOutputBudget:false,pi:{'openai-completions':'Codex 通道需用 Responses，不能接收 Pi 的输出预算','anthropic-messages':'Codex 通道需用 Responses，不能接收 Pi 的输出预算'}},nativeProtocols:['responses']};
 
 export class CodexProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'serviceTier']);}

@@ -325,13 +325,6 @@ h1 {
   margin: 0 0 var(--section-gap);
 }
 
-.quiet-note {
-  font-size: var(--font-caption-size);
-  color: var(--muted);
-  margin: 19px 0;
-  line-height: var(--font-caption-line);
-}
-
 /* The task list shares the heading's width. A fixed reading column stays the same size in a fullscreen window. */
 .task-workspace > :not(.page-heading) {
   width: 100%;
@@ -516,56 +509,6 @@ h1 {
 
 .done .task-date {
   color: var(--done-ink);
-}
-
-.is-active .check-button {
-  border-color: var(--focus-ring);
-}
-
-.add-row {
-  display: flex;
-  gap: var(--task-column-gap);
-  align-items: center;
-  width: 100%;
-  border-top: 1px solid var(--line);
-  padding: 18px var(--task-row-inset);
-  color: var(--muted);
-}
-
-.add-row .icon {
-  width: var(--task-leading-width);
-  height: var(--task-leading-width);
-}
-
-.pulse {
-  width: 6px;
-  height: 6px;
-  background: var(--focus-ring);
-  border-radius: 50%;
-}
-
-.project-path {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: var(--font-caption-size);
-  color:var(--muted);
-  margin: -13px 0 28px;
-  min-width: 0;
-  line-height: var(--font-caption-line);
-}
-
-.project-path>span { overflow-wrap:anywhere; }
-.project-path .icon { width:15px; height:15px; }
-
-.project-path>small {
-  margin-left: auto;
-  white-space: nowrap;
-  font-size: var(--font-meta-size);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--control-border);
-  border-radius:var(--radius-control);
-  line-height: var(--font-meta-line);
 }
 
 dialog {
@@ -806,13 +749,6 @@ dialog::backdrop {
   .dialog-footer {
     padding: var(--space-4) var(--dialog-inline-inset);
   }
-  .project-path {
-    font-size: var(--font-meta-size);
-    line-height: var(--font-meta-line);
-  }
-  .project-path small {
-    display: none;
-  }
   #toast {
     left: 50%;
     bottom: 20px;
@@ -1026,35 +962,7 @@ dialog::backdrop {
 .nav-item.parent-active {
   color: var(--accent);
 
-}.project-operations {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.project-operations summary {
-  cursor: pointer;
-  font-size: var(--font-caption-size);
-  line-height: var(--font-caption-line);
-}
-
-.project-operations[open] button {
-  position: absolute;
-  z-index: 5;
-  right: 0;
-  top: 24px;
-  padding: var(--space-3);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  white-space: nowrap;
-}
-
-
-
-.project-path {
-  flex-wrap: wrap;
-}
-
-.nav-item [data-ai-activity] {
+}.nav-item [data-ai-activity] {
   font-size: var(--font-meta-size);
   line-height: var(--font-meta-line);
 }

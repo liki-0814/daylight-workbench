@@ -83,13 +83,7 @@ CLI 配置的每条模型显示当前所列来源的被动生成 TPS、首次输
 
 构建后运行 `npm run test:focus-contracts` 对照 Node/实际原生 HTTP；`npm run test:native-focus-time-zone` 用真实 Foundation 校验 DST、半小时偏移和消失日期。Node focus 保存错误统一为 503/FOCUS_SAVE_FAILED；写入失败保留原权威和回执，故障解除后用原 body 重试。
 
-原生通知消费专项入口：
-
-```sh
-npm run test:native-focus-notifications
-```
-
-该脚本需要已构建的 `dist/native/Daylight.app/Contents/Resources/native-core.js`，在可清理的工作区临时目录用系统 Swift 解释器（macOS 13 目标）执行生产 Focus 存储及从生产文件精确抽取的 `FocusNotificationConsumer`。它使用真实临时 focus.json，注入 delivery 观察先持久 attempted 再投递、保存失败不投递以及重启/旧 DTO 不重发；不调用 OS 通知中心，也不请求权限。2026-10-07 此执行路径在两个独立临时目录全部断言通过。先前自签名辅助程序启动 SIGKILL 的失败证据保留，最终通过不反推旧平台失败的根因；实际 allow/deny/display/click/sleep 另留 GUI 证据。
+历史原生通知消费专项命令及 `FocusNotificationConsumer` 已随菜单栏通知功能移除，不再提供 `test:native-focus-notifications`。当前专注验证使用 `npm run test:focus-contracts` 和 `npm run test:native-focus-time-zone`；历史验证记录只用于追溯，不能作为当前可执行命令。
 
 `npm run benchmark:focus` 使用 1 万/5 万条合成历史、实际进程/HTTP/文件保存，报告状态大小、P95、同步占用、RSS、落盘到期延迟及通知消费成本。本轮增加 idle/报表/持续持久写入压力，409 只刷新版本，独立磁盘观察归档结果；RSS 采样覆盖重启与独立 consumer 子进程。它不代替真实 GUI 权限与系统通知展示验收，也不改用户数据。
 
@@ -97,7 +91,7 @@ npm run test:native-focus-notifications
 
 ## 中转代码结构
 
-中转由 `proxy/service.js` 组装并管理生命周期；`gateway.js` 处理推理、路由回退和输出；`management.js` 提供直接管理操作及 HTTP 入口；`providers.js` 注册六类来源；`sidecar.mjs` 是桌面侧车入口。来源目录按 `provider/auth/models/quota/protocol` 职责命名（不支持额度或无专属协议的来源省略相应文件），仅保存对应认证、目录/额度解析、协议与执行逻辑，公共代码不从来源私有字段推断状态。
+中转由 `proxy/service.js` 组装并管理生命周期；`gateway.js` 处理推理、路由回退和输出；`management.js` 提供直接管理操作及 HTTP 入口；`providers.js` 注册九个内置来源及自定义来源；`sidecar.mjs` 是桌面侧车入口。来源目录按 `provider/auth/models/quota/protocol` 职责命名（不支持额度或无专属协议的来源省略相应文件），仅保存对应认证、目录/额度解析、协议与执行逻辑。公共代码通过 Provider 的能力声明和公开快照处理启动发现、名称转换与连接状态，不读取来源私有缓存推断状态。
 
 `proxy/shared/request-parameters.js` 负责推理参数规则，`model-settings.js` 负责默认设置的串行原子写入，`catalog-cache.js` 负责目录缓存、身份隔离和失效中的并发请求；其余 shared 模块提供协议转换、路由、凭据存储、额度规范化和请求记录。
 

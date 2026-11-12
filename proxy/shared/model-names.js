@@ -20,7 +20,7 @@ export function namedModels(source, models) {
   });
 }
 
-export function withModelNames(source, provider) {
+export function withModelNames(source, provider, { preserveIdSuffix = false } = {}) {
   const listModels = async (...args) => namedModels(source, await provider.listModels(...args));
   async function original(id) {
     const models = await provider.listModels();
@@ -30,10 +30,10 @@ export function withModelNames(source, provider) {
     return index < 0 ? undefined : {model: models[index], name: names[index]};
   }
   const execute = async (input, context) => {
-    const ref = ['qoder','qoder-cn'].includes(source) ? parseModelRef(input.raw.model) : {id: input.raw.model};
+    const ref = preserveIdSuffix ? parseModelRef(input.raw.model) : {id: input.raw.model};
     const found = await original(ref.id);
     if (!found) return provider.execute(input, context);
-    const suffix = ['qoder','qoder-cn'].includes(source) ? input.raw.model.trim().slice(ref.id.length) : '';
+    const suffix = preserveIdSuffix ? input.raw.model.trim().slice(ref.id.length) : '';
     const result = await provider.execute({...input, raw: {...input.raw, model: found.model.id + suffix}}, context);
     return result.model === found.model.id ? {...result, model: found.name.id} : result;
   };

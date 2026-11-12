@@ -16,12 +16,12 @@ import {withModelNames} from './shared/model-names.js';
 
 // These descriptions also keep injected test providers on the public contract.
 const builtins={qoder:qoderDescription,'qoder-cn':qoderCNDescription,agy:agyDescription,grok:grokDescription,codex:codexDescription,kimi:kimiDescription,copilot:copilotDescription,qwenwork:qwenWorkDescription,workbuddy:workbuddyDescription};
-export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,workbuddyProvider,qoderCNProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort,metadata}){
+export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},provider,agyProvider,grokProvider,codexProvider,kimiProvider,copilotProvider,qwenworkProvider,workbuddyProvider,qoderCNProvider,customSources,includeAgy=false,includeGrok=false,includeGateway=false,getPort,getManagementPort,metadata}){
  const config={...loadConfig(dataDir),...overrides},accounts=new AccountStore(config.accountFile);
  const transport=(url,options={})=>{const deadline=headerDeadline(options.signal,options.signal?300000:30000);return fetchImpl(url,{...options,redirect:'error',signal:deadline.signal}).finally(()=>deadline.settle());};
  const qoder=provider||new QoderProvider(config,new QoderHttp(config,transport),accounts);
  const cnConfig=loadCNConfig(dataDir);
- const custom=customSources||(includeGateway?new CustomSources({dataDir,fetchImpl,getPort}):null);
+ const custom=customSources||(includeGateway?new CustomSources({dataDir,fetchImpl,getPort,getManagementPort}):null);
  const providers={
   ...(copilotProvider||includeGateway?{copilot:copilotProvider||new CopilotProvider({dataDir,fetchImpl})}:{}),
   ...(workbuddyProvider||includeGateway?{workbuddy:workbuddyProvider||new WorkBuddyProvider({dataDir,fetchImpl})}:{}),
@@ -34,16 +34,19 @@ export function createProviders({dataDir,fetchImpl=fetch,config:overrides={},pro
   ...(grokProvider||includeGrok?{grok:grokProvider||new GrokProvider({dataDir,fetchImpl})}:{}),
  };
  function decorate(id,p){
-  if(!metadata)return ['qoder','qoder-cn','qwenwork'].includes(id)?withModelNames(id,p):p;const list=p.listModels.bind(p);
-  // Qoder validates inference against catalog(), while other adapters use listModels().
-  if(['qoder','qoder-cn'].includes(id)&&typeof p.catalog==='function'){const catalog=p.catalog.bind(p);p.catalog=async(...args)=>{const result=await catalog(...args);await metadata.refresh();return{...result,models:metadata.enrich(id,result.models)};};}
-  p.listModels=async force=>{const [models]=await Promise.all([list(force),metadata.refresh(force)]);return metadata.enrich(id,models);};return ['qoder','qoder-cn','qwenwork'].includes(id)?withModelNames(id,p):p;
+  const names=p.snapshot?.().capabilities?.publicModelNames;
+  if(!metadata)return names?withModelNames(id,p,names):p;
+  const list=p.listModels.bind(p);
+  // Providers may expose a separate native catalog for inference validation.
+  // Its metadata must follow the same account-scoped refresh as listModels().
+  if(typeof p.catalog==='function'){const catalog=p.catalog.bind(p);p.catalog=async(...args)=>{const result=await catalog(...args);await metadata.refresh();return{...result,models:metadata.enrich(id,result.models)};};}
+  p.listModels=async force=>{const [models]=await Promise.all([list(force),metadata.refresh(force)]);return metadata.enrich(id,models);};return names?withModelNames(id,p,names):p;
  }
  for(const [id,p] of Object.entries(providers))providers[id]=decorate(id,p);
  function snapshot(id){
   const p=providers[id],defaults=builtins[id];if(!p)return undefined;
-  const own=p.snapshot?.()||sourceSnapshot({id,...defaults,identityKey:p.identity??p.auth?.identity??p.cache?.identity??p.cache?.id??p.cache?.project,connected:!!p.cache&&!p.lastError,error:p.lastError,checkedAt:p.cache?.at,configured:id==='qoder'?!!provider||!!accounts.current:true,capabilities:{quota:!!(p.quota||p.credits),editableSource:false}});
-  return {...own,credentialRecovery:p.auth?.recovery,authentication:{...defaults?.authentication,...own.authentication,...(p.auth?.repair?{operations:[...new Set([...(defaults?.authentication?.operations||[]),...(own.authentication?.operations||[]),'repair'])]}:{})},capabilities:{...defaults?.capabilities,...own.capabilities},...(id==='qoder'&&provider?{configured:true}:{})};
+  const own=p.snapshot?.()||sourceSnapshot({id,...defaults,configured:true,capabilities:{quota:typeof p.quota==='function'||typeof p.credits==='function',editableSource:false}});
+  return {...own,credentialRecovery:p.auth?.recovery,authentication:{...defaults?.authentication,...own.authentication,...(p.auth?.repair?{operations:[...new Set([...(defaults?.authentication?.operations||[]),...(own.authentication?.operations||[]),'repair'])]}:{})},capabilities:{...defaults?.capabilities,...own.capabilities}};
  }
  async function sync(){
   const next=custom?await custom.providers():{},removed=[];

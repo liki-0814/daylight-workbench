@@ -3,7 +3,9 @@ import { createProxyService, equalSecret, send } from './service.js';
 
 const token = process.env.DAYLIGHT_QODER_TOKEN;
 if (!token || !process.env.WORKBENCH_DATA_DIR) throw new Error('Missing sidecar configuration');
-const bridge = await createProxyService({ dataDir: process.env.WORKBENCH_DATA_DIR, includeAgy: true, includeGrok: true, includeGateway: true });
+const managementPort = Number(process.env.DAYLIGHT_WORKBENCH_PORT || 4318);
+if (!Number.isInteger(managementPort) || managementPort < 0 || managementPort > 65535) throw new Error('Invalid workbench port');
+const bridge = await createProxyService({ dataDir: process.env.WORKBENCH_DATA_DIR, includeAgy: true, includeGrok: true, includeGateway: true, getManagementPort: () => managementPort });
 const server = http.createServer((req, res) => {
   if (req.headers.host !== `127.0.0.1:${server.address().port}` || req.headers.origin || !equalSecret(req.headers['x-workbench-token'], token)) return send(res, 403, { error: '认证失败' });
   void bridge.handle(req, res);

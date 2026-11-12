@@ -27,7 +27,7 @@ test('public names translate execution and settings while native discovery retai
     async execute(input){calls.push(input.raw.model);assert.equal((await this.listModels())[0].id,'qmodel');return {kind:'events',events:[]};},
     async setModel(input){assert.equal(input.id,'qmodel');this.models[0].enabled=input.value;return this.listModels();},
   };
-  const publicProvider = withModelNames('qoder',native);
+  const publicProvider = withModelNames('qoder',native,{preserveIdSuffix:true});
   for (const model of ['qwen3.7-plus','qmodel','qwen3.7-plus[200k]']) await publicProvider.execute({raw:{model}},{});
   assert.deepEqual(calls,['qmodel','qmodel','qmodel[200k]']);
   const models = await publicProvider.setModel({id:'qwen3.7-plus',field:'enabled',value:false});

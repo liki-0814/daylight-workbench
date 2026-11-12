@@ -13,7 +13,7 @@ import {outputBudget} from '../shared/request-parameters.js';
 import {AdaptivePromptCache} from '../shared/adaptive-prompt-cache.js';
 import {hasMessageCachePolicy} from '../shared/prompt-cache.js';
 
-export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false},nativeProtocols:['chat','responses','messages']};
+export const sourceDescription={id:'copilot',name:'GitHub Copilot',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],instruction:'GitHub 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,startupDiscovery:true},nativeProtocols:['chat','responses','messages']};
 const hasImages=parts=>Array.isArray(parts)&&parts.some(p=>['image_url','input_image','image'].includes(p.type)||p.type==='tool_result'&&hasImages(p.content));
 export class CopilotProvider {
  constructor({dataDir,fetchImpl=fetch,auth=new CopilotAuth({dataDir,fetchImpl}),promptCache=new AdaptivePromptCache({file:path.join(dataDir,'copilot-proxy/prompt-cache.json')})}){Object.assign(this,{fetchImpl,auth,promptCache});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'copilot-proxy/settings.json'));bindAccountCatalog(this);}

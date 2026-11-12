@@ -13,7 +13,7 @@ export class SourceState {
     // A custom provider's listModels reads configuration, not its upstream.
     if (provider.source) return;
     const snapshot=provider.snapshot?.();
-    const at = error ? Date.now() : snapshot ? snapshot.checkedAt||Date.now() : provider.cache?.at||Date.now();
+    const at = error ? Date.now() : snapshot?.checkedAt||Date.now();
     this.checks.set(id, { at: new Date(at).toISOString(), models: models || this.checks.get(id)?.models || [], error: error && diagnosticError(error) });
   }
   discovered(source, models, error) {
@@ -25,18 +25,18 @@ export class SourceState {
     const models = this.checks.get(id)?.models;
     return hash(source || {
       id,
-      identity: snapshot ? snapshot.identityKey : provider.identity ?? provider.auth?.identity ?? provider.cache?.identity ?? provider.cache?.id ?? provider.cache?.project,
+      identity: snapshot?.identityKey,
       models: models?.map(m => Object.fromEntries(modelFields.filter(k => m[k] !== undefined).map(k => [k, m[k]]))),
     });
   }
-  snapshot(providers, custom, records, conflicts, qoderConfigured,describe=id=>providers[id]?.snapshot?.()) {
+  snapshot(providers, custom, records, conflicts,describe=id=>providers[id]?.snapshot?.()) {
     const definitions = [
       ...Object.entries(providers).filter(([, p]) => !p.source).map(([id, provider]) => ({ id, name: names[id] || id, provider, enabled: true })),
       ...custom.map(source => ({ id: 'custom:' + source.id, name: source.name, provider: providers['custom:' + source.id] || { source }, enabled: source.enabled })),
     ];
     return definitions.map(({ id, name, provider, enabled }) => {
       const check = this.checks.get(id), revision = this.revision(id, provider),description=describe(id);
-      const configured = description?.configured ?? (id === 'qoder' ? qoderConfigured : !provider.source || provider.source.auth === 'none' || provider.source.hasKey);
+      const configured = description?.configured ?? (!provider.source || provider.source.auth === 'none' || provider.source.hasKey);
       const models = provider.source?.models || check?.models || [];
       const routableModels = models.filter(m => m.enabled !== false && !conflicts.includes(m.id)).length;
       const rows = records.filter(r => r.provider === id && r.sourceRevision === revision);

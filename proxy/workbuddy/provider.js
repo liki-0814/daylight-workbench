@@ -9,9 +9,9 @@ import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
 import {headerDeadline} from '../shared/header-deadline.js';
 const BASE='https://copilot.tencent.com';
 const common={Accept:'application/json','User-Agent':'CLI/2.63.2 CodeBuddy/2.63.2',Origin:'https://www.codebuddy.cn',Referer:'https://www.codebuddy.cn/','X-Product':'SaaS'};
-export const sourceDescription={id:'workbuddy',name:'WorkBuddy',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'WorkBuddy 国内版网页登录 · 非官方接口'},capabilities:{quota:false,editableSource:false},nativeProtocols:['chat']};
+export const sourceDescription={id:'workbuddy',name:'WorkBuddy',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'WorkBuddy 国内版网页登录 · 非官方接口'},capabilities:{quota:false,editableSource:false,startupDiscovery:true},nativeProtocols:['chat']};
 export class WorkBuddyProvider {
- constructor({dataDir,fetchImpl=fetch,auth=new WorkBuddyAuth({dataDir,fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.startupDiscovery=true;this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'workbuddy/settings.json'));bindAccountCatalog(this);}
+ constructor({dataDir,fetchImpl=fetch,auth=new WorkBuddyAuth({dataDir,fetchImpl})}){Object.assign(this,{fetchImpl,auth});this.catalogCache=new CatalogCache();this.settings=modelSettings(path.join(dataDir,'workbuddy/settings.json'));bindAccountCatalog(this);}
  get cache(){return this.catalogCache.value;}
  snapshot(){return {...sourceSnapshot({...sourceDescription,identityKey:this.auth.identity,configured:!!this.auth.account,connected:!!this.cache&&this.cache.identity===this.auth.identity&&!this.lastError,error:this.lastError,checkedAt:this.cache?.at}),account:this.auth.account?{login:this.auth.account.login}:undefined};}
  async listModels(force=false){

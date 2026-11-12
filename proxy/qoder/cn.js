@@ -8,7 +8,7 @@ import {operationError} from '../shared/operation-error.js';
 import {QoderProvider, loadConfig} from './provider.js';
 import {QoderAuth, pollLogin, refreshCredential} from './auth.js';
 
-export const sourceDescription = {id:'qoder-cn',name:'Qoder CN',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],requiresStoppedService:true,instruction:'Qoder CN 网页登录'},capabilities:{quota:false,editableSource:false},nativeProtocols:['chat']};
+export const sourceDescription = {id:'qoder-cn',name:'Qoder CN',authentication:{mode:'browser',operations:['login','poll','cancel','logout','refresh'],requiresStoppedService:true,instruction:'Qoder CN 网页登录'},capabilities:{quota:false,editableSource:false,publicModelNames:{preserveIdSuffix:true}},nativeProtocols:['chat']};
 export function loadCNConfig(dataDir) {
  const base=loadConfig(dataDir, {});
  return {...base,compatUrl:'https://gateway.qoder.com.cn',openapiUrl:'https://openapi.qoder.com.cn',loginUrl:'https://qoder.cn/device/selectAccounts',challengeMethodInPoll:true,accountFile:path.join(dataDir,'qoder-cn','account.json')};

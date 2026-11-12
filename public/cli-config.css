@@ -141,17 +141,6 @@
   line-height: var(--font-meta-line);
 }
 
-.cli-key-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color:var(--muted);
-  font-size: var(--font-meta-size);
-  line-height: var(--font-meta-line);
-}
-
-.cli-key-state .icon { width:12px; height:12px; }
-
 .cli-auto-setting {
   display: flex;
   align-items: center;
@@ -606,9 +595,6 @@
 }
 
 @media(max-width:900px) {
-  .cli-key-state {
-    display: none;
-  }
   .cli-client {
     gap:var(--space-4);
   }

@@ -11,7 +11,7 @@ export class CustomProvider {
   close(){}
   async execute({raw,protocol},context){return{kind:'response',...await this.forward(raw,protocol,context)};}
   snapshot(){return sourceSnapshot({id:'custom:'+this.source.id,name:this.source.name,identityKey:createHash('sha256').update(JSON.stringify(this.source)).digest('hex'),configured:this.source.auth==='none'||this.source.hasKey,connected:true,authentication:{mode:this.source.auth==='none'?'none':'key',operations:[]},capabilities:{quota:false,editableSource:true,pi:this.source.protocol==='messages'?{}:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:[this.source.protocol]});}
- constructor(owner,source){Object.assign(this,{owner,source});this.cache=true;}
+ constructor(owner,source){Object.assign(this,{owner,source});}
  async catalogModels(){return catalogModels(this.source);}
 
  async forward(raw,protocol,{signal,observe=()=>{},conversationId,keyId}={}){

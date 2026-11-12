@@ -12,7 +12,7 @@ import {invalid,prepareUpstreamRequest} from '../shared/protocol.js';
 
 const BASE='https://api.kimi.com/coding/v1';
 
-export const sourceDescription = {id:'kimi',name:'Kimi Code',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Kimi 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['chat']};
+export const sourceDescription = {id:'kimi',name:'Kimi Code',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Kimi 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,startupDiscovery:true,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['chat']};
 
 export class KimiProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort']);}

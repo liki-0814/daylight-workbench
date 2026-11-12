@@ -15,7 +15,7 @@ import { attachGrokMedia } from './media.js';
 
 const ORIGIN = 'https://cli-chat-proxy.grok.com/v1';
 const catalogSchemaVersion=2;
-export const sourceDescription = {id:'grok',name:'Grok',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Grok 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,piOutputBudget:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['responses']};
+export const sourceDescription = {id:'grok',name:'Grok',authentication:{mode:'browser',operations:['login','poll','cancel','refresh','logout'],instruction:'Grok 网页登录 · 无需 CLI'},capabilities:{quota:true,editableSource:false,startupDiscovery:true,piOutputBudget:false,pi:{'anthropic-messages':'此通道不能转换 Pi Messages 的缓存与思考字段，请选择 Responses 或 Chat Completions'}},nativeProtocols:['responses']};
 
 export class GrokProvider {
   async listModels(force=false){return modelCapabilities(await this.catalogModels(typeof force==='object'?force.refresh===true:force),['enabled', 'effort', 'maxTokens']);}

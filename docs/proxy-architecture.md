@@ -101,7 +101,7 @@
 | Custom | `provider.js` | 单来源执行实例、映射、逐 Key 权限、冷却/回退/亲和性、协议转换 |
 | Custom | `models.js` | 目录解析、模型校验、逐 Key 权限与容量的保守合并 |
 
-Qoder 9 文件、AGY 6、Grok 5、Kimi/Copilot 各 4、Codex/Custom 各 3。Qoder 多出的签名传输、正文编码、SSE 拆包和重试调度对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。Codex 已移除原 app-server RPC 额度解析器及专属测试，当前独立接口通过 `auth.quota()` 明确返回未知额度；推理和 401 重试直接使用同一 `auth.read()`。
+Qoder 多出的签名传输、正文编码、SSE 拆包和重试调度对应真实协议边界。Codex/Kimi 的短原生请求适配使用共享转换，不另造薄封装；Custom 凭据由 sources 管理，不增加空 auth/quota 文件。Codex 已移除原 app-server RPC 额度解析器及专属测试，当前独立接口通过 `auth.quota()` 明确返回未知额度；推理和 401 重试直接使用同一 `auth.read()`。文件数量不作为来源设计目标。
 
 来源级回退由 router 负责，Custom 内部 Key 回退由 provider 负责。模型设置不能自动把某个 Key 的权限复制给其他 Key。
 
@@ -208,7 +208,9 @@ Copilot 在原生 Messages 路径调用共享策略；Custom 仅在直接连接�
 
 Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配置提供给工具；逐 Key 权限与保存事务保持独立。来源 `capabilities.pi` 按 Pi API 名称给出已知不兼容原因，中转 service 将它带入共享客户端目录；cli/pi-config 不再根据来源名称决定协议限制。未声明限制不补造验证证据。
 
-历史管理路径及旧配置资源名称的映射只留在 management 的兼容层，tools 通过注入的兼容读取函数保留旧资源响应。新增来源时实现能力与执行入口并在 providers 注册，公共工具和 Pi 不需要增加来源名称分支。`test/source-capabilities.test.mjs` 使用陌生来源 ID 核验设置、授权、重试和 Pi 限制。
+历史管理路径及旧配置资源名称的映射只留在 management 的兼容层，tools 通过注入的兼容读取函数保留旧资源响应。来源在 `capabilities` 中声明 `startupDiscovery` 和 `publicModelNames`；注册表据此处理启动发现、公开名称及 Qoder 模型 ID 后缀。连接状态由 `snapshot()` 公开，状态接口只叠加路由检查错误，不按来源名称重建状态。没有公开快照的测试适配器只获得保守的默认快照，公共注册表不读取其私有缓存。新增来源时实现能力与执行入口并在 providers 注册，公共工具和 Pi 不需要增加来源名称分支。`test/source-capabilities.test.mjs` 核验声明式发现、名称、连接状态，以及陌生来源 ID 的设置、授权、重试和 Pi 限制。
+
+能力迁移按“启动发现 → 名称转换 → 连接状态”落地：先以来源描述替代启动列表，再将名称及后缀规则显式配置化，最后把账号已配置时的 Qoder 连接语义留在 Qoder 自身快照中。各步保持原目录、路由、设置和页面状态契约。旧管理接口的响应差异仍属于 management 兼容层，不在这轮迁移中删除。
 
 ## 问题记录：并行工具历史导致 Qoder 502
 

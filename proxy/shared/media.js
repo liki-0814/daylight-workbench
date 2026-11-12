@@ -68,15 +68,6 @@ export function matchMedia(route, method) {
   return null;
 }
 
-export async function mediaCatalog(registry) {
-  const rows = [];
-  for (const provider of Object.values(registry.providers)) {
-    if (typeof provider.mediaModels !== 'function') continue;
-    rows.push(...await provider.mediaModels());
-  }
-  return rows.filter(row => row.status === 'ready' && row.enabled !== false);
-}
-
 export async function selectMedia(registry, model, source) {
   if (model === 'gpt-image-1') fail('gpt-image-1 已于 2026-10-23 关闭。请使用当前图像目录中的模型');
   if (/^gpt-image-2\.\d+$/.test(model)) fail(`没有 ${model}。请使用 ${model}-flare 或 ${model}-sunburst`);

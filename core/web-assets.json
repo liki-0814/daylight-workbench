@@ -70,7 +70,6 @@
   "/components/date-range.js": "components/date-range.js",
   "/components/metric-card.css": "components/metric-card.css",
   "/components/metric-card.js": "components/metric-card.js",
-  "/components/pagination.css": "components/pagination.css",
   "/components/progress-meter.css": "components/progress-meter.css",
   "/components/progress-meter.js": "components/progress-meter.js",
   "/focus/draft-card.js": "focus/draft-card.js",

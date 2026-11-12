@@ -53,7 +53,7 @@ final class WorkbenchServer {
 
     init(resources: URL, directory: URL, port: UInt16) throws {
         self.resources = resources; self.directory = directory; self.port = port
-        self.proxy = ProxyRuntime(resources: resources, directory: directory)
+        self.proxy = ProxyRuntime(resources: resources, directory: directory, workbenchURL: "http://127.0.0.1:\(port)")
         self.ai = ProxyRuntime(resources: resources, directory: directory, helper: "ai", workbenchURL: "http://127.0.0.1:\(port)")
         let context = queue.sync { JSContext()! }
         self.engine = context

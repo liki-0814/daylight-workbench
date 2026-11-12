@@ -45,7 +45,7 @@ export async function createWorkbench({ dataDir = defaultDataDir, proxyOptions =
   if (!/^[a-f0-9]{64}$/.test(agentToken)) throw new Error('agent-token 格式异常，原文件已保留');
   let proxy;
   let proxyError;
-  try { proxy = await createProxyService({ dataDir, includeAgy: true, includeGrok: true, includeGateway: true, ...proxyOptions }); } catch (error) { proxyError = error.message; }
+  try { proxy = await createProxyService({ dataDir, includeAgy: true, includeGrok: true, includeGateway: true, getManagementPort: () => server.address()?.port ?? Number(process.env.PORT || 4318), ...proxyOptions }); } catch (error) { proxyError = error.message; }
   let aiPromise;
   const getAI = () => aiPromise ||= createAIService({ dataDir, adapters: aiAdapters, endpoint: () => `http://127.0.0.1:${server.address().port}` }).catch(error => { aiPromise = undefined; throw error; });
   let extensionsPromise;
