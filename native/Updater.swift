@@ -173,7 +173,7 @@ final class AppUpdater: NSObject, URLSessionDownloadDelegate {
     }
 
     private func loadLastResult() {
-        guard let result = readJSON(resultFile) as? [String: Any], let id = result["id"] as? String else { return }
+        guard let result = readJSON(resultFile) as? [String: Any], result["id"] is String else { return }
         lock.lock()
         lastResult = result
         lock.unlock()
