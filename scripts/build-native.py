@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import plistlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -23,15 +24,53 @@ parser.add_argument('--keychain-password-file', default=os.environ.get('DAYLIGHT
 parser.add_argument('--bundle-id', default=os.environ.get('DAYLIGHT_BUNDLE_ID', 'local.daylight.workbench'), help='override for isolated test builds')
 parser.add_argument('--update-public-key', default=os.environ.get('DAYLIGHT_UPDATE_PUBLIC_KEY'), help='base64 raw Ed25519 public key; defaults to build/update-public-key.txt')
 args = parser.parse_args()
+if not args.development and args.dmg and not args.previous_app:
+    installed_app = pathlib.Path('/Applications/Daylight.app')
+    if installed_app.exists():
+        args.previous_app = installed_app
 if args.development:
     if args.bundle_id == 'local.daylight.workbench':
         args.bundle_id += '.dev'
 elif args.bundle_id == 'local.daylight.workbench' and not args.sign_identity:
     parser.error('正式构建必须设置 DAYLIGHT_SIGN_IDENTITY；临时开发请使用 --development')
+if args.sign_identity and args.keychain and args.keychain_password_file:
+    password = pathlib.Path(args.keychain_password_file).read_text().strip()
+    unlock = subprocess.run(['security', 'unlock-keychain', '-p', password, args.keychain], capture_output=True)
+    if unlock.returncode:
+        raise SystemExit('无法解锁签名钥匙串，请检查签名配置；未输出解锁参数')
 root = pathlib.Path(__file__).resolve().parent.parent
 version = json.loads((root / 'package.json').read_text())['version']
 final_app = (args.output or root / 'dist/native/Daylight.app').resolve()
 final_app.parent.mkdir(parents=True, exist_ok=True)
+
+def requirement(binary):
+    result = subprocess.run(['codesign', '-d', '-r-', str(binary)], capture_output=True, text=True, check=True)
+    return next((line for line in (result.stdout + result.stderr).splitlines() if line.startswith('designated =>')), '')
+
+certificate_info = subprocess.check_output(['security', 'find-certificate', '-c', args.sign_identity, '-Z', *([args.keychain] if args.keychain else [])], text=True) if args.sign_identity else ''
+previous_helpers = {}
+if args.previous_app and args.sign_identity and not args.allow_credential_migration:
+    with (args.previous_app / 'Contents/Info.plist').open('rb') as stream:
+        previous_info = plistlib.load(stream)
+    if previous_info.get('CFBundleIdentifier') != args.bundle_id:
+        raise SystemExit('旧版 App 的 Bundle ID 不同，不能自动复用凭证助手')
+    previous_version = previous_info.get('CFBundleShortVersionString')
+    previous_source = subprocess.run(['git', 'show', f'v{previous_version}:native/Credentials.swift'], cwd=root, capture_output=True, text=True)
+    if previous_source.returncode or previous_source.stdout != (root / 'native/Credentials.swift').read_text():
+        raise SystemExit('凭证助手源码已变化或无法核对；如需更换 helper，必须显式使用 --allow-credential-migration')
+    expected_certificate = re.search(r'SHA-1 hash: ([0-9A-Fa-f]+)', certificate_info)
+    if not expected_certificate:
+        raise SystemExit('无法确定发布证书指纹')
+    for helper in ('DaylightCredentials', 'DaylightAgyCredentials'):
+        old = args.previous_app / 'Contents/Resources' / helper
+        if not old.exists():
+            raise SystemExit(f'Previous app is missing {helper}')
+        subprocess.run(['codesign', '--verify', '--strict', str(old)], check=True)
+        actual_certificate = re.search(r'certificate (?:root|leaf) = H"([0-9A-Fa-f]+)"', requirement(old))
+        if not actual_certificate or actual_certificate.group(1).lower() != expected_certificate.group(1).lower():
+            raise SystemExit(f'{helper}: 发布证书已变化，必须显式使用 --allow-credential-migration')
+        previous_helpers[helper] = old
+    print(f'Credential helpers reused byte-for-byte: {args.previous_app}')
 # Publish only a successfully compiled, checked and signed app.
 build_directory = tempfile.TemporaryDirectory(prefix='.daylight-build-', dir=final_app.parent)
 app = pathlib.Path(build_directory.name) / final_app.name
@@ -95,18 +134,16 @@ def sign(path, extra=()):
         command += ['--keychain', args.keychain]
     subprocess.run([*command, *extra, str(path)], check=True)
 
-if args.sign_identity and args.keychain and args.keychain_password_file:
-    password = pathlib.Path(args.keychain_password_file).read_text().strip()
-    unlock = subprocess.run(['security', 'unlock-keychain', '-p', password, args.keychain], capture_output=True)
-    if unlock.returncode:
-        raise SystemExit('无法解锁签名钥匙串，请检查签名配置；未输出解锁参数')
-# Sign helpers before sealing the app. Reuse identical binaries where possible. Stable identifiers and designated requirements preserve update identity.
+# Keychain ACLs can pin the helper CDHash, so normal upgrades reuse exact previous bytes.
 signature_identity = (args.sign_identity or 'ad-hoc') + ':' + args.bundle_id
 if args.sign_identity:
-    signature_identity += subprocess.check_output(['security', 'find-certificate', '-c', args.sign_identity, '-Z', *([args.keychain] if args.keychain else [])], text=True)
+    signature_identity += certificate_info
 signed_cache = credential_cache / ('signed-' + hashlib.sha256(signature_identity.encode()).hexdigest()[:16])
 signed_cache.mkdir(parents=True, exist_ok=True)
 for helper in ('DaylightCredentials', 'DaylightAgyCredentials'):
+    if helper in previous_helpers:
+        shutil.copy2(previous_helpers[helper], resources / helper)
+        continue
     cached = signed_cache / helper
     if cached.exists():
         shutil.copy2(cached, resources / helper)
@@ -116,11 +153,7 @@ for helper in ('DaylightCredentials', 'DaylightAgyCredentials'):
         shutil.copy2(resources / helper, cached)
 if args.sign_identity:
     sign(resources / 'DaylightUpdater')
-# A normal upgrade must keep each helper's designated requirement stable. Certificate
-# migration is a manual-install operation, never silently shipped as a compatible build.
-def requirement(binary):
-    result = subprocess.run(['codesign', '-d', '-r-', str(binary)], capture_output=True, text=True, check=True)
-    return next((line for line in (result.stdout + result.stderr).splitlines() if line.startswith('designated =>')), '')
+# Certificate migration is a manual-install operation, never silently shipped as a compatible build.
 for helper in ('DaylightCredentials', 'DaylightAgyCredentials'):
     old = (args.previous_app or final_app) / 'Contents/Resources' / helper
     current = resources / helper

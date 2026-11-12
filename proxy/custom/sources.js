@@ -9,17 +9,19 @@ import {Secrets} from '../shared/secrets.js';
 import {AdaptivePromptCache} from '../shared/adaptive-prompt-cache.js';
 const paths={chat:'chat/completions',responses:'responses',messages:'messages'};
 const secretId=(s,k)=>k.credentialId?`${s.id}:credential:${k.credentialId}`:k.id==='default'?s.id:`${s.id}:key:${k.id}`;
+const headerSecretId=s=>s.headerCredentialId?`${s.id}:headers:${s.headerCredentialId}`:`${s.id}:headers`;
+const migrationRead={interactive:false,timeoutMs:4000};
 const legacyKey=s=>({id:'default',enabled:true,hasKey:!!s.hasKey,models:s.models||[]});
 const normalize=s=>{const keys=s.keys||[legacyKey(s)];return{...s,keys,hasKey:keys.some(k=>k.enabled!==false&&k.hasKey),models:modelUnion(keys)};};
 export class CustomSources {
- constructor({dataDir,fetchImpl=fetch,secrets=new Secrets(),getPort=()=>4319,promptCache=new AdaptivePromptCache({file:path.join(dataDir,'custom-proxy/prompt-cache.json')})}){Object.assign(this,{fetchImpl,secrets,getPort,promptCache});this.file=path.join(dataDir,'custom-proxy/sources.json');this.mutate=serial();this.affinities=new Map();this.cooldowns=new Map();}
+ constructor({dataDir,fetchImpl=fetch,secrets=new Secrets(),legacySecrets,getPort=()=>4319,promptCache=new AdaptivePromptCache({file:path.join(dataDir,'custom-proxy/prompt-cache.json')}),now=Date.now}){Object.assign(this,{fetchImpl,secrets,legacySecrets:legacySecrets??secrets.previous?.(dataDir),getPort,promptCache,now});this.file=path.join(dataDir,'custom-proxy/sources.json');this.mutate=serial();this.affinities=new Map();this.cooldowns=new Map();this.migration=null;}
  async list(){return(await readJson(this.file,[])).map(s=>({...normalize(s),settingFields:customSettingFields}));}
  url(source,endpoint){let u;try{u=new URL(source.baseUrl);}catch{throw invalid('Base URL 无效');}if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)throw invalid('Base URL 需为不含账号、查询参数的 HTTP(S) 地址');
   if(['localhost','127.0.0.1','[::1]','0.0.0.0'].includes(u.hostname)&&[this.getPort(),4318].includes(Number(u.port||80)))throw invalid('上游不能指向 Daylight 自身');
   return u.href.replace(/\/$/,'')+'/'+endpoint.replace(/^\//,'');}
  async save(input,{preview=false,validateOnly=false}={}){return this.mutate(async()=>{
   const list=await this.list(),old=list.find(s=>s.id===input.id);if(input.id&&!old)throw invalid('来源不存在');
-  const s={revision:randomUUID(),id:old?.id||randomUUID(),name:String(input.name||'').trim(),baseUrl:String(input.baseUrl||'').trim().replace(/\/$/,''),protocol:input.protocol,auth:input.auth||'bearer',enabled:input.enabled!==false,hasHeaders:old?.hasHeaders||false,endpoint:input.endpoint||'',modelsEndpoint:input.modelsEndpoint||'models',defaultMaxTokens:input.defaultMaxTokens||undefined};
+  const s={revision:randomUUID(),id:old?.id||randomUUID(),name:String(input.name||'').trim(),baseUrl:String(input.baseUrl||'').trim().replace(/\/$/,''),protocol:input.protocol,auth:input.auth||'bearer',enabled:input.enabled!==false,hasHeaders:old?.hasHeaders||false,...(old?.headerCredentialId?{headerCredentialId:old.headerCredentialId}:{}),endpoint:input.endpoint||'',modelsEndpoint:input.modelsEndpoint||'models',defaultMaxTokens:input.defaultMaxTokens||undefined};
   if(!s.name||s.name.length>100||!paths[s.protocol]||!['bearer','x-api-key','none'].includes(s.auth))throw invalid('来源配置无效');
   if(s.defaultMaxTokens!==undefined&&(!Number.isSafeInteger(s.defaultMaxTokens)||s.defaultMaxTokens<1))throw invalid('默认输出预算需为正整数');
   for(const endpoint of [s.endpoint,s.modelsEndpoint])if(endpoint&&(!/^[a-zA-Z0-9_./-]+$/.test(endpoint)||endpoint.includes('..')))throw invalid('端点路径只能填写相对路径');
@@ -50,14 +52,15 @@ export class CustomSources {
   }
   if(validateOnly)return{source:s};
   if(preview)return{source:s,credentials:pending,extraHeaders:extra,clearHeaders:input.clearHeaders};
-  if(input.clearHeaders){await this.secrets.delete(s.id+':headers');s.hasHeaders=false;}
-  if(extra){await this.secrets.set(s.id+':headers',JSON.stringify(extra));s.hasHeaders=true;}
+  if(input.clearHeaders){await this.secrets.delete(headerSecretId(s));s.hasHeaders=false;delete s.headerCredentialId;}
+  if(extra){await this.secrets.set(headerSecretId(s),JSON.stringify(extra));s.hasHeaders=true;}
   await this.writeCredentials(list,s,pending);
   for(const key of old?.keys||[])if(!seen.has(key.id))await this.secrets.delete(secretId(s,key));
   for(const id of this.cooldowns.keys())if(id.startsWith(s.id+':'))this.cooldowns.delete(id);
   return s;
  });}
- async writeCredentials(list,s,pending){
+ async writeCredentials(list,s,pending,{verify=false,timeoutMs,headerValue}={}){
+  const options=timeoutMs===undefined?undefined:{interactive:false,timeoutMs};
   const old=list.find(x=>x.id===s.id),priorKeys=old?.keys||(old?[legacyKey(old)]:[]),created=[];
   try{
    for(const {key,value,clear} of pending){
@@ -65,8 +68,14 @@ export class CustomSources {
      // Re-entry replaces the storage location, not the Key's identity/access.
      // Keep the old item untouched: even updating/deleting it can require UI.
      if(priorKeys.some(k=>k.id===key.id)){key.credentialId=randomUUID();created.push(secretId(s,key));}
-     await this.secrets.set(secretId(s,key),value);
+     await this.secrets.set(secretId(s,key),value,options);
+     if(verify&&await this.secrets.get(secretId(s,key),options)!==value)throw Object.assign(new Error('凭证迁移读回校验失败'),{code:'EKEYCHAIN_VERIFY'});
     }else if(clear)await this.secrets.delete(secretId(s,key));
+   }
+   if(headerValue!==undefined){
+    const id=headerSecretId(s);created.push(id);
+    await this.secrets.set(id,headerValue,options);
+    if(verify&&await this.secrets.get(id,options)!==headerValue)throw Object.assign(new Error('凭证迁移读回校验失败'),{code:'EKEYCHAIN_VERIFY'});
    }
    await writeJson(this.file,old?list.map(x=>x.id===s.id?s:x):[...list,s]);
   }catch(error){
@@ -74,9 +83,42 @@ export class CustomSources {
    // writeJson may report a permissions failure after publishing the file.
    // Never remove a new entry that the persisted configuration already uses.
    const persisted=await readJson(this.file,null).catch(()=>null);
-   if(persisted){const active=new Set(persisted.flatMap(source=>(source.keys||[]).map(key=>secretId(source,key))));await Promise.allSettled(created.filter(id=>!active.has(id)).map(id=>this.secrets.delete(id)));}
+   if(persisted){const active=new Set(persisted.flatMap(source=>[...(source.keys||[]).map(key=>secretId(source,key)),headerSecretId(source)]));await Promise.allSettled(created.filter(id=>!active.has(id)).map(id=>this.secrets.delete(id)));}
    throw error;
   }
+ }
+ async migrateCredentials(){
+  if(this.migration)return this.migration;
+  const task=this.mutate(async()=>{
+   if(!this.legacySecrets)return{migrated:0,failed:0};
+   const list=await readJson(this.file,[]),started=this.now();let migrated=0,failed=0;
+   const unreadable=async id=>{try{await this.secrets.get(id,migrationRead);return false;}catch(error){return ['EKEYCHAIN_AUTH_FAILED','EKEYCHAIN_INTERACTION_REQUIRED'].includes(error.code);}};
+   for(const old of list){
+    // Startup must leave sources not yet started unchanged for the next launch.
+    if(this.now()-started>=15000)break;
+    const keys=old.keys||[legacyKey(old)],nextKeys=structuredClone(keys),pending=[];
+    for(const key of keys){
+     if(!key.hasKey||!await unreadable(secretId(old,key)))continue;
+     let value;try{value=await this.legacySecrets.get(secretId(old,key),migrationRead);}catch{failed++;continue;}
+     if(value!==undefined)pending.push({key:nextKeys.find(next=>next.id===key.id),value});
+    }
+    let headerValue;
+    if((old.hasHeaders||old.headerCredentialId)&&await unreadable(headerSecretId(old))){
+     try{headerValue=await this.legacySecrets.get(headerSecretId(old),migrationRead);}catch{failed++;}
+    }
+    if(!pending.length&&headerValue===undefined)continue;
+    try{
+     const s={...old,keys:nextKeys,revision:randomUUID()};
+     if(headerValue!==undefined)s.headerCredentialId=randomUUID();
+     await this.writeCredentials(list,s,pending,{verify:true,timeoutMs:migrationRead.timeoutMs,headerValue});
+     const index=list.findIndex(item=>item.id===old.id);if(index>=0)list[index]=s;
+     migrated+=pending.length+(headerValue!==undefined?1:0);
+    }catch{failed+=pending.length+(headerValue!==undefined?1:0);}
+   }
+   return{migrated,failed};
+  });
+  this.migration=task;
+  try{return await task;}finally{if(this.migration===task)this.migration=null;}
  }
  async resaveCredentials(input){return this.mutate(async()=>{
   // Read the stored source verbatim: credential recovery must not normalize,
@@ -96,8 +138,8 @@ export class CustomSources {
   return s;
  });}
  async readKey(id,keyId){const s=(await this.list()).find(s=>s.id===id),key=keyId?s?.keys.find(k=>k.id===keyId):s?.keys[0];if(!key?.hasKey)throw invalid('尚未保存 API Key');const value=await this.secrets.get(secretId(s,key));if(!value)throw invalid('已保存的 API Key 不可用，请重新填写');return value;}
- async remove(id){return this.mutate(async()=>{const list=await this.list(),s=list.find(s=>s.id===id);if(!s)throw invalid('来源不存在');await writeJson(this.file,list.filter(s=>s.id!==id));for(const k of s.keys)await this.secrets.delete(secretId(s,k));await this.secrets.delete(id+':headers');});}
- async headers(s,override={}){const extra=override.extraHeaders??(s.hasHeaders?JSON.parse(await this.secrets.get(s.id+':headers')||'{}'):{});const h={...extra,'Content-Type':'application/json',Accept:'application/json'};
+ async remove(id){return this.mutate(async()=>{const list=await this.list(),s=list.find(s=>s.id===id);if(!s)throw invalid('来源不存在');await writeJson(this.file,list.filter(s=>s.id!==id));for(const k of s.keys)await this.secrets.delete(secretId(s,k));await this.secrets.delete(headerSecretId(s));});}
+ async headers(s,override={}){const extra=override.extraHeaders??(s.hasHeaders?JSON.parse(await this.secrets.get(headerSecretId(s))||'{}'):{});const h={...extra,'Content-Type':'application/json',Accept:'application/json'};
   if(s.auth!=='none'){const selected=override.key||s.keys?.[0]||legacyKey(s),key=override.apiKey||(!override.clearKey&&await this.secrets.get(secretId(s,selected)));if(!key)throw Object.assign(new Error('上游 Key 不可用'),{status:401});h[s.auth==='bearer'?'Authorization':'x-api-key']=s.auth==='bearer'?`Bearer ${key}`:key;}
   if(s.protocol==='messages')h['anthropic-version']='2023-06-01';return h;}
  async discover(input,keyId){const draft=typeof input==='object'?await this.save(input,{preview:true}):null,s=draft?.source||(await this.list()).find(s=>s.id===input);if(!s)throw invalid('来源不存在');

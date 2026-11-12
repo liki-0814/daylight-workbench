@@ -1,13 +1,39 @@
-import {spawn} from 'node:child_process';
+import {spawn,execFile} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {promisify} from 'node:util';
 import fs from 'node:fs';
+import path from 'node:path';
+const execute=promisify(execFile);
+async function verifyHelper(helper,reference){
+ try{
+  await Promise.all([execute('codesign',['--verify','--strict',helper]),execute('codesign',['--verify','--strict',reference])]);
+  const requirement=async file=>{const {stdout,stderr}=await execute('codesign',['-d','-r-',file]);return (stdout+stderr).split('\n').find(line=>line.startsWith('designated =>'));};
+  const [actual,expected]=await Promise.all([requirement(helper),requirement(reference)]);
+  if(!actual||actual!==expected)throw new Error('designated requirement mismatch');
+ }catch(cause){throw Object.assign(new Error('旧版钥匙串组件签名或身份无效'),{code:'EKEYCHAIN_UNAVAILABLE',cause});}
+}
 export class Secrets {
- constructor({spawnImpl=spawn,timeoutMs=30000,killGraceMs=500,helperName='DaylightCredentials',interactiveTimeoutMs=180000}={}){Object.assign(this,{spawnImpl,timeoutMs,killGraceMs,helperName,interactiveTimeoutMs});}
- async run(action,id,value,{interactive=false,signal,timeoutMs}={}){
-  if(signal?.aborted)throw Object.assign(new Error('凭证操作已取消'),{code:'EKEYCHAIN_CANCELLED'});
+ constructor({spawnImpl=spawn,timeoutMs=30000,killGraceMs=500,helperName='DaylightCredentials',interactiveTimeoutMs=180000,helperPath=null,currentHelperPath=null,referenceHelperPath=null,verifyHelper:verify=verifyHelper}={}){Object.assign(this,{spawnImpl,timeoutMs,killGraceMs,helperName,interactiveTimeoutMs,helperPath,currentHelperPath,referenceHelperPath,verifyHelper:verify});}
+ currentHelper(){
+  if(this.currentHelperPath)return this.currentHelperPath;
   const bundled=fileURLToPath(new URL('../../'+this.helperName,import.meta.url));
   const dev=fileURLToPath(new URL('../../dist/native/Daylight.app/Contents/Resources/'+this.helperName,import.meta.url));
-  const helper=fs.existsSync(bundled)?bundled:dev;
+  return fs.existsSync(bundled)?bundled:dev;
+ }
+ previous(dataDir){
+  if(!dataDir)return undefined;
+  const helperPath=path.join(dataDir,'updates/backup/Daylight.app/Contents/Resources',this.helperName);
+  try{const stat=fs.lstatSync(helperPath);if(!stat.isFile()||stat.isSymbolicLink())return undefined;}catch{return undefined;}
+  return new Secrets({spawnImpl:this.spawnImpl,timeoutMs:this.timeoutMs,killGraceMs:this.killGraceMs,helperName:this.helperName,interactiveTimeoutMs:this.interactiveTimeoutMs,helperPath,referenceHelperPath:this.currentHelper(),verifyHelper:this.verifyHelper});
+ }
+ async resolveHelper(){
+  const helper=this.helperPath||this.currentHelper();
+  if(this.referenceHelperPath){try{await (this.verification||=this.verifyHelper(helper,this.referenceHelperPath));}catch(error){this.verification=null;throw error;}}
+  return helper;
+ }
+ async run(action,id,value,{interactive=false,signal,timeoutMs}={}){
+  if(signal?.aborted)throw Object.assign(new Error('凭证操作已取消'),{code:'EKEYCHAIN_CANCELLED'});
+  const helper=await this.resolveHelper();
   return new Promise((resolve,reject)=>{const p=this.spawnImpl(helper,[],{stdio:['pipe','pipe','pipe']});let out='',error='',timedOut=false,killTimer;
    const timer=setTimeout(()=>{timedOut=true;p.kill('SIGTERM');killTimer=setTimeout(()=>p.kill('SIGKILL'),this.killGraceMs);},timeoutMs??(interactive?this.interactiveTimeoutMs:this.timeoutMs));
    const abort=()=>{clearTimeout(timer);clearTimeout(killTimer);p.kill('SIGTERM');killTimer=setTimeout(()=>p.kill('SIGKILL'),this.killGraceMs);};

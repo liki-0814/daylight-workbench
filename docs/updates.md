@@ -42,9 +42,9 @@ Daylight 可以在应用内检查、下载、校验并替换自身。更新只�
 2. 首次打开后，因为签名身份变了，系统会让你**重新授权一次**通知、日历等 TCC 权限，凭据（Keychain 里 Daylight 保存的登录）也会被询问或需要重新登录一次。
 3. 此后所有更新保持同一身份，权限和 Keychain 访问不再重置。
 
-自签名证书不被 Gatekeeper 信任，这是预期的：用户首次从 DMG 安装仍需按系统提示放行；应用内更新不经过 Gatekeeper 流程。凭据辅助程序 `DaylightCredentials`、`DaylightAgyCredentials` 使用固定签名标识和身份。兼容性检查比较 designated requirement，而不是将二进制摘要变化直接视为凭证失效。旧的 ad-hoc 凭证仍可能需要主动重新授权或重新登录。
+自签名证书不被 Gatekeeper 信任，这是预期的：用户首次从 DMG 安装仍需按系统提示放行；应用内更新不经过 Gatekeeper 流程。凭据辅助程序 `DaylightCredentials`、`DaylightAgyCredentials` 使用固定签名标识和身份，但钥匙串 ACL 可能进一步固定 helper CDHash，因此 designated requirement 一致本身不足以证明旧条目可静默读取。正常升级在 Credentials 源码未变化时逐字节复用旧 App 中已验签的 helper；证书或源码变化必须显式迁移。确已更换 helper 时，运行时可使用更新备份中签名身份一致的旧 helper 自动迁移，写入新的会话、Key 或自定义请求头条目，并禁止交互读回后才切换引用。退出、更新的登录、取消或超时不会被旧凭证覆盖。备份也无法读取的更老条目仍需一次主动授权或重新登录。
 
-本地开发与手动打包也必须使用同一固定身份，不能继续默认 ad-hoc。设置 `DAYLIGHT_SIGN_IDENTITY=Daylight Release Code Signing`、`DAYLIGHT_SIGN_KEYCHAIN=$HOME/.daylight-signing/release.keychain-db` 和 `DAYLIGHT_SIGN_KEYCHAIN_PASSWORD_FILE=$HOME/.daylight-signing/keychain-password` 后运行 `npm run pack:mac`。构建在 `dist/native/credential-cache/` 按 Credentials 源码、Swift 工具链及签名证书缓存已签名的辅助程序，避免无意义重编译或重签改变 CDHash。更换源码或工具链可重新生成助手，但必须保持签名访问身份兼容。使用 `--previous-app /path/to/previous/Daylight.app` 显式与前一发布比较；身份不兼容时构建失败，确需手动安装迁移时显式传入 `--allow-credential-migration`。默认正式构建未配置签名身份会失败；隔离开发构建使用 `npm run pack:mac -- --development`，Bundle ID 和 Daylight 凭证服务名与正式版分离。凭证恢复与退出行为见[凭证恢复](credential-recovery.md)。
+本地开发与手动打包也必须使用同一固定身份，不能继续默认 ad-hoc。设置 `DAYLIGHT_SIGN_IDENTITY=Daylight Release Code Signing`、`DAYLIGHT_SIGN_KEYCHAIN=$HOME/.daylight-signing/release.keychain-db` 和 `DAYLIGHT_SIGN_KEYCHAIN_PASSWORD_FILE=$HOME/.daylight-signing/keychain-password` 后运行 `npm run pack:mac`。使用 `--previous-app /path/to/previous/Daylight.app` 时，构建先验证旧 App、证书和对应 tag 的 Credentials 源码；源码未变化则逐字节复用旧 helper，源码或证书需要变化时必须显式传入 `--allow-credential-migration`。正式 DMG 构建检测到 `/Applications/Daylight.app` 时会自动将其作为上一版，其他环境应显式提供 `--previous-app`；无法提供上一版时才按 Credentials 源码、Swift 工具链及签名证书使用 `dist/native/credential-cache/`。默认正式构建未配置签名身份会失败；隔离开发构建使用 `npm run pack:mac -- --development`，Bundle ID 和 Daylight 凭证服务名与正式版分离。凭证恢复与退出行为见[凭证恢复](credential-recovery.md)。
 
 ## 发布流程（维护者）
 

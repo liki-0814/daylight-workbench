@@ -20,13 +20,19 @@ OAuth 来源（Codex、AGY、Grok、Kimi、Copilot）的令牌仍只保存在系
 
 ## 更新与网络
 
-正式助手保留历史签名标识 `DaylightCredentials`、`DaylightAgyCredentials`；发布时比较旧版 designated requirement。编译及签名缓存用于减少重复构建，不替代签名兼容检查。开发版 Daylight 凭证使用独立服务名，默认数据目录为 `~/Library/Application Support/Daylight Development`、管理端口为 4328，且不导入历史正式数据，避免覆盖正式凭证引用。显式设置 `WORKBENCH_DATA_DIR` 和 `PORT` 仍可覆盖默认值。
+钥匙串 ACL 可能固定写入条目的 helper CDHash，仅比较证书或 designated requirement 不足以证明升级兼容。正式升级在 Credentials 源码未变化时逐字节复用旧 App 中已验签的 `DaylightCredentials`、`DaylightAgyCredentials`，证书或源码需要变化时必须显式使用 `--allow-credential-migration`，不能静默发布不兼容 helper。编译及签名缓存只减少重复构建，不替代这些检查。
+
+如果 helper 确已更换，运行时在数据目录的 `updates/backup/Daylight.app` 查找上一版 helper；只有其签名有效且 designated requirement 与当前 helper 完全一致时才允许执行。当前读取遇到 `EKEYCHAIN_AUTH_FAILED` 或 `EKEYCHAIN_INTERACTION_REQUIRED` 时，先用旧 helper 禁止交互读取，再写入新条目并通过当前 helper 禁止交互读回，成功后才原子切换引用。迁移中的钥匙串读取期限不超过 4 秒。自定义来源启动迁移在 15 秒后不再开始新的来源；还没开始的来源保持原文件和原凭证 id，下次启动继续，不标成已迁移。
+
+OAuth 会话、自定义 Key 和额外请求头都按此迁移。请求头使用可选的 `headerCredentialId`：没有该字段时仍读写原来的 `来源 id:headers`；迁移时分配新 id，静默写入并读回成功后才与 `sources.json` 一起原子更新。读回失败保留原来源文件、原 Key id 和原请求头 id，并删除未发布的新项。旧 helper 读取进行时不占用来源或会话的发布锁，因此退出或新登录可以先完成；发布前若当前引用已不再是被迁移的那一项，不覆盖退出墓碑或新登录，已写入但未切换的新项会被清理。调用方取消或超时也不切换当前引用。多个读取可以共享同一次迁移：一个等待者取消或超时不会取消其他仍在进行的读取；只有全部取消或超时才不发布。自定义模型、手动容量、价格、Key 配置和其他未知字段保持不变，迁移不发起模型目录检测或推理。旧 helper 也无法读取的最老条目仍需一次系统授权或重新填写，不能宣称所有历史版本都无需授权。
+
+开发版 Daylight 凭证使用独立服务名，默认数据目录为 `~/Library/Application Support/Daylight Development`、管理端口为 4328，且不导入历史正式数据，避免覆盖正式凭证引用。显式设置 `WORKBENCH_DATA_DIR` 和 `PORT` 仍可覆盖默认值。
 
 原生 sidecar 的出站请求最多每五秒重新读取一次 macOS HTTP/HTTPS 代理配置，显式代理环境变量继续优先。变化后新请求使用新连接池，旧连接池等待已有请求结束；系统查询失败时保留上次配置。不会因网络变化自动重放推理。PAC/SOCKS 自动配置不在本次支持范围内。
 
 ## 验收
 
-`test/credential-repair-state.test.mjs` 覆盖修复状态、连接检查分离及重新登录入口；`test/credential-recovery.test.mjs` 覆盖旧项无法读取、新项保存失败、取消、发布中断、退出后的重启、Codex 重新登录及模型目录失败；`test/secrets.test.mjs` 覆盖交互许可和助手进程取消；`test/proxy-network.test.mjs` 覆盖系统代理切换和不重放请求。
+`test/credential-repair-state.test.mjs` 覆盖修复状态、连接检查分离及重新登录入口；`test/credential-recovery.test.mjs` 覆盖旧项无法读取、新项保存失败、取消、发布中断、退出后的重启、Codex 重新登录及模型目录失败；`test/credential-upgrade.test.mjs` 覆盖旧 helper 静默迁移、请求头轮换、读回失败、退出或新登录先完成、单个等待者取消以及 15 秒后不再开始新来源；`test/secrets.test.mjs` 覆盖交互许可和助手进程取消；`test/proxy-network.test.mjs` 覆盖系统代理切换和不重放请求。
 
 上述测试使用模拟凭证和上游，不读取真实账号。真实旧版升级后的钥匙串 ACL、系统授权窗口和证书轮换，仍需使用签名构建及隔离测试账号在 macOS 上验收，不能用模拟测试宣称通过。
 

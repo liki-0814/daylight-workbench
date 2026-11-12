@@ -48,6 +48,7 @@ export async function createProxyService({ dataDir, fetchImpl = networkFetch, co
   let settings = await readJson(serviceFile, { port: 4319, autoStart: false, apiKey: randomBytes(32).toString('hex') });
   if (!Number.isInteger(settings.port) || settings.port < 1024 || settings.port > 65535 || typeof settings.autoStart !== 'boolean' || !/^[a-f0-9]{64}$/.test(settings.apiKey)) throw new Error('代理配置无效，原文件已保留');
   await writeJson(serviceFile, settings);
+  await custom?.migrateCredentials?.().catch(()=>{});
   await registry.sync();
   records = await RequestRecords.load(usageFile);
   const viewSettings=createViewSettings(path.join(directory,'view.json'));
