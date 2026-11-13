@@ -1,0 +1,94 @@
+/* Caller sets size and color. Presets only fill what the caller does not override. */
+.ui-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--ui-card-column, 200px), 1fr));
+  gap: var(--ui-card-gap, var(--space-4));
+  align-content: start;
+}
+
+.ui-card {
+  --ui-card-min-height: 132px;
+  --ui-card-color: var(--ink);
+  --ui-card-background: var(--paper);
+  --ui-card-mark-color: var(--accent-ink);
+  --ui-card-mark-background: var(--accent-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--ui-card-min-height);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--ui-card-background);
+  color: var(--ui-card-color);
+  text-align: left;
+  user-select: none;
+  touch-action: none;
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1), background-color 480ms cubic-bezier(0.22, 1, 0.36, 1), border-color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ui-card[data-size="small"] { --ui-card-min-height: 96px; padding: var(--space-3); }
+.ui-card[data-size="large"] { --ui-card-min-height: 168px; }
+
+.ui-card.is-muted {
+  --ui-card-color: var(--muted);
+  --ui-card-background: var(--soft);
+  --ui-card-mark-color: var(--muted);
+}
+
+.ui-card-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  background: var(--ui-card-mark-background);
+  color: var(--ui-card-mark-color);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
+  font-weight: 650;
+}
+
+.ui-card[data-size="small"] .ui-card-mark { width: 24px; height: 24px; }
+
+.ui-card-title {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  font-size: var(--font-section-size);
+  line-height: var(--font-section-line);
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-card-meta {
+  display: block;
+  margin-top: auto;
+  color: var(--muted);
+  font-size: var(--font-caption-size);
+  line-height: var(--font-caption-line);
+}
+
+.ui-card-mark[hidden],
+.ui-card-meta[hidden] { display: none; }
+
+.ui-card.is-lifted {
+  z-index: 6;
+  box-shadow: var(--shadow-overlay);
+  pointer-events: none;
+}
+
+.ui-card-placeholder {
+  min-height: var(--ui-card-min-height, 132px);
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-panel);
+  background: var(--soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-card { transition: none; }
+}

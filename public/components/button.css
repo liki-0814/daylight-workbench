@@ -66,8 +66,7 @@ button:disabled, [role="button"][aria-disabled="true"] { cursor: default; opacit
 .small-button.selected { background: var(--selection-background); color: var(--accent); }
 .dialog-footer :is(.ui-button,.text-button,.danger-link) { min-height:var(--button-height); }
 
-/* Navigation, form selection and toggles retain their semantic variants. */
-.proxy-tabs > button { min-height: var(--compact-button-height); padding: var(--compact-button-padding-block) var(--compact-button-padding-inline); border-radius: var(--button-radius); }
+/* Form selection and toggles retain their semantic variants. */
 .select-trigger { font-size: var(--font-control-size); line-height: var(--font-control-line); border-radius: var(--button-radius); }
 .select-compact .select-trigger { font-size: var(--font-compact-size); line-height: var(--font-compact-line); }
 .ai-send > svg { width: var(--button-icon-size); height: var(--button-icon-size); }

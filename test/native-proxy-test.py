@@ -87,7 +87,7 @@ with tempfile.TemporaryDirectory(prefix='daylight-native-proxy-') as tmp:
         assert request('/api/proxy/status')[1]['state'] == 'running'
         assert (directory / 'qoder/service.json').read_bytes() == before_settings
         assert request('/api/proxy/view', {'version': 0, 'hiddenSources': []})[0] == 409
-        assert request('/proxy/source-navigation.js')[0] == 200
+        assert request('/components/card.js')[0] == 200
         assert request('/api/qoder/runtime', {'nodePath': '/missing/node'})[0] == 409
         key = request('/api/qoder/key')[1]['apiKey']
         req = urllib.request.Request(f'http://127.0.0.1:{proxy_port}/v1/chat/completions', data=json.dumps({'model': 'test-model', 'messages': [{'role': 'user', 'content': 'hi'}], 'stream': True}).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})

@@ -6,7 +6,6 @@ import path from 'node:path';
 import {fixture} from '../fixtures/copilot/upstream.mjs';
 import {accountFixture} from '../fixtures/standalone-accounts/upstream.mjs';
 import {proxySources,proxySourceTabs,piSourceTypes,proxySourceNames} from '../core/proxy-sources.js';
-import {proxyTabs} from '../public/proxy/source-navigation.js';
 import {createManagement} from '../proxy/management.js';
 
 for(const id of ['copilot','kimi','grok','codex'])test(id+' relogin starts a fresh catalog without waiting for previous login requests',async t=>{
@@ -24,12 +23,11 @@ for(const id of ['copilot','kimi','grok','codex'])test(id+' relogin starts a fre
  assert.equal(f.p.snapshot().connected,true,'late old failure must not overwrite the new account status');
 });
 
-test('source navigation and Pi filters share all source IDs while keeping labels and ordering',()=>{
+test('Pi filters share all source IDs while keeping labels and ordering',()=>{
  const expected=proxySources.map(s=>s.id).sort();
- assert.deepEqual(proxyTabs.filter(s=>s.kind!=='utility').map(s=>s.id).sort(),expected);
  assert.deepEqual(piSourceTypes.filter(s=>s.id!=='all').map(s=>s.id).sort(),expected);
  assert.equal(proxySourceNames.copilot,'GitHub Copilot');assert.equal(proxySourceTabs.find(s=>s.id==='copilot').name,'Copilot');
- assert.equal(proxyTabs[0].id,'qoder');assert.equal(piSourceTypes[1].id,'codex');
+ assert.equal(piSourceTypes[1].id,'codex');
 });
 test('reading and renewing a pre-refactor Copilot login preserves its exact Keychain record',async t=>{
  const dataDir=await mkdtemp(path.join(os.tmpdir(),'daylight-legacy-copilot-')),f=fixture({dataDir,loggedIn:true});t.after(async()=>{f.p.close();await rm(dataDir,{recursive:true,force:true});});

@@ -7,7 +7,8 @@ const template=`<div class="workspace proxy-common"><section class="proxy-panel"
           <div class="proxy-service-actions"><label class="proxy-autostart"><input id="service-autostart" type="checkbox">随 Daylight 启动</label><button id="service-switch" class="proxy-switch" type="button" role="switch" aria-checked="false" aria-label="开启代理" disabled><span></span></button></div>
         </div>
         <div id="service-error" class="proxy-error" role="alert" hidden></div>
-</section>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',appearance:'panel',content:`
+</section>
+<div class="proxy-tools">${[['custom','新增上游'],['routes','模型路由'],['quota','账户额度'],['statistics','使用统计']].map(([id,label])=>actionButton({variant:'secondary',label,attrs:{'data-open-page':id,'aria-pressed':false}})).join('')}</div>${disclosureSection({id:'proxy-connect-details',className:'proxy-disclosure proxy-connect',title:'接入配置',appearance:'panel',content:`
         <div class="ui-form-row"><span class="proxy-caption">客户端协议</span><div id="protocol-control" class="proxy-protocol"></div></div>
         <div class="ui-form-row"><label class="proxy-caption" for="base-url">Base URL</label>
         <div class="proxy-copy"><input id="base-url" readonly value="正在读取…" spellcheck="false">${actionButton({label:'复制',className:'small-button',attrs:{id:'copy-url',disabled:true}})}</div></div>
@@ -28,9 +29,10 @@ const settingsTemplate=`${sectionHeading({title:'反向代理',description:'全�
         <div id="settings-actions" class="proxy-section-title" hidden><button id="save-settings" class="secondary" type="submit">保存设置</button><button id="rotate-key" class="danger-link" type="button">更换 API Key</button></div><p id="settings-result" class="proxy-hint" role="status"></p>
       </form>`;
 
-export function createServicePanel({store,getExampleModel}){
+export function createServicePanel({store,getExampleModel,onOpenPage}){
  const root=document.createElement('div');root.innerHTML=template;
- const element=root.firstElementChild,settingsElement=document.createElement('section');settingsElement.className='settings-panel proxy-global-settings';settingsElement.setAttribute('aria-label','反向代理');settingsElement.innerHTML=settingsTemplate;
+ const element=root.firstElementChild,settingsElement=document.createElement('section');
+ for (const button of element.querySelectorAll('[data-open-page]')) button.addEventListener('click', () => onOpenPage?.(button.dataset.openPage));settingsElement.className='settings-panel proxy-global-settings';settingsElement.setAttribute('aria-label','反向代理');settingsElement.innerHTML=settingsTemplate;
  mountDisclosures(element);
  const nodes=new Map([...root.querySelectorAll('[id]'),...settingsElement.querySelectorAll('[id]')].map(n=>[n.id,n]));const $=id=>nodes.get(id);
  $('protocol-control').innerHTML=selectField({id:'protocol',name:'protocol',label:'客户端协议',value:'chat',hideLabel:true,options:[{value:'chat',label:'Chat Completions'},{value:'responses',label:'Responses'},{value:'messages',label:'Anthropic Messages'}]});nodes.set('protocol',$('protocol-control').querySelector('#protocol'));

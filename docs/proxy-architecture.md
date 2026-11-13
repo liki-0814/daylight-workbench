@@ -243,7 +243,7 @@ Custom 的 `models.js` 声明草稿可编辑字段，通过 sources 的公开配
 重命名资源时同步检查 server.mjs 和 native/Server.swift 静态允许列表、native/Proxy.swift 管理转发、scripts/check-proxy.mjs、构建依赖图与动态入口。安装包继续裁剪不可达模块，保留许可证；SDK 对话适配与纯模型 API 中转分别验证。
 
 
-来源基础信息统一在 `core/proxy-sources.js` 定义，代理标签、Pi 来源筛选及后端来源名称从中生成；各页面保留原有排序和简短标签。来源显示使用 `public/proxy/source-navigation.js` 的统一标签注册，所有来源共用选择、可见页面回退与键盘顺序。统一 `GET/POST /api/proxy/view` 通过 `shared/view-settings.js` 原子保存 `qoder/view.json`，带版本校验拒绝其他窗口的过期覆盖，不改变运行设置或路由，不以账号连接状态自动隐藏来源。首次读取前隐藏标签栏，读取失败保留已有显示并提供重试，损坏配置保留原文件。Node 与桌面 helper 共用同一管理入口和页面资产。
+来源基础信息统一在 `core/proxy-sources.js` 定义，来源卡片、Pi 来源筛选及后端来源名称从中生成。反向代理页用 `public/components/card.js` 渲染来源和模型卡片；每个自定义上游单独一张卡。统一 `GET/POST /api/proxy/view` 仍通过 `shared/view-settings.js` 原子保存 `qoder/view.json`，带版本校验拒绝其他窗口的过期覆盖，不改变运行设置或路由。Node 与桌面 helper 共用同一管理入口和页面资产。
 
 ### 公共账号认证与页面
 

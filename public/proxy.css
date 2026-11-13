@@ -501,40 +501,44 @@
 .proxy-heading .page-heading {
   margin-bottom:var(--space-2);
 }
-
-.proxy-tabs {
-  min-width:0;
-  overflow-x:auto;
-  flex-wrap:nowrap;
-  padding-bottom:var(--space-1);
-  overscroll-behavior-inline:contain;
-}
-.proxy-tabs::after {
-  content:'';
-  position:sticky;
-  right:0;
-  align-self:stretch;
-  flex:0 0 var(--space-4);
-  margin-left:calc(-1 * var(--space-4));
-  background:linear-gradient(to right,transparent,var(--soft));
-  pointer-events:none;
-}
-
-.proxy-navigation-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.proxy-navigation-row .proxy-tabs { flex:1; min-width:0; flex-wrap:nowrap; border-bottom:1px solid var(--line); }
-.proxy-navigation-row > button { flex: 0 0 auto; }
-.proxy-source-choices {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
+.proxy-heading .proxy-panel {
+  background: transparent;
   border: 0;
-  padding: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.proxy-heading .proxy-service { padding: 0; }
+.proxy-card-board .ui-card-grid { --ui-card-column: 220px; }
+.proxy-heading .page-heading > .ui-button { grid-column: 2; grid-row: 1; align-self: center; }
+
+.proxy-card-board {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--workbench-background);
+}
+.proxy-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
   margin: 0;
 }
+.proxy-tools .ui-button[aria-pressed="true"] {
+  background: var(--selection-background);
+  border-color: var(--accent-border);
+}
+.proxy-card-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--compact-button-height);
+}
+.proxy-card-toolbar:not(:has([data-back]:not([hidden]))) { display: none; }
 
 .proxy-provider-page .proxy-workspace {
   padding-top:var(--section-gap);
@@ -1324,14 +1328,10 @@
 }
 
 
-.proxy-navigation > .proxy-hint:not(.sr-only):not([hidden]) { margin-top:var(--space-4); }
 .proxy-account .proxy-caption { font-size:var(--font-body-size); }
 .proxy-page .ui-section-actions .ui-refresh-button { min-height:var(--button-height); }
 .proxy-page .proxy-account-actions .ui-button { min-height:var(--button-height); }
 @media(max-width:650px) {
-  .proxy-navigation-row { flex-wrap:wrap; gap:var(--space-3); }
-  .proxy-navigation-row .proxy-tabs { flex-basis:100%; }
-  .proxy-navigation-row > button { margin-left:auto; }
   .proxy-account-info { flex-basis:100%; }
   .proxy-account-actions { margin-left:var(--disclosure-marker-width); justify-content:flex-start; }
 }
